@@ -266,6 +266,11 @@ stdenv.mkDerivation (inheritedEnvironmentVariables // rec {
       patchShebangs \
         third-party/proxygen/bundled_proxygen-prefix/src/bundled_proxygen
     '';
+  
+  postBuild =
+    ''
+      "$CMAKE_C_COMPILER_LAUNCHER" -s
+    ''
 
   doCheck = true;
 
