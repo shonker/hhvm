@@ -260,6 +260,8 @@ stdenv.mkDerivation (inheritedEnvironmentVariables // rec {
   preBuild =
     ''
       set -e
+      "$CMAKE_CXX_COMPILER_LAUNCHER" -s
+      false
       make \
         -f third-party/proxygen/CMakeFiles/bundled_proxygen.dir/build.make \
         third-party/proxygen/bundled_proxygen-prefix/src/bundled_proxygen-stamp/bundled_proxygen-patch
