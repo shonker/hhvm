@@ -270,7 +270,7 @@ stdenv.mkDerivation (inheritedEnvironmentVariables // rec {
   postBuild =
     ''
       "$CMAKE_C_COMPILER_LAUNCHER" -s
-    ''
+    '';
 
   doCheck = true;
 
