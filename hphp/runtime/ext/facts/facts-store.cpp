@@ -32,6 +32,7 @@
 
 #include "hphp/runtime/base/array-init.h"
 #include "hphp/runtime/base/array-iterator.h"
+#include "hphp/runtime/base/request-info.h"
 #include "hphp/runtime/base/request-injection-data.h"
 #include "hphp/runtime/base/sandbox-events.h"
 #include "hphp/runtime/base/type-array.h"
@@ -73,29 +74,11 @@ Optional<fs::path> resolvePathRelativeToRoot(
     const fs::path& root) {
   if (path.is_relative())
     return path;
+  // TODO: for snapshot semantics, this should not access the filesystem.
   if (!fs::exists(path))
     return std::nullopt;
   return fs::relative(path, root);
 }
-
-/**
- * Cancel the request timeout when created, restart the request timeout when
- * destroyed.
- */
-struct TimeoutSuspender {
-  TimeoutSuspender() : m_timeoutSeconds{RID().getTimeout()} {
-    RID().setTimeout(0);
-  }
-  ~TimeoutSuspender() {
-    RID().setTimeout(m_timeoutSeconds);
-  }
-  int m_timeoutSeconds{0};
-
-  TimeoutSuspender(const TimeoutSuspender&) = delete;
-  TimeoutSuspender& operator=(const TimeoutSuspender&) = delete;
-  TimeoutSuspender(TimeoutSuspender&&) = delete;
-  TimeoutSuspender& operator=(TimeoutSuspender&&) = delete;
-};
 
 constexpr std::string_view kKindFilterKey{"kind"};
 constexpr std::string_view kDeriveKindFilterKey{"derive_kind"};
@@ -475,6 +458,7 @@ Array makeVecOfDynamicDynamic(std::vector<FileAttrVal>& vector) {
 struct FactsStoreImpl final
     : public FactsStore,
       public std::enable_shared_from_this<FactsStoreImpl> {
+  // when the filesystem can change, set up with a watcher
   FactsStoreImpl(
       fs::path root,
       AutoloadDB::Opener dbOpener,
@@ -490,11 +474,13 @@ struct FactsStoreImpl final
             std::move(dbOpener),
             std::move(indexedMethodAttributes),
             Cfg::Autoload::DBEnableBlockingDbWait,
+            Cfg::Autoload::DBUseSymbolMapForGetFilesWithAttributeAndAnyVal,
             std::chrono::milliseconds(Cfg::Autoload::DBBlockingDbWaitTimeoutMs),
         },
         m_watcher{std::move(watcher)},
         m_suppressionFilePath{std::move(suppressionFilePath)} {}
 
+  // when the filesystem is readonly and we have a trusted db
   FactsStoreImpl(
       fs::path root,
       AutoloadDB::Opener dbOpener,
@@ -505,6 +491,7 @@ struct FactsStoreImpl final
             std::move(dbOpener),
             std::move(indexedMethodAttributes),
             Cfg::Autoload::DBEnableBlockingDbWait,
+            Cfg::Autoload::DBUseSymbolMapForGetFilesWithAttributeAndAnyVal,
             std::chrono::milliseconds(
                 Cfg::Autoload::DBBlockingDbWaitTimeoutMs)} {}
 
@@ -545,6 +532,10 @@ struct FactsStoreImpl final
   Clock getClock() const {
     auto clock = m_symbolMap.getClock();
     return clock.isInitial() ? m_symbolMap.dbClock() : clock;
+  }
+
+  void validate(const std::set<std::string>& types_to_ignore) override {
+    m_symbolMap.validate(types_to_ignore);
   }
 
   /**
@@ -603,8 +594,23 @@ struct FactsStoreImpl final
         });
   }
 
+  Optional<AutoloadMap::FileResult> getTypeOrTypeAliasFileRelative(
+      const String& type) override {
+    return getSymbolFileRelative<SymKind::Type>(
+        type, [](SymbolMap& m, Symbol<SymKind::Type> s) {
+          return m.getTypeOrTypeAliasFile(s);
+        });
+  }
+
   Optional<AutoloadMap::FileResult> getTypeFile(const String& type) override {
     return getSymbolFile<SymKind::Type>(
+        type,
+        [](SymbolMap& m, Symbol<SymKind::Type> s) { return m.getTypeFile(s); });
+  }
+
+  Optional<AutoloadMap::FileResult> getTypeFileRelative(
+      const String& type) override {
+    return getSymbolFileRelative<SymKind::Type>(
         type,
         [](SymbolMap& m, Symbol<SymKind::Type> s) { return m.getTypeFile(s); });
   }
@@ -612,6 +618,14 @@ struct FactsStoreImpl final
   Optional<AutoloadMap::FileResult> getFunctionFile(
       const String& function) override {
     return getSymbolFile<SymKind::Function>(
+        function, [](SymbolMap& m, Symbol<SymKind::Function> s) {
+          return m.getFunctionFile(s);
+        });
+  }
+
+  Optional<AutoloadMap::FileResult> getFunctionFileRelative(
+      const String& function) override {
+    return getSymbolFileRelative<SymKind::Function>(
         function, [](SymbolMap& m, Symbol<SymKind::Function> s) {
           return m.getFunctionFile(s);
         });
@@ -625,9 +639,25 @@ struct FactsStoreImpl final
         });
   }
 
+  Optional<AutoloadMap::FileResult> getConstantFileRelative(
+      const String& constant) override {
+    return getSymbolFileRelative<SymKind::Constant>(
+        constant, [](SymbolMap& m, Symbol<SymKind::Constant> s) {
+          return m.getConstantFile(s);
+        });
+  }
+
   Optional<AutoloadMap::FileResult> getTypeAliasFile(
       const String& typeAlias) override {
     return getSymbolFile<SymKind::Type>(
+        typeAlias, [](SymbolMap& m, Symbol<SymKind::Type> s) {
+          return m.getTypeAliasFile(s);
+        });
+  }
+
+  Optional<AutoloadMap::FileResult> getTypeAliasFileRelative(
+      const String& typeAlias) override {
+    return getSymbolFileRelative<SymKind::Type>(
         typeAlias, [](SymbolMap& m, Symbol<SymKind::Type> s) {
           return m.getTypeAliasFile(s);
         });
@@ -641,8 +671,24 @@ struct FactsStoreImpl final
         });
   }
 
+  Optional<AutoloadMap::FileResult> getModuleFileRelative(
+      const String& module) override {
+    return getSymbolFileRelative<SymKind::Module>(
+        module, [](SymbolMap& m, Symbol<SymKind::Module> s) {
+          return m.getModuleFile(s);
+        });
+  }
+
   Optional<fs::path> getTypeOrTypeAliasFile(std::string_view type) override {
     return getSymbolFile<SymKind::Type>(
+        type, [](SymbolMap& m, Symbol<SymKind::Type> s) {
+          return m.getTypeOrTypeAliasFile(s);
+        });
+  }
+
+  Optional<fs::path> getTypeOrTypeAliasFileRelative(
+      std::string_view type) override {
+    return getSymbolFileRelative<SymKind::Type>(
         type, [](SymbolMap& m, Symbol<SymKind::Type> s) {
           return m.getTypeOrTypeAliasFile(s);
         });
@@ -654,8 +700,21 @@ struct FactsStoreImpl final
         [](SymbolMap& m, Symbol<SymKind::Type> s) { return m.getTypeFile(s); });
   }
 
+  Optional<fs::path> getTypeFileRelative(std::string_view type) override {
+    return getSymbolFileRelative<SymKind::Type>(
+        type,
+        [](SymbolMap& m, Symbol<SymKind::Type> s) { return m.getTypeFile(s); });
+  }
+
   Optional<fs::path> getFunctionFile(std::string_view func) override {
     return getSymbolFile<SymKind::Function>(
+        func, [](SymbolMap& m, Symbol<SymKind::Function> s) {
+          return m.getFunctionFile(s);
+        });
+  }
+
+  Optional<fs::path> getFunctionFileRelative(std::string_view func) override {
+    return getSymbolFileRelative<SymKind::Function>(
         func, [](SymbolMap& m, Symbol<SymKind::Function> s) {
           return m.getFunctionFile(s);
         });
@@ -668,6 +727,13 @@ struct FactsStoreImpl final
         });
   }
 
+  Optional<fs::path> getConstantFileRelative(std::string_view name) override {
+    return getSymbolFileRelative<SymKind::Constant>(
+        name, [](SymbolMap& m, Symbol<SymKind::Constant> s) {
+          return m.getConstantFile(s);
+        });
+  }
+
   Optional<fs::path> getTypeAliasFile(std::string_view name) override {
     return getSymbolFile<SymKind::Type>(
         name, [](SymbolMap& m, Symbol<SymKind::Type> s) {
@@ -675,8 +741,22 @@ struct FactsStoreImpl final
         });
   }
 
+  Optional<fs::path> getTypeAliasFileRelative(std::string_view name) override {
+    return getSymbolFileRelative<SymKind::Type>(
+        name, [](SymbolMap& m, Symbol<SymKind::Type> s) {
+          return m.getTypeAliasFile(s);
+        });
+  }
+
   Optional<fs::path> getModuleFile(std::string_view name) override {
     return getSymbolFile<SymKind::Module>(
+        name, [](SymbolMap& m, Symbol<SymKind::Module> s) {
+          return m.getModuleFile(s);
+        });
+  }
+
+  Optional<fs::path> getModuleFileRelative(std::string_view name) override {
+    return getSymbolFileRelative<SymKind::Module>(
         name, [](SymbolMap& m, Symbol<SymKind::Module> s) {
           return m.getModuleFile(s);
         });
@@ -1268,6 +1348,28 @@ struct FactsStoreImpl final
     fs::path p{fileStr->toCppString()};
     assertx(p.is_relative());
     return m_root / p;
+  }
+
+  template <SymKind K, class T>
+  Optional<AutoloadMap::FileResult> getSymbolFileRelative(
+      const String& symbol,
+      T lambda) {
+    auto path =
+        getSymbolFileRelative<K>(std::string_view{symbol.slice()}, lambda);
+    if (UNLIKELY(!path)) {
+      return {};
+    }
+    return AutoloadMap::FileResult(String{path->native()});
+  }
+
+  template <SymKind K, class T>
+  Optional<fs::path> getSymbolFileRelative(std::string_view symbol, T lambda) {
+    const StringData* fileStr = lambda(m_symbolMap, Symbol<K>{symbol}).get();
+    if (UNLIKELY(!fileStr))
+      return std::nullopt;
+    fs::path p{fileStr->toCppString()};
+    assertx(p.is_relative());
+    return p;
   }
 
   /**

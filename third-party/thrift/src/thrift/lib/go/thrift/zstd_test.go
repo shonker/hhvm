@@ -18,14 +18,14 @@ package thrift
 
 import (
 	"bytes"
-	"io/ioutil"
+	"io"
 	"testing"
 )
 
 func TestHeaderZstd(t *testing.T) {
 	n := 1
-	tmb := NewMemoryBuffer()
-	trans := NewHeaderTransport(tmb)
+	tmb := newMockSocket()
+	trans := newHeaderTransport(tmb)
 	data := []byte("ASDFASDFASDFASDFASDFASDFASDFASDFASDFASDFASDFASDFASDFASDFASDF")
 	uncompressedlen := 30
 
@@ -53,7 +53,7 @@ func TestHeaderZstd(t *testing.T) {
 		t.Fatalf("failed to reset proto for frame %d: %s", n, err)
 	}
 
-	frame, err := ioutil.ReadAll(trans)
+	frame, err := io.ReadAll(trans)
 	if err != nil {
 		t.Fatalf("failed to read frame %d: %s", n, err)
 	}

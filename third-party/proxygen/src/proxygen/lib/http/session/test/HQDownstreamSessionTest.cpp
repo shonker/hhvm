@@ -330,6 +330,25 @@ TEST_P(HQDownstreamSessionTest, PriorityUpdateIntoTransport) {
   hqSession_->closeWhenIdle();
 }
 
+TEST_P(HQDownstreamSessionTest, DisableEgressPrioritization) {
+  hqSession_->setEnableEgressPrioritization(false);
+  auto request = getProgressiveGetRequest();
+  sendRequest(request);
+  auto handler = addSimpleStrictHandler();
+  handler->expectHeaders(
+      [&]() { handler->txn_->updateAndSendPriority(HTTPPriority(2, false)); });
+  handler->expectEOM([&]() {
+    auto resp = makeResponse(200, 0);
+    std::get<0>(resp)->getHeaders().add(HTTP_HEADER_PRIORITY, "u=2");
+    handler->sendRequest(*std::get<0>(resp));
+  });
+
+  EXPECT_CALL(*socketDriver_->getSocket(), setStreamPriority(_, _)).Times(0);
+  handler->expectDetachTransaction();
+  flushRequestsAndLoop();
+  hqSession_->closeWhenIdle();
+}
+
 TEST_P(HQDownstreamSessionTest, ReplyResponsePriority) {
   auto request = getProgressiveGetRequest();
   sendRequest(request);
@@ -1609,14 +1628,16 @@ TEST_P(HQDownstreamSessionTest, Observer_RequestStarted) {
 
   EXPECT_CALL(*observerUnsubscribed, requestStarted(_, _)).Times(0);
 
+  HTTPTransactionObserverAccessor* actualTxnObserverAccessor;
   // Add a request started event to the observer
   EXPECT_CALL(*observerSubscribed, requestStarted(_, _))
       .WillOnce(Invoke(
-          [](HTTPSessionObserverAccessor*,
-             const proxygen::HTTPSessionObserverInterface::RequestStartedEvent&
-                 event) {
-            auto hdrs = event.requestHeaders;
-            EXPECT_EQ(hdrs.getSingleOrEmpty("x-meta-test-header"), "abc123");
+          [&](HTTPSessionObserverAccessor*,
+              const HTTPSessionObserverInterface::RequestStartedEvent& event) {
+            EXPECT_EQ(event.request.getHeaders().getSingleOrEmpty(
+                          "x-meta-test-header"),
+                      "abc123");
+            actualTxnObserverAccessor = event.txnObserverAccessor;
           }));
   auto handler = addSimpleStrictHandler();
   handler->expectHeaders();
@@ -1632,8 +1653,8 @@ TEST_P(HQDownstreamSessionTest, Observer_RequestStarted) {
   HTTPMessage req = getGetRequest();
   req.getHeaders().add("x-meta-test-header", "abc123");
   sendRequest(req);
-
   flushRequestsAndLoop(true, milliseconds(0));
+  EXPECT_EQ(actualTxnObserverAccessor, handler->txn_->getObserverAccessor());
   hqSession_->closeWhenIdle();
 }
 

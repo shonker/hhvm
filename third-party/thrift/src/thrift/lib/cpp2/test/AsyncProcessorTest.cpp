@@ -29,7 +29,6 @@
 #include <thrift/lib/cpp2/async/HTTPClientChannel.h>
 #include <thrift/lib/cpp2/async/HeaderClientChannel.h>
 #include <thrift/lib/cpp2/async/RocketClientChannel.h>
-#include <thrift/lib/cpp2/server/BaseThriftServer.h>
 #include <thrift/lib/cpp2/server/Cpp2ConnContext.h>
 #include <thrift/lib/cpp2/server/Cpp2Worker.h>
 #include <thrift/lib/cpp2/server/MonitoringServerInterface.h>
@@ -87,6 +86,25 @@ std::unique_ptr<HTTP2RoutingHandler> createHTTP2RoutingHandler(
 
 } // namespace
 
+TEST(AsyncProcessorMetadataTest, MethodMetadataDescribe) {
+  apache::thrift::ServiceHandler<Parent> service;
+  auto createMethodMetadataResult = service.createMethodMetadata();
+  auto desc = AsyncProcessorFactory::describe(createMethodMetadataResult);
+
+  auto beg = "CreateMethodMetadataResult(MethodMetadataMap(";
+  auto par1 =
+      "parentMethod1=MethodMetadata(executorType=ANY interactionType=NONE rpcKind=SINGLE_REQUEST_SINGLE_RESPONSE priority=NORMAL interactionName=NONE createsInteraction=false isWildcard=false)";
+  auto par2 =
+      "parentMethod2=MethodMetadata(executorType=ANY interactionType=NONE rpcKind=SINGLE_REQUEST_STREAMING_RESPONSE priority=NORMAL interactionName=NONE createsInteraction=false isWildcard=false)";
+  auto par3 =
+      "parentMethod3=MethodMetadata(executorType=ANY interactionType=NONE rpcKind=SINGLE_REQUEST_SINGLE_RESPONSE priority=NORMAL interactionName=NONE createsInteraction=false isWildcard=false)";
+
+  EXPECT_THAT(desc, ::testing::StartsWith(beg));
+  EXPECT_THAT(desc, ::testing::HasSubstr(par1));
+  EXPECT_THAT(desc, ::testing::HasSubstr(par2));
+  EXPECT_THAT(desc, ::testing::HasSubstr(par3));
+}
+
 TEST(AsyncProcessorMetadataTest, ParentMetadata) {
   apache::thrift::ServiceHandler<Parent> service;
   auto createMethodMetadataResult = service.createMethodMetadata();
@@ -97,19 +115,6 @@ TEST(AsyncProcessorMetadataTest, ParentMetadata) {
   EXPECT_NE(metadataMap.find("parentMethod2"), metadataMap.end());
   EXPECT_NE(metadataMap.find("parentMethod3"), metadataMap.end());
 }
-
-#if defined(THRIFT_SCHEMA_AVAILABLE)
-TEST(AsyncProcessorMetadataTest, Schema) {
-  apache::thrift::ServiceHandler<SchemaService> service;
-  auto schemas = service.getServiceMetadataV1();
-  EXPECT_TRUE(schemas);
-  EXPECT_EQ(schemas->size(), 1);
-  auto schema = schemas->at(0);
-  EXPECT_EQ(schema.definitions()->size(), 1);
-  auto svc_schema_0 = schema.definitions()->at(0).get_serviceDef();
-  EXPECT_EQ(svc_schema_0.functions()->size(), 1);
-}
-#endif
 
 TEST(AsyncProcessorMetadataTest, ChildMetadata) {
   ChildHandler service;
@@ -154,8 +159,7 @@ class AsyncProcessorMethodResolutionTestP
     auto runner = std::make_unique<ScopedServerInterfaceThread>(
         std::move(service), std::move(configureServer));
     if (transportType() == TransportType::HTTP2) {
-      auto& thriftServer =
-          dynamic_cast<ThriftServer&>(runner->getThriftServer());
+      auto& thriftServer = runner->getThriftServer();
       thriftServer.addRoutingHandler(createHTTP2RoutingHandler(thriftServer));
     }
     return runner;
@@ -364,7 +368,7 @@ TEST_P(
   class Status : public apache::thrift::ServiceHandler<DummyStatus>,
                  public StatusServerInterface {
     void async_eb_getStatus(
-        std::unique_ptr<HandlerCallback<std::int64_t>> callback) override {
+        HandlerCallbackPtr<std::int64_t> callback) override {
       callback->result(360);
     }
   };
@@ -443,7 +447,7 @@ TEST_P(
   class Status : public apache::thrift::ServiceHandler<DummyStatus>,
                  public StatusServerInterface {
     void async_eb_getStatus(
-        std::unique_ptr<HandlerCallback<std::int64_t>> callback) override {
+        HandlerCallbackPtr<std::int64_t> callback) override {
       callback->result(360);
     }
   };
@@ -576,7 +580,6 @@ THRIFT_PLUGGABLE_FUNC_SET(
             *processorFactory,
             std::make_shared<concurrency::ThreadManagerExecutorAdapter>(
                 folly::getGlobalCPUExecutor()),
-            server_,
             nullptr /* requestsRegistry */
         };
       }

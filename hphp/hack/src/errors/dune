@@ -14,6 +14,16 @@
 )
 
 (library
+ (name warnings_saved_state)
+ (wrapped false)
+ (modules
+  warnings_saved_state)
+ (libraries)
+ (preprocess
+   (pps
+    ppx_deriving.std)))
+
+(library
   (name user_error)
   (wrapped false)
   (preprocess
@@ -57,6 +67,24 @@
   utils_exit
   utils_multifile))
 
+
+(library
+ (name classish_positions_cli_lib)
+ (wrapped true)
+ (modules classish_positions_cli_lib)
+ (libraries
+  full_fidelity
+  file_provider
+  lsp
+  pos
+  provider_context
+  provider_utils
+  ide_diagnostics
+  utils_core)
+ (preprocess
+  (pps lwt_ppx ppx_deriving.std)))
+
+
 (library
  (name errors)
  (wrapped false)
@@ -68,10 +96,12 @@
    contextual_error_formatter
    error_category
    errors
+   extended_error_formatter
    highlighted_error_formatter
    phase_error
    raw_error_formatter
    error_message_sentinel)
+ (foreign_archives errors_ffi)
  (libraries
   core_kernel
   classish_positions
@@ -85,8 +115,23 @@
   utils_exit
   utils_multifile
   user_error
+  warnings_saved_state
   (select
    error_message_sentinel.ml
    from
    (facebook -> error_message_sentinel.fb.ml)
    (-> error_message_sentinel.stubs.ml))))
+
+(library
+ (name errors_ffi)
+ (modules)
+ (wrapped false)
+ (foreign_archives errors_ffi))
+
+(rule
+ (targets liberrors_ffi.a)
+ (deps
+  (source_tree %{workspace_root}/hack/src))
+ (locks /cargo)
+ (action
+  (run %{workspace_root}/hack/scripts/invoke_cargo.sh errors_ffi errors_ffi)))

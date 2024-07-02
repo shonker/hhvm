@@ -344,6 +344,62 @@ SinkChunkTimeoutClientTestResult runSinkChunkTimeout(
   return result;
 }
 
+SinkInitialResponseClientTestResult runSinkInitialResponse(
+    RPCConformanceServiceAsyncClient& client,
+    const SinkInitialResponseClientInstruction& instruction) {
+  return folly::coro::blockingWait(
+      [&]() -> folly::coro::Task<SinkInitialResponseClientTestResult> {
+        SinkInitialResponseClientTestResult result;
+        auto sinkAndResponse =
+            co_await client.co_sinkInitialResponse(*instruction.request());
+        result.initialResponse() = sinkAndResponse.response;
+        auto finalResponse = co_await sinkAndResponse.sink.sink(
+            [&]() -> folly::coro::AsyncGenerator<Request&&> {
+              for (auto payload : *instruction.sinkPayloads()) {
+                co_yield std::move(payload);
+              }
+            }());
+        result.finalResponse() = std::move(finalResponse);
+        co_return result;
+      }());
+}
+
+SinkDeclaredExceptionClientTestResult runSinkDeclaredException(
+    RPCConformanceServiceAsyncClient& client,
+    const SinkDeclaredExceptionClientInstruction& instruction) {
+  return folly::coro::blockingWait(
+      [&]() -> folly::coro::Task<SinkDeclaredExceptionClientTestResult> {
+        auto sink =
+            co_await client.co_sinkDeclaredException(*instruction.request());
+        auto finalResponse = co_await folly::coro::co_awaitTry(
+            sink.sink([&]() -> folly::coro::AsyncGenerator<Request&&> {
+              throw *instruction.userException();
+              co_return;
+            }()));
+        SinkDeclaredExceptionClientTestResult result;
+        result.sinkThrew() = finalResponse.hasException<SinkThrew>();
+        co_return result;
+      }());
+}
+
+SinkUndeclaredExceptionClientTestResult runSinkUndeclaredException(
+    RPCConformanceServiceAsyncClient& client,
+    const SinkUndeclaredExceptionClientInstruction& instruction) {
+  return folly::coro::blockingWait(
+      [&]() -> folly::coro::Task<SinkUndeclaredExceptionClientTestResult> {
+        auto sink =
+            co_await client.co_sinkUndeclaredException(*instruction.request());
+        auto finalResponse = co_await folly::coro::co_awaitTry(
+            sink.sink([&]() -> folly::coro::AsyncGenerator<Request&&> {
+              throw std::runtime_error(*instruction.exceptionMessage());
+              co_return;
+            }()));
+        SinkUndeclaredExceptionClientTestResult result;
+        result.sinkThrew() = finalResponse.hasException<SinkThrew>();
+        co_return result;
+      }());
+}
+
 // =================== Interactions ===================
 InteractionConstructorClientTestResult runInteractionConstructor(
     RPCConformanceServiceAsyncClient& client,
@@ -464,6 +520,18 @@ ClientTestResult runClientSteps(
       result.sinkChunkTimeout_ref() = runSinkChunkTimeout(
           client, *clientInstruction.sinkChunkTimeout_ref());
       break;
+    case ClientInstruction::Type::sinkInitialResponse:
+      result.sinkInitialResponse_ref() = runSinkInitialResponse(
+          client, *clientInstruction.sinkInitialResponse_ref());
+      break;
+    case ClientInstruction::Type::sinkDeclaredException:
+      result.sinkDeclaredException_ref() = runSinkDeclaredException(
+          client, *clientInstruction.sinkDeclaredException_ref());
+      break;
+    case ClientInstruction::Type::sinkUndeclaredException:
+      result.sinkUndeclaredException_ref() = runSinkUndeclaredException(
+          client, *clientInstruction.sinkUndeclaredException_ref());
+      break;
     case ClientInstruction::Type::interactionConstructor:
       result.interactionConstructor_ref() = runInteractionConstructor(
           client, *clientInstruction.interactionConstructor_ref());
@@ -518,7 +586,7 @@ testing::AssertionResult runRpcTest(
         << "\nFailed to receive RPC server result: " << e.what();
   }
 
-  if (actualServerResult != *rpc.serverTestResult()) {
+  if (!equal(actualServerResult, *rpc.serverTestResult())) {
     return testing::AssertionFailure()
         << "\nExpected server result: " << jsonify(*rpc.serverTestResult())
         << "\nActual server result: " << jsonify(actualServerResult);

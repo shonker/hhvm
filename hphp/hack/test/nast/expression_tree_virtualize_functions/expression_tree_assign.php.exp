@@ -2,7 +2,7 @@
     { fd_namespace =
       { Namespace_env.ns_ns_uses = <opaque>; ns_class_uses = <opaque>; 
         ns_fun_uses = <opaque>; ns_const_uses = <opaque>; ns_name = None; 
-        ns_is_codegen = false; ns_disable_xhp_element_mangling = false };
+        ns_mode = Namespace_env.ForTypecheck; ns_disable_xhp_element_mangling = false };
       fd_file_attributes = []; fd_mode = Mstrict; fd_name = ([3:10-14], "\\test");
       fd_fun =
       { f_span = [3:1-5:2]; f_readonly_this = None; f_annotation = (); 
@@ -14,8 +14,7 @@
             (Expr
                ((), [4:3-33],
                 (ExpressionTree
-                   { et_class = ([4:3-13], "\\ExampleDsl"); et_splices = []; 
-                     et_function_pointers = [];
+                   { et_class = ([4:3-13], "\\ExampleDsl");
                      et_runtime_expr =
                      ((), [4:3-13],
                       (Call
@@ -113,10 +112,10 @@
                                     f_ret = ((), None);
                                     f_params =
                                     [{ param_annotation = (); param_type_hint = ((), (Some ([4:3-13], (Happly (([4:3-13], "\\ExampleDsl"), []))))); 
-                                       param_is_variadic = false; param_pos = [4:3-13]; 
-                                       param_name = "$0v"; param_expr = None; 
-                                       param_readonly = None; param_callconv = Pnormal; 
-                                       param_user_attributes = []; param_visibility = None }
+                                       param_pos = [4:3-13]; param_name = "$0v"; 
+                                       param_info = Param_required; param_readonly = None; 
+                                       param_callconv = Pnormal; param_user_attributes = []; 
+                                       param_visibility = None }
                                       ];
                                     f_ctxs = None; f_unsafe_ctxs = None;
                                     f_body =
@@ -204,11 +203,11 @@
                                     f_external = false; f_doc_comment = None },
                                   []))))
                              ];
-                           unpacked_arg = None }));
-                     et_dollardollar_pos = None }))))
+                           unpacked_arg = None }))
+                     }))))
             ]
           };
-        f_fun_kind = FSync; f_user_attributes = []; f_external = false; 
-        f_doc_comment = None };
+        f_fun_kind = FSync; f_user_attributes = [{ ua_name = ([3:10-14], "__SupportDynamicType"); ua_params = [] }]; 
+        f_external = false; f_doc_comment = None };
       fd_internal = false; fd_module = None; fd_tparams = []; fd_where_constraints = [] })
   ]

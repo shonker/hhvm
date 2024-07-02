@@ -8,7 +8,7 @@ Errors:
     { fd_namespace =
       { Namespace_env.ns_ns_uses = <opaque>; ns_class_uses = <opaque>; 
         ns_fun_uses = <opaque>; ns_const_uses = <opaque>; ns_name = None; 
-        ns_is_codegen = false; ns_disable_xhp_element_mangling = false };
+        ns_mode = Namespace_env.ForTypecheck; ns_disable_xhp_element_mangling = false };
       fd_file_attributes = []; fd_mode = Mstrict; fd_name = ([3:10-36], "\\where_constraint_violation");
       fd_fun =
       { f_span = [3:1-5:2]; f_readonly_this = None; f_annotation = (); 
@@ -16,9 +16,9 @@ Errors:
         f_params =
         [{ param_annotation = (Vector<?string>);
            param_type_hint = ((Vector<?string>), (Some ([3:37-52], (Happly (([3:37-43], "\\HH\\Vector"), [([3:44-51], (Hoption ([3:45-51], (Hprim Tstring))))]))))); 
-           param_is_variadic = false; param_pos = [3:53-56]; param_name = "$xs"; 
-           param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-           param_user_attributes = []; param_visibility = None }
+           param_pos = [3:53-56]; param_name = "$xs"; param_info = Param_required; 
+           param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+           param_visibility = None }
           ];
         f_ctxs = None; f_unsafe_ctxs = None;
         f_body =

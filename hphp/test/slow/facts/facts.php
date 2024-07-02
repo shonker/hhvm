@@ -232,6 +232,67 @@ function print_num_symbols(
   print "$path has $num_type_aliases type aliases\n";
 }
 
+function print_type_file_relative_path(
+  string $className,
+): void {
+  $path = HH\Facts\type_to_path_relative($className);
+  print "$className has relative path: $path\n";
+}
+
+function print_function_file_relative_path(
+  string $function_name,
+): void {
+  $path = HH\Facts\function_to_path_relative($function_name);
+  print "$function_name has relative path: $path\n";
+}
+
+function print_type_alias_file_relative_path(
+  string $alias,
+): void {
+  $path = HH\Facts\type_or_type_alias_to_path_relative($alias);
+  print "alias $alias from type_or_type_alias_to_path_relative has relative path: $path\n";
+
+  $path = HH\Facts\type_alias_to_path_relative($alias);
+  print "alias $alias from type_alias_to_path_relative has relative path: $path\n";
+}
+
+function print_constant_file_relative_path(
+  string $constant,
+): void {
+  $path = HH\Facts\constant_to_path_relative($constant);
+  print "$constant has relative path: $path\n";
+}
+
+function print_module_file_relative_path(
+  string $module,
+): void {
+  $path = HH\Facts\module_to_path_relative($module);
+  print "$module has relative path: $path\n";
+}
+
+function print_validation(): void {
+  //These shouldnt throw
+  HH\Facts\validate(vec["someClass1", "classWithDuplicateName", "classWithDuplicateName"]);
+  HH\Facts\validate(vec["classWithDuplicateName"]);
+
+  //This should throw
+  try {
+    HH\Facts\validate();
+  }
+  catch(UnexpectedValueException $e){
+    print "\n$e \n";
+    print "UnexpectedValueException thrown as expected\n";
+  }
+
+  //This should throw
+  try {
+    HH\Facts\validate(vec["someClass1", "someClass1"]);
+  }
+  catch(UnexpectedValueException $e){
+    print "UnexpectedValueException thrown as expected\n";
+  }
+}
+
 <<__EntryPoint>>
 function facts(): void {
     var_dump(HH\Facts\enabled());
@@ -458,6 +519,12 @@ function facts(): void {
     shape('derive_kind' => keyset[HH\Facts\DeriveKind::K_REQUIRE_EXTENDS]),
   );
 
+  print "\nGetting paths\n";
+  print_type_file_relative_path(AppleThenBanana::class);
+  print_function_file_relative_path("outOfClassFunction");
+  print_type_alias_file_relative_path("AnAlias");
+  print_constant_file_relative_path("SOME_CONSTANT");
+  print_module_file_relative_path("someModule");
   print "\nGetting attributes\n";
 
   print_type_attrs(AppleThenBanana::class);
@@ -501,5 +568,6 @@ function facts(): void {
   print "\nChecking nonexistent paths\n";
   print_num_symbols('this/path/does/not/exist.php');
   print_num_symbols('/this/path/does/not/exist.php');
+  print_validation();
   print "Finished.\n";
 }

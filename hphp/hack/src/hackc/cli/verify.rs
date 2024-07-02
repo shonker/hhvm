@@ -89,7 +89,7 @@ impl From<std::io::Error> for VerifyError {
 type Result<T, E = VerifyError> = std::result::Result<T, E>;
 
 thread_local! {
-    pub static PANIC_MSG: RefCell<Option<String>> = RefCell::new(None);
+    pub static PANIC_MSG: RefCell<Option<String>> = const { RefCell::new(None) };
 }
 
 #[derive(Args, Debug)]
@@ -101,7 +101,6 @@ struct CommonOpts {
     #[clap(short = 'l')]
     long_msg: bool,
 
-    #[allow(dead_code)]
     #[command(flatten)]
     single_file_opts: SingleFileOpts,
 
@@ -235,7 +234,10 @@ impl IrOpts {
             true,
         )?;
 
-        let (ir, bc_to_ir_t) = Timing::time(path, || bc_to_ir::bc_to_ir(&pre_unit));
+        // We only want to measure how long bc_to_ir() takes, not counting the time
+        // it takes to clone pre_unit. Clone first before we start the stopwatch.
+        let pre_unit2 = pre_unit.clone();
+        let (ir, bc_to_ir_t) = Timing::time(path, || bc_to_ir::bc_to_ir(pre_unit2));
 
         self.verify_print_roundtrip(&ir)?;
 
@@ -308,7 +310,7 @@ impl InferOpts {
             &mut compile_profile,
             true,
         )?;
-        let (ir, bc_to_ir_t) = Timing::time(path, || bc_to_ir::bc_to_ir(&unit));
+        let (ir, bc_to_ir_t) = Timing::time(path, || bc_to_ir::bc_to_ir(unit));
 
         let (result, textual_t) = Timing::time(path, || {
             let mut out = Vec::new();
@@ -416,9 +418,7 @@ fn compile_php_file<'a>(
     );
 
     if for_ir {
-        // The LIter(Init,Next,Free) instructions have not yet been implemented
-        // for the IR. This optimization should have no affect on program
-        // behavior.
+        // This optimization should have no affect on program behavior.
         env.hhbc_flags.optimize_local_iterators = false;
     }
 

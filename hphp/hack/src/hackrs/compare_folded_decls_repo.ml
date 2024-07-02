@@ -62,7 +62,12 @@ let init (root : Path.t) (naming_table_path : string option) :
     ServerConfig.load ~silent:true server_args
   in
   let popt = ServerConfig.parser_options server_config in
-  let tcopt = { popt with GlobalOptions.tco_higher_kinded_types = true } in
+  let tcopt =
+    {
+      (ServerConfig.typechecker_options server_config) with
+      GlobalOptions.tco_higher_kinded_types = true;
+    }
+  in
   let ctx =
     Provider_context.empty_for_tool
       ~popt
@@ -270,7 +275,7 @@ let () =
       Arg.usage args usage;
       Exit.exit Exit_status.Input_error
   in
-  let rust_popt_init () =
+  let rust_tcopt_init () =
     Relative_path.set_path_prefix Relative_path.Root www_root;
     Relative_path.set_path_prefix
       Relative_path.Tmp
@@ -282,14 +287,22 @@ let () =
     let (server_config, _server_local_config) =
       ServerConfig.load ~silent:true server_args
     in
-    let popt = ServerConfig.parser_options server_config in
-    popt
+    let tcopt = ServerConfig.typechecker_options server_config in
+    tcopt
   in
-  let popt = rust_popt_init () in
+  let tcopt = rust_tcopt_init () in
+  let popt = tcopt.GlobalOptions.po in
   let rust_decl_map =
     Decl_folded_class_rupro.partition_and_fold_dir
       ~www_root:(Path.to_string www_root)
-      popt
+      DeclFoldOptions.
+        {
+          everything_sdt = popt.ParserOptions.everything_sdt;
+          implicit_inherit_sdt = GlobalOptions.(tcopt.tco_implicit_inherit_sdt);
+          enable_strict_const_semantics =
+            GlobalOptions.(tcopt.tco_enable_strict_const_semantics);
+        }
+      (DeclParserOptions.from_parser_options popt)
       !num_partitions
       !partition_index
   in

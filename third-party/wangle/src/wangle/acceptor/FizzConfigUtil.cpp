@@ -16,26 +16,27 @@
 
 #include <wangle/acceptor/FizzConfigUtil.h>
 
-#include <fizz/protocol/CertUtils.h>
+#include <fizz/backend/openssl/certificate/CertUtils.h>
 #include <fizz/protocol/DefaultCertificateVerifier.h>
 #include <folly/Format.h>
 #include <folly/String.h>
 
-using fizz::CertUtils;
 using fizz::DefaultCertificateVerifier;
 using fizz::FizzUtil;
 using fizz::ProtocolVersion;
 using fizz::VerificationContext;
+using fizz::openssl::CertUtils;
 using fizz::server::ClientAuthMode;
 
 namespace wangle {
 
-std::unique_ptr<fizz::server::CertManager> FizzConfigUtil::createCertManager(
-    const ServerSocketConfig& config,
-    const std::shared_ptr<PasswordInFileFactory>& pwFactory) {
-  auto certMgr = std::make_unique<fizz::server::CertManager>();
-  auto loadedCert = false;
-  for (const auto& sslConfig : config.sslContextConfigs) {
+bool FizzConfigUtil::addCertsToManager(
+    const std::vector<SSLContextConfig>& configs,
+    fizz::server::CertManager& manager,
+    const std::shared_ptr<PasswordInFileFactory>& pwFactory,
+    bool strictSSL) {
+  bool loadedCert = false;
+  for (const auto& sslConfig : configs) {
     for (const auto& cert : sslConfig.certificates) {
       try {
         std::unique_ptr<fizz::SelfCert> selfCert;
@@ -54,14 +55,18 @@ std::unique_ptr<fizz::server::CertManager> FizzConfigUtil::createCertManager(
           selfCert =
               CertUtils::makeSelfCert(std::move(x509Chain), std::move(pkey));
         }
-        certMgr->addCert(std::move(selfCert), sslConfig.isDefault);
+        if (sslConfig.isDefault) {
+          manager.addCertAndSetDefault(std::move(selfCert));
+        } else {
+          manager.addCert(std::move(selfCert));
+        }
         loadedCert = true;
       } catch (const std::runtime_error& ex) {
         auto msg = folly::sformat(
             "Failed to load cert or key at key path {}, cert path {}",
             cert.keyPath,
             cert.certPath);
-        if (config.strictSSL) {
+        if (strictSSL) {
           throw std::runtime_error(ex.what() + msg);
         } else {
           LOG(ERROR) << msg << ex.what();
@@ -69,15 +74,26 @@ std::unique_ptr<fizz::server::CertManager> FizzConfigUtil::createCertManager(
       }
     }
   }
-  if (!loadedCert) {
+  return loadedCert;
+}
+
+std::unique_ptr<fizz::server::CertManager> FizzConfigUtil::createCertManager(
+    const std::vector<SSLContextConfig>& sslContextConfigs,
+    const std::shared_ptr<PasswordInFileFactory>& pwFactory,
+    bool strictSSL) {
+  auto certMgr = std::make_unique<fizz::server::CertManager>();
+  if (!addCertsToManager(sslContextConfigs, *certMgr, pwFactory, strictSSL)) {
     return nullptr;
   }
   return certMgr;
 }
 
 std::shared_ptr<fizz::server::FizzServerContext>
-FizzConfigUtil::createFizzContext(const ServerSocketConfig& config) {
-  if (config.sslContextConfigs.empty()) {
+FizzConfigUtil::createFizzContext(
+    const std::vector<SSLContextConfig>& sslContextConfigs,
+    const FizzConfig& fizzConfig,
+    bool strictSSL) {
+  if (sslContextConfigs.empty()) {
     return nullptr;
   }
   auto ctx = std::make_shared<fizz::server::FizzServerContext>();
@@ -87,20 +103,24 @@ FizzConfigUtil::createFizzContext(const ServerSocketConfig& config) {
        ProtocolVersion::tls_1_3_26});
   ctx->setVersionFallbackEnabled(true);
 
+  if (!fizzConfig.supportedPskModes.empty()) {
+    ctx->setSupportedPskModes(fizzConfig.supportedPskModes);
+  }
+
   // Fizz does not yet support randomized next protocols so we use the highest
   // weighted list on the first context.
-  const auto& list = config.sslContextConfigs.front().nextProtocols;
+  const auto& list = sslContextConfigs.front().nextProtocols;
   if (!list.empty()) {
     ctx->setSupportedAlpns(FizzUtil::getAlpnsFromNpnList(list));
   }
 
-  if (config.sslContextConfigs.front().alpnAllowMismatch) {
+  if (sslContextConfigs.front().alpnAllowMismatch) {
     ctx->setAlpnMode(fizz::server::AlpnMode::AllowMismatch);
   } else {
     ctx->setAlpnMode(fizz::server::AlpnMode::Optional);
   }
 
-  auto verify = config.sslContextConfigs.front().clientVerification;
+  auto verify = sslContextConfigs.front().clientVerification;
   switch (verify) {
     case folly::SSLContext::VerifyClientCertificate::ALWAYS:
       ctx->setClientAuthMode(ClientAuthMode::Required);
@@ -112,8 +132,8 @@ FizzConfigUtil::createFizzContext(const ServerSocketConfig& config) {
       ctx->setClientAuthMode(ClientAuthMode::None);
   }
 
-  const auto& caFile = config.sslContextConfigs.front().clientCAFile;
-  const auto& caFiles = config.sslContextConfigs.front().clientCAFiles;
+  const auto& caFile = sslContextConfigs.front().clientCAFile;
+  const auto& caFiles = sslContextConfigs.front().clientCAFiles;
 
   std::vector<std::string> combinedCAFiles = {};
 
@@ -134,7 +154,7 @@ FizzConfigUtil::createFizzContext(const ServerSocketConfig& config) {
     } catch (const std::runtime_error& ex) {
       auto msg = folly::sformat(
           " Failed to load ca file at {}", folly::join(", ", combinedCAFiles));
-      if (config.strictSSL) {
+      if (strictSSL) {
         throw std::runtime_error(ex.what() + msg);
       } else {
         LOG(ERROR) << msg << ex.what();

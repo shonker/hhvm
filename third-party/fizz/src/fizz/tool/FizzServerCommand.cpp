@@ -6,11 +6,10 @@
  *  LICENSE file in the root directory of this source tree.
  */
 
-#include <fizz/crypto/aead/AESGCM128.h>
-#include <fizz/crypto/aead/OpenSSLEVPCipher.h>
+#include <fizz/backend/openssl/OpenSSL.h>
+#include <fizz/backend/openssl/OpenSSLFactory.h>
 #include <fizz/extensions/delegatedcred/DelegatedCredentialCertManager.h>
 #include <fizz/extensions/delegatedcred/SelfDelegatedCredential.h>
-#include <fizz/protocol/OpenSSLFactory.h>
 #ifdef FIZZ_TOOL_ENABLE_BROTLI
 #include <fizz/compression/BrotliCertificateCompressor.h>
 #endif
@@ -19,8 +18,8 @@
 #ifdef FIZZ_TOOL_ENABLE_ZSTD
 #include <fizz/compression/ZstdCertificateCompressor.h>
 #endif
-#include <fizz/protocol/CertUtils.h>
-#include <fizz/protocol/OpenSSLSelfCertImpl.h>
+#include <fizz/backend/openssl/certificate/CertUtils.h>
+#include <fizz/backend/openssl/certificate/OpenSSLSelfCertImpl.h>
 #include <fizz/protocol/test/Utilities.h>
 #include <fizz/server/AsyncFizzServer.h>
 #include <fizz/server/SlidingBloomReplayCache.h>
@@ -29,9 +28,6 @@
 #include <fizz/util/FizzUtil.h>
 #include <fizz/util/KeyLogWriter.h>
 #include <fizz/util/Parse.h>
-#ifdef FIZZ_TOOL_ENABLE_OQS
-#include <fizz/experimental/protocol/HybridKeyExFactory.h>
-#endif
 #include <folly/Format.h>
 #include <folly/io/async/AsyncSSLSocket.h>
 #include <folly/io/async/AsyncServerSocket.h>
@@ -93,9 +89,6 @@ void printUsage() {
     << "                          (For OpenSSL key exchanges, please use the PEM format for the private key.)\n"
     << "                          (For the X25519 key exchange, please specify the private key in hex on the first line,\n"
     << "                          (and the public key in hex on the second line.)\n"
-#ifdef FIZZ_TOOL_ENABLE_OQS
-    << " -hybridkex               (Use experimental hybrid key exchange. See Types.h for available hybrid named groups.)\n"
-#endif
 #ifdef FIZZ_TOOL_ENABLE_IO_URING
     << " -io_uring                (use io_uring for I/O. Default: false)\n"
     << " -io_uring_capacity N     (backend capacity for io_uring. Default: 128)\n"
@@ -653,15 +646,11 @@ int fizzServerCommand(const std::vector<std::string>& args) {
   bool fallback = false;
   bool http = false;
   uint32_t earlyDataSize = std::numeric_limits<uint32_t>::max();
-#ifdef FIZZ_TOOL_ENABLE_OQS
-  bool useHybridKexFactory = false;
-#endif
-  std::vector<std::vector<CipherSuite>> ciphers {
-    {CipherSuite::TLS_AES_128_GCM_SHA256, CipherSuite::TLS_AES_256_GCM_SHA384},
+  std::vector<std::vector<CipherSuite>> ciphers{
+      {CipherSuite::TLS_AES_128_GCM_SHA256,
+       CipherSuite::TLS_AES_256_GCM_SHA384},
 #if FOLLY_OPENSSL_HAS_CHACHA
-    {
-      CipherSuite::TLS_CHACHA20_POLY1305_SHA256
-    }
+      {CipherSuite::TLS_CHACHA20_POLY1305_SHA256}
 #endif
   };
   std::vector<SignatureScheme> sigSchemes{
@@ -760,11 +749,6 @@ int fizzServerCommand(const std::vector<std::string>& args) {
     {"-echprivatekey", {true, [&echPrivateKeyFile](const std::string& arg) {
         echPrivateKeyFile = arg;
     }}}
-#ifdef FIZZ_TOOL_ENABLE_OQS
-    ,{"-hybridkex", {false, [&useHybridKexFactory](const std::string&) {
-        useHybridKexFactory = true;
-    }}}
-#endif
 #ifdef FIZZ_TOOL_ENABLE_IO_URING
     ,{"-io_uring", {false, [&uring](const std::string&) { uring = true; }}},
     {"-io_uring_async_recv", {false, [&uringAsync](const std::string&) {
@@ -844,11 +828,6 @@ int fizzServerCommand(const std::vector<std::string>& args) {
   }
 
   auto serverContext = std::make_shared<FizzServerContext>();
-#ifdef FIZZ_TOOL_ENABLE_OQS
-  if (useHybridKexFactory) {
-    serverContext->setFactory(std::make_shared<HybridKeyExFactory>());
-  }
-#endif
 
   if (ech) {
     // Use ECH  default values.
@@ -885,7 +864,8 @@ int fizzServerCommand(const std::vector<std::string>& args) {
 
   auto ticketCipher = std::make_shared<
       Aead128GCMTicketCipher<TicketCodec<CertificateStorage::X509>>>(
-      std::make_shared<OpenSSLFactory>(), std::make_shared<CertManager>());
+      std::make_shared<openssl::OpenSSLFactory>(),
+      std::make_shared<CertManager>());
   auto ticketSeed = RandomGenerator<32>().generateRandom();
   ticketCipher->setTicketSecrets({{range(ticketSeed)}});
   serverContext->setTicketCipher(ticketCipher);
@@ -969,7 +949,7 @@ int fizzServerCommand(const std::vector<std::string>& args) {
       }
       matcher.addKey(
           keyPath,
-          CertUtils::readPrivateKeyFromBuffer(
+          openssl::CertUtils::readPrivateKeyFromBuffer(
               keyData, keyPass.empty() ? nullptr : &keyPass[0]));
     }
 
@@ -1016,8 +996,8 @@ int fizzServerCommand(const std::vector<std::string>& args) {
           LOG(ERROR) << "Failed to upref leaf cert";
           return 1;
         }
-        auto leafPeer =
-            CertUtils::makePeerCert(folly::ssl::X509UniquePtr(leafCert));
+        auto leafPeer = openssl::CertUtils::makePeerCert(
+            folly::ssl::X509UniquePtr(leafCert));
         auto toSign =
             fizz::extensions::DelegatedCredentialUtils::prepareSignatureBuffer(
                 *cred, folly::ssl::OpenSSLCertUtils::derEncode(*leafCert));
@@ -1045,43 +1025,47 @@ int fizzServerCommand(const std::vector<std::string>& args) {
           }
 
           std::unique_ptr<fizz::extensions::SelfDelegatedCredential> cert;
-          switch (CertUtils::getKeyType(credPrivKey)) {
-            case KeyType::RSA:
-              cert = std::make_unique<
-                  fizz::extensions::SelfDelegatedCredentialImpl<KeyType::RSA>>(
-                  std::move(certs),
-                  std::move(credPrivKey),
-                  std::move(*cred),
-                  compressors);
-              break;
-            case KeyType::P256:
-              cert = std::make_unique<
-                  fizz::extensions::SelfDelegatedCredentialImpl<KeyType::P256>>(
-                  std::move(certs),
-                  std::move(credPrivKey),
-                  std::move(*cred),
-                  compressors);
-              break;
-            case KeyType::P384:
-              cert = std::make_unique<
-                  fizz::extensions::SelfDelegatedCredentialImpl<KeyType::P384>>(
-                  std::move(certs),
-                  std::move(credPrivKey),
-                  std::move(*cred),
-                  compressors);
-              break;
-            case KeyType::P521:
-              cert = std::make_unique<
-                  fizz::extensions::SelfDelegatedCredentialImpl<KeyType::P521>>(
-                  std::move(certs),
-                  std::move(credPrivKey),
-                  std::move(*cred),
-                  compressors);
-              break;
-            case KeyType::ED25519:
+          switch (openssl::CertUtils::getKeyType(credPrivKey)) {
+            case openssl::KeyType::RSA:
               cert = std::make_unique<
                   fizz::extensions::SelfDelegatedCredentialImpl<
-                      KeyType::ED25519>>(
+                      openssl::KeyType::RSA>>(
+                  std::move(certs),
+                  std::move(credPrivKey),
+                  std::move(*cred),
+                  compressors);
+              break;
+            case openssl::KeyType::P256:
+              cert = std::make_unique<
+                  fizz::extensions::SelfDelegatedCredentialImpl<
+                      openssl::KeyType::P256>>(
+                  std::move(certs),
+                  std::move(credPrivKey),
+                  std::move(*cred),
+                  compressors);
+              break;
+            case openssl::KeyType::P384:
+              cert = std::make_unique<
+                  fizz::extensions::SelfDelegatedCredentialImpl<
+                      openssl::KeyType::P384>>(
+                  std::move(certs),
+                  std::move(credPrivKey),
+                  std::move(*cred),
+                  compressors);
+              break;
+            case openssl::KeyType::P521:
+              cert = std::make_unique<
+                  fizz::extensions::SelfDelegatedCredentialImpl<
+                      openssl::KeyType::P521>>(
+                  std::move(certs),
+                  std::move(credPrivKey),
+                  std::move(*cred),
+                  compressors);
+              break;
+            case openssl::KeyType::ED25519:
+              cert = std::make_unique<
+                  fizz::extensions::SelfDelegatedCredentialImpl<
+                      openssl::KeyType::ED25519>>(
                   std::move(certs),
                   std::move(credPrivKey),
                   std::move(*cred),
@@ -1108,9 +1092,13 @@ int fizzServerCommand(const std::vector<std::string>& args) {
         return 1;
       }
 
-      auto cert = CertUtils::makeSelfCert(
+      auto cert = openssl::CertUtils::makeSelfCert(
           std::move(certs), std::move(pkey.second), compressors);
-      certManager->addCert(std::move(cert), first);
+      if (first) {
+        certManager->addCertAndSetDefault(std::move(cert));
+      } else {
+        certManager->addCert(std::move(cert));
+      }
       if (first) {
         if (fallback) {
           // Fallback mode requires additional callback work for SNI to be
@@ -1127,9 +1115,10 @@ int fizzServerCommand(const std::vector<std::string>& args) {
     auto certData = fizz::test::createCert("fizz-self-signed", false, nullptr);
     std::vector<folly::ssl::X509UniquePtr> certChain;
     certChain.push_back(std::move(certData.cert));
-    auto cert = std::make_unique<OpenSSLSelfCertImpl<KeyType::P256>>(
-        std::move(certData.key), std::move(certChain), compressors);
-    certManager->addCert(std::move(cert), true);
+    auto cert =
+        std::make_unique<openssl::OpenSSLSelfCertImpl<openssl::KeyType::P256>>(
+            std::move(certData.key), std::move(certChain), compressors);
+    certManager->addCertAndSetDefault(std::move(cert));
   }
 
   if (credentialMatchNeeded) {

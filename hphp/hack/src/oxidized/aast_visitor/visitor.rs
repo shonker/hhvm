@@ -3,13 +3,14 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the "hack" directory of this source tree.
 //
-// @generated SignedSource<<f2a59e25893e939202d05451f5559781>>
+// @generated SignedSource<<63fcd638643bd3d23349f946e5f95227>>
 //
 // To regenerate this file, run:
 //   hphp/hack/src/oxidized_regen.sh
 
 #![allow(unused_imports)]
 #![allow(unused_variables)]
+#![allow(clippy::all)]
 use super::node::Node;
 use super::type_params::Params;
 use crate::aast_defs::*;
@@ -279,6 +280,13 @@ pub trait Visitor<'node> {
     ) -> Result<(), <Self::Params as Params>::Error> {
         p.recurse(c, self.object())
     }
+    fn visit_et_splice(
+        &mut self,
+        c: &mut <Self::Params as Params>::Context,
+        p: &'node EtSplice<<Self::Params as Params>::Ex, <Self::Params as Params>::En>,
+    ) -> Result<(), <Self::Params as Params>::Error> {
+        p.recurse(c, self.object())
+    }
     fn visit_expr(
         &mut self,
         c: &mut <Self::Params as Params>::Context,
@@ -339,6 +347,13 @@ pub trait Visitor<'node> {
         &mut self,
         c: &mut <Self::Params as Params>::Context,
         p: &'node FunParam<<Self::Params as Params>::Ex, <Self::Params as Params>::En>,
+    ) -> Result<(), <Self::Params as Params>::Error> {
+        p.recurse(c, self.object())
+    }
+    fn visit_fun_param_info(
+        &mut self,
+        c: &mut <Self::Params as Params>::Context,
+        p: &'node FunParamInfo<<Self::Params as Params>::Ex, <Self::Params as Params>::En>,
     ) -> Result<(), <Self::Params as Params>::Error> {
         p.recurse(c, self.object())
     }

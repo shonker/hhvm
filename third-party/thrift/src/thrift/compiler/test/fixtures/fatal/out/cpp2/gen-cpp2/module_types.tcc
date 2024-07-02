@@ -167,7 +167,7 @@ struct TccStructTraits<::test_cpp2::cpp_reflection::UnionWithTypedefFieldAdapter
 } // namespace thrift
 } // namespace apache
 
-namespace test_cpp2 { namespace cpp_reflection {
+namespace test_cpp2::cpp_reflection {
 
 template <class Protocol_>
 void union1::readNoXfer(Protocol_* iprot) {
@@ -4248,8 +4248,8 @@ uint32_t struct4::write(Protocol_* prot_) const {
       xfer += ::apache::thrift::detail::pm::protocol_methods<::apache::thrift::type_class::structure, ::test_cpp2::cpp_reflection::structA>::write(*prot_, *this->__fbthrift_field_field3);
     } else {
       xfer += prot_->writeStructBegin("structA");
-      xfer += prot_->writeStructEnd();
       xfer += prot_->writeFieldStop();
+      xfer += prot_->writeStructEnd();
     }
     xfer += prot_->writeFieldEnd();
   }
@@ -7731,4 +7731,4 @@ extern template uint32_t UnionWithTypedefFieldAdapter::serializedSize<>(apache::
 extern template uint32_t UnionWithTypedefFieldAdapter::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}} // test_cpp2::cpp_reflection
+} // namespace test_cpp2::cpp_reflection

@@ -274,7 +274,7 @@ class mstch_base : public mstch::object {
  public:
   mstch_base(mstch_context& ctx, mstch_element_position pos)
       : context_(ctx), pos_(pos) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"first?", &mstch_base::first},
@@ -316,19 +316,14 @@ class mstch_base : public mstch::object {
     return make_mstch_array(container, context_.service_factory.get(), args...);
   }
 
-  template <typename C, typename... Args>
+  template <typename C>
   mstch::array make_mstch_interactions(
-      const C& container,
-      const t_service* containing_service,
-      const Args&... args) {
+      const C& container, const t_service* containing_service) {
     if (context_.interaction_factory) {
       return make_mstch_array(
-          container,
-          *context_.interaction_factory,
-          containing_service,
-          args...);
+          container, *context_.interaction_factory, containing_service);
     }
-    return make_mstch_array(container, *context_.service_factory, args...);
+    return make_mstch_array(container, *context_.service_factory);
   }
 
   template <typename C, typename... Args>
@@ -416,7 +411,7 @@ class mstch_program : public mstch_base {
   mstch_program(
       const t_program* p, mstch_context& ctx, mstch_element_position pos)
       : mstch_base(ctx, pos), program_(p) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"program:name", &mstch_program::name},
@@ -482,9 +477,7 @@ class mstch_program : public mstch_base {
   mstch::node constants();
 
   mstch::node has_interned_values() { return !program_->intern_list().empty(); }
-  mstch::node num_interned_values() {
-    return static_cast<int>(program_->intern_list().size());
-  }
+  mstch::node num_interned_values() { return program_->intern_list().size(); }
   mstch::node interned_values();
 
  protected:
@@ -496,9 +489,16 @@ class mstch_service : public mstch_base {
   using ast_type = t_service;
 
   mstch_service(
-      const t_service* s, mstch_context& ctx, mstch_element_position pos)
-      : mstch_base(ctx, pos), service_(s) {
-    register_methods(
+      const t_service* s,
+      mstch_context& ctx,
+      mstch_element_position pos,
+      const t_service* containing_service = nullptr)
+      : mstch_base(ctx, pos),
+        service_(s),
+        containing_service_(containing_service) {
+    assert(!service_->is_interaction() == !containing_service);
+
+    register_cached_methods(
         this,
         {
             {"service:name", &mstch_service::name},
@@ -510,7 +510,8 @@ class mstch_service : public mstch_base {
             {"service:sinks?", &mstch_service::has_sinks},
             {"service:annotations", &mstch_service::annotations},
             {"service:thrift_uri", &mstch_service::thrift_uri},
-            {"service:parent", &mstch_service::parent},
+            {"service:parent_service_name",
+             &mstch_service::parent_service_name},
             {"service:interaction?", &mstch_service::is_interaction},
             {"service:interactions", &mstch_service::interactions},
             {"service:interactions?", &mstch_service::has_interactions},
@@ -518,9 +519,16 @@ class mstch_service : public mstch_base {
              &mstch_service::has_structured_annotations},
             {"service:structured_annotations",
              &mstch_service::structured_annotations},
-            {"interaction:serial?", &mstch_service::is_serial_interaction},
-            {"interaction:eb?", &mstch_service::is_event_base_interaction},
         });
+
+    if (service_->is_interaction()) {
+      register_cached_methods(
+          this,
+          {
+              {"interaction:serial?", &mstch_service::is_serial_interaction},
+              {"interaction:eb?", &mstch_service::is_event_base_interaction},
+          });
+    }
 
     // Collect performed interactions and cache them.
     for (const auto* function : get_functions()) {
@@ -541,7 +549,7 @@ class mstch_service : public mstch_base {
   mstch::node annotations() { return mstch_base::annotations(service_); }
   mstch::node thrift_uri() { return service_->uri(); }
 
-  mstch::node parent() { return context_.options.at("parent_service_name"); }
+  mstch::node parent_service_name() { return parent_service()->get_name(); }
 
   mstch::node has_streams() {
     auto& funcs = get_functions();
@@ -559,11 +567,6 @@ class mstch_service : public mstch_base {
 
   mstch::node has_interactions() { return !interactions_.empty(); }
   mstch::node interactions() {
-    if (!service_->is_interaction()) {
-      // For Python interactions:
-      context_.options["parent_service_name"] = service_->get_name();
-      context_.options["parent_service_cpp_name"] = cpp2::get_name(service_);
-    }
     return make_mstch_interactions(interactions_, service_);
   }
   mstch::node has_structured_annotations() {
@@ -587,9 +590,16 @@ class mstch_service : public mstch_base {
   const t_service* service_;
   std::set<const t_interaction*> interactions_;
 
+  // If `service_` is really an interaction, `containing_service_` is the
+  // service it belongs to.
+  const t_service* containing_service_ = nullptr;
+
   mstch::node make_mstch_extended_service_cached(const t_service* service);
   virtual const std::vector<t_function*>& get_functions() const {
     return service_->get_functions();
+  }
+  const t_service* parent_service() const {
+    return service_->is_interaction() ? containing_service_ : service_;
   }
 };
 
@@ -603,7 +613,7 @@ class mstch_function : public mstch_base {
       mstch_element_position pos,
       const t_interface* iface)
       : mstch_base(ctx, pos), function_(f), interface_(iface) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"function:name", &mstch_function::name},
@@ -775,14 +785,14 @@ class mstch_type : public mstch_base {
 
   mstch_type(const t_type* t, mstch_context& ctx, mstch_element_position pos)
       : mstch_base(ctx, pos), type_(t), resolved_type_(t->get_true_type()) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"type:name", &mstch_type::name},
             {"type:void?", &mstch_type::is_void},
             {"type:string?", &mstch_type::is_string},
             {"type:binary?", &mstch_type::is_binary},
-            {"type:primitive?", &mstch_type::is_primitive},
+            {"type:numeric_or_void?", &mstch_type::is_numeric_or_void},
             {"type:bool?", &mstch_type::is_bool},
             {"type:byte?", &mstch_type::is_byte},
             {"type:i16?", &mstch_type::is_i16},
@@ -823,7 +833,8 @@ class mstch_type : public mstch_base {
   mstch::node is_i64() { return resolved_type_->is_i64(); }
   mstch::node is_double() { return resolved_type_->is_double(); }
   mstch::node is_float() { return resolved_type_->is_float(); }
-  mstch::node is_primitive() {
+
+  mstch::node is_numeric_or_void() {
     return resolved_type_->is_void() || resolved_type_->is_bool() ||
         resolved_type_->is_byte() || resolved_type_->is_i16() ||
         resolved_type_->is_i32() || resolved_type_->is_i64() ||
@@ -838,7 +849,7 @@ class mstch_type : public mstch_base {
   mstch::node is_union() { return resolved_type_->is_union(); }
   mstch::node is_enum() { return resolved_type_->is_enum(); }
   mstch::node is_service() { return resolved_type_->is_service(); }
-  mstch::node is_base() { return resolved_type_->is_base_type(); }
+  mstch::node is_base() { return resolved_type_->is_primitive_type(); }
   mstch::node is_container() { return resolved_type_->is_container(); }
   mstch::node is_list() { return resolved_type_->is_list(); }
   mstch::node is_set() { return resolved_type_->is_set(); }
@@ -867,7 +878,7 @@ class mstch_typedef : public mstch_base {
   mstch_typedef(
       const t_typedef* t, mstch_context& ctx, mstch_element_position pos)
       : mstch_base(ctx, pos), typedef_(t) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"typedef:type", &mstch_typedef::type},
@@ -902,7 +913,7 @@ class mstch_struct : public mstch_base {
   mstch_struct(
       const t_structured* s, mstch_context& ctx, mstch_element_position pos)
       : mstch_base(ctx, pos), struct_(s) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"struct:name", &mstch_struct::name},
@@ -1016,13 +1027,14 @@ class mstch_field : public mstch_base {
       mstch_element_position pos,
       const field_generator_context* field_context)
       : mstch_base(ctx, pos), field_(f), field_context_(field_context) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"field:name", &mstch_field::name},
             {"field:key", &mstch_field::key},
             {"field:value", &mstch_field::value},
             {"field:type", &mstch_field::type},
+            {"field:idl_type", &mstch_field::idl_type},
             {"field:index", &mstch_field::index},
             {"field:required?", &mstch_field::is_required},
             {"field:terse?", &mstch_field::is_terse},
@@ -1041,10 +1053,19 @@ class mstch_field : public mstch_base {
         });
   }
   mstch::node name() { return field_->get_name(); }
-  mstch::node key() { return std::to_string(field_->get_key()); }
+  mstch::node key() { return field_->get_key(); }
   mstch::node value();
   mstch::node type();
-  mstch::node index() { return std::to_string(pos_.index); }
+  /**
+   * Integer corresponding to the Thrift IDL type of the field, as defined by
+   * `enum BaseType`.
+   *
+   * This corresponds to the "true" IDL type (i.e., after resolving aliases) and
+   * does not include type parameters (such as map key and values, container
+   * element types, etc.).
+   */
+  mstch::node idl_type();
+  mstch::node index() { return pos_.index; }
   mstch::node is_terse() {
     return field_->qualifier() == t_field_qualifier::terse;
   }
@@ -1160,7 +1181,7 @@ class mstch_enum : public mstch_base {
 
   mstch_enum(const t_enum* e, mstch_context& ctx, mstch_element_position pos)
       : mstch_base(ctx, pos), enum_(e) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"enum:name", &mstch_enum::name},
@@ -1245,7 +1266,7 @@ class mstch_enum_value : public mstch_base {
   mstch_enum_value(
       const t_enum_value* ev, mstch_context& ctx, mstch_element_position pos)
       : mstch_base(ctx, pos), enum_value_(ev) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"enum_value:name", &mstch_enum_value::name},
@@ -1253,7 +1274,7 @@ class mstch_enum_value : public mstch_base {
         });
   }
   mstch::node name() { return enum_value_->get_name(); }
-  mstch::node value() { return std::to_string(enum_value_->get_value()); }
+  mstch::node value() { return enum_value_->get_value(); }
 
  protected:
   const t_enum_value* enum_value_;
@@ -1275,7 +1296,7 @@ class mstch_const : public mstch_base {
         current_const_(current_const),
         expected_type_(expected_type),
         field_(field) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"constant:name", &mstch_const::name},
@@ -1316,7 +1337,7 @@ class mstch_const_value : public mstch_base {
         current_const_(current_const),
         expected_type_(expected_type),
         type_(cv->kind()) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"value:bool?", &mstch_const_value::is_bool},
@@ -1330,7 +1351,6 @@ class mstch_const_value : public mstch_base {
             {"value:list?", &mstch_const_value::is_list},
             {"value:container?", &mstch_const_value::is_container},
             {"value:empty_container?", &mstch_const_value::is_empty_container},
-            {"value:value", &mstch_const_value::value},
             {"value:integer_value", &mstch_const_value::integer_value},
             {"value:double_value", &mstch_const_value::double_value},
             {"value:bool_value", &mstch_const_value::bool_value},
@@ -1338,6 +1358,7 @@ class mstch_const_value : public mstch_base {
             {"value:nonzero?", &mstch_const_value::is_non_zero},
             {"value:enum_name", &mstch_const_value::enum_name},
             {"value:string_value", &mstch_const_value::string_value},
+            {"value:string_length", &mstch_const_value::string_length},
             {"value:list_elements", &mstch_const_value::list_elems},
             {"value:map_elements", &mstch_const_value::map_elems},
             {"value:const_struct", &mstch_const_value::const_struct},
@@ -1375,7 +1396,6 @@ class mstch_const_value : public mstch_base {
     return (type_ == cv::CV_MAP && const_value_->get_map().empty()) ||
         (type_ == cv::CV_LIST && const_value_->get_list().empty());
   }
-  mstch::node value();
   mstch::node integer_value();
   mstch::node double_value();
   mstch::node bool_value();
@@ -1383,6 +1403,7 @@ class mstch_const_value : public mstch_base {
   mstch::node is_non_zero();
   mstch::node enum_name();
   mstch::node string_value();
+  mstch::node string_length();
   mstch::node list_elems();
   mstch::node map_elems();
   mstch::node const_struct();
@@ -1420,7 +1441,7 @@ class mstch_const_map_element : public mstch_base {
         element_(*e),
         current_const_(current_const),
         expected_types_(expected_types) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"element:key", &mstch_const_map_element::element_key},
@@ -1443,7 +1464,7 @@ class mstch_structured_annotation : public mstch_base {
   mstch_structured_annotation(
       const t_const* c, mstch_context& ctx, mstch_element_position pos)
       : mstch_base(ctx, pos), const_(*c) {
-    register_methods(
+    register_cached_methods(
         this,
         {{"structured_annotation:const",
           &mstch_structured_annotation::constant},
@@ -1475,7 +1496,7 @@ class mstch_deprecated_annotation : public mstch_base {
   mstch_deprecated_annotation(
       const t_annotation* a, mstch_context& ctx, mstch_element_position pos)
       : mstch_base(ctx, pos), key_(a->first), val_(a->second) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"annotation:key", &mstch_deprecated_annotation::key},

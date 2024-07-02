@@ -23,7 +23,6 @@ use ir::type_struct::TypeStruct;
 use ir::BareThisOp;
 use ir::Call;
 use ir::FCallArgsFlags;
-use ir::Func;
 use ir::FuncBuilder;
 use ir::FuncBuilderEx as _;
 use ir::GlobalId;
@@ -31,6 +30,7 @@ use ir::Immediate;
 use ir::InitPropOp;
 use ir::Instr;
 use ir::InstrId;
+use ir::IrRepr;
 use ir::IsTypeOp;
 use ir::LocId;
 use ir::LocalId;
@@ -62,8 +62,8 @@ pub(crate) fn lower_instrs(builder: &mut FuncBuilder, func_info: &FuncInfo<'_>) 
         func_info,
     };
 
-    let mut bid = Func::ENTRY_BID;
-    while bid.0 < builder.func.blocks.len() as u32 {
+    let mut bid = IrRepr::ENTRY_BID;
+    while bid.0 < builder.func.repr.blocks.len() as u32 {
         lowerer.changed = true;
         while lowerer.changed {
             // The lowered instructions may have emitted stuff that needs to be
@@ -86,7 +86,7 @@ impl LowerInstrs<'_> {
         // A lot of times the name for the global comes from a static
         // string name - see if we can dig it up and turn this into a
         // Textual::LoadGlobal.
-        vid.imm().and_then(|cid| match builder.func.imm(cid) {
+        vid.imm().and_then(|cid| match builder.func.repr.imm(cid) {
             Immediate::String(s) => {
                 match ir::StringId::from_bytes(*s) {
                     Ok(s) => {
@@ -158,6 +158,7 @@ impl LowerInstrs<'_> {
             Hhbc::IsTypeC(_, IsTypeOp::Scalar, _) => hack::Hhbc::IsTypeScalar,
             Hhbc::IsTypeC(_, IsTypeOp::Str, _) => hack::Hhbc::IsTypeStr,
             Hhbc::IsTypeC(_, IsTypeOp::Vec, _) => hack::Hhbc::IsTypeVec,
+            Hhbc::IterBase(..) => hack::Hhbc::IterBase,
             Hhbc::LazyClassFromClass(..) => hack::Hhbc::LazyClassFromClass,
             Hhbc::Modulo(..) => hack::Hhbc::Modulo,
             Hhbc::Mul(..) => hack::Hhbc::Mul,
@@ -168,6 +169,8 @@ impl LowerInstrs<'_> {
             Hhbc::Pow(..) => hack::Hhbc::Pow,
             Hhbc::Print(..) => hack::Hhbc::Print,
             Hhbc::RecordReifiedGeneric(..) => hack::Hhbc::RecordReifiedGeneric,
+            Hhbc::SetImplicitContextByValue(..) => hack::Hhbc::SetImplicitContextByValue,
+            Hhbc::GetInaccessibleImplicitContext(..) => hack::Hhbc::GetInaccessibleImplicitContext,
             Hhbc::Shl(..) => hack::Hhbc::Shl,
             Hhbc::Shr(..) => hack::Hhbc::Shr,
             Hhbc::Sub(..) => hack::Hhbc::Sub,
@@ -265,19 +268,16 @@ impl LowerInstrs<'_> {
         Instr::tombstone()
     }
 
-    fn iter_init(
-        &self,
-        builder: &mut FuncBuilder,
-        args: IteratorArgs,
-        container: ValueId,
-    ) -> Instr {
-        // iterator ^0 init from %0 jmp to b2 else b1 with $index
+    fn iter_init(&self, builder: &mut FuncBuilder, args: IteratorArgs) -> Instr {
+        // iterator ^0 init from $base jmp to b2 else b1 with $index
         // ->
-        // %n = hack::iter_init(&iter0, /* key */ null, &$index, %0)
+        // %n = hack::iter_init(&iter0, /* key */ null, &$index, $base)
         // if %n jmp b1 else b2
 
         let loc = args.loc;
         let iter_lid = iter_var_name(args.iter_id);
+
+        let base_var = builder.emit(Instr::Hhbc(Hhbc::CGetL(args.base_lid(), loc)));
 
         let iter_var = builder.emit(Textual::deref(iter_lid));
 
@@ -291,7 +291,7 @@ impl LowerInstrs<'_> {
 
         let pred = builder.emit_hhbc_builtin(
             hack::Hhbc::IterInit,
-            &[iter_var, key_var, value_var, container],
+            &[iter_var, key_var, value_var, base_var],
             loc,
         );
 
@@ -305,13 +305,15 @@ impl LowerInstrs<'_> {
     }
 
     fn iter_next(&self, builder: &mut FuncBuilder, args: IteratorArgs) -> Instr {
-        // iterator ^0 next jmp to b2 else b1 with $index
+        // iterator ^0 next from $base jmp to b2 else b1 with $index
         // ->
-        // %n = hack::iter_next(&iter0, /* key */ null, &$index)
+        // %n = hack::iter_next(&iter0, /* key */ null, &$index, $base)
         // if %n jmp b1 else b2
 
         let loc = args.loc;
         let iter_lid = iter_var_name(args.iter_id);
+
+        let base_var = builder.emit(Instr::Hhbc(Hhbc::CGetL(args.base_lid(), loc)));
 
         let value_var = builder.emit(Textual::deref(args.value_lid()));
 
@@ -322,8 +324,11 @@ impl LowerInstrs<'_> {
         };
 
         let iter_var = builder.emit(Instr::Hhbc(Hhbc::CGetL(iter_lid, loc)));
-        let pred =
-            builder.emit_hhbc_builtin(hack::Hhbc::IterNext, &[iter_var, key_var, value_var], loc);
+        let pred = builder.emit_hhbc_builtin(
+            hack::Hhbc::IterNext,
+            &[iter_var, key_var, value_var, base_var],
+            loc,
+        );
 
         Instr::jmp_op(
             pred,
@@ -450,6 +455,7 @@ impl LowerInstrs<'_> {
     ) -> Instr {
         let param = builder
             .func
+            .repr
             .get_param_by_lid(lid)
             .expect("Unknown parameter in verify_out_type()");
         let param_type = ir::EnforceableType::from_type_info(&param.ty());
@@ -472,7 +478,7 @@ impl LowerInstrs<'_> {
     }
 
     fn verify_ret_type_c(&self, builder: &mut FuncBuilder, obj: ValueId, loc: LocId) -> Instr {
-        let return_type = ir::EnforceableType::from_type_info(&builder.func.return_type);
+        let return_type = ir::EnforceableType::from_type_info(&builder.func.return_type());
         if return_type
             .modifiers
             .contains(ir::TypeConstraintFlags::TypeVar)
@@ -528,7 +534,7 @@ impl LowerInstrs<'_> {
         // this with a Textual::SetPropD.
         if let Some(propname) = lookup_constant_string(&builder.func, field) {
             if let Some(class) = class.instr() {
-                let class_instr = builder.func.instr(class);
+                let class_instr = builder.func.repr.instr(class);
                 // The ClassGetC will have already been converted to a
                 // textual builtin.
                 if let Instr::Special(Special::Textual(Textual::HackBuiltin {
@@ -780,10 +786,6 @@ impl TransformInstr for LowerInstrs<'_> {
             Instr::Hhbc(Hhbc::VerifyRetTypeTS([obj, ts], loc)) => {
                 self.verify_ret_type_ts(builder, obj, ts, loc)
             }
-            Instr::Hhbc(Hhbc::VerifyImplicitContextState(_)) => {
-                // no-op
-                Instr::tombstone()
-            }
             Instr::Hhbc(Hhbc::IterFree(id, loc)) => {
                 let lid = iter_var_name(id);
                 let value = builder.emit(Instr::Hhbc(Hhbc::CGetL(lid, loc)));
@@ -819,9 +821,7 @@ impl TransformInstr for LowerInstrs<'_> {
                     }
                 }
             }
-            Instr::Terminator(Terminator::IterInit(args, value)) => {
-                self.iter_init(builder, args, value)
-            }
+            Instr::Terminator(Terminator::IterInit(args)) => self.iter_init(builder, args),
             Instr::Terminator(Terminator::IterNext(args)) => self.iter_next(builder, args),
             Instr::Terminator(Terminator::MemoGet(memo)) => self.memo_get(builder, memo),
             Instr::Terminator(Terminator::MemoGetEager(memo)) => self.memo_get_eager(builder, memo),
@@ -960,7 +960,7 @@ fn rewrite_nullsafe_call(
 }
 
 fn iter_var_name(id: ir::IterId) -> LocalId {
-    let name = ir::intern(format!("iter{}", id.idx));
+    let name = ir::intern(format!("iter{}", id));
     LocalId::Named(name)
 }
 
@@ -975,7 +975,10 @@ fn rewrite_constant_type_check(
 ) -> Option<Instr> {
     let typestruct = lookup_constant(&builder.func, typestruct)?;
     let typestruct = match typestruct {
-        Immediate::Array(tv) => TypeStruct::try_from_typed_value(tv)?,
+        Immediate::Vec(_) | Immediate::Dict(_) | Immediate::Keyset(_) => {
+            let tv = typestruct.clone().try_into().unwrap();
+            TypeStruct::try_from_typed_value(&tv)?
+        }
         _ => return None,
     };
     match typestruct {
@@ -984,8 +987,8 @@ fn rewrite_constant_type_check(
             let is_null = builder.emit_hhbc_builtin(hack::Hhbc::IsTypeNull, &[obj], loc);
             Some(builder.hhbc_builtin(hack::Hhbc::Not, &[is_null], loc))
         }
-        TypeStruct::Unresolved(clsid) => {
-            let instr = Instr::Hhbc(Hhbc::InstanceOfD(obj, clsid, loc));
+        TypeStruct::Unresolved(clsid, nullable) => {
+            let instr = Instr::Hhbc(Hhbc::InstanceOfD(obj, clsid, nullable, loc));
             Some(instr)
         }
     }

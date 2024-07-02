@@ -15,10 +15,11 @@ import thrift.python.exceptions as _fbthrift_python_exceptions
 
 class C(metaclass=_fbthrift_python_types.StructMeta):
     _fbthrift_SPEC = (
-        (
+        _fbthrift_python_types.FieldInfo(
             1,  # id
             _fbthrift_python_types.FieldQualifier.Unqualified, # qualifier
             "i",  # name
+            "i",  # python name (from @python.Name annotation)
             _fbthrift_python_types.typeinfo_i64,  # typeinfo
             None,  # default value
             None,  # adapter info
@@ -102,8 +103,11 @@ _fbthrift_all_enums = [
 
 def _fbthrift_metadata__struct_C():
     return c.thrift_metadata.gen_metadata_struct_C()
+
+
 def _fbthrift_metadata__exception_E():
     return c.thrift_metadata.gen_metadata_exception_E()
+
 
 _fbthrift_all_structs = [
     C,

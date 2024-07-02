@@ -23,7 +23,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp2/op/detail/HashProtocol.h",
         "line": "122",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp2/op/detail/HashProtocol.h",
         "bodystart": "122",
         "bodyend": "122"
@@ -48,5 +48,11 @@
   "brief_html": "",
   "groupname_html": "",
   "href": "/ref/cpp/f/class/apache/thrift/op/detail/HashProtocol/writeStructBegin",
-  "refid": "/ref/cpp/f/class/apache/thrift/op/detail/HashProtocol/writeStructBegin"
+  "refid": "/ref/cpp/f/class/apache/thrift/op/detail/HashProtocol/writeStructBegin",
+  "parent_links": [
+    {
+      "text_html": "HashProtocol",
+      "href": "/ref/cpp/class/apache/thrift/op/detail/HashProtocol"
+    }
+  ]
 }

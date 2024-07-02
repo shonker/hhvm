@@ -190,6 +190,9 @@ impl<'ast, 'a> Visitor<'ast> for DeclvarVisitor<'a> {
                 }
                 Ok(())
             }
+            Expr_::ExpressionTree(box oxidized::ast::ExpressionTree { runtime_expr, .. }) => {
+                self.visit_expr(env, runtime_expr)
+            }
 
             e => e.recurse(env, self.object()),
         }
@@ -252,9 +255,14 @@ pub fn vars_from_ast(
 ) -> Result<IndexSet<String>, String> {
     let decl_vars = uls_from_ast(
         params,
-        |p| &p.name,                      // get_param_name
-        |p| Maybe::from(p.expr.as_ref()), // get_param_default_value
-        None,                             // explicit_use_set_opt
+        |p| &p.name, // get_param_name
+        |p| {
+            Maybe::from(match &p.info {
+                FunParamInfo::ParamOptional(expr) => expr.as_ref(),
+                FunParamInfo::ParamRequired | FunParamInfo::ParamVariadic => None,
+            })
+        }, // get_param_default_value
+        None,        // explicit_use_set_opt
         body,
         capture_debugger_vars,
     )?;

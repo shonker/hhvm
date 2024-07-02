@@ -198,7 +198,8 @@ void VariableSerializer::popResourceInfo() {
 }
 
 String VariableSerializer::serialize(const_variant_ref v, bool ret,
-                                     bool keepCount /* = false */) {
+                                     bool keepCount /* = false */,
+                                     bool outputHookOnly /* = false */) {
   StringBuffer buf;
   m_buf = &buf;
   if (ret) {
@@ -209,10 +210,11 @@ String VariableSerializer::serialize(const_variant_ref v, bool ret,
   m_valueCount = keepCount ? m_valueCount + 1 : 1;
   write(v);
   if (ret) {
+    assertx(!outputHookOnly);
     return m_buf->detach();
   } else {
     String str = m_buf->detach();
-    g_context->write(str);
+    g_context->write(str, outputHookOnly);
   }
   return String();
 }
@@ -1062,7 +1064,7 @@ void VariableSerializer::writeArrayHeader(int size, bool isVectorData,
     }
 
     if (info.is_vector || kind == ArrayKind::Keyset) {
-      if (UNLIKELY(RuntimeOption::EvalHackArrCompatSerializeNotices) &&
+      if (UNLIKELY(Cfg::Eval::HackArrCompatSerializeNotices) &&
           kind == ArrayKind::DArray) {
         if (size == 0 && m_edWarn && !m_hasEDWarned) {
           raise_hackarr_compat_notice("JSON encoding empty darray");
@@ -1074,7 +1076,7 @@ void VariableSerializer::writeArrayHeader(int size, bool isVectorData,
       }
       m_buf->append('[');
     } else {
-      if (UNLIKELY(RuntimeOption::EvalHackArrCompatSerializeNotices) &&
+      if (UNLIKELY(Cfg::Eval::HackArrCompatSerializeNotices) &&
           kind == ArrayKind::DArray && m_ddWarn && !m_hasDDWarned) {
         raise_hackarr_compat_notice("JSON encoding dict-like darray");
         m_hasDDWarned = true;
@@ -1197,6 +1199,7 @@ void VariableSerializer::writeArrayKey(
       write(StrNR(keyCell->m_data.pstr).asString());
       return;
     }
+    [[fallthrough]];
 
   case Type::Serialize:
   case Type::Internal:
@@ -1568,6 +1571,7 @@ void VariableSerializer::serializeFunc(const Func* func) {
           VarNR{s_invalidMethCallerAPC.get()}
         );
       }
+      [[fallthrough]];
     case Type::Serialize:
       if (func->isMethCaller()) {
         SystemLib::throwInvalidOperationExceptionObject(
@@ -1603,7 +1607,7 @@ void VariableSerializer::serializeClass(const Class* cls) {
         write(StrNR(cls->name()));
         break;
       }
-      // fall-through
+      [[fallthrough]];
     case Type::DebugDump:
       indent();
       m_buf->append("class(");
@@ -1615,7 +1619,7 @@ void VariableSerializer::serializeClass(const Class* cls) {
         write(StrNR(cls->name()));
         break;
       }
-      // fall-through
+      [[fallthrough]];
     case Type::DebuggerDump:
       m_buf->append("class(");
       m_buf->append(cls->name());
@@ -1655,7 +1659,7 @@ void VariableSerializer::serializeLazyClass(LazyClassData lcls) {
         write(StrNR(lcls.name()));
         break;
       }
-      // fall-through
+      [[fallthrough]];
     case Type::DebugDump:
       indent();
       m_buf->append("class(");
@@ -1667,7 +1671,7 @@ void VariableSerializer::serializeLazyClass(LazyClassData lcls) {
         write(StrNR(lcls.name()));
         break;
       }
-      // fall-through
+      [[fallthrough]];
     case Type::DebuggerDump:
       m_buf->append("class(");
       m_buf->append(lcls.name());
@@ -1979,26 +1983,63 @@ void VariableSerializer::serializeString(const String& str) {
   }
 }
 
+void sortTvPairs(req::vector<std::pair<TypedValue, TypedValue>>& elems) {
+  using KVPair = std::pair<TypedValue, TypedValue>;
+  sort(elems.begin(), elems.end(), [](const KVPair& a, const KVPair& b) {
+    if (tvIsString(a.first)) {
+      // Integers come before strings
+      if (!tvIsString(b.first)) {
+        assertx(tvIsInt(b.first));
+        return false;
+      }
+      return strcmp(val(a.first).pstr->data(), val(b.first).pstr->data()) < 0;
+    } else {
+      assertx(tvIsInt(a.first));
+      if (!tvIsInt(b.first)) {
+        assertx(tvIsString(b.first));
+        return true;
+      }
+      return val(a.first).num < val(b.first).num;
+    }
+  });
+}
+
 void VariableSerializer::serializeArrayImpl(const ArrayData* arr,
                                             bool isVectorData) {
   using AK = VariableSerializer::ArrayKind;
   AK kind = getKind(arr);
   writeArrayHeader(arr->size(), isVectorData, kind);
 
-  IterateKV(
-    arr,
-    [&](TypedValue k, TypedValue v) {
+  if (UNLIKELY(m_sortArrayKeys)) {
+    using KVPair = std::pair<TypedValue, TypedValue>;
+    req::vector<KVPair> elems;
+    IterateKV(
+      arr,
+      [&elems](TypedValue k, TypedValue v) {
+        elems.push_back(std::make_pair(k, v));
+      }
+    );
+    sortTvPairs(elems);
+    for (const auto& [k, v]: elems) {
       writeArrayKey(VarNR(k), kind);
       writeArrayValue(VarNR(v), kind);
     }
-  );
+  } else {
+    IterateKV(
+      arr,
+      [&](TypedValue k, TypedValue v) {
+        writeArrayKey(VarNR(k), kind);
+        writeArrayValue(VarNR(v), kind);
+      }
+    );
+  }
 
   writeArrayFooter(kind);
 }
 
 void VariableSerializer::serializeArray(const ArrayData* arr,
                                         bool skipNestCheck /* = false */) {
-  if (UNLIKELY(RuntimeOption::EvalHackArrCompatSerializeNotices)) {
+  if (UNLIKELY(Cfg::Eval::HackArrCompatSerializeNotices)) {
     if (UNLIKELY(m_hackWarn && !m_hasHackWarned)) {
       raise_hack_arr_compat_serialize_notice(arr);
       m_hasHackWarned = true;
@@ -2049,6 +2090,20 @@ void VariableSerializer::serializeObjProps(Array& arr) {
   decRefArr(dict);
 }
 
+void VariableSerializer::writeCollectionKVSorted(ObjectData* obj) {
+  using AK = VariableSerializer::ArrayKind;
+  using KVPair = std::pair<TypedValue, TypedValue>;
+  req::vector<KVPair> elems;
+  for (ArrayIter iter(obj); iter; ++iter) {
+    elems.push_back(std::make_pair(iter.nvFirst(), iter.secondVal()));
+  }
+  sortTvPairs(elems);
+  for (const auto& [k, v]: elems) {
+    writeCollectionKey(VarNR(k), AK::PHP);
+    writeArrayValue(VarNR(v), AK::PHP);
+  }
+}
+
 void VariableSerializer::serializeCollection(ObjectData* obj) {
   using AK = VariableSerializer::ArrayKind;
   int64_t sz = collections::getSize(obj);
@@ -2057,9 +2112,13 @@ void VariableSerializer::serializeCollection(ObjectData* obj) {
   if (isMapCollection(type)) {
     pushObjectInfo(obj->getClassName(),'K');
     writeArrayHeader(sz, false, AK::PHP);
-    for (ArrayIter iter(obj); iter; ++iter) {
-      writeCollectionKey(iter.first(), AK::PHP);
-      writeArrayValue(iter.second(), AK::PHP);
+    if (UNLIKELY(m_sortArrayKeys)) {
+      writeCollectionKVSorted(obj);
+    } else {
+      for (ArrayIter iter(obj); iter; ++iter) {
+        writeCollectionKey(iter.first(), AK::PHP);
+        writeArrayValue(iter.second(), AK::PHP);
+      }
     }
     writeArrayFooter(AK::PHP);
 
@@ -2099,9 +2158,13 @@ void VariableSerializer::serializeCollection(ObjectData* obj) {
           writeArrayValue(iter.second(), AK::PHP);
         }
       } else {
-        for (ArrayIter iter(obj); iter; ++iter) {
-          writeCollectionKey(iter.first(), AK::PHP);
-          writeArrayValue(iter.second(), AK::PHP);
+        if (UNLIKELY(m_sortArrayKeys)) {
+          writeCollectionKVSorted(obj);
+        } else {
+          for (ArrayIter iter(obj); iter; ++iter) {
+              writeCollectionKey(iter.first(), AK::PHP);
+              writeArrayValue(iter.second(), AK::PHP);
+          }
         }
       }
     }

@@ -29,11 +29,11 @@
       ],
       "location": {
         "file": "fbcode/thrift/lib/cpp2/op/detail/ContainerPatch.h",
-        "line": "339",
-        "column": "1",
+        "line": "324",
+        "column": "8",
         "bodyfile": "fbcode/thrift/lib/cpp2/op/detail/ContainerPatch.h",
-        "bodystart": "339",
-        "bodyend": "349"
+        "bodystart": "324",
+        "bodyend": "335"
       },
       "definition": {
         "simple_html": "template &lt;typename C = std::unordered_set&lt;typename T::key_type&gt;&gt;\nvoid remove(C&amp;&amp; keys)",
@@ -58,5 +58,11 @@
   "brief_html": "<p>Removes keys. </p>",
   "groupname_html": "",
   "href": "/ref/cpp/f/class/apache/thrift/op/detail/MapPatch/remove",
-  "refid": "/ref/cpp/f/class/apache/thrift/op/detail/MapPatch/remove"
+  "refid": "/ref/cpp/f/class/apache/thrift/op/detail/MapPatch/remove",
+  "parent_links": [
+    {
+      "text_html": "MapPatch",
+      "href": "/ref/cpp/class/apache/thrift/op/detail/MapPatch"
+    }
+  ]
 }

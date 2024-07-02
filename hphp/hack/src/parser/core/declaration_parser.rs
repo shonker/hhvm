@@ -1681,11 +1681,7 @@ where
             }
         };
         let ellipsis = self.parse_ellipsis_opt();
-        let name = if ellipsis.is_missing() {
-            self.require_variable()
-        } else {
-            self.parse_variable_opt()
-        };
+        let name = self.require_variable();
         let default = self.parse_simple_initializer_opt();
         let parameter_end = self.pos();
         let parameter_end_token = self.sc_mut().make_missing(parameter_end);
@@ -1762,20 +1758,6 @@ where
         let token_kind = self.peek_token_kind();
         match token_kind {
             TokenKind::DotDotDot => {
-                let token = self.next_token();
-                self.sc_mut().make_token(token)
-            }
-            _ => {
-                let pos = self.pos();
-                self.sc_mut().make_missing(pos)
-            }
-        }
-    }
-
-    fn parse_variable_opt(&mut self) -> S::Output {
-        let token_kind = self.peek_token_kind();
-        match token_kind {
-            TokenKind::Variable => {
                 let token = self.next_token();
                 self.sc_mut().make_token(token)
             }
@@ -2599,6 +2581,9 @@ where
                     if !imports_block.is_missing() {
                         self.with_error(Errors::error1067, Vec::new());
                     }
+                    if !exports_block.is_missing() {
+                        self.with_error(Errors::error1069, Vec::new());
+                    }
 
                     imports_block = self
                         .sc_mut()
@@ -2612,8 +2597,8 @@ where
                         module_kw,
                         name,
                         lb,
-                        exports_block,
                         imports_block,
+                        exports_block,
                         rb,
                     );
                 }

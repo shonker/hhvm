@@ -21,7 +21,7 @@ apache::thrift::ServiceHandler<::cpp2::PrimitivesService>::CreateMethodMetadataR
 
 #if defined(THRIFT_SCHEMA_AVAILABLE)
 std::optional<std::vector<apache::thrift::type::Schema>> apache::thrift::ServiceHandler<::cpp2::PrimitivesService>::getServiceMetadataV1() {
-  return apache::thrift::detail::si::schemaAsOptionalVector(::cpp2::module_constants::schemaPrimitivesService());
+  return {};
 }
 #endif
 
@@ -66,7 +66,7 @@ folly::coro::Task<::std::int64_t> apache::thrift::ServiceHandler<::cpp2::Primiti
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::PrimitivesService>::async_tm_init(std::unique_ptr<apache::thrift::HandlerCallback<::std::int64_t>> callback, ::std::int64_t p_param0, ::std::int64_t p_param1) {
+void apache::thrift::ServiceHandler<::cpp2::PrimitivesService>::async_tm_init(apache::thrift::HandlerCallbackPtr<::std::int64_t> callback, ::std::int64_t p_param0, ::std::int64_t p_param1) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -174,7 +174,7 @@ folly::coro::Task<::cpp2::Result> apache::thrift::ServiceHandler<::cpp2::Primiti
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::PrimitivesService>::async_tm_method_that_throws(std::unique_ptr<apache::thrift::HandlerCallback<::cpp2::Result>> callback) {
+void apache::thrift::ServiceHandler<::cpp2::PrimitivesService>::async_tm_method_that_throws(apache::thrift::HandlerCallbackPtr<::cpp2::Result> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -283,7 +283,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::cpp2::PrimitivesService
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::PrimitivesService>::async_tm_return_void_method(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback, ::std::int64_t p_id) {
+void apache::thrift::ServiceHandler<::cpp2::PrimitivesService>::async_tm_return_void_method(apache::thrift::HandlerCallbackPtr<void> callback, ::std::int64_t p_id) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -361,15 +361,15 @@ determineInvocationType:
 
 namespace cpp2 {
 
-::std::int64_t PrimitivesServiceSvNull::init(::std::int64_t /*param0*/, ::std::int64_t /*param1*/) {
+::std::int64_t PrimitivesServiceSvNull::init(::std::int64_t /*param0*/, ::std::int64_t /*param1*/) { 
   return 0;
 }
 
-::cpp2::Result PrimitivesServiceSvNull::method_that_throws() {
+::cpp2::Result PrimitivesServiceSvNull::method_that_throws() { 
   return (::cpp2::Result)0;
 }
 
-void PrimitivesServiceSvNull::return_void_method(::std::int64_t /*id*/) {
+void PrimitivesServiceSvNull::return_void_method(::std::int64_t /*id*/) { 
   return;
 }
 
@@ -420,21 +420,21 @@ apache::thrift::ServiceRequestInfoMap const& PrimitivesServiceServiceInfoHolder:
 apache::thrift::ServiceRequestInfoMap PrimitivesServiceServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"init",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "PrimitivesService.init",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"method_that_throws",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "PrimitivesService.method_that_throws",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"return_void_method",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "PrimitivesService.return_void_method",
      std::nullopt,
@@ -444,4 +444,4 @@ apache::thrift::ServiceRequestInfoMap PrimitivesServiceServiceInfoHolder::static
 
   return requestInfoMap;
 }
-} // cpp2
+} // namespace cpp2

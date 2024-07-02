@@ -8,16 +8,11 @@ use newtype::IdVec;
 
 use crate::block::BlockIdIterator;
 use crate::instr::Terminator;
-use crate::Attr;
-use crate::Attribute;
 use crate::Block;
 use crate::BlockId;
 use crate::BlockIdMap;
 use crate::BytesId;
-use crate::ClassName;
-use crate::Coeffects;
-use crate::FunctionFlags;
-use crate::FunctionName;
+use crate::FunctionImpl;
 use crate::HasEdges;
 use crate::ImmId;
 use crate::Immediate;
@@ -25,15 +20,14 @@ use crate::Instr;
 use crate::InstrId;
 use crate::LocId;
 use crate::LocalId;
-use crate::MethodFlags;
-use crate::MethodName;
+use crate::MethodImpl;
 use crate::Param;
 use crate::SrcLoc;
-use crate::TypeInfo;
-use crate::UpperBound;
 use crate::ValueId;
 use crate::ValueIdMap;
-use crate::Visibility;
+
+pub type Function = FunctionImpl<IrRepr>;
+pub type Method = MethodImpl<IrRepr>;
 
 #[derive(Copy, Clone, Debug, Hash, Eq, PartialEq)]
 pub struct Filename(pub BytesId);
@@ -123,9 +117,9 @@ impl TryCatchId {
     }
 }
 
-/// A Func represents a body of code. It's used for both Function and Method.
-///
-/// Code is organized into basic-Blocks which contain a series of 0 or more
+pub type Func = crate::BodyImpl<IrRepr>;
+
+/// IrRepr code is organized into basic-Blocks which contain a series of 0 or more
 /// non-terminal instructions ending with a terminal instruction.
 ///
 /// A Block can take parameters which are used to pass data when control is
@@ -151,29 +145,16 @@ impl TryCatchId {
 /// Exception frames are tracked as a separate tree structure made up of Blocks.
 /// Each exception frame says where to jump in the case of a thrown exception.
 #[derive(Clone, Debug, Default)]
-pub struct Func {
-    pub attributes: Vec<Attribute>,
-    pub attrs: Attr,
+pub struct IrRepr {
     pub blocks: IdVec<BlockId, Block>,
-    pub coeffects: Coeffects,
-    pub doc_comment: Option<Vec<u8>>,
     pub ex_frames: ExFrameIdMap<ExFrame>,
     pub instrs: IdVec<InstrId, Instr>,
-    pub is_memoize_wrapper: bool,
-    pub is_memoize_wrapper_lsb: bool,
     pub imms: IdVec<ImmId, Immediate>,
     pub locs: IdVec<LocId, SrcLoc>,
-    pub num_iters: usize,
     pub params: Vec<(Param, Option<DefaultValue>)>,
-    pub return_type: TypeInfo,
-    /// shadowed_tparams are the set of tparams on a method which shadow a
-    /// tparam on the containing class.
-    pub shadowed_tparams: Vec<ClassName>,
-    pub loc_id: LocId,
-    pub upper_bounds: Vec<UpperBound>,
 }
 
-impl Func {
+impl IrRepr {
     // By definition the entry block is block zero.
     pub const ENTRY_BID: BlockId = BlockId(0);
 
@@ -233,13 +214,13 @@ impl Func {
     }
 
     pub fn catch_target(&self, bid: BlockId) -> BlockId {
-        fn get_catch_frame(func: &Func, tcid: TryCatchId) -> Option<&ExFrame> {
+        fn get_catch_frame(repr: &IrRepr, tcid: TryCatchId) -> Option<&ExFrame> {
             match tcid {
                 TryCatchId::None => None,
-                TryCatchId::Try(exid) => Some(&func.ex_frames[&exid]),
+                TryCatchId::Try(exid) => Some(&repr.ex_frames[&exid]),
                 TryCatchId::Catch(exid) => {
-                    let parent = func.ex_frames[&exid].parent;
-                    get_catch_frame(func, parent)
+                    let parent = repr.ex_frames[&exid].parent;
+                    get_catch_frame(repr, parent)
                 }
             }
         }
@@ -338,12 +319,6 @@ impl Func {
             .map_or(false, |iid| self.instr(iid).is_terminal())
     }
 
-    pub fn is_reified(&self) -> bool {
-        self.attributes
-            .iter()
-            .any(|attr| attr.name.as_str() == "__Reified")
-    }
-
     pub fn loc(&self, loc: LocId) -> &SrcLoc {
         assert!(loc != LocId::NONE);
         self.get_loc(loc).unwrap()
@@ -397,21 +372,4 @@ impl Func {
             _ => panic!("Non-Terminator found in terminator location {}", iid),
         }
     }
-}
-
-/// A top-level Hack function.
-#[derive(Debug)]
-pub struct Function {
-    pub flags: FunctionFlags,
-    pub name: FunctionName,
-    pub func: Func,
-}
-
-/// A Hack method contained within a Class.
-#[derive(Debug)]
-pub struct Method {
-    pub flags: MethodFlags,
-    pub func: Func,
-    pub name: MethodName,
-    pub visibility: Visibility,
 }

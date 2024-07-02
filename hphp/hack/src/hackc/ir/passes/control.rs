@@ -11,6 +11,7 @@ use ir_core::BlockId;
 use ir_core::BlockIdMap;
 use ir_core::Func;
 use ir_core::InstrId;
+use ir_core::IrRepr;
 use ir_core::ValueId;
 use newtype::IdVec;
 
@@ -27,8 +28,8 @@ pub fn run(func: &mut Func) -> bool {
         },
     );
 
-    for bid in func.block_ids().rev() {
-        let mut instr = std::mem::replace(func.terminator_mut(bid), Terminator::Unreachable);
+    for bid in func.repr.block_ids().rev() {
+        let mut instr = std::mem::replace(func.repr.terminator_mut(bid), Terminator::Unreachable);
 
         let edges = instr.edges_mut();
         let successors = edges.len() as u32;
@@ -41,30 +42,30 @@ pub fn run(func: &mut Func) -> bool {
             }
         }
 
-        *func.terminator_mut(bid) = instr;
+        *func.repr.terminator_mut(bid) = instr;
     }
 
     // Function params
-    for idx in 0..func.params.len() {
-        if let (_, Some(dv)) = &func.params[idx] {
+    for idx in 0..func.repr.params.len() {
+        if let (_, Some(dv)) = &func.repr.params[idx] {
             if let Some(target) = forward_edge(func, dv.init, 1, &predecessors) {
                 changed = true;
                 predecessors[dv.init] -= 1;
                 predecessors[target] += 1;
-                func.params[idx].1.as_mut().unwrap().init = target;
+                func.repr.params[idx].1.as_mut().unwrap().init = target;
             }
         }
     }
 
     // Entry Block
-    if let Some(target) = forward_edge(func, Func::ENTRY_BID, 1, &predecessors) {
+    if let Some(target) = forward_edge(func, IrRepr::ENTRY_BID, 1, &predecessors) {
         // Uh oh - we're remapping the ENTRY_BID - this is no good. Instead
         // remap the target and swap the two blocks.
         changed = true;
         let mut remap = BlockIdMap::default();
-        remap.insert(target, Func::ENTRY_BID);
-        func.remap_bids(&remap);
-        func.blocks.swap(Func::ENTRY_BID, target);
+        remap.insert(target, IrRepr::ENTRY_BID);
+        func.repr.remap_bids(&remap);
+        func.repr.blocks.swap(IrRepr::ENTRY_BID, target);
     }
 
     if changed {
@@ -102,13 +103,13 @@ fn forward_edge(
 
     let mut changed = false;
     for _ in 0..LOOP_CHECK {
-        let block = func.block(bid);
+        let block = func.repr.block(bid);
         if block.iids.len() != 1 {
             // This block has multiple instrs.
             break;
         }
 
-        let terminator = func.terminator(bid);
+        let terminator = func.repr.terminator(bid);
         let target = match *terminator {
             Terminator::Jmp(target, _) => {
                 if !block.params.is_empty() {
@@ -133,7 +134,7 @@ fn forward_edge(
             }
         };
 
-        let target_block = func.block(target);
+        let target_block = func.repr.block(target);
         if target_block.tcid != block.tcid {
             // This jump crosses an exception frame - can't forward.
             break;
@@ -332,8 +333,8 @@ mod test {
             testutils::Block::ret("d"),
             testutils::Block::ret("e"),
         ]);
-        func.params.push(mk_param("x", BlockId(1)));
-        *func.instr_mut(InstrId(1)) = Instr::enter(BlockId(2), ir_core::LocId::NONE);
+        func.repr.params.push(mk_param("x", BlockId(1)));
+        *func.repr.instr_mut(InstrId(1)) = Instr::enter(BlockId(2), ir_core::LocId::NONE);
 
         eprintln!("FUNC:\n{}", print::DisplayFunc::new(&func, true));
 
@@ -346,8 +347,8 @@ mod test {
             testutils::Block::ret("d"),
             testutils::Block::ret("e"),
         ]);
-        expected.params.push(mk_param("x", BlockId(1)));
-        *expected.instr_mut(InstrId(1)) = Instr::enter(BlockId(0), ir_core::LocId::NONE);
+        expected.repr.params.push(mk_param("x", BlockId(1)));
+        *expected.repr.instr_mut(InstrId(1)) = Instr::enter(BlockId(0), ir_core::LocId::NONE);
 
         testutils::assert_func_struct_eq(&func, &expected);
     }

@@ -26,7 +26,7 @@ namespace detail {
 namespace cpp2 {
 class Empty;
 class Nada;
-} // cpp2
+} // namespace cpp2
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -85,6 +85,8 @@ class Empty final  {
  public:
   using __fbthrift_cpp2_type = Empty;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -178,6 +180,8 @@ class Nada final  {
   using __fbthrift_cpp2_type = Nada;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -265,7 +269,7 @@ unsigned long Nada::read(Protocol_* iprot) {
 }
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache { namespace thrift {
 

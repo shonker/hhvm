@@ -48,7 +48,7 @@ APACHE_THRIFT_DEFINE_ACCESSOR(id);
 namespace module2 {
 class Struct;
 class BigStruct;
-} // module2
+} // namespace module2
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -111,6 +111,8 @@ class Struct final  {
  public:
   using __fbthrift_cpp2_type = Struct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -311,6 +313,8 @@ class BigStruct final  {
   using __fbthrift_cpp2_type = BigStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -465,4 +469,4 @@ unsigned long BigStruct::read(Protocol_* iprot) {
 }
 
 
-} // module2
+} // namespace module2

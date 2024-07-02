@@ -7,8 +7,6 @@
 
 extern crate serde;
 
-pub mod errors;
-
 #[allow(unused_imports)]
 pub(crate) use crate as types;
 
@@ -65,10 +63,17 @@ impl ::fbthrift::GetTType for self::NoSerde {
     const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
 }
 
+impl ::fbthrift::GetTypeNameType for self::NoSerde {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::NoSerde
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("NoSerde");
         p.write_field_begin("a", ::fbthrift::TType::Bool, 1);
@@ -83,6 +88,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::NoSerde
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("a", ::fbthrift::TType::Bool, 1),
@@ -160,10 +166,17 @@ impl ::fbthrift::GetTType for self::Serde {
     const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
 }
 
+impl ::fbthrift::GetTypeNameType for self::Serde {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::Serde
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("Serde");
         p.write_field_begin("a", ::fbthrift::TType::Bool, 1);
@@ -178,6 +191,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::Serde
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("a", ::fbthrift::TType::Bool, 1),

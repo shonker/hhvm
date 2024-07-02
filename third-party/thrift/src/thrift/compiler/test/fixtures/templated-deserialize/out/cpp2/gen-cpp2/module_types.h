@@ -150,7 +150,7 @@ enum class MyEnumA {
 
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace std {
 template<> struct hash<::cpp2::MyEnumA> :
@@ -190,7 +190,7 @@ template <> struct TEnumTraits<::cpp2::MyEnumA> {
 namespace cpp2 {
 class SmallStruct;
 class containerStruct;
-} // cpp2
+} // namespace cpp2
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -256,6 +256,8 @@ class SmallStruct final  {
  public:
   using __fbthrift_cpp2_type = SmallStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -500,6 +502,8 @@ class containerStruct final  {
  public:
   using __fbthrift_cpp2_type = containerStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -1640,4 +1644,4 @@ unsigned long containerStruct::read(Protocol_* iprot) {
 }
 
 
-} // cpp2
+} // namespace cpp2

@@ -145,7 +145,7 @@ void TccStructTraits<::test::fixtures::enums::SomeStruct>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace test { namespace fixtures { namespace enums {
+namespace test::fixtures::enums {
 
 const char* SomeStruct::__fbthrift_thrift_uri() {
   return "test.dev/fixtures/enums/SomeStruct";
@@ -192,7 +192,7 @@ SomeStruct::SomeStruct(apache::thrift::FragileConstructor, ::test::fixtures::enu
     __fbthrift_field_reasonable(std::move(reasonable__arg)),
     __fbthrift_field_fine(std::move(fine__arg)),
     __fbthrift_field_questionable(std::move(questionable__arg)),
-    __fbthrift_field_tags(std::move(tags__arg)) {
+    __fbthrift_field_tags(std::move(tags__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
   __isset.set(folly::index_constant<2>(), true);
@@ -252,7 +252,7 @@ template uint32_t SomeStruct::serializedSize<>(apache::thrift::CompactProtocolWr
 template uint32_t SomeStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // test::fixtures::enums
+} // namespace test::fixtures::enums
 
 namespace apache {
 namespace thrift {
@@ -275,7 +275,7 @@ void TccStructTraits<::test::fixtures::enums::MyStruct>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace test { namespace fixtures { namespace enums {
+namespace test::fixtures::enums {
 
 const char* MyStruct::__fbthrift_thrift_uri() {
   return "test.dev/fixtures/enums/MyStruct";
@@ -294,7 +294,7 @@ MyStruct::MyStruct(apache::thrift::FragileConstructor, ::test::fixtures::enums::
     __fbthrift_field_me2_3(std::move(me2_3__arg)),
     __fbthrift_field_me3_n3(std::move(me3_n3__arg)),
     __fbthrift_field_me1_t1(std::move(me1_t1__arg)),
-    __fbthrift_field_me1_t2(std::move(me1_t2__arg)) {
+    __fbthrift_field_me1_t2(std::move(me1_t2__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
   __isset.set(folly::index_constant<2>(), true);
@@ -346,11 +346,11 @@ template uint32_t MyStruct::serializedSize<>(apache::thrift::CompactProtocolWrit
 template uint32_t MyStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // test::fixtures::enums
+} // namespace test::fixtures::enums
 
-namespace test { namespace fixtures { namespace enums { namespace {
+namespace test::fixtures::enums { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}}}} // test::fixtures::enums
+}} // namespace test::fixtures::enums
 namespace apache::thrift::detail::annotation {
 }

@@ -25,8 +25,10 @@ use ir::Immediate;
 use ir::IncDecOp;
 use ir::Instr;
 use ir::InstrId;
+use ir::IrRepr;
 use ir::LocId;
 use ir::LocalId;
+use ir::Maybe;
 use ir::MethodFlags;
 use ir::MethodName;
 use ir::SpecialClsRef;
@@ -52,6 +54,7 @@ use crate::textual;
 use crate::textual::Expr;
 use crate::textual::Sid;
 use crate::textual::TextualFile;
+use crate::textual::NOTNULL;
 use crate::typed_value;
 use crate::types::convert_ty;
 use crate::util;
@@ -66,11 +69,11 @@ pub(crate) fn write_function(txf: &mut TextualFile<'_>, function: ir::Function) 
 
     let func_info = FuncInfo::Function(FunctionInfo {
         name: function.name,
-        attrs: function.func.attrs,
+        attrs: function.body.attrs,
         flags: function.flags,
     });
 
-    lower_and_write_func(txf, textual::Ty::VoidPtr, function.func, func_info)
+    lower_and_write_func(txf, textual::Ty::VoidPtr, function.body, func_info)
 }
 
 fn add_attr<'a>(attr: &mut Option<Vec<Cow<'a, str>>>, s: impl Into<Cow<'a, str>>) {
@@ -85,7 +88,7 @@ fn extract_awaitable_and_type_constant(user_type: StringId) -> (bool, Option<Str
     let user_string = user_type.as_str();
 
     let (is_awaitable, type_string) = {
-        if let Some(captures) = awaitable_pattern.captures(&user_string) {
+        if let Some(captures) = awaitable_pattern.captures(user_string) {
             if let Some(matched) = captures.get(1) {
                 (true, matched.as_str())
             } else {
@@ -122,6 +125,18 @@ fn compute_func_ty<'a>(attr: &mut Option<Vec<Cow<'a, str>>>, ty: &ir::TypeInfo) 
     if enforced.is_this() {
         add_attr(attr, ".this")
     }
+    let is_nullable = enforced
+        .modifiers
+        .contains(ir::TypeConstraintFlags::Nullable);
+    let ty = convert_ty(&enforced);
+    let base_is_notnull = match ty.nullable() {
+        textual::ThreeValuedBool::No => true,
+        _ => false,
+    };
+    if !is_nullable && base_is_notnull {
+        add_attr(attr, NOTNULL);
+        // because of type aliases, it is difficult to assert nonnullness on other types
+    }
     let is_typevar = enforced
         .modifiers
         .contains(ir::TypeConstraintFlags::TypeVar);
@@ -138,17 +153,27 @@ fn compute_func_ty<'a>(attr: &mut Option<Vec<Cow<'a, str>>>, ty: &ir::TypeInfo) 
     }
 }
 
-fn compute_func_params<'a, 'b>(
+fn compute_func_params<'b>(
     params: &[(ir::Param, Option<ir::DefaultValue>)],
     this_ty: textual::Ty,
 ) -> Vec<(textual::Param<'b>, LocalId)> {
     let mut result = Vec::new();
 
+    let this_ty_is_void_ptr = match this_ty {
+        textual::Ty::VoidPtr => true,
+        _ => false,
+    };
+
     let this_lid = LocalId::Named(ir::intern(special_idents::THIS));
     // Prepend the 'this' parameter.
+    let this_attrs = if this_ty_is_void_ptr {
+        None
+    } else {
+        Some(vec![Cow::Borrowed(NOTNULL)].into_boxed_slice())
+    };
     let this_param = textual::Param {
         name: VarName::Local(this_lid),
-        attrs: None,
+        attrs: this_attrs,
         ty: this_ty,
     };
     result.push((this_param, this_lid));
@@ -198,7 +223,7 @@ pub(crate) fn lower_and_write_func(
         write_func(txf, this_ty, func, Arc::new(func_info))
     }
 
-    let has_defaults = func.params.iter().any(|(_, dv)| dv.is_some());
+    let has_defaults = func.repr.params.iter().any(|(_, dv)| dv.is_some());
     if has_defaults {
         // When a function has defaults we need to split it into multiple
         // functions which each take a different number of parameters,
@@ -229,12 +254,13 @@ fn is_wrapper_attribute(classid: ClassName) -> bool {
 /// parameter removed).
 fn split_default_func(orig_func: &Func, func_info: &FuncInfo<'_>) -> Option<Vec<Func>> {
     let mut result = Vec::new();
-    let loc = orig_func.loc_id;
+    let loc = ir::LocId::from_usize(0); // LocId 0 must be Func::span
 
     // Caution here: If we have varargs then the final param is "magic".  Since
     // we're before lowering the 0ReifiedGenerics param won't exist yet.
-    let mut max_params = orig_func.params.len();
+    let mut max_params = orig_func.repr.params.len();
     let min_params = orig_func
+        .repr
         .params
         .iter()
         .take_while(|(_, dv)| dv.is_none())
@@ -245,7 +271,7 @@ fn split_default_func(orig_func: &Func, func_info: &FuncInfo<'_>) -> Option<Vec<
 
     let has_reified = orig_func.is_reified();
     let mut variadic_idx = None;
-    if orig_func.params[max_params - 1].0.is_variadic {
+    if orig_func.repr.params[max_params - 1].0.is_variadic {
         max_params -= 1;
         variadic_idx = Some(max_params);
     }
@@ -257,10 +283,10 @@ fn split_default_func(orig_func: &Func, func_info: &FuncInfo<'_>) -> Option<Vec<
             arguments: vec![].into(),
         });
 
-        let target_bid = func.params[param_count].1.as_ref().map(|dv| dv.init);
-        func.params.truncate(param_count);
+        let target_bid = func.repr.params[param_count].1.as_ref().map(|dv| dv.init);
+        func.repr.params.truncate(param_count);
         for i in min_params..param_count {
-            func.params[i].1 = None;
+            func.repr.params[i].1 = None;
         }
 
         // replace the entrypoint with a jump to the initializer.
@@ -269,19 +295,21 @@ fn split_default_func(orig_func: &Func, func_info: &FuncInfo<'_>) -> Option<Vec<
 
             if let Some(variadic_idx) = variadic_idx {
                 // We need to fake up setting an empty variadic parameter.
-                let new_vec = func.alloc_imm(Immediate::Array(Arc::new(ir::TypedValue::Vec(
-                    vec![].into(),
-                ))));
-                let lid = LocalId::Named(orig_func.params[variadic_idx].0.name);
-                let iid = func.alloc_instr(Instr::Hhbc(Hhbc::SetL(new_vec.into(), lid, loc)));
+                let new_vec = func.repr.alloc_imm(ir::TypedValue::vec(vec![]).into());
+                let lid = LocalId::Named(orig_func.repr.params[variadic_idx].0.name);
+                let iid = func
+                    .repr
+                    .alloc_instr(Instr::Hhbc(Hhbc::SetL(new_vec.into(), lid, loc)));
                 block.push(iid);
             }
 
-            let iid = func.alloc_instr(Instr::Terminator(ir::instr::Terminator::Jmp(
-                target_bid, loc,
-            )));
+            let iid = func
+                .repr
+                .alloc_instr(Instr::Terminator(ir::instr::Terminator::Jmp(
+                    target_bid, loc,
+                )));
             block.push(iid);
-            func.block_mut(Func::ENTRY_BID).iids = block;
+            func.repr.block_mut(IrRepr::ENTRY_BID).iids = block;
         }
 
         // And turn the 'enter' calls into a tail call into the non-default
@@ -289,16 +317,16 @@ fn split_default_func(orig_func: &Func, func_info: &FuncInfo<'_>) -> Option<Vec<
         let exit_bid = {
             let mut block = ir::Block::default();
             let mut params = Vec::new();
-            for (param, _) in &orig_func.params {
+            for (param, _) in &orig_func.repr.params {
                 let instr = Instr::Hhbc(Hhbc::CGetL(LocalId::Named(param.name), loc));
-                let iid = func.alloc_instr(instr);
+                let iid = func.repr.alloc_instr(instr);
                 block.iids.push(iid);
                 params.push(ValueId::from(iid));
             }
             if has_reified {
                 let name = ir::intern(hhbc_string_utils::reified::GENERICS_LOCAL_NAME);
                 let instr = Instr::Hhbc(Hhbc::CGetL(LocalId::Named(name), loc));
-                let iid = func.alloc_instr(instr);
+                let iid = func.repr.alloc_instr(instr);
                 block.iids.push(iid);
                 params.push(ValueId::from(iid));
             }
@@ -307,20 +335,20 @@ fn split_default_func(orig_func: &Func, func_info: &FuncInfo<'_>) -> Option<Vec<
                 FuncInfo::Method(mi) => {
                     let this_str = ir::intern(special_idents::THIS);
                     let instr = Instr::Hhbc(Hhbc::CGetL(LocalId::Named(this_str), loc));
-                    let receiver = func.alloc_instr(instr);
+                    let receiver = func.repr.alloc_instr(instr);
                     block.iids.push(receiver);
                     Instr::simple_method_call(mi.name, receiver.into(), &params, loc)
                 }
             };
-            let iid = func.alloc_instr(instr);
+            let iid = func.repr.alloc_instr(instr);
             block.iids.push(iid);
-            let iid = func.alloc_instr(Instr::ret(iid.into(), loc));
+            let iid = func.repr.alloc_instr(Instr::ret(iid.into(), loc));
             block.iids.push(iid);
 
-            func.alloc_bid(block)
+            func.repr.alloc_bid(block)
         };
 
-        for instr in func.instrs.iter_mut() {
+        for instr in func.repr.instrs.iter_mut() {
             match instr {
                 Instr::Terminator(Terminator::Enter(bid, _)) => *bid = exit_bid,
                 _ => {}
@@ -339,13 +367,14 @@ fn write_func(
     mut func: ir::Func,
     func_info: Arc<FuncInfo<'_>>,
 ) -> Result {
-    let params = std::mem::take(&mut func.params);
+    let params = std::mem::take(&mut func.repr.params);
     let (tx_params, param_lids): (Vec<_>, Vec<_>) =
         compute_func_params(&params, this_ty).into_iter().unzip();
 
-    let ret_ty = compute_func_ret_ty(&func.return_type);
+    let ret_ty = compute_func_ret_ty(&func.return_type());
 
     let lids = func
+        .repr
         .body_instrs()
         .flat_map(HasLocals::locals)
         .cloned()
@@ -375,7 +404,7 @@ fn write_func(
         FuncInfo::Function(ref fi) => mangle::FunctionName::Function(fi.name),
     };
 
-    let span = func.loc(func.loc_id).clone();
+    let span = ir::SrcLoc::from_span(&func.span);
 
     let attributes = textual::FuncAttributes {
         is_async: func_info.is_async(),
@@ -405,7 +434,7 @@ fn write_func(
 
                 let mut state = FuncState::new(fb, &func, func_info);
 
-                for bid in func.block_ids() {
+                for bid in func.repr.block_ids() {
                     write_block(&mut state, bid)?;
                 }
 
@@ -441,13 +470,13 @@ pub(crate) fn write_func_decl(
     mut func: ir::Func,
     func_info: Arc<FuncInfo<'_>>,
 ) -> Result {
-    let params = std::mem::take(&mut func.params);
+    let params = std::mem::take(&mut func.repr.params);
     let param_tys = compute_func_params(&params, this_ty)
         .into_iter()
         .map(|(param, _)| textual::Ty::clone(&param.ty))
         .collect_vec();
 
-    let ret_ty = compute_func_ret_ty(&func.return_type).ty;
+    let ret_ty = compute_func_ret_ty(&func.return_type()).ty;
 
     let name = match *func_info {
         FuncInfo::Method(ref mi) => match mi.name {
@@ -550,7 +579,7 @@ fn write_instance_stub(
 
 fn write_block(state: &mut FuncState<'_, '_, '_>, bid: BlockId) -> Result {
     trace!("  Block {bid}");
-    let block = state.func.block(bid);
+    let block = state.func.repr.block(bid);
 
     let params = block
         .params
@@ -558,7 +587,7 @@ fn write_block(state: &mut FuncState<'_, '_, '_>, bid: BlockId) -> Result {
         .map(|iid| state.alloc_sid_for_iid(*iid))
         .collect_vec();
     // The entry BID is always included for us.
-    if bid != Func::ENTRY_BID {
+    if bid != IrRepr::ENTRY_BID {
         state.fb.write_label(bid, &params)?;
     }
 
@@ -572,7 +601,7 @@ fn write_block(state: &mut FuncState<'_, '_, '_>, bid: BlockId) -> Result {
     write_terminator(state, block.terminator_iid())?;
 
     // Exception handler.
-    let handler = state.func.catch_target(bid);
+    let handler = state.func.repr.catch_target(bid);
     if handler != BlockId::NONE {
         state.fb.write_exception_handler(handler)?;
     }
@@ -582,7 +611,7 @@ fn write_block(state: &mut FuncState<'_, '_, '_>, bid: BlockId) -> Result {
 
 #[allow(clippy::todo)]
 fn write_instr(state: &mut FuncState<'_, '_, '_>, iid: InstrId) -> Result {
-    let instr = state.func.instr(iid);
+    let instr = state.func.repr.instr(iid);
     trace!("    Instr {iid}: {instr:?}");
 
     state.update_loc(instr.loc_id())?;
@@ -685,11 +714,14 @@ fn write_instr(state: &mut FuncState<'_, '_, '_>, iid: InstrId) -> Result {
             )?;
             state.set_iid(iid, obj);
         }
-        Instr::Hhbc(Hhbc::InstanceOfD(target, cid, _)) => {
+        Instr::Hhbc(Hhbc::InstanceOfD(target, cid, nullable, _)) => {
             let ty = class::non_static_ty(cid).deref();
             let target = Box::new(state.lookup_vid(target));
             // The result of __sil_instanceof is unboxed int, but we need a boxed HackBool
-            let output = state.call_builtin(hack::Builtin::Bool, [Expr::InstanceOf(target, ty)])?;
+            let output = state.call_builtin(
+                hack::Builtin::Bool,
+                [Expr::InstanceOf(target, ty, nullable)],
+            )?;
             state.set_iid(iid, output);
         }
         Instr::Hhbc(Hhbc::ResolveClass(cid, _)) => {
@@ -794,7 +826,7 @@ fn write_instr(state: &mut FuncState<'_, '_, '_>, iid: InstrId) -> Result {
             // else should be handled in lower().
             textual_todo! {
                 message = ("Non-lowered hhbc instr: {hhbc:?} (from {})",
-                           ir::print::formatters::FmtFullLoc(state.func.loc(hhbc.loc_id()))),
+                           ir::print::formatters::FmtFullLoc(state.func.repr.loc(hhbc.loc_id()))),
                 use ir::instr::HasOperands;
                 let name = mangle::FunctionName::Unmangled(format!("TODO_hhbc_{}", hhbc));
                 let operands = instr
@@ -821,9 +853,8 @@ fn write_copy(state: &mut FuncState<'_, '_, '_>, iid: InstrId, vid: ValueId) -> 
 
     match vid.full() {
         ir::FullInstrId::Imm(cid) => {
-            let imm = state.func.imm(cid);
+            let imm = state.func.repr.imm(cid);
             let expr = match imm {
-                Immediate::Array(tv) => typed_value_expr(tv),
                 Immediate::Bool(false) => Expr::Const(Const::False),
                 Immediate::Bool(true) => Expr::Const(Const::True),
                 Immediate::Dir => todo!(),
@@ -844,6 +875,9 @@ fn write_copy(state: &mut FuncState<'_, '_, '_>, iid: InstrId, vid: ValueId) -> 
                     hack::expr_builtin(Builtin::String, [Expr::Const(Const::String(s))])
                 }
                 Immediate::Uninit => Expr::Const(Const::Null),
+                Immediate::Vec(_) | Immediate::Dict(_) | Immediate::Keyset(_) => {
+                    typed_value_expr(&imm.clone().try_into().unwrap())
+                }
             };
 
             let expr = state.fb.write_expr_stmt(expr)?;
@@ -856,7 +890,7 @@ fn write_copy(state: &mut FuncState<'_, '_, '_>, iid: InstrId, vid: ValueId) -> 
 }
 
 fn write_terminator(state: &mut FuncState<'_, '_, '_>, iid: InstrId) -> Result {
-    let terminator = match state.func.instr(iid) {
+    let terminator = match state.func.repr.instr(iid) {
         Instr::Terminator(terminator) => terminator,
         _ => unreachable!(),
     };
@@ -1146,7 +1180,7 @@ fn write_call(state: &mut FuncState<'_, '_, '_>, iid: InstrId, call: &ir::Call) 
                     let base = ClassName::intern("__parent__");
                     mangle::FunctionName::method(base, is_static, method)
                 } else {
-                    let base = if let Some(base) = mi.class.base {
+                    let base = if let Maybe::Just(base) = mi.class.base {
                         base
                     } else {
                         // Uh oh. We're asking to call parent::foo() when we don't
@@ -1312,7 +1346,7 @@ impl<'a, 'b, 'c> FuncState<'a, 'b, 'c> {
 
         // The iid wasn't found.  Maybe it's a "special" reference (like a
         // Deref()) - pessimistically look for that.
-        match self.func.instr(iid) {
+        match self.func.repr.instr(iid) {
             Instr::Special(Special::Textual(Textual::Deref(lid))) => {
                 return textual::Expr::deref(*lid);
             }
@@ -1332,7 +1366,7 @@ impl<'a, 'b, 'c> FuncState<'a, 'b, 'c> {
             ir::FullInstrId::Imm(c) => {
                 use hack::Builtin;
                 use ir::CollectionType;
-                let c = self.func.imm(c);
+                let c = self.func.repr.imm(c);
                 match c {
                     Immediate::Bool(false) => hack::expr_builtin(Builtin::Bool, [false]),
                     Immediate::Bool(true) => hack::expr_builtin(Builtin::Bool, [true]),
@@ -1347,7 +1381,9 @@ impl<'a, 'b, 'c> FuncState<'a, 'b, 'c> {
                         hack::expr_builtin(Builtin::String, [s])
                     }
                     Immediate::EnumClassLabel(..) => textual_todo! { textual::Expr::null() },
-                    Immediate::Array(..) => textual_todo! { textual::Expr::null() },
+                    Immediate::Vec(_) | Immediate::Dict(_) | Immediate::Keyset(_) => {
+                        textual_todo! { textual::Expr::null() }
+                    }
                     Immediate::Dir => textual_todo! { textual::Expr::null() },
                     Immediate::Float(f) => hack::expr_builtin(Builtin::Float, [f.to_f64()]),
                     Immediate::File => textual_todo! { textual::Expr::null() },
@@ -1398,7 +1434,7 @@ impl<'a, 'b, 'c> FuncState<'a, 'b, 'c> {
 
     pub(crate) fn update_loc(&mut self, loc: LocId) -> Result {
         if loc != LocId::NONE {
-            let new = &self.func.locs[loc];
+            let new = &self.func.repr.locs[loc];
             self.fb.write_loc(new)?;
         }
         Ok(())
@@ -1421,8 +1457,8 @@ impl<'a, 'b, 'c> FuncState<'a, 'b, 'c> {
 /// This inserts the needed 'assert_true' and 'assert_false' statements but
 /// leaves the original JmpOp as a marker for where to jump to.
 fn rewrite_jmp_ops(mut func: ir::Func) -> ir::Func {
-    for bid in func.block_ids() {
-        match *func.terminator(bid) {
+    for bid in func.repr.block_ids() {
+        match *func.repr.terminator(bid) {
             Terminator::JmpOp {
                 cond,
                 pred,
@@ -1440,15 +1476,19 @@ fn rewrite_jmp_ops(mut func: ir::Func) -> ir::Func {
                     Predicate::NonZero => {}
                 }
 
-                let iid = func.alloc_instr(Instr::Special(Special::Textual(Textual::AssertTrue(
-                    cond, loc,
-                ))));
-                func.block_mut(true_bid).iids.insert(0, iid);
+                let iid =
+                    func.repr
+                        .alloc_instr(Instr::Special(Special::Textual(Textual::AssertTrue(
+                            cond, loc,
+                        ))));
+                func.repr.block_mut(true_bid).iids.insert(0, iid);
 
-                let iid = func.alloc_instr(Instr::Special(Special::Textual(Textual::AssertFalse(
-                    cond, loc,
-                ))));
-                func.block_mut(false_bid).iids.insert(0, iid);
+                let iid =
+                    func.repr
+                        .alloc_instr(Instr::Special(Special::Textual(Textual::AssertFalse(
+                            cond, loc,
+                        ))));
+                func.repr.block_mut(false_bid).iids.insert(0, iid);
             }
             _ => {}
         }
@@ -1567,7 +1607,7 @@ pub(crate) fn lookup_constant(func: &Func, mut vid: ValueId) -> Option<&ir::Imme
     loop {
         match vid.full() {
             FullInstrId::Instr(iid) => {
-                let instr = func.instr(iid);
+                let instr = func.repr.instr(iid);
                 match instr {
                     // If the pointed-at instr is a copy then follow it and try
                     // again.
@@ -1583,7 +1623,7 @@ pub(crate) fn lookup_constant(func: &Func, mut vid: ValueId) -> Option<&ir::Imme
                 }
             }
             FullInstrId::Imm(cid) => {
-                return Some(func.imm(cid));
+                return Some(func.repr.imm(cid));
             }
             FullInstrId::None => {
                 return None;

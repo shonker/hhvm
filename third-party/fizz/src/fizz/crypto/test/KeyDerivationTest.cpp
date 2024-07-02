@@ -8,8 +8,8 @@
 
 #include <folly/portability/GTest.h>
 
+#include <fizz/backend/openssl/OpenSSL.h>
 #include <fizz/crypto/KeyDerivation.h>
-#include <fizz/crypto/Sha256.h>
 #include <folly/String.h>
 #include <folly/io/IOBuf.h>
 
@@ -25,6 +25,18 @@ struct KdfParams {
   std::string result;
 };
 
+template <typename Hash>
+inline KeyDerivationImpl createKeyDerivationImpl(
+    const std::string& labelPrefix) {
+  return KeyDerivationImpl(
+      labelPrefix,
+      Hash::HashLen,
+      &openssl::Hasher<Hash>::hash,
+      &openssl::Hasher<Hash>::hmac,
+      HkdfImpl(Hash::HashLen, &openssl::Hasher<Hash>::hmac),
+      Hash::BlankHash);
+}
+
 class KeyDerivationTest : public ::testing::TestWithParam<KdfParams> {};
 
 TEST_P(KeyDerivationTest, ExpandLabel) {
@@ -35,7 +47,7 @@ TEST_P(KeyDerivationTest, ExpandLabel) {
 
   auto secret = std::vector<uint8_t>(prk.begin(), prk.end());
 
-  auto deriver = KeyDerivationImpl::create<Sha256>(kHkdfLabelPrefix.str());
+  auto deriver = createKeyDerivationImpl<Sha256>(kHkdfLabelPrefix.str());
   auto out = deriver.expandLabel(
       range(secret),
       GetParam().label,
@@ -48,22 +60,23 @@ TEST_P(KeyDerivationTest, ExpandLabel) {
 TEST(KeyDerivation, DeriveSecret) {
   // dummy prk
   std::vector<uint8_t> secret(
-      KeyDerivationImpl::create<Sha256>(kHkdfLabelPrefix.str()).hashLength());
+      createKeyDerivationImpl<Sha256>(kHkdfLabelPrefix.str()).hashLength());
   std::vector<uint8_t> messageHash(
-      KeyDerivationImpl::create<Sha256>(kHkdfLabelPrefix.str()).hashLength());
-  auto deriver = KeyDerivationImpl::create<Sha256>(kHkdfLabelPrefix.str());
+      createKeyDerivationImpl<Sha256>(kHkdfLabelPrefix.str()).hashLength());
+  auto deriver = createKeyDerivationImpl<Sha256>(kHkdfLabelPrefix.str());
   deriver.deriveSecret(
       range(secret), "hey", range(messageHash), deriver.hashLength());
 }
 
 TEST(KeyDerivation, Sha256BlankHash) {
   std::vector<uint8_t> computed(
-      KeyDerivationImpl::create<Sha256>(kHkdfLabelPrefix.str()).hashLength());
+      createKeyDerivationImpl<Sha256>(kHkdfLabelPrefix.str()).hashLength());
   folly::IOBuf blankBuf;
-  Sha256::hash(blankBuf, MutableByteRange(computed.data(), computed.size()));
+  openssl::Hasher<Sha256>::hash(
+      blankBuf, MutableByteRange(computed.data(), computed.size()));
   EXPECT_EQ(
-      StringPiece(KeyDerivationImpl::create<Sha256>(kHkdfLabelPrefix.str())
-                      .blankHash()),
+      StringPiece(
+          createKeyDerivationImpl<Sha256>(kHkdfLabelPrefix.str()).blankHash()),
       StringPiece(folly::range(computed)));
 }
 

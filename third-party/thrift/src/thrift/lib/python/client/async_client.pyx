@@ -33,7 +33,7 @@ from thrift.python.exceptions cimport create_py_exception
 from thrift.python.exceptions import ApplicationError, ApplicationErrorType
 from thrift.python.serializer import serialize_iobuf, deserialize
 from thrift.python.stream cimport ClientBufferedStream
-from thrift.py3.common cimport cRpcOptions, RpcOptions
+from thrift.python.common cimport cRpcOptions, RpcOptions
 
 @cython.auto_pickle(False)
 cdef class AsyncClient:
@@ -54,6 +54,9 @@ cdef class AsyncClient:
     cdef bind_client(self, cRequestChannel_ptr channel):
         self._omni_client = make_unique[cOmniClient](cmove(channel))
 
+    cdef bind_client_shared(self, shared_ptr[cRequestChannel] channel):
+        self._omni_client = make_unique[cOmniClient](channel)
+
     def __enter__(AsyncClient self):
         raise asyncio.InvalidStateError('Use an async context for thrift clients')
 
@@ -62,6 +65,9 @@ cdef class AsyncClient:
 
     async def __aenter__(AsyncClient self):
         await asyncio.shield(self._connect_future)
+        for handler in self._deferred_event_handlers:
+            self.add_event_handler(handler)
+        self._deferred_event_handlers.clear()
         return self
 
     async def __aexit__(AsyncClient self, exc_type, exc_value, traceback):
@@ -188,6 +194,12 @@ cdef class AsyncClient:
 
     def set_persistent_header(AsyncClient self, string key, string value):
         self._persistent_headers[key] = value
+
+    cdef add_event_handler(AsyncClient self, const shared_ptr[cTProcessorEventHandler]& handler):
+        if not self._omni_client:
+            self._deferred_event_handlers.push_back(handler)
+            return
+        deref(self._omni_client).addEventHandler(handler)
 
     def _at_aexit(AsyncClient self, callback):
         self._aexit_callbacks.append(callback)

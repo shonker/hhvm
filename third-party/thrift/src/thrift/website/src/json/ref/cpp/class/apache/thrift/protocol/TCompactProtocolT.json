@@ -18,9 +18,7 @@
   },
   "tparams": [
     {
-      "type_html": "class",
-      "declname_html": "Transport_",
-      "defname_html": "Transport_"
+      "type_html": "class Transport_"
     }
   ],
   "functions": [
@@ -45,7 +43,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "80",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "80",
         "bodyend": "89"
@@ -90,7 +88,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "91",
-        "column": "1",
+        "column": "3",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "91",
         "bodyend": "103"
@@ -127,7 +125,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "111",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "111",
         "bodyend": "120"
@@ -141,7 +139,7 @@
         "original_argsstring_html": "(Transport_ *trans)"
       },
       "description": {
-        "detailed_html": "<p>Construct a <code>TCompactProtocolT</code> using a raw pointer to the transport.</p><p>The caller is responsible for ensuring that the transport remains valid for the lifetime of the protocol. </p>"
+        "detailed_html": "<p>Construct a <code>TCompactProtocolT</code> using a raw pointer to the transport.</p>\n<p>The caller is responsible for ensuring that the transport remains valid for the lifetime of the protocol. </p>"
       },
       "filepath": "fns/class/apache/thrift/protocol/TCompactProtocolT/TCompactProtocolT",
       "href": "/ref/cpp/fns/class/apache/thrift/protocol/TCompactProtocolT/TCompactProtocolT"
@@ -167,7 +165,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "122",
-        "column": "1",
+        "column": "8",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "122",
         "bodyend": "124"
@@ -204,7 +202,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "126",
-        "column": "1",
+        "column": "8",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "126",
         "bodyend": "128"
@@ -235,7 +233,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "130",
-        "column": "1",
+        "column": "11",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "130",
         "bodyend": "130"
@@ -266,7 +264,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "132",
-        "column": "1",
+        "column": "11",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "132",
         "bodyend": "132"
@@ -303,7 +301,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "135",
-        "column": "1",
+        "column": "8",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "135",
         "bodyend": "135"
@@ -351,7 +349,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "141",
-        "column": "1",
+        "column": "20",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "86",
         "bodyend": "98"
@@ -391,7 +389,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "146",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "133",
         "bodyend": "138"
@@ -425,7 +423,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "148",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "146",
         "bodyend": "150"
@@ -473,7 +471,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "150",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "107",
         "bodyend": "117"
@@ -507,7 +505,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "153",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "123",
         "bodyend": "125"
@@ -551,7 +549,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "155",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "156",
         "bodyend": "159"
@@ -595,7 +593,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "157",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "165",
         "bodyend": "168"
@@ -643,7 +641,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "159",
-        "column": "1",
+        "column": "20",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "175",
         "bodyend": "186"
@@ -683,7 +681,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "162",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "195",
         "bodyend": "214"
@@ -723,7 +721,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "164",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "217",
         "bodyend": "220"
@@ -760,7 +758,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "166",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "226",
         "bodyend": "228"
@@ -800,7 +798,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "168",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "234",
         "bodyend": "236"
@@ -840,7 +838,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "170",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "242",
         "bodyend": "244"
@@ -880,7 +878,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "172",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "250",
         "bodyend": "264"
@@ -920,7 +918,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "174",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "270",
         "bodyend": "278"
@@ -960,7 +958,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "176",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "284",
         "bodyend": "286"
@@ -1005,7 +1003,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "179",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "290",
         "bodyend": "292"
@@ -1047,7 +1045,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "182",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "296",
         "bodyend": "301"
@@ -1078,7 +1076,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "188",
-        "column": "1",
+        "column": "20",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "188",
         "bodyend": "188"
@@ -1112,7 +1110,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "189",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "189",
         "bodyend": "189"
@@ -1143,7 +1141,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "190",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "190",
         "bodyend": "190"
@@ -1174,7 +1172,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "191",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "191",
         "bodyend": "191"
@@ -1205,7 +1203,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "192",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "192",
         "bodyend": "192"
@@ -1250,7 +1248,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "206",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "413",
         "bodyend": "438"
@@ -1290,7 +1288,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "209",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "445",
         "bodyend": "450"
@@ -1324,7 +1322,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "211",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "457",
         "bodyend": "461"
@@ -1372,7 +1370,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "213",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "467",
         "bodyend": "507"
@@ -1424,7 +1422,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "216",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "515",
         "bodyend": "537"
@@ -1472,7 +1470,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "219",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "546",
         "bodyend": "570"
@@ -1520,7 +1518,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "221",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "579",
         "bodyend": "582"
@@ -1560,7 +1558,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "223",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "590",
         "bodyend": "601"
@@ -1600,7 +1598,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "227",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "607",
         "bodyend": "612"
@@ -1640,7 +1638,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "229",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "618",
         "bodyend": "623"
@@ -1680,7 +1678,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "231",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "629",
         "bodyend": "634"
@@ -1720,7 +1718,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "233",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "640",
         "bodyend": "645"
@@ -1760,7 +1758,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "235",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "651",
         "bodyend": "667"
@@ -1800,7 +1798,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "237",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "673",
         "bodyend": "685"
@@ -1845,7 +1843,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "240",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "689",
         "bodyend": "691"
@@ -1887,7 +1885,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "243",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "698",
         "bodyend": "739"
@@ -1921,7 +1919,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "249",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "249",
         "bodyend": "249"
@@ -1952,7 +1950,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "250",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "250",
         "bodyend": "250"
@@ -1983,7 +1981,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "251",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "251",
         "bodyend": "251"
@@ -2014,7 +2012,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "252",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "252",
         "bodyend": "252"
@@ -2045,7 +2043,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "253",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "253",
         "bodyend": "253"
@@ -2094,7 +2092,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "195",
-        "column": "1",
+        "column": "11",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "313",
         "bodyend": "336"
@@ -2138,7 +2136,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "200",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "343",
         "bodyend": "353"
@@ -2178,7 +2176,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "201",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "359",
         "bodyend": "374"
@@ -2218,7 +2216,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "202",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "380",
         "bodyend": "395"
@@ -2258,7 +2256,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "203",
-        "column": "1",
+        "column": "17",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "401",
         "bodyend": "403"
@@ -2298,7 +2296,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "256",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "746",
         "bodyend": "751"
@@ -2338,7 +2336,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "257",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "758",
         "bodyend": "837"
@@ -2378,7 +2376,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "258",
-        "column": "1",
+        "column": "9",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "840",
         "bodyend": "874"
@@ -2397,10 +2395,10 @@
   ],
   "location": {
     "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
-    "line": "36",
+    "line": "35",
     "column": "1",
     "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
-    "bodystart": "35",
+    "bodystart": "36",
     "bodyend": "262"
   },
   "namespacednames_html": [
@@ -2425,7 +2423,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "38",
-        "column": "1",
+        "column": "23",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "38",
         "bodyend": "-1"
@@ -2444,7 +2442,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "39",
-        "column": "1",
+        "column": "23",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "39",
         "bodyend": "-1"
@@ -2463,7 +2461,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "40",
-        "column": "1",
+        "column": "23",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "40",
         "bodyend": "-1"
@@ -2482,7 +2480,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "41",
-        "column": "1",
+        "column": "23",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "41",
         "bodyend": "-1"
@@ -2501,7 +2499,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "42",
-        "column": "1",
+        "column": "23",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "42",
         "bodyend": "-1"
@@ -2520,7 +2518,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "45",
-        "column": "1",
+        "column": "23",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "45",
         "bodyend": "-1"
@@ -2539,7 +2537,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "46",
-        "column": "1",
+        "column": "24",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "46",
         "bodyend": "-1"
@@ -2558,7 +2556,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "47",
-        "column": "1",
+        "column": "23",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "47",
         "bodyend": "-1"
@@ -2576,43 +2574,43 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "49",
-        "column": "1",
+        "column": "14",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "49",
         "bodyend": "-1"
       }
     },
     {
-      "refid": "classapache_1_1thrift_1_1protocol_1_1TCompactProtocolT_1a559d896c5056076bb39224dcc3e419f2",
+      "refid": "classapache_1_1thrift_1_1protocol_1_1TCompactProtocolT_1afe5dfce6ec613011e42e33cf24e2ed9f",
       "prot": "protected",
       "static": "no",
       "mutable": "no",
       "type_html": "struct apache::thrift::protocol::TCompactProtocolT::@0",
-      "definition_html": "struct apache::thrift::protocol::TCompactProtocolT::@0  apache::thrift::protocol::TCompactProtocolT&lt; Transport_ &gt;::booleanField_",
+      "definition_html": "struct apache::thrift::protocol::TCompactProtocolT::@0 apache::thrift::protocol::TCompactProtocolT&lt; Transport_ &gt;::booleanField_",
       "argsstring_html": "",
       "name_html": "booleanField_",
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "59",
-        "column": "1"
+        "column": "17"
       },
       "description": {
         "detailed_html": "<p>(Writing) If we encounter a boolean field begin, save the TField here so it can have the value incorporated. </p>"
       }
     },
     {
-      "refid": "classapache_1_1thrift_1_1protocol_1_1TCompactProtocolT_1aa9408bd33c59f38cb53cd464f9103b5f",
+      "refid": "classapache_1_1thrift_1_1protocol_1_1TCompactProtocolT_1ab5cbdce87940cef13c29d6a84e0c79ed",
       "prot": "protected",
       "static": "no",
       "mutable": "no",
       "type_html": "struct apache::thrift::protocol::TCompactProtocolT::@1",
-      "definition_html": "struct apache::thrift::protocol::TCompactProtocolT::@1  apache::thrift::protocol::TCompactProtocolT&lt; Transport_ &gt;::boolValue_",
+      "definition_html": "struct apache::thrift::protocol::TCompactProtocolT::@1 apache::thrift::protocol::TCompactProtocolT&lt; Transport_ &gt;::boolValue_",
       "argsstring_html": "",
       "name_html": "boolValue_",
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "68",
-        "column": "1"
+        "column": "14"
       },
       "description": {
         "detailed_html": "<p>(Reading) If we read a field header, and it's a boolean field, save the boolean value here so that readBool can use it. </p>"
@@ -2630,7 +2628,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "75",
-        "column": "1",
+        "column": "14",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "75",
         "bodyend": "-1"
@@ -2651,7 +2649,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "76",
-        "column": "1",
+        "column": "11",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "76",
         "bodyend": "-1"
@@ -2669,7 +2667,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "77",
-        "column": "1",
+        "column": "10",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "77",
         "bodyend": "-1"
@@ -2687,7 +2685,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "260",
-        "column": "1",
+        "column": "11",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "260",
         "bodyend": "-1"
@@ -2705,7 +2703,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "261",
-        "column": "1",
+        "column": "11",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "261",
         "bodyend": "-1"
@@ -2723,7 +2721,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "56",
-        "column": "1",
+        "column": "16",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "56",
         "bodyend": "-1"
@@ -2741,7 +2739,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "57",
-        "column": "1",
+        "column": "11",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "57",
         "bodyend": "-1"
@@ -2759,7 +2757,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "58",
-        "column": "1",
+        "column": "13",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "58",
         "bodyend": "-1"
@@ -2777,7 +2775,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "66",
-        "column": "1",
+        "column": "10",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "66",
         "bodyend": "-1"
@@ -2795,7 +2793,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "67",
-        "column": "1",
+        "column": "10",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "67",
         "bodyend": "-1"
@@ -2840,7 +2838,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "80",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "bodystart": "80",
                 "bodyend": "89"
@@ -2888,7 +2886,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "91",
-                "column": "1",
+                "column": "3",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "bodystart": "91",
                 "bodyend": "103"
@@ -2928,7 +2926,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "111",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "bodystart": "111",
                 "bodyend": "120"
@@ -2942,7 +2940,7 @@
                 "original_argsstring_html": "(Transport_ *trans)"
               },
               "description": {
-                "detailed_html": "<p>Construct a <code>TCompactProtocolT</code> using a raw pointer to the transport.</p><p>The caller is responsible for ensuring that the transport remains valid for the lifetime of the protocol. </p>"
+                "detailed_html": "<p>Construct a <code>TCompactProtocolT</code> using a raw pointer to the transport.</p>\n<p>The caller is responsible for ensuring that the transport remains valid for the lifetime of the protocol. </p>"
               },
               "filepath": "fns/class/apache/thrift/protocol/TCompactProtocolT/TCompactProtocolT",
               "href": "/ref/cpp/fns/class/apache/thrift/protocol/TCompactProtocolT/TCompactProtocolT",
@@ -2957,7 +2955,13 @@
           "brief_html": "Constructs the TCompactProtocolT.",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/TCompactProtocolT",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/TCompactProtocolT"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/TCompactProtocolT",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -2985,7 +2989,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "122",
-                "column": "1",
+                "column": "8",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "bodystart": "122",
                 "bodyend": "124"
@@ -3010,7 +3014,13 @@
           "brief_html": "",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/setStringSizeLimit",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/setStringSizeLimit"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/setStringSizeLimit",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -3038,7 +3048,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "126",
-                "column": "1",
+                "column": "8",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "bodystart": "126",
                 "bodyend": "128"
@@ -3063,7 +3073,13 @@
           "brief_html": "",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/setContainerSizeLimit",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/setContainerSizeLimit"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/setContainerSizeLimit",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -3085,7 +3101,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "130",
-                "column": "1",
+                "column": "11",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "bodystart": "130",
                 "bodyend": "130"
@@ -3110,7 +3126,13 @@
           "brief_html": "",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/getStringSizeLimit",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/getStringSizeLimit"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/getStringSizeLimit",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -3132,7 +3154,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "132",
-                "column": "1",
+                "column": "11",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "bodystart": "132",
                 "bodyend": "132"
@@ -3157,7 +3179,13 @@
           "brief_html": "",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/getContainerSizeLimit",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/getContainerSizeLimit"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/getContainerSizeLimit",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -3185,7 +3213,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "135",
-                "column": "1",
+                "column": "8",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "bodystart": "135",
                 "bodyend": "135"
@@ -3213,7 +3241,13 @@
           "brief_html": "<p>Set this if you need backwards compatibility with an old version </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/setVersion",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/setVersion"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/setVersion",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -3249,7 +3283,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "141",
-                "column": "1",
+                "column": "20",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "86",
                 "bodyend": "98"
@@ -3277,7 +3311,13 @@
           "brief_html": "<p>Writing functions </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeMessageBegin",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeMessageBegin"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeMessageBegin",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -3305,7 +3345,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "146",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "133",
                 "bodyend": "138"
@@ -3333,7 +3373,13 @@
           "brief_html": "<p>Write a struct begin. This doesn't actually put anything on the wire. We use it as an opportunity to put special placeholder markers on the field stack so we can get the field id deltas correct. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeStructBegin",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeStructBegin"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeStructBegin",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -3355,7 +3401,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "148",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "146",
                 "bodyend": "150"
@@ -3383,7 +3429,13 @@
           "brief_html": "<p>Write a struct end. This doesn't actually put anything on the wire. We use this as an opportunity to pop the last field from the current struct off of the field stack. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeStructEnd",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeStructEnd"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeStructEnd",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -3419,7 +3471,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "150",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "107",
                 "bodyend": "117"
@@ -3447,7 +3499,13 @@
           "brief_html": "<p>Write a field header containing the field id and field type. If the difference between the current field id and the last one is small (&lt; 15), then the field id will be encoded in the 4 MSB as a delta. Otherwise, the field id will follow the type header as a zigzag varint. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeFieldBegin",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeFieldBegin"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeFieldBegin",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -3469,7 +3527,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "153",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "123",
                 "bodyend": "125"
@@ -3497,7 +3555,13 @@
           "brief_html": "<p>Write the STOP symbol so we know there are no more fields in this struct. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeFieldStop",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeFieldStop"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeFieldStop",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -3529,7 +3593,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "155",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "156",
                 "bodyend": "159"
@@ -3557,7 +3621,13 @@
           "brief_html": "<p>Write a List header. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeListBegin",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeListBegin"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeListBegin",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -3589,7 +3659,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "157",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "165",
                 "bodyend": "168"
@@ -3617,7 +3687,13 @@
           "brief_html": "<p>Write a set header. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeSetBegin",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeSetBegin"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeSetBegin",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -3653,7 +3729,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "159",
-                "column": "1",
+                "column": "20",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "175",
                 "bodyend": "186"
@@ -3681,7 +3757,13 @@
           "brief_html": "<p>Write a map header. If the map is empty, omit the key and value type headers, as we don't need any additional information to skip it. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeMapBegin",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeMapBegin"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeMapBegin",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -3709,7 +3791,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "162",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "195",
                 "bodyend": "214"
@@ -3737,7 +3819,13 @@
           "brief_html": "<p>Write a boolean value. Potentially, this could be a boolean field, in which case the field header info isn't written yet. If so, decide what the right type header is for the value and then write the field header. Otherwise, write a single byte. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeBool",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeBool"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeBool",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -3765,7 +3853,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "164",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "217",
                 "bodyend": "220"
@@ -3790,7 +3878,13 @@
           "brief_html": "",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeByte",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeByte"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeByte",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -3818,7 +3912,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "166",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "226",
                 "bodyend": "228"
@@ -3846,7 +3940,13 @@
           "brief_html": "<p>Write an i16 as a zigzag varint. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeI16",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeI16"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeI16",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -3874,7 +3974,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "168",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "234",
                 "bodyend": "236"
@@ -3902,7 +4002,13 @@
           "brief_html": "<p>Write an i32 as a zigzag varint. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeI32",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeI32"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeI32",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -3930,7 +4036,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "170",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "242",
                 "bodyend": "244"
@@ -3958,7 +4064,13 @@
           "brief_html": "<p>Write an i64 as a zigzag varint. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeI64",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeI64"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeI64",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -3986,7 +4098,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "172",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "250",
                 "bodyend": "264"
@@ -4014,7 +4126,13 @@
           "brief_html": "<p>Write a double to the wire as 8 bytes. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeDouble",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeDouble"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeDouble",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -4042,7 +4160,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "174",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "270",
                 "bodyend": "278"
@@ -4070,7 +4188,13 @@
           "brief_html": "<p>Write a float to the wire as 4 bytes. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeFloat",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeFloat"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeFloat",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -4098,7 +4222,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "176",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "284",
                 "bodyend": "286"
@@ -4145,7 +4269,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "179",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "290",
                 "bodyend": "292"
@@ -4170,7 +4294,13 @@
           "brief_html": "<p>Write a string to the wire with a varint size preceding. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeString",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeString"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeString",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -4203,7 +4333,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "182",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "296",
                 "bodyend": "301"
@@ -4228,7 +4358,13 @@
           "brief_html": "",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeBinary",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeBinary"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeBinary",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -4250,7 +4386,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "188",
-                "column": "1",
+                "column": "20",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "bodystart": "188",
                 "bodyend": "188"
@@ -4278,7 +4414,13 @@
           "brief_html": "<p>These methods are called by structs, but don't actually have any wired output or purpose </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeMessageEnd",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeMessageEnd"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeMessageEnd",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -4300,7 +4442,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "189",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "bodystart": "189",
                 "bodyend": "189"
@@ -4325,7 +4467,13 @@
           "brief_html": "",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeMapEnd",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeMapEnd"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeMapEnd",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -4347,7 +4495,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "190",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "bodystart": "190",
                 "bodyend": "190"
@@ -4372,7 +4520,13 @@
           "brief_html": "",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeListEnd",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeListEnd"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeListEnd",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -4394,7 +4548,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "191",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "bodystart": "191",
                 "bodyend": "191"
@@ -4419,7 +4573,13 @@
           "brief_html": "",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeSetEnd",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeSetEnd"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeSetEnd",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -4441,7 +4601,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "192",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "bodystart": "192",
                 "bodyend": "192"
@@ -4466,7 +4626,13 @@
           "brief_html": "",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeFieldEnd",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeFieldEnd"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeFieldEnd",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -4502,7 +4668,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "206",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "413",
                 "bodyend": "438"
@@ -4530,7 +4696,13 @@
           "brief_html": "<p>Read a message header. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readMessageBegin",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readMessageBegin"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readMessageBegin",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -4558,7 +4730,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "209",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "445",
                 "bodyend": "450"
@@ -4586,7 +4758,13 @@
           "brief_html": "<p>Read a struct begin. There's nothing on the wire for this, but it is our opportunity to push a new struct begin marker on the field stack. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readStructBegin",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readStructBegin"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readStructBegin",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -4608,7 +4786,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "211",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "457",
                 "bodyend": "461"
@@ -4636,7 +4814,13 @@
           "brief_html": "<p>Doesn't actually consume any wire data, just removes the last field for this struct from the field stack. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readStructEnd",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readStructEnd"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readStructEnd",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -4672,7 +4856,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "213",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "467",
                 "bodyend": "507"
@@ -4700,7 +4884,13 @@
           "brief_html": "<p>Read a field header off the wire. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readFieldBegin",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readFieldBegin"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readFieldBegin",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -4740,7 +4930,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "216",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "515",
                 "bodyend": "537"
@@ -4768,7 +4958,13 @@
           "brief_html": "<p>Read a map header off the wire. If the size is zero, skip reading the key and value type. This means that 0-length maps will yield TMaps without the \"correct\" types. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readMapBegin",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readMapBegin"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readMapBegin",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -4804,7 +5000,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "219",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "546",
                 "bodyend": "570"
@@ -4832,7 +5028,13 @@
           "brief_html": "<p>Read a list header off the wire. If the list size is 0-14, the size will be packed into the element type header. If it's a longer list, the 4 MSB of the element type header will be 0xF, and a varint will follow with the true size. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readListBegin",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readListBegin"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readListBegin",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -4868,7 +5070,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "221",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "579",
                 "bodyend": "582"
@@ -4896,7 +5098,13 @@
           "brief_html": "<p>Read a set header off the wire. If the set size is 0-14, the size will be packed into the element type header. If it's a longer set, the 4 MSB of the element type header will be 0xF, and a varint will follow with the true size. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readSetBegin",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readSetBegin"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readSetBegin",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -4924,7 +5132,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "223",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "590",
                 "bodyend": "601"
@@ -4952,7 +5160,13 @@
           "brief_html": "<p>Read a boolean off the wire. If this is a boolean field, the value should already have been read during readFieldBegin, so we'll just consume the pre-stored value. Otherwise, read a byte. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readBool",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readBool"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readBool",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -4980,7 +5194,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "227",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "607",
                 "bodyend": "612"
@@ -5008,7 +5222,13 @@
           "brief_html": "<p>Read a single byte off the wire. Nothing interesting here. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readByte",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readByte"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readByte",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -5036,7 +5256,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "229",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "618",
                 "bodyend": "623"
@@ -5064,7 +5284,13 @@
           "brief_html": "<p>Read an i16 from the wire as a zigzag varint. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readI16",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readI16"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readI16",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -5092,7 +5318,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "231",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "629",
                 "bodyend": "634"
@@ -5120,7 +5346,13 @@
           "brief_html": "<p>Read an i32 from the wire as a zigzag varint. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readI32",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readI32"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readI32",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -5148,7 +5380,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "233",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "640",
                 "bodyend": "645"
@@ -5176,7 +5408,13 @@
           "brief_html": "<p>Read an i64 from the wire as a zigzag varint. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readI64",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readI64"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readI64",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -5204,7 +5442,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "235",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "651",
                 "bodyend": "667"
@@ -5232,7 +5470,13 @@
           "brief_html": "<p>No magic here - just read a double off the wire. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readDouble",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readDouble"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readDouble",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -5260,7 +5504,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "237",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "673",
                 "bodyend": "685"
@@ -5288,7 +5532,13 @@
           "brief_html": "<p>No magic here - just read a float off the wire. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readFloat",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readFloat"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readFloat",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -5321,7 +5571,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "240",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "689",
                 "bodyend": "691"
@@ -5346,7 +5596,13 @@
           "brief_html": "",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readString",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readString"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readString",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -5379,7 +5635,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "243",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "698",
                 "bodyend": "739"
@@ -5407,7 +5663,13 @@
           "brief_html": "<p>Read a byte[] from the wire. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readBinary",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readBinary"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readBinary",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -5429,7 +5691,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "249",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "bodystart": "249",
                 "bodyend": "249"
@@ -5454,7 +5716,13 @@
           "brief_html": "",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readMessageEnd",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readMessageEnd"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readMessageEnd",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -5476,7 +5744,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "250",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "bodystart": "250",
                 "bodyend": "250"
@@ -5501,7 +5769,13 @@
           "brief_html": "",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readFieldEnd",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readFieldEnd"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readFieldEnd",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -5523,7 +5797,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "251",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "bodystart": "251",
                 "bodyend": "251"
@@ -5548,7 +5822,13 @@
           "brief_html": "",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readMapEnd",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readMapEnd"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readMapEnd",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -5570,7 +5850,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "252",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "bodystart": "252",
                 "bodyend": "252"
@@ -5595,7 +5875,13 @@
           "brief_html": "",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readListEnd",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readListEnd"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readListEnd",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -5617,7 +5903,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "253",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "bodystart": "253",
                 "bodyend": "253"
@@ -5642,7 +5928,13 @@
           "brief_html": "",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readSetEnd",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readSetEnd"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readSetEnd",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -5682,7 +5974,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "195",
-                "column": "1",
+                "column": "11",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "313",
                 "bodyend": "336"
@@ -5710,7 +6002,13 @@
           "brief_html": "<p>The workhorse of writeFieldBegin. It has the option of doing a 'type override' of the type header. This is used specifically in the boolean field case. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeFieldBeginInternal",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeFieldBeginInternal"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeFieldBeginInternal",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -5742,7 +6040,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "200",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "343",
                 "bodyend": "353"
@@ -5770,7 +6068,13 @@
           "brief_html": "<p>Abstract method for writing the start of lists and sets. List and sets on the wire differ only by the type indicator. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeCollectionBegin",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeCollectionBegin"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeCollectionBegin",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -5798,7 +6102,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "201",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "359",
                 "bodyend": "374"
@@ -5826,7 +6130,13 @@
           "brief_html": "<p>Write an i32 as a varint. Results in 1-5 bytes on the wire. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeVarint32",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeVarint32"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeVarint32",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -5854,7 +6164,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "202",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "380",
                 "bodyend": "395"
@@ -5882,7 +6192,13 @@
           "brief_html": "<p>Write an i64 as a varint. Results in 1-10 bytes on the wire. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeVarint64",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeVarint64"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeVarint64",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -5910,7 +6226,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "203",
-                "column": "1",
+                "column": "17",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "401",
                 "bodyend": "403"
@@ -5938,7 +6254,13 @@
           "brief_html": "<p>Given a TType value, find the appropriate <code>detail::compact::Types</code> value </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/getCompactType",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/getCompactType"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/getCompactType",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -5966,7 +6288,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "256",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "746",
                 "bodyend": "751"
@@ -5994,7 +6316,13 @@
           "brief_html": "<p>Read an i32 from the wire as a varint. The MSB of each byte is set if there is another byte to follow. This can read up to 5 bytes. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readVarint32",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readVarint32"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readVarint32",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -6022,7 +6350,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "257",
-                "column": "1",
+                "column": "12",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "758",
                 "bodyend": "837"
@@ -6050,7 +6378,13 @@
           "brief_html": "<p>Read an i64 from the wire as a proper varint. The MSB of each byte is set if there is another byte to follow. This can read up to 10 bytes. </p>",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readVarint64",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readVarint64"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readVarint64",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         },
         {
           "kind": "overloadset",
@@ -6078,7 +6412,7 @@
               "location": {
                 "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
                 "line": "258",
-                "column": "1",
+                "column": "9",
                 "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
                 "bodystart": "840",
                 "bodyend": "874"
@@ -6103,7 +6437,13 @@
           "brief_html": "",
           "groupname_html": "",
           "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/getTType",
-          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/getTType"
+          "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/getTType",
+          "parent_links": [
+            {
+              "text_html": "TCompactProtocolT",
+              "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+            }
+          ]
         }
       ]
     }

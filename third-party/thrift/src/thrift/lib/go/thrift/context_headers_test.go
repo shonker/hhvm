@@ -18,7 +18,6 @@ package thrift
 
 import (
 	"context"
-	"net"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -34,7 +33,10 @@ func TestHeaderProtocolSomeHeaders(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	protocol := NewHeaderProtocol(NewHeaderTransport(NewMemoryBuffer()))
+	protocol, err := NewHeaderProtocol(newMockSocket())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := setRequestHeaders(ctx, protocol); err != nil {
 		t.Fatal(err)
 	}
@@ -44,45 +46,13 @@ func TestHeaderProtocolSomeHeaders(t *testing.T) {
 
 // somewhere we are still passing context as nil, so we need to support this for now
 func TestHeaderProtocolSetNilHeaders(t *testing.T) {
-	transport := NewHeaderProtocol(NewHeaderTransport(NewMemoryBuffer()))
-	if err := setRequestHeaders(nil, transport); err != nil {
+	protocol, err := NewHeaderProtocol(newMockSocket())
+	if err != nil {
 		t.Fatal(err)
 	}
-}
-
-type pipe struct {
-	Transport
-	client net.Conn
-	server net.Conn
-}
-
-func newPipe() *pipe {
-	client, server := net.Pipe()
-	return &pipe{
-		Transport: NewMemoryBuffer(),
-		client:    client,
-		server:    server,
+	if err := setRequestHeaders(nil, protocol); err != nil {
+		t.Fatal(err)
 	}
-}
-
-func (p *pipe) IsOpen() bool {
-	return true
-}
-
-func (p *pipe) Open() error {
-	return nil
-}
-
-func (p *pipe) Close() error {
-	return p.client.Close()
-}
-
-func (p *pipe) Flush() error {
-	return nil
-}
-
-func (p *pipe) Conn() net.Conn {
-	return p.client
 }
 
 func TestRocketProtocolSomeHeaders(t *testing.T) {
@@ -95,7 +65,10 @@ func TestRocketProtocolSomeHeaders(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	protocol := NewRocketProtocol(NewRocketTransport(newPipe()))
+	protocol, err := NewRocketProtocol(newMockSocket())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := setRequestHeaders(ctx, protocol); err != nil {
 		t.Fatal(err)
 	}
@@ -105,8 +78,11 @@ func TestRocketProtocolSomeHeaders(t *testing.T) {
 
 // somewhere we are still passing context as nil, so we need to support this for now
 func TestRocketProtocolSetNilHeaders(t *testing.T) {
-	transport := NewRocketProtocol(NewRocketTransport(newPipe()))
-	if err := setRequestHeaders(nil, transport); err != nil {
+	protocol, err := NewRocketProtocol(newMockSocket())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := setRequestHeaders(nil, protocol); err != nil {
 		t.Fatal(err)
 	}
 }
@@ -121,7 +97,10 @@ func TestUpgradeToRocketProtocolSomeHeaders(t *testing.T) {
 			t.Fatal(err)
 		}
 	}
-	protocol := NewUpgradeToRocketProtocol(newPipe())
+	protocol, err := NewUpgradeToRocketProtocol(newMockSocket())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := setRequestHeaders(ctx, protocol); err != nil {
 		t.Fatal(err)
 	}
@@ -131,7 +110,10 @@ func TestUpgradeToRocketProtocolSomeHeaders(t *testing.T) {
 
 // somewhere we are still passing context as nil, so we need to support this for now
 func TestUpgradeToRocketProtocolSetNilHeaders(t *testing.T) {
-	protocol := NewUpgradeToRocketProtocol(newPipe())
+	protocol, err := NewUpgradeToRocketProtocol(newMockSocket())
+	if err != nil {
+		t.Fatal(err)
+	}
 	if err := setRequestHeaders(nil, protocol); err != nil {
 		t.Fatal(err)
 	}

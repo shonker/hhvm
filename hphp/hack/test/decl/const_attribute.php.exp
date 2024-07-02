@@ -58,8 +58,10 @@
                sm_attributes = []; sm_sort_text = None });
        sc_static_methods = []; sc_methods = [];
        sc_user_attributes =
-       [{ Typing_defs_core.ua_name = ([3:3-10], "__Const"); ua_params = [] }];
-       sc_enum_type = None; sc_docs_url = None }));
+       [{ Typing_defs_core.ua_name = ([3:3-10], "__Const"); ua_params = [];
+          ua_raw_val = None }
+         ];
+       sc_enum_type = None; sc_docs_url = None; sc_package_override = None }));
   ("\\B",
    (Shallow_decl_defs.Class
       { Shallow_decl_defs.sc_mode = Mstrict; sc_final = false;
@@ -111,7 +113,7 @@
                   support_dynamic_type = false };
                 sm_attributes = []; sm_sort_text = None });
         sc_static_methods = []; sc_methods = []; sc_user_attributes = [];
-        sc_enum_type = None; sc_docs_url = None }));
+        sc_enum_type = None; sc_docs_url = None; sc_package_override = None }));
   ("\\C",
    (Shallow_decl_defs.Class
       { Shallow_decl_defs.sc_mode = Mstrict; sc_final = false;
@@ -147,7 +149,7 @@
                          fp_flags =
                          { Typing_defs_flags.FunParam.accept_disposable =
                            false; inout = false; has_default = false;
-                           readonly = false };
+                           readonly = false; ignore_readonly_error = false };
                          fp_def_value = None }
                         ];
                       ft_implicit_params =
@@ -171,5 +173,5 @@
                   support_dynamic_type = false };
                 sm_attributes = []; sm_sort_text = None });
         sc_static_methods = []; sc_methods = []; sc_user_attributes = [];
-        sc_enum_type = None; sc_docs_url = None }))
+        sc_enum_type = None; sc_docs_url = None; sc_package_override = None }))
   ]

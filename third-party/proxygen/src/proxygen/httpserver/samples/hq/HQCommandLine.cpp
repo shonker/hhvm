@@ -129,6 +129,15 @@ DEFINE_uint32(key_update_interval,
               quic::kDefaultKeyUpdatePacketCountInterval,
               "Number of packets to be sent before initiating a key update (if "
               "initiate_key_updates is true)");
+DEFINE_bool(
+    writer_backpressure,
+    false,
+    "Enable backpressure in the batch writer. Only for non-batched writer");
+DEFINE_bool(use_l4s_ecn, false, "Whether to use L4S for ECN marking");
+DEFINE_bool(read_ecn,
+            false,
+            "Whether to read and echo ecn marking from ingress packets");
+DEFINE_uint32(dscp, 0, "DSCP value to use for outgoing packets");
 
 namespace quic::samples {
 
@@ -153,10 +162,10 @@ namespace {
  * Initiazliation and validation functions.
  *
  * The pattern is to collect flags into the HQToolParamsBuilderFromCmdline
- * object and then to validate it. Rationale of validating the options AFTER all
- * the options have been collected: some combinations of transport, http and
- * partial reliability options are invalid. It is simpler to collect the options
- * first and to validate the combinations later.
+ * object and then to validate it. Rationale of validating the options AFTER
+ * all the options have been collected: some combinations of transport, http
+ * and partial reliability options are invalid. It is simpler to collect the
+ * options first and to validate the combinations later.
  *
  */
 void initializeCommonSettings(HQToolParams& hqParams) {
@@ -236,9 +245,11 @@ void initializeTransportSettings(HQToolParams& hqUberParams) {
   hqParams.transportSettings.batchingMode =
       quic::getQuicBatchingMode(FLAGS_quic_batching_mode);
   hqParams.transportSettings.maxBatchSize = FLAGS_quic_batch_size;
+  hqParams.transportSettings.enableWriterBackpressure =
+      FLAGS_writer_backpressure;
   if (hqUberParams.mode == HQMode::CLIENT) {
-    // There is no good reason to keep the socket around for a drain period for
-    // a commandline client
+    // There is no good reason to keep the socket around for a drain period
+    // for a commandline client
     hqParams.transportSettings.shouldDrain = false;
     hqParams.transportSettings.attemptEarlyData = FLAGS_early_data;
   }
@@ -283,6 +294,22 @@ void initializeTransportSettings(HQToolParams& hqUberParams) {
   hqParams.transportSettings.initiateKeyUpdate = FLAGS_initiate_key_updates;
   hqParams.transportSettings.keyUpdatePacketCountInterval =
       FLAGS_key_update_interval;
+
+  if (FLAGS_use_l4s_ecn) {
+    hqParams.transportSettings.enableEcnOnEgress = true;
+    hqParams.transportSettings.useL4sEcn = true;
+    hqParams.transportSettings.minBurstPackets = 1;
+    hqParams.transportSettings.experimentalPacer = true;
+    hqParams.transportSettings.ccaConfig.onlyGrowCwndWhenLimited = true;
+    hqParams.transportSettings.ccaConfig.leaveHeadroomForCwndLimited = true;
+  }
+
+  if (FLAGS_read_ecn) {
+    hqParams.transportSettings.readEcnOnIngress = FLAGS_read_ecn;
+    hqParams.transportSettings.shouldRecvBatch = false;
+  }
+
+  hqParams.transportSettings.dscpValue = FLAGS_dscp;
 } // initializeTransportSettings
 
 void initializeHttpServerSettings(HQToolServerParams& hqParams) {

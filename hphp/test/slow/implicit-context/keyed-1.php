@@ -3,14 +3,15 @@
 function dump_ctx_data() :mixed{
   try {
     echo ClassContext::getContext()->name() . "\n";
-  } catch (Exception $e) {
+  } catch (InvalidOperationException $e) {
     echo $e->getMessage() . "\n";
   }
 }
 
 function dump_hash() :mixed{
-  $hash = HH\ImplicitContext\_Private\get_implicit_context_memo_key();
-  echo "Hash: " . quoted_printable_encode($hash) . "\n";
+  $hash = HH\ImplicitContext\_Private\get_implicit_context_debug_info();
+  echo "Hash:\n";
+  echo var_dump($hash);
 }
 
 class Counter {

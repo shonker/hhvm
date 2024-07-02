@@ -43,7 +43,7 @@ class AServiceInfoHolder : public apache::thrift::ServiceInfoHolder {
    apache::thrift::ServiceRequestInfoMap const& requestInfoMap() const override;
    static apache::thrift::ServiceRequestInfoMap staticRequestInfoMap();
 };
-} // cpp2
+} // namespace cpp2
 
 namespace apache::thrift {
 template <>
@@ -81,7 +81,7 @@ class IIf : public apache::thrift::Tile, public apache::thrift::ServerInterface 
   virtual folly::coro::Task<void> co_interact();
   virtual folly::coro::Task<void> co_interact(apache::thrift::RequestParams params);
 #endif
-  virtual void async_tm_interact(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback);
+  virtual void async_tm_interact(apache::thrift::HandlerCallbackPtr<void> callback);
  private:
   std::atomic<apache::thrift::detail::si::InvocationType> __fbthrift_invocation_interact{apache::thrift::detail::si::InvocationType::AsyncTm};
 };
@@ -94,7 +94,7 @@ class IIf : public apache::thrift::Tile, public apache::thrift::ServerInterface 
   virtual folly::coro::Task<std::unique_ptr<::cpp2::Foo>> co_foo();
   virtual folly::coro::Task<std::unique_ptr<::cpp2::Foo>> co_foo(apache::thrift::RequestParams params);
 #endif
-  virtual void async_tm_foo(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::cpp2::Foo>>> callback);
+  virtual void async_tm_foo(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::cpp2::Foo>> callback);
  private:
   static ::cpp2::AServiceInfoHolder __fbthrift_serviceInfoHolder;
   std::atomic<apache::thrift::detail::si::InvocationType> __fbthrift_invocation_createI{apache::thrift::detail::si::InvocationType::AsyncTm};
@@ -105,7 +105,7 @@ class IIf : public apache::thrift::Tile, public apache::thrift::ServerInterface 
 
 namespace cpp2 {
 using ASvIf [[deprecated("Use apache::thrift::ServiceHandler<A> instead")]] = ::apache::thrift::ServiceHandler<A>;
-} // cpp2
+} // namespace cpp2
 namespace cpp2 {
 class ASvNull : public ::apache::thrift::ServiceHandler<A> {
  public:
@@ -159,7 +159,7 @@ class AAsyncProcessor : public ::apache::thrift::GeneratedAsyncProcessorBase {
   ~AAsyncProcessor() override {}
 };
 
-} // cpp2
+} // namespace cpp2
 
 namespace cpp2 {
 class B;
@@ -170,7 +170,7 @@ class BServiceInfoHolder : public apache::thrift::ServiceInfoHolder {
    apache::thrift::ServiceRequestInfoMap const& requestInfoMap() const override;
    static apache::thrift::ServiceRequestInfoMap staticRequestInfoMap();
 };
-} // cpp2
+} // namespace cpp2
 
 namespace apache::thrift {
 template <>
@@ -193,7 +193,7 @@ class ServiceHandler<::cpp2::B> : virtual public ::cpp2::ASvIf {
   virtual folly::coro::Task<void> co_bar(std::unique_ptr<::cpp2::Foo> p_foo);
   virtual folly::coro::Task<void> co_bar(apache::thrift::RequestParams params, std::unique_ptr<::cpp2::Foo> p_foo);
 #endif
-  virtual void async_tm_bar(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback, std::unique_ptr<::cpp2::Foo> p_foo);
+  virtual void async_tm_bar(apache::thrift::HandlerCallbackPtr<void> callback, std::unique_ptr<::cpp2::Foo> p_foo);
   virtual ::apache::thrift::ServerStream<::std::int32_t> sync_stream_stuff();
   [[deprecated("Use sync_stream_stuff instead")]] virtual ::apache::thrift::ServerStream<::std::int32_t> stream_stuff();
   virtual folly::Future<::apache::thrift::ServerStream<::std::int32_t>> future_stream_stuff();
@@ -202,7 +202,7 @@ class ServiceHandler<::cpp2::B> : virtual public ::cpp2::ASvIf {
   virtual folly::coro::Task<::apache::thrift::ServerStream<::std::int32_t>> co_stream_stuff();
   virtual folly::coro::Task<::apache::thrift::ServerStream<::std::int32_t>> co_stream_stuff(apache::thrift::RequestParams params);
 #endif
-  virtual void async_tm_stream_stuff(std::unique_ptr<apache::thrift::HandlerCallback<::apache::thrift::ServerStream<::std::int32_t>>> callback);
+  virtual void async_tm_stream_stuff(apache::thrift::HandlerCallbackPtr<::apache::thrift::ServerStream<::std::int32_t>> callback);
   virtual ::apache::thrift::SinkConsumer<::std::int32_t, ::std::int32_t> sync_sink_stuff();
   [[deprecated("Use sync_sink_stuff instead")]] virtual ::apache::thrift::SinkConsumer<::std::int32_t, ::std::int32_t> sink_stuff();
   virtual folly::Future<::apache::thrift::SinkConsumer<::std::int32_t, ::std::int32_t>> future_sink_stuff();
@@ -211,7 +211,7 @@ class ServiceHandler<::cpp2::B> : virtual public ::cpp2::ASvIf {
   virtual folly::coro::Task<::apache::thrift::SinkConsumer<::std::int32_t, ::std::int32_t>> co_sink_stuff();
   virtual folly::coro::Task<::apache::thrift::SinkConsumer<::std::int32_t, ::std::int32_t>> co_sink_stuff(apache::thrift::RequestParams params);
 #endif
-  virtual void async_tm_sink_stuff(std::unique_ptr<apache::thrift::HandlerCallback<::apache::thrift::SinkConsumer<::std::int32_t, ::std::int32_t>>> callback);
+  virtual void async_tm_sink_stuff(apache::thrift::HandlerCallbackPtr<::apache::thrift::SinkConsumer<::std::int32_t, ::std::int32_t>> callback);
  private:
   static ::cpp2::BServiceInfoHolder __fbthrift_serviceInfoHolder;
   std::atomic<apache::thrift::detail::si::InvocationType> __fbthrift_invocation_bar{apache::thrift::detail::si::InvocationType::AsyncTm};
@@ -223,7 +223,7 @@ class ServiceHandler<::cpp2::B> : virtual public ::cpp2::ASvIf {
 
 namespace cpp2 {
 using BSvIf [[deprecated("Use apache::thrift::ServiceHandler<B> instead")]] = ::apache::thrift::ServiceHandler<B>;
-} // cpp2
+} // namespace cpp2
 namespace cpp2 {
 class BSvNull : public ::apache::thrift::ServiceHandler<B>, virtual public ::apache::thrift::ServiceHandler<::cpp2::A> {
  public:
@@ -279,7 +279,7 @@ class BAsyncProcessor : public ::cpp2::AAsyncProcessor {
   ~BAsyncProcessor() override {}
 };
 
-} // cpp2
+} // namespace cpp2
 
 namespace cpp2 {
 class C;
@@ -290,7 +290,7 @@ class CServiceInfoHolder : public apache::thrift::ServiceInfoHolder {
    apache::thrift::ServiceRequestInfoMap const& requestInfoMap() const override;
    static apache::thrift::ServiceRequestInfoMap staticRequestInfoMap();
 };
-} // cpp2
+} // namespace cpp2
 
 namespace apache::thrift {
 template <>
@@ -328,7 +328,7 @@ class IIf : public apache::thrift::Tile, public apache::thrift::ServerInterface 
   virtual folly::coro::Task<void> co_interact();
   virtual folly::coro::Task<void> co_interact(apache::thrift::RequestParams params);
 #endif
-  virtual void async_tm_interact(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback);
+  virtual void async_tm_interact(apache::thrift::HandlerCallbackPtr<void> callback);
  private:
   std::atomic<apache::thrift::detail::si::InvocationType> __fbthrift_invocation_interact{apache::thrift::detail::si::InvocationType::AsyncTm};
 };
@@ -342,7 +342,7 @@ class IIf : public apache::thrift::Tile, public apache::thrift::ServerInterface 
 
 namespace cpp2 {
 using CSvIf [[deprecated("Use apache::thrift::ServiceHandler<C> instead")]] = ::apache::thrift::ServiceHandler<C>;
-} // cpp2
+} // namespace cpp2
 namespace cpp2 {
 class CSvNull : public ::apache::thrift::ServiceHandler<C> {
  public:
@@ -387,5 +387,5 @@ class CAsyncProcessor : public ::apache::thrift::GeneratedAsyncProcessorBase {
   ~CAsyncProcessor() override {}
 };
 
-} // cpp2
+} // namespace cpp2
 

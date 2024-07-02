@@ -14,6 +14,7 @@ use oxidized::aast_visitor::Node;
 use oxidized::aast_visitor::Visitor;
 use oxidized::ast;
 use oxidized::namespace_env::Env as NamespaceEnv;
+use oxidized::namespace_env::Mode;
 use oxidized::pos::Pos;
 use parser_core_types::source_text::SourceText;
 use relative_path::RelativePath;
@@ -97,13 +98,14 @@ fn desugar_and_replace_et_literals(flags: &EnvFlags, program: ast::Program, src:
 /// syntax.
 pub fn desugar_and_print(filepath: RelativePath, flags: &EnvFlags) {
     let type_directed = false;
-    let opts = Options::default();
+    let mut opts = Options::default();
+    opts.hhvm.parser_options.allow_unstable_features = true;
     let content = fs::read(filepath.path()).unwrap(); // consider: also show prefix?
     let source_text = SourceText::make(Arc::new(filepath), &content);
     let ns = Arc::new(NamespaceEnv::empty(
         opts.hhvm.aliased_namespaces_cloned().collect(),
-        true,
-        opts.hhvm.parser_options.po_disable_xhp_element_mangling,
+        Mode::ForCodegen,
+        opts.hhvm.parser_options.disable_xhp_element_mangling,
     ));
     match crate::parse_file(
         &opts,

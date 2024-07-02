@@ -8,6 +8,7 @@ use anyhow::Result;
 use ir_core::Class;
 use ir_core::ClassName;
 use ir_core::CtxConstant;
+use ir_core::Maybe;
 use ir_core::PropName;
 use ir_core::Property;
 use ir_core::Requirement;
@@ -43,7 +44,7 @@ impl ClassParser {
 
         let name = ClassName::from_utf8(&name.0)?;
 
-        let src_loc = unit_state.get_cur_src_loc();
+        let span = unit_state.get_cur_src_loc().to_span();
 
         let mut state = ClassParser {
             class: Class {
@@ -60,7 +61,7 @@ impl ClassParser {
                 name,
                 properties: Default::default(),
                 requirements: Default::default(),
-                src_loc,
+                span,
                 type_constants: Default::default(),
                 upper_bounds: Default::default(),
                 uses: Default::default(),
@@ -133,25 +134,25 @@ impl ClassParser {
 
     fn parse_doc_comment(&mut self, tokenizer: &mut Tokenizer<'_>) -> Result<()> {
         let doc_comment = tokenizer.expect_any_string()?.unescaped_string()?;
-        self.class.doc_comment = Some(doc_comment);
+        self.class.doc_comment = Maybe::Just(doc_comment.into());
         Ok(())
     }
 
     fn parse_enum_type(&mut self, tokenizer: &mut Tokenizer<'_>) -> Result<()> {
         let ti = parse_type_info(tokenizer)?;
-        self.class.enum_type = Some(ti);
+        self.class.enum_type = Maybe::Just(ti);
         Ok(())
     }
 
     fn parse_enum_includes(&mut self, tokenizer: &mut Tokenizer<'_>) -> Result<()> {
         parse!(tokenizer, <enum_includes:parse_class_name,*>);
-        self.class.enum_includes = enum_includes;
+        self.class.enum_includes = enum_includes.into();
         Ok(())
     }
 
     fn parse_extends(&mut self, tokenizer: &mut Tokenizer<'_>) -> Result<()> {
         let name = parse_class_name(tokenizer)?;
-        self.class.base = Some(name);
+        self.class.base = Maybe::Just(name);
         Ok(())
     }
 
@@ -209,7 +210,6 @@ impl ClassParser {
     }
 
     fn parse_type_constant(&mut self, tokenizer: &mut Tokenizer<'_>) -> Result<()> {
-        use ir_core::Maybe;
         parse!(tokenizer, <is_abstract:"abstract"?> <name:parse_user_id>);
         let initializer = if tokenizer.next_is_identifier("=")? {
             Maybe::Just(parse_typed_value(tokenizer)?)

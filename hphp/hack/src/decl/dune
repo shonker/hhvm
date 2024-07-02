@@ -82,17 +82,21 @@
 (library
  (name decl_folded_class)
  (wrapped false)
- (modules decl_folded_class decl_inherit decl_requirements)
+ (modules
+  decl_folded_class
+  decl_inherit
+  decl_requirements)
  (libraries
   ast_provider
   decl_class_elements
   decl_defs
-  decl_enforceability
+  decl_enforceability_shallow
   decl_enum
   decl_env
   decl_fun_utils
   decl_init_check
   decl_instantiate
+  decl_members
   decl_pos_utils
   decl_store
   decl_utils
@@ -118,12 +122,22 @@
   (pps ppx_deriving.std)))
 
 (library
+ (name decl_members)
+ (modules decl_members)
+ (libraries
+  decl_defs
+  decl_enforceability
+  typing_defs))
+
+(library
  (name decl_class)
  (modules decl_class)
  (libraries
    decl_defs
-   decl_folded_class
+   decl_enforceability_shallow
    decl_instantiate
+   decl_members
+   decl_provider_internals
    decl_store
    decl_subst
    typing_defs)
@@ -164,7 +178,17 @@
 (library
   (name decl_enforceability)
   (modules decl_enforceability)
-  (libraries decl_env decl_provider_internals naming_provider))
+  (libraries
+   decl_entry
+   decl_env))
+
+(library
+  (name decl_enforceability_shallow)
+  (modules decl_enforceability_shallow)
+  (libraries
+   decl_enforceability
+   decl_provider_internals
+   naming_provider))
 
 (library
  (name decl_enum)
@@ -190,7 +214,12 @@
 (library
  (name decl_fun_utils)
  (modules decl_fun_utils)
- (libraries decl_defs decl_env decl_hint typing_defs )
+ (libraries
+  annotated_ast_utils
+  decl_defs
+  decl_env
+  decl_hint
+  typing_defs )
  (preprocess
   (pps ppx_deriving.std)))
 

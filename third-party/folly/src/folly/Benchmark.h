@@ -165,7 +165,9 @@ struct BenchmarkSuspender : BenchmarkSuspenderBase {
 
   template <class F>
   auto dismissing(F f) -> invoke_result_t<F> {
-    SCOPE_EXIT { rehire(); };
+    SCOPE_EXIT {
+      rehire();
+    };
     dismiss();
     return f();
   }
@@ -384,7 +386,7 @@ void printResultComparison(
              return rv;                                                      \
            }),                                                               \
        true);                                                                \
-  static void funName(::folly::UserCounters& counters                        \
+  static void funName([[maybe_unused]] ::folly::UserCounters& counters       \
                           FOLLY_PP_DETAIL_APPEND_VA_ARG(paramType paramName))
 
 /**

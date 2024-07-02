@@ -34,7 +34,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp2/op/detail/ContainerOp.h",
         "line": "89",
-        "column": "1",
+        "column": "15",
         "bodyfile": "fbcode/thrift/lib/cpp2/op/detail/ContainerOp.h",
         "bodystart": "89",
         "bodyend": "91"
@@ -77,7 +77,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp2/op/detail/ContainerOp.h",
         "line": "92",
-        "column": "1",
+        "column": "15",
         "bodyfile": "fbcode/thrift/lib/cpp2/op/detail/ContainerOp.h",
         "bodystart": "92",
         "bodyend": "92"
@@ -102,5 +102,11 @@
   "brief_html": "",
   "groupname_html": "",
   "href": "/ref/cpp/f/struct/special/structapache_1_1thrift_1_1op_1_1detail_1_1AnyOp_3_01type_1_1cpp__type_3_01T_00_01type_1_1list_3_01VTag_01_4_01_4_01_4/append",
-  "refid": "/ref/cpp/f/struct/special/structapache_1_1thrift_1_1op_1_1detail_1_1AnyOp_3_01type_1_1cpp__type_3_01T_00_01type_1_1list_3_01VTag_01_4_01_4_01_4/append"
+  "refid": "/ref/cpp/f/struct/special/structapache_1_1thrift_1_1op_1_1detail_1_1AnyOp_3_01type_1_1cpp__type_3_01T_00_01type_1_1list_3_01VTag_01_4_01_4_01_4/append",
+  "parent_links": [
+    {
+      "text_html": "AnyOp&lt; type::cpp_type&lt; T, type::list&lt; VTag &gt; &gt; &gt;",
+      "href": "/ref/cpp/struct/special/structapache_1_1thrift_1_1op_1_1detail_1_1AnyOp_3_01type_1_1cpp__type_3_01T_00_01type_1_1list_3_01VTag_01_4_01_4_01_4"
+    }
+  ]
 }

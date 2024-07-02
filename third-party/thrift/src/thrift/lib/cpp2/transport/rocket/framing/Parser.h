@@ -31,8 +31,7 @@
 #include <thrift/lib/cpp2/transport/rocket/framing/parser/FrameLengthParserStrategy.h>
 #include <thrift/lib/cpp2/transport/rocket/framing/parser/ParserStrategy.h>
 
-THRIFT_FLAG_DECLARE_bool(rocket_strategy_parser);
-THRIFT_FLAG_DECLARE_bool(rocket_allocating_strategy_parser);
+THRIFT_FLAG_DECLARE_string(rocket_frame_parser);
 
 namespace apache {
 namespace thrift {
@@ -48,16 +47,14 @@ class Parser final : public folly::AsyncTransport::ReadCallback,
       T& owner, std::shared_ptr<ParserAllocatorType> alloc = nullptr)
       : owner_(owner),
         readBuffer_(folly::IOBuf::CreateOp(), bufferSize_),
-        useStrategyParser_(THRIFT_FLAG(rocket_strategy_parser)),
-        useAllocatingStrategyParser_(
-            THRIFT_FLAG(rocket_allocating_strategy_parser)),
+        mode_(stringToMode(THRIFT_FLAG(rocket_frame_parser))),
         allocator_(alloc ? alloc : std::make_shared<ParserAllocatorType>()) {
-    if (useStrategyParser_) {
+    if (mode_ == ParserMode::STRATEGY) {
       frameLengthParser_ =
           std::make_unique<ParserStrategy<T, FrameLengthParserStrategy>>(
               owner_);
     }
-    if (useAllocatingStrategyParser_) {
+    if (mode_ == ParserMode::ALLOCATING) {
       allocatingParser_ = std::make_unique<
           ParserStrategy<T, AllocatingParserStrategy, ParserAllocatorType>>(
           owner_, *allocator_);
@@ -80,10 +77,7 @@ class Parser final : public folly::AsyncTransport::ReadCallback,
       std::unique_ptr<folly::IOBuf> /*readBuf*/) noexcept override;
 
   bool isBufferMovable() noexcept override {
-    if (useAllocatingStrategyParser_) {
-      return false;
-    }
-    return true;
+    return mode_ != ParserMode::ALLOCATING;
   }
 
   void timeoutExpired() noexcept override;
@@ -102,14 +96,28 @@ class Parser final : public folly::AsyncTransport::ReadCallback,
     return readBuffer_.computeChainDataLength();
   }
 
-  bool isReadCallbackBased() const {
-    return !(useStrategyParser_ || useAllocatingStrategyParser_);
-  }
+  bool isReadCallbackBased() const { return mode_ == ParserMode::LEGACY; }
 
   static constexpr size_t kMinBufferSize{256};
   static constexpr size_t kMaxBufferSize{4096};
 
  private:
+  enum class ParserMode { LEGACY, STRATEGY, ALLOCATING };
+
+  static ParserMode stringToMode(const std::string& modeStr) noexcept {
+    if (modeStr == "allocating") {
+      return ParserMode::ALLOCATING;
+    } else if (modeStr == "strategy") {
+      return ParserMode::STRATEGY;
+    } else if (modeStr == "legacy") {
+      return ParserMode::LEGACY;
+    }
+
+    LOG(WARNING) << "Invalid parser mode: '" << modeStr
+                 << ", default to ParserMode::LEGACY";
+    return ParserMode::LEGACY;
+  }
+
   void getReadBufferOld(void** bufout, size_t* lenout);
   void readDataAvailableOld(size_t nbytes);
   static constexpr std::chrono::milliseconds kDefaultBufferResizeInterval{
@@ -123,11 +131,10 @@ class Parser final : public folly::AsyncTransport::ReadCallback,
   folly::IOBuf readBuffer_;
   bool blockResize_{false};
 
-  bool useStrategyParser_{false};
+  ParserMode mode_;
   std::unique_ptr<ParserStrategy<T, FrameLengthParserStrategy>>
       frameLengthParser_;
 
-  bool useAllocatingStrategyParser_{false};
   std::shared_ptr<ParserAllocatorType> allocator_;
   std::unique_ptr<
       ParserStrategy<T, AllocatingParserStrategy, ParserAllocatorType>>

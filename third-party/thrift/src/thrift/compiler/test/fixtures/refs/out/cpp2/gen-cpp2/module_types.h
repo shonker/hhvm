@@ -321,7 +321,7 @@ enum class TypedEnum : ::std::int16_t {
 
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace std {
 template<> struct hash<::cpp2::MyEnum> :
@@ -403,7 +403,7 @@ class StructWithRefTypeShared;
 class StructWithRefTypeSharedConst;
 class StructWithRefAndAnnotCppNoexceptMoveCtor;
 class StructWithString;
-} // cpp2
+} // namespace cpp2
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -427,6 +427,14 @@ template<>
 struct is_cpp_ref_field_optional<::cpp2::StructWithBox,::apache::thrift::type::field_id<2>> : std::true_type{};
 template<>
 struct is_cpp_ref_field_optional<::cpp2::StructWithBox,::apache::thrift::type::field_id<3>> : std::true_type{};
+template<>
+struct is_cpp_ref_field_terse<::cpp2::StructWithTerseInternBox,::apache::thrift::type::field_id<1>> : std::true_type{};
+template<>
+struct is_cpp_ref_field_terse<::cpp2::StructWithTerseInternBox,::apache::thrift::type::field_id<2>> : std::true_type{};
+template<>
+struct is_cpp_ref_field_terse<::cpp2::AdaptedStructWithTerseInternBox,::apache::thrift::type::field_id<1>> : std::true_type{};
+template<>
+struct is_cpp_ref_field_terse<::cpp2::AdaptedStructWithTerseInternBox,::apache::thrift::type::field_id<2>> : std::true_type{};
 template<>
 struct is_cpp_ref_field_optional<::cpp2::StructWithRefTypeUnique,::apache::thrift::type::field_id<2>> : std::true_type{};
 template<>
@@ -491,6 +499,8 @@ class MyUnion final  {
   using __fbthrift_cpp2_type = MyUnion;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -773,6 +783,8 @@ class NonTriviallyDestructibleUnion final  {
   using __fbthrift_cpp2_type = NonTriviallyDestructibleUnion;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -988,6 +1000,8 @@ class MyField final  {
  public:
   using __fbthrift_cpp2_type = MyField;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -1457,6 +1471,8 @@ class MyStruct final  {
   using __fbthrift_cpp2_type = MyStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1678,6 +1694,8 @@ class StructWithUnion final  {
  public:
   using __fbthrift_cpp2_type = StructWithUnion;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -1909,6 +1927,8 @@ class RecursiveStruct final  {
   using __fbthrift_cpp2_type = RecursiveStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -2068,6 +2088,8 @@ class StructWithContainers final  {
  public:
   using __fbthrift_cpp2_type = StructWithContainers;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -2414,6 +2436,8 @@ class StructWithSharedConst final  {
   using __fbthrift_cpp2_type = StructWithSharedConst;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -2631,6 +2655,8 @@ class Empty final  {
   using __fbthrift_cpp2_type = Empty;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -2728,6 +2754,8 @@ class StructWithRef final  {
  public:
   using __fbthrift_cpp2_type = StructWithRef;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -2950,6 +2978,8 @@ class StructWithBox final  {
  public:
   using __fbthrift_cpp2_type = StructWithBox;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -3175,6 +3205,8 @@ class StructWithInternBox final  {
   using __fbthrift_cpp2_type = StructWithInternBox;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -3359,6 +3391,8 @@ class StructWithTerseInternBox final  {
   using __fbthrift_cpp2_type = StructWithTerseInternBox;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -3541,6 +3575,8 @@ class AdaptedStructWithInternBox final  {
   using __fbthrift_cpp2_type = AdaptedStructWithInternBox;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    true;
 
 
  public:
@@ -3724,6 +3760,8 @@ class AdaptedStructWithTerseInternBox final  {
   using __fbthrift_cpp2_type = AdaptedStructWithTerseInternBox;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    true;
 
 
  public:
@@ -3906,6 +3944,8 @@ class StructWithRefTypeUnique final  {
  public:
   using __fbthrift_cpp2_type = StructWithRefTypeUnique;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -4128,6 +4168,8 @@ class StructWithRefTypeShared final  {
  public:
   using __fbthrift_cpp2_type = StructWithRefTypeShared;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -4352,6 +4394,8 @@ class StructWithRefTypeSharedConst final  {
   using __fbthrift_cpp2_type = StructWithRefTypeSharedConst;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -4571,6 +4615,8 @@ class StructWithRefAndAnnotCppNoexceptMoveCtor final  {
   using __fbthrift_cpp2_type = StructWithRefAndAnnotCppNoexceptMoveCtor;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -4714,6 +4760,8 @@ class StructWithString final  {
  public:
   using __fbthrift_cpp2_type = StructWithString;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -4970,7 +5018,7 @@ unsigned long StructWithString::read(Protocol_* iprot) {
 }
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache { namespace thrift {
 

@@ -496,6 +496,8 @@ private:
   template<bool trueStatic>
   static MemBlock AllocateShared(folly::StringPiece sl);
   template<bool trueStatic>
+  static StringData* MakeShared(folly::StringPiece sl);
+  template<bool trueStatic>
   static StringData* MakeSharedAt(folly::StringPiece sl, MemBlock range);
 
   /*
@@ -594,11 +596,8 @@ struct string_data_same;
 struct string_data_tsame; // for type names
 struct string_data_fsame; // for func names
 struct string_data_lt;
-struct string_data_lti;
 struct string_data_lt_type; // for type names
-struct string_data_lt_func; // for func names
 struct string_data_hash_tsame; // for type names
-struct string_data_hash_fsame; // for func names
 
 //////////////////////////////////////////////////////////////////////
 

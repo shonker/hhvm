@@ -20,6 +20,7 @@
 #include "hphp/runtime/base/type-structure-helpers.h"
 #include "hphp/runtime/base/type-structure-helpers-defs.h"
 
+#include "hphp/runtime/vm/hhbc-shared.h"
 #include "hphp/runtime/vm/repo-global-data.h"
 #include "hphp/runtime/vm/runtime.h"
 
@@ -36,8 +37,8 @@
 
 #include "hphp/runtime/vm/jit/irgen-internal.h"
 
+#include "hphp/util/configs/eval.h"
 #include "hphp/util/text-util.h"
-#include <hphp/runtime/vm/hhbc-shared.h>
 
 namespace HPHP::jit::irgen {
 
@@ -51,29 +52,6 @@ const StaticString
   s_CLASS_TO_CLASSNAME(Strings::CLASS_TO_CLASSNAME);
 
 //////////////////////////////////////////////////////////////////////
-
-/*
- * Returns a {Cls|Nullptr} suitable for use in instance checks.
- */
-SSATmp* ldClassSafe(IRGS& env, const StringData* className) {
-  if (auto const knownCls = lookupUniqueClass(env, className)) {
-    return cns(env, knownCls);
-  }
-
-  return cond(
-    env,
-    [&] (Block* taken) {
-      return gen(env, LdClsCachedSafe, taken, cns(env, className));
-    },
-    [&] (SSATmp* cls) { // next
-      return cls;
-    },
-    [&] { // taken
-      hint(env, Block::Hint::Unlikely);
-      return cns(env, nullptr);
-    }
-  );
-}
 
 /*
  * Returns a Bool value indicating if src (which must be <= TObj) is an
@@ -92,7 +70,7 @@ SSATmp* implInstanceCheck(IRGS& env, SSATmp* src, const StringData* className,
   }
 
   auto knownCls = checkCls->hasConstVal(TCls) ? checkCls->clsVal() : nullptr;
-  assertx(IMPLIES(knownCls, classIsPersistentOrCtxParent(env, knownCls)));
+  assertx(IMPLIES(knownCls, lookupKnown(env, knownCls)));
   assertx(IMPLIES(knownCls, knownCls->name()->tsame(className)));
 
   auto const srcType = src->type();
@@ -119,7 +97,7 @@ SSATmp* implInstanceCheck(IRGS& env, SSATmp* src, const StringData* className,
   auto const objClass     = gen(env, LdObjClass, src);
 
   if (env.context.kind == TransKind::Profile && !InstanceBits::initted()) {
-    gen(env, ProfileInstanceCheck, cns(env, className));
+    gen(env, ProfileInstanceCheck, cns(env, knownCls));
   } else if (env.context.kind == TransKind::Optimize ||
              InstanceBits::initted()) {
     InstanceBits::init();
@@ -263,7 +241,7 @@ void verifyTypeImpl(IRGS& env,
           gen(
             env,
             RaiseNotice,
-            SampleRateData { RO::EvalClassStringHintNoticesSampleRate },
+            SampleRateData { Cfg::Eval::ClassStringHintNoticesSampleRate },
             cns(env, makeStaticString(msg))
           );
         }
@@ -280,7 +258,7 @@ void verifyTypeImpl(IRGS& env,
           gen(
             env,
             RaiseNotice,
-            SampleRateData { RO::EvalClassStringHintNoticesSampleRate },
+            SampleRateData { Cfg::Eval::ClassStringHintNoticesSampleRate },
             cns(env, makeStaticString(msg))
           );
         }
@@ -290,7 +268,7 @@ void verifyTypeImpl(IRGS& env,
         assertx(val->type() <= TCls || val->type() <= TLazyCls);
         gen(env,
             RaiseNotice,
-            SampleRateData { RO::EvalClassnameNoticesSampleRate },
+            SampleRateData { Cfg::Eval::ClassnameNoticesSampleRate },
             cns(env, s_CLASS_TO_CLASSNAME.get()));
         return;
     }
@@ -353,7 +331,7 @@ void verifyTypeImpl(IRGS& env,
       // Non-union:
       assertx(tc.isSubObject() || tc.isUnresolved());
       auto const clsName = tc.isSubObject() ? tc.clsName() : tc.typeName();
-      auto const checkCls = ldClassSafe(env, clsName);
+      auto const checkCls = lookupCls(env, clsName);
       auto const fastIsInstance = implInstanceCheck(env, val, clsName, checkCls);
       if (fastIsInstance) {
         ifThen(
@@ -401,7 +379,7 @@ void verifyTypeImpl(IRGS& env,
     auto const clsName = tc.isSubObject() ? tc.clsName() : tc.typeName();
     if (cls->name()->same(clsName)) return AnnotAction::Pass;
 
-    if (auto const knownCls = lookupUniqueClass(env, clsName)) {
+    if (auto const knownCls = lookupKnown(env, clsName)) {
       // Subclass of a unique class.
       if (cls->classof(knownCls)) return AnnotAction::Pass;
     }
@@ -598,7 +576,7 @@ SSATmp* isStrImpl(IRGS& env, SSATmp* src) {
   mc.ifTypeThen(src, TStr, [&](SSATmp*) { return cns(env, true); });
 
   mc.ifTypeThen(src, TLazyCls, [&](SSATmp*) {
-    if (RuntimeOption::EvalClassIsStringNotices) {
+    if (Cfg::Eval::ClassIsStringNotices) {
       gen(env, RaiseNotice, SampleRateData {},
           cns(env, s_CLASS_IS_STRING.get()));
     }
@@ -606,7 +584,7 @@ SSATmp* isStrImpl(IRGS& env, SSATmp* src) {
   });
 
   mc.ifTypeThen(src, TCls, [&](SSATmp*) {
-    if (RuntimeOption::EvalClassIsStringNotices) {
+    if (Cfg::Eval::ClassIsStringNotices) {
       gen(env, RaiseNotice, SampleRateData {},
           cns(env, s_CLASS_IS_STRING.get()));
     }
@@ -694,7 +672,7 @@ SSATmp* implInstanceOfD(IRGS& env, SSATmp* src, const StringData* className) {
   if (!src->isA(TObj)) {
     if (src->isA(TCls | TLazyCls)) {
       if (!interface_supports_string(className)) return cns(env, false);
-      if (RuntimeOption::EvalClassIsStringNotices && src->isA(TCls)) {
+      if (Cfg::Eval::ClassIsStringNotices && src->isA(TCls)) {
         gen(
           env,
           RaiseNotice,
@@ -713,7 +691,7 @@ SSATmp* implInstanceOfD(IRGS& env, SSATmp* src, const StringData* className) {
     return cns(env, res);
   }
 
-  auto const checkCls = ldClassSafe(env, className);
+  auto const checkCls = lookupCls(env, className);
   if (auto isInstance = implInstanceCheck(env, src, className, checkCls)) {
     return isInstance;
   }
@@ -745,7 +723,7 @@ void emitInstanceOf(IRGS& env) {
   if (!t1->isA(TStr)) PUNT(InstanceOf-NotStr);
 
   if (t2->isA(TObj)) {
-    auto const c1 = gen(env, LookupClsRDS, t1);
+    auto const c1 = gen(env, LookupCls, t1);
     auto const c2  = gen(env, LdObjClass, t2);
     push(env, gen(env, InstanceOf, c2, c1));
     decRef(env, t2, DecRefProfileId::InstanceOfSrc2);
@@ -759,7 +737,7 @@ void emitInstanceOf(IRGS& env) {
     if (t2->isA(TStr))     return gen(env, InterfaceSupportsStr, t1);
     if (t2->isA(TDbl))     return gen(env, InterfaceSupportsDbl, t1);
     if (t2->isA(TCls)) {
-      if (RO::EvalRaiseClassConversionNoticeSampleRate == 0) {
+      if (Cfg::Eval::RaiseClassConversionNoticeSampleRate == 0) {
         return gen(env, InterfaceSupportsStr, t1);
       }
       return cond(
@@ -772,7 +750,7 @@ void emitInstanceOf(IRGS& env) {
           string_printf(msg, Strings::CLASS_TO_STRING_IMPLICIT, "instanceof");
           gen(env,
             RaiseNotice,
-            SampleRateData { RO::EvalRaiseClassConversionNoticeSampleRate },
+            SampleRateData { Cfg::Eval::RaiseClassConversionNoticeSampleRate },
             cns(env, makeStaticString(msg)));
           return cns(env, true);
         },
@@ -999,10 +977,8 @@ bool emitIsTypeStructWithoutResolvingIfPossible(
   auto const classnameForResolvedClass = [&](const ArrayData* arr) -> const StringData* {
     auto const clsname = get_ts_classname(arr);
     if (arr->exists(s_generic_types)) {
-      auto cls = lookupUniqueClass(env, clsname);
-      if ((classIsPersistentOrCtxParent(env, cls) &&
-           cls->hasReifiedGenerics()) ||
-          !isTSAllWildcards(arr)) {
+      auto cls = lookupKnown(env, clsname);
+      if ((cls && cls->hasReifiedGenerics()) || !isTSAllWildcards(arr)) {
         // If it is a reified class or has non wildcard generics,
         // we need to bail
         return nullptr;
@@ -1024,7 +1000,7 @@ bool emitIsTypeStructWithoutResolvingIfPossible(
       return primitive(primitiveKindToType(kind));
     case TypeStructure::Kind::T_string: {
       if (t->type().maybe(TLazyCls) &&
-          RuntimeOption::EvalClassIsStringNotices) {
+          Cfg::Eval::ClassIsStringNotices) {
         ifElse(env,
           [&] (Block* taken) {
             gen(env, CheckType, TLazyCls, taken, t);
@@ -1036,7 +1012,7 @@ bool emitIsTypeStructWithoutResolvingIfPossible(
         );
       }
       if (t->type().maybe(TCls) &&
-          RuntimeOption::EvalClassIsStringNotices) {
+          Cfg::Eval::ClassIsStringNotices) {
         ifElse(env,
           [&] (Block* taken) {
             gen(env, CheckType, TCls, taken, t);
@@ -1056,7 +1032,7 @@ bool emitIsTypeStructWithoutResolvingIfPossible(
     case TypeStructure::Kind::T_num:         return unionOf(TInt, TDbl);
     case TypeStructure::Kind::T_arraykey: {
       if (t->type().maybe(TLazyCls) &&
-          RuntimeOption::EvalClassIsStringNotices) {
+          Cfg::Eval::ClassIsStringNotices) {
         ifElse(env,
           [&] (Block* taken) {
             gen(env, CheckType, TLazyCls, taken, t);
@@ -1068,7 +1044,7 @@ bool emitIsTypeStructWithoutResolvingIfPossible(
         );
       }
       if (t->type().maybe(TCls) &&
-          RuntimeOption::EvalClassIsStringNotices) {
+          Cfg::Eval::ClassIsStringNotices) {
         ifElse(env,
           [&] (Block* taken) {
             gen(env, CheckType, TCls, taken, t);
@@ -1148,7 +1124,7 @@ bool emitIsTypeStructWithoutResolvingIfPossible(
               primitives.emplace(primitiveKindToType(arr_kind));
               break;
             case TypeStructure::Kind::T_string:
-              if (RO::EvalClassIsStringNotices) {
+              if (Cfg::Eval::ClassIsStringNotices) {
                 // punt
                 fallback = true;
                 return true; // short-circuit
@@ -1589,7 +1565,7 @@ void verifyPropType(IRGS& env,
   assertx(val->isA(TCell));
 
   if (coerce) *coerce = val;
-  if (RuntimeOption::EvalCheckPropTypeHints <= 0) return;
+  if (Cfg::Eval::CheckPropTypeHints <= 0) return;
 
   auto const verifyFunc = [&](const TypeConstraint* tc) {
     if (!tc || !tc->isCheckable()) return;
@@ -1643,7 +1619,7 @@ void verifyPropType(IRGS& env,
       },
       [&] (SSATmp* val, SSATmp*, bool hard) { // Check failure
         auto const failHard =
-          hard && RuntimeOption::EvalCheckPropTypeHints >= 3;
+          hard && Cfg::Eval::CheckPropTypeHints >= 3;
         gen(
           env,
           failHard ? VerifyPropFailHard : VerifyPropFail,

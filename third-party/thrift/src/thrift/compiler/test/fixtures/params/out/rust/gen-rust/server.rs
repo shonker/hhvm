@@ -6,6 +6,7 @@
 #![recursion_limit = "100000000"]
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, unused_crate_dependencies, unused_imports, clippy::all)]
 
+
 #[doc(inline)]
 pub use :: as types;
 
@@ -186,6 +187,7 @@ pub struct NestedContainersProcessor<P, H, R, RS> {
 struct Args_NestedContainers_mapList {
     foo: ::std::collections::BTreeMap<::std::primitive::i32, ::std::vec::Vec<::std::primitive::i32>>,
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_NestedContainers_mapList {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "NestedContainers.mapList"))]
@@ -214,6 +216,7 @@ impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_Ne
 struct Args_NestedContainers_mapSet {
     foo: ::std::collections::BTreeMap<::std::primitive::i32, ::std::collections::BTreeSet<::std::primitive::i32>>,
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_NestedContainers_mapSet {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "NestedContainers.mapSet"))]
@@ -242,6 +245,7 @@ impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_Ne
 struct Args_NestedContainers_listMap {
     foo: ::std::vec::Vec<::std::collections::BTreeMap<::std::primitive::i32, ::std::primitive::i32>>,
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_NestedContainers_listMap {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "NestedContainers.listMap"))]
@@ -270,6 +274,7 @@ impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_Ne
 struct Args_NestedContainers_listSet {
     foo: ::std::vec::Vec<::std::collections::BTreeSet<::std::primitive::i32>>,
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_NestedContainers_listSet {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "NestedContainers.listSet"))]
@@ -298,6 +303,7 @@ impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_Ne
 struct Args_NestedContainers_turtles {
     foo: ::std::vec::Vec<::std::vec::Vec<::std::collections::BTreeMap<::std::primitive::i32, ::std::collections::BTreeMap<::std::primitive::i32, ::std::collections::BTreeSet<::std::primitive::i32>>>>>,
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_NestedContainers_turtles {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "NestedContainers.turtles"))]
@@ -355,7 +361,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -392,34 +398,28 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "NestedContainers.mapList", "success");
-                crate::services::nested_containers::MapListExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::nested_containers::MapListExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "mapList",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                 ::tracing::info!(method = "NestedContainers.mapList", exception = ?exn);
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("NestedContainers.mapList", exn);
                 ::tracing::error!(method = "NestedContainers.mapList", panic = ?aexn);
-                crate::services::nested_containers::MapListExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::nested_containers::MapListExn::ApplicationException(aexn))
             }
         };
 
-        let env = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
+        let env = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::nested_containers::MapListExn>(
             "mapList",
             METHOD_NAME.as_cstr(),
             _seqid,
             req_ctxt,
             &mut ctx_stack,
-            res
+            res,
         )?;
-        reply_state.lock().unwrap().send_reply(env);
+        reply_state.send_reply(env);
         Ok(())
     }
 
@@ -429,7 +429,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -466,34 +466,28 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "NestedContainers.mapSet", "success");
-                crate::services::nested_containers::MapSetExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::nested_containers::MapSetExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "mapSet",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                 ::tracing::info!(method = "NestedContainers.mapSet", exception = ?exn);
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("NestedContainers.mapSet", exn);
                 ::tracing::error!(method = "NestedContainers.mapSet", panic = ?aexn);
-                crate::services::nested_containers::MapSetExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::nested_containers::MapSetExn::ApplicationException(aexn))
             }
         };
 
-        let env = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
+        let env = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::nested_containers::MapSetExn>(
             "mapSet",
             METHOD_NAME.as_cstr(),
             _seqid,
             req_ctxt,
             &mut ctx_stack,
-            res
+            res,
         )?;
-        reply_state.lock().unwrap().send_reply(env);
+        reply_state.send_reply(env);
         Ok(())
     }
 
@@ -503,7 +497,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -540,34 +534,28 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "NestedContainers.listMap", "success");
-                crate::services::nested_containers::ListMapExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::nested_containers::ListMapExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "listMap",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                 ::tracing::info!(method = "NestedContainers.listMap", exception = ?exn);
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("NestedContainers.listMap", exn);
                 ::tracing::error!(method = "NestedContainers.listMap", panic = ?aexn);
-                crate::services::nested_containers::ListMapExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::nested_containers::ListMapExn::ApplicationException(aexn))
             }
         };
 
-        let env = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
+        let env = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::nested_containers::ListMapExn>(
             "listMap",
             METHOD_NAME.as_cstr(),
             _seqid,
             req_ctxt,
             &mut ctx_stack,
-            res
+            res,
         )?;
-        reply_state.lock().unwrap().send_reply(env);
+        reply_state.send_reply(env);
         Ok(())
     }
 
@@ -577,7 +565,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -614,34 +602,28 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "NestedContainers.listSet", "success");
-                crate::services::nested_containers::ListSetExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::nested_containers::ListSetExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "listSet",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                 ::tracing::info!(method = "NestedContainers.listSet", exception = ?exn);
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("NestedContainers.listSet", exn);
                 ::tracing::error!(method = "NestedContainers.listSet", panic = ?aexn);
-                crate::services::nested_containers::ListSetExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::nested_containers::ListSetExn::ApplicationException(aexn))
             }
         };
 
-        let env = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
+        let env = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::nested_containers::ListSetExn>(
             "listSet",
             METHOD_NAME.as_cstr(),
             _seqid,
             req_ctxt,
             &mut ctx_stack,
-            res
+            res,
         )?;
-        reply_state.lock().unwrap().send_reply(env);
+        reply_state.send_reply(env);
         Ok(())
     }
 
@@ -651,7 +633,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -688,34 +670,28 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "NestedContainers.turtles", "success");
-                crate::services::nested_containers::TurtlesExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::nested_containers::TurtlesExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "turtles",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                 ::tracing::info!(method = "NestedContainers.turtles", exception = ?exn);
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("NestedContainers.turtles", exn);
                 ::tracing::error!(method = "NestedContainers.turtles", panic = ?aexn);
-                crate::services::nested_containers::TurtlesExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::nested_containers::TurtlesExn::ApplicationException(aexn))
             }
         };
 
-        let env = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
+        let env = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::nested_containers::TurtlesExn>(
             "turtles",
             METHOD_NAME.as_cstr(),
             _seqid,
             req_ctxt,
             &mut ctx_stack,
-            res
+            res,
         )?;
-        reply_state.lock().unwrap().send_reply(env);
+        reply_state.send_reply(env);
         Ok(())
     }
 }
@@ -756,7 +732,7 @@ where
         _p: &mut P::Deserializer,
         _req: ::fbthrift::ProtocolDecoded<P>,
         _req_ctxt: &R,
-        _reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        _reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         match idx {
@@ -834,7 +810,7 @@ where
         &self,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
     ) -> ::anyhow::Result<()> {
         use ::fbthrift::{ProtocolReader as _, ServiceProcessor as _};
         let mut p = P::deserializer(req.clone());
@@ -876,12 +852,12 @@ where
 
     fn get_method_names(&self) -> &'static [&'static str] {
         &[
-                // from NestedContainers
-                "mapList",
-                "mapSet",
-                "listMap",
-                "listSet",
-                "turtles",
+            // From module.NestedContainers:
+            "mapList",
+            "mapSet",
+            "listMap",
+            "listSet",
+            "turtles",
         ]
     }
 

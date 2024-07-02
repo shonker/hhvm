@@ -156,7 +156,7 @@ class MyStruct implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftSh
     'idempotent' => bool,
     ...
   );
-  const int STRUCTURAL_ID = 4991963907375804067;
+  const int STRUCTURAL_ID = 5227179801175427619;
   /**
    * Original thrift field:-
    * 1: i64 MyIntField
@@ -169,7 +169,7 @@ class MyStruct implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftSh
   public string $MyStringField;
   /**
    * Original thrift field:-
-   * 3: module.MyDataItem MyDataField
+   * 3: module.MyDataItemAlias MyDataField
    */
   public ?\test\fixtures\basic\MyDataItem $MyDataField;
   /**
@@ -255,9 +255,18 @@ class MyStruct implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftSh
               "id" => 3,
               "type" => \tmeta_ThriftType::fromShape(
                 shape(
-                  "t_struct" => \tmeta_ThriftStructType::fromShape(
+                  "t_typedef" => \tmeta_ThriftTypedefType::fromShape(
                     shape(
-                      "name" => "module.MyDataItem",
+                      "name" => "module.MyDataItemAlias",
+                      "underlyingType" => \tmeta_ThriftType::fromShape(
+                        shape(
+                          "t_struct" => \tmeta_ThriftStructType::fromShape(
+                            shape(
+                              "name" => "module.MyDataItem",
+                            )
+                          ),
+                        )
+                      ),
                     )
                   ),
                 )
@@ -331,7 +340,7 @@ class MyStruct implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftSh
     return new static(
       $shape['MyIntField'],
       $shape['MyStringField'],
-      Shapes::idx($shape, 'MyDataField') === null ? null : (\test\fixtures\basic\MyDataItem::__fromShape($shape['MyDataField'])),
+      Shapes::idx($shape, 'MyDataField') |> $$ === null ? null : (\test\fixtures\basic\MyDataItem::__fromShape($$)),
       Shapes::idx($shape, 'myEnum'),
       $shape['oneway'],
       $shape['readonly'],
@@ -384,6 +393,250 @@ class MyStruct implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftSh
     }
     if (idx($parsed, 'idempotent') !== null) {
       $this->idempotent = HH\FIXME\UNSAFE_CAST<mixed, bool>($parsed['idempotent']);
+    }
+  }
+
+}
+
+/**
+ * Original thrift struct:-
+ * Containers
+ */
+<<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/basic/Containers'))>>
+class Containers implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftShapishSyncStruct {
+  use \ThriftSerializationTrait;
+
+  const \ThriftStructTypes::TSpec SPEC = dict[
+    1 => shape(
+      'var' => 'I32List',
+      'type' => \TType::LST,
+      'etype' => \TType::I32,
+      'elem' => shape(
+        'type' => \TType::I32,
+      ),
+      'format' => 'collection',
+    ),
+    2 => shape(
+      'var' => 'StringSet',
+      'type' => \TType::SET,
+      'etype' => \TType::STRING,
+      'elem' => shape(
+        'type' => \TType::STRING,
+      ),
+      'format' => 'collection',
+    ),
+    3 => shape(
+      'var' => 'StringToI64Map',
+      'type' => \TType::MAP,
+      'ktype' => \TType::STRING,
+      'vtype' => \TType::I64,
+      'key' => shape(
+        'type' => \TType::STRING,
+      ),
+      'val' => shape(
+        'type' => \TType::I64,
+      ),
+      'format' => 'collection',
+    ),
+  ];
+  const dict<string, int> FIELDMAP = dict[
+    'I32List' => 1,
+    'StringSet' => 2,
+    'StringToI64Map' => 3,
+  ];
+
+  const type TConstructorShape = shape(
+    ?'I32List' => ?Vector<int>,
+    ?'StringSet' => ?Set<string>,
+    ?'StringToI64Map' => ?Map<string, int>,
+  );
+
+  const type TShape = shape(
+    'I32List' => vec<int>,
+    'StringSet' => dict<string, bool>,
+    'StringToI64Map' => dict<string, int>,
+    ...
+  );
+  const int STRUCTURAL_ID = 1445076769012556226;
+  /**
+   * Original thrift field:-
+   * 1: list<i32> I32List
+   */
+  public Vector<int> $I32List;
+  /**
+   * Original thrift field:-
+   * 2: set<string> StringSet
+   */
+  public Set<string> $StringSet;
+  /**
+   * Original thrift field:-
+   * 3: map<string, i64> StringToI64Map
+   */
+  public Map<string, int> $StringToI64Map;
+
+  public function __construct(?Vector<int> $I32List = null, ?Set<string> $StringSet = null, ?Map<string, int> $StringToI64Map = null)[] {
+    $this->I32List = $I32List ?? Vector {};
+    $this->StringSet = $StringSet ?? Set {};
+    $this->StringToI64Map = $StringToI64Map ?? Map {};
+  }
+
+  public static function withDefaultValues()[]: this {
+    return new static();
+  }
+
+  public static function fromShape(self::TConstructorShape $shape)[]: this {
+    return new static(
+      Shapes::idx($shape, 'I32List'),
+      Shapes::idx($shape, 'StringSet'),
+      Shapes::idx($shape, 'StringToI64Map'),
+    );
+  }
+
+  public function getName()[]: string {
+    return 'Containers';
+  }
+
+  public static function getStructMetadata()[]: \tmeta_ThriftStruct {
+    return \tmeta_ThriftStruct::fromShape(
+      shape(
+        "name" => "module.Containers",
+        "fields" => vec[
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 1,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_list" => \tmeta_ThriftListType::fromShape(
+                    shape(
+                      "valueType" => \tmeta_ThriftType::fromShape(
+                        shape(
+                          "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_I32_TYPE,
+                        )
+                      ),
+                    )
+                  ),
+                )
+              ),
+              "name" => "I32List",
+            )
+          ),
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 2,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_set" => \tmeta_ThriftSetType::fromShape(
+                    shape(
+                      "valueType" => \tmeta_ThriftType::fromShape(
+                        shape(
+                          "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_STRING_TYPE,
+                        )
+                      ),
+                    )
+                  ),
+                )
+              ),
+              "name" => "StringSet",
+            )
+          ),
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 3,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_map" => \tmeta_ThriftMapType::fromShape(
+                    shape(
+                      "keyType" => \tmeta_ThriftType::fromShape(
+                        shape(
+                          "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_STRING_TYPE,
+                        )
+                      ),
+                      "valueType" => \tmeta_ThriftType::fromShape(
+                        shape(
+                          "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_I64_TYPE,
+                        )
+                      ),
+                    )
+                  ),
+                )
+              ),
+              "name" => "StringToI64Map",
+            )
+          ),
+        ],
+        "is_union" => false,
+      )
+    );
+  }
+
+  public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
+    return shape(
+      'struct' => dict[],
+      'fields' => dict[
+      ],
+    );
+  }
+
+  public static function __fromShape(self::TShape $shape)[]: this {
+    return new static(
+      $shape['I32List'] |> new Vector($$),
+      new Set(Keyset\keys($shape['StringSet'])),
+      $shape['StringToI64Map'] |> new Map($$),
+    );
+  }
+
+  public function __toShape()[]: self::TShape {
+    return shape(
+      'I32List' => vec($this->I32List),
+      'StringSet' => ThriftUtil::toDArray(Dict\fill_keys($this->StringSet->toValuesArray(), true), static::class),
+      'StringToI64Map' => dict($this->StringToI64Map),
+    );
+  }
+  public function getInstanceKey()[write_props]: string {
+    return \TCompactSerializer::serialize($this);
+  }
+
+  public function readFromJson(string $jsonText): void {
+    $parsed = json_decode($jsonText, true);
+
+    if ($parsed === null || !($parsed is KeyedContainer<_, _>)) {
+      throw new \TProtocolException("Cannot parse the given json string.");
+    }
+
+    if (idx($parsed, 'I32List') !== null) {
+      $_json3 = HH\FIXME\UNSAFE_CAST<mixed, Vector<int>>($parsed['I32List']);
+      $_container4 = Vector {};
+      foreach($_json3 as $_key1 => $_value2) {
+        $_elem5 = 0;
+        $_tmp6 = (int)$_value2;
+        if ($_tmp6 > 0x7fffffff) {
+          throw new \TProtocolException("number exceeds limit in field");
+        } else {
+          $_elem5 = (int)$_tmp6;
+        }
+        $_container4 []= $_elem5;
+      }
+      $this->I32List = $_container4;
+    }
+    if (idx($parsed, 'StringSet') !== null) {
+      $_json10 = HH\FIXME\UNSAFE_CAST<mixed, Set<string>>($parsed['StringSet']);
+      $_container11 = Set {};
+      foreach($_json10 as $_key8 => $_value9) {
+        $_elem12 = '';
+        $_elem12 = $_value9;
+        $_container11->add($_elem12);
+      }
+      $this->StringSet = $_container11;
+    }
+    if (idx($parsed, 'StringToI64Map') !== null) {
+      $_json16 = HH\FIXME\UNSAFE_CAST<mixed, Map<string, int>>($parsed['StringToI64Map']);
+      $_container17 = Map {};
+      foreach($_json16 as $_key14 => $_value15) {
+        $_value18 = 0;
+        $_value18 = $_value15;
+        $_container17[$_key14] = $_value18;
+      }
+      $this->StringToI64Map = $_container17;
     }
   }
 
@@ -475,7 +728,7 @@ enum MyUnionEnum: int {
 }
 
 /**
- * Original thrift struct:-
+ * Original thrift union:-
  * MyUnion
  */
 <<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/basic/MyUnion'))>>
@@ -520,10 +773,10 @@ class MyUnion implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftUni
     ?'myDataItem' => ?\test\fixtures\basic\MyDataItem::TShape,
     ...
   );
-  const int STRUCTURAL_ID = 4641160414833587430;
+  const int STRUCTURAL_ID = 4300912820644046400;
   /**
    * Original thrift field:-
-   * 1: module.MyEnum myEnum
+   * 1: module.MyEnumAlias myEnum
    */
   public ?\test\fixtures\basic\MyEnum $myEnum;
   /**
@@ -661,9 +914,18 @@ class MyUnion implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftUni
               "id" => 1,
               "type" => \tmeta_ThriftType::fromShape(
                 shape(
-                  "t_enum" => \tmeta_ThriftEnumType::fromShape(
+                  "t_typedef" => \tmeta_ThriftTypedefType::fromShape(
                     shape(
-                      "name" => "module.MyEnum",
+                      "name" => "module.MyEnumAlias",
+                      "underlyingType" => \tmeta_ThriftType::fromShape(
+                        shape(
+                          "t_enum" => \tmeta_ThriftEnumType::fromShape(
+                            shape(
+                              "name" => "module.MyEnum",
+                            )
+                          ),
+                        )
+                      ),
                     )
                   ),
                 )
@@ -718,8 +980,8 @@ class MyUnion implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftUni
   public static function __fromShape(self::TShape $shape)[]: this {
     return new static(
       Shapes::idx($shape, 'myEnum'),
-      Shapes::idx($shape, 'myStruct') === null ? null : (\test\fixtures\basic\MyStruct::__fromShape($shape['myStruct'])),
-      Shapes::idx($shape, 'myDataItem') === null ? null : (\test\fixtures\basic\MyDataItem::__fromShape($shape['myDataItem'])),
+      Shapes::idx($shape, 'myStruct') |> $$ === null ? null : (\test\fixtures\basic\MyStruct::__fromShape($$)),
+      Shapes::idx($shape, 'myDataItem') |> $$ === null ? null : (\test\fixtures\basic\MyDataItem::__fromShape($$)),
     );
   }
 
@@ -759,6 +1021,198 @@ class MyUnion implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftUni
       $_tmp3->readFromJson($_tmp2);
       $this->myDataItem = $_tmp3;
       $this->_type = \test\fixtures\basic\MyUnionEnum::myDataItem;
+    }
+  }
+
+}
+
+/**
+ * Original thrift exception:-
+ * MyException
+ */
+<<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/basic/MyException'))>>
+class MyException extends \TException implements \IThriftSyncStruct, \IThriftExceptionMetadata {
+  use \ThriftSerializationTrait;
+
+  const \ThriftStructTypes::TSpec SPEC = dict[
+    1 => shape(
+      'var' => 'MyIntField',
+      'type' => \TType::I64,
+    ),
+    2 => shape(
+      'var' => 'MyStringField',
+      'type' => \TType::STRING,
+    ),
+    3 => shape(
+      'var' => 'myStruct',
+      'type' => \TType::STRUCT,
+      'class' => \test\fixtures\basic\MyStruct::class,
+    ),
+    4 => shape(
+      'var' => 'myUnion',
+      'type' => \TType::STRUCT,
+      'class' => \test\fixtures\basic\MyUnion::class,
+    ),
+  ];
+  const dict<string, int> FIELDMAP = dict[
+    'MyIntField' => 1,
+    'MyStringField' => 2,
+    'myStruct' => 3,
+    'myUnion' => 4,
+  ];
+
+  const type TConstructorShape = shape(
+    ?'MyIntField' => ?int,
+    ?'MyStringField' => ?string,
+    ?'myStruct' => ?\test\fixtures\basic\MyStruct,
+    ?'myUnion' => ?\test\fixtures\basic\MyUnion,
+  );
+
+  const int STRUCTURAL_ID = 6170249099518146787;
+  /**
+   * Original thrift field:-
+   * 1: i64 MyIntField
+   */
+  public int $MyIntField;
+  /**
+   * Original thrift field:-
+   * 2: string MyStringField
+   */
+  public string $MyStringField;
+  /**
+   * Original thrift field:-
+   * 3: module.MyStruct myStruct
+   */
+  public ?\test\fixtures\basic\MyStruct $myStruct;
+  /**
+   * Original thrift field:-
+   * 4: module.MyUnion myUnion
+   */
+  public ?\test\fixtures\basic\MyUnion $myUnion;
+
+  public function __construct(?int $MyIntField = null, ?string $MyStringField = null, ?\test\fixtures\basic\MyStruct $myStruct = null, ?\test\fixtures\basic\MyUnion $myUnion = null)[] {
+    parent::__construct();
+    $this->MyIntField = $MyIntField ?? 0;
+    $this->MyStringField = $MyStringField ?? '';
+    $this->myStruct = $myStruct;
+    $this->myUnion = $myUnion;
+  }
+
+  public static function withDefaultValues()[]: this {
+    return new static();
+  }
+
+  public static function fromShape(self::TConstructorShape $shape)[]: this {
+    return new static(
+      Shapes::idx($shape, 'MyIntField'),
+      Shapes::idx($shape, 'MyStringField'),
+      Shapes::idx($shape, 'myStruct'),
+      Shapes::idx($shape, 'myUnion'),
+    );
+  }
+
+  public function getName()[]: string {
+    return 'MyException';
+  }
+
+  public static function getExceptionMetadata()[]: \tmeta_ThriftException {
+    return \tmeta_ThriftException::fromShape(
+      shape(
+        "name" => "module.MyException",
+        "fields" => vec[
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 1,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_I64_TYPE,
+                )
+              ),
+              "name" => "MyIntField",
+            )
+          ),
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 2,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_STRING_TYPE,
+                )
+              ),
+              "name" => "MyStringField",
+            )
+          ),
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 3,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_struct" => \tmeta_ThriftStructType::fromShape(
+                    shape(
+                      "name" => "module.MyStruct",
+                    )
+                  ),
+                )
+              ),
+              "name" => "myStruct",
+            )
+          ),
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 4,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_struct" => \tmeta_ThriftStructType::fromShape(
+                    shape(
+                      "name" => "module.MyUnion",
+                    )
+                  ),
+                )
+              ),
+              "name" => "myUnion",
+            )
+          ),
+        ],
+      )
+    );
+  }
+
+  public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
+    return shape(
+      'struct' => dict[],
+      'fields' => dict[
+      ],
+    );
+  }
+
+  public function getInstanceKey()[write_props]: string {
+    return \TCompactSerializer::serialize($this);
+  }
+
+  public function readFromJson(string $jsonText): void {
+    $parsed = json_decode($jsonText, true);
+
+    if ($parsed === null || !($parsed is KeyedContainer<_, _>)) {
+      throw new \TProtocolException("Cannot parse the given json string.");
+    }
+
+    if (idx($parsed, 'MyIntField') !== null) {
+      $this->MyIntField = HH\FIXME\UNSAFE_CAST<mixed, int>($parsed['MyIntField']);
+    }
+    if (idx($parsed, 'MyStringField') !== null) {
+      $this->MyStringField = HH\FIXME\UNSAFE_CAST<mixed, string>($parsed['MyStringField']);
+    }
+    if (idx($parsed, 'myStruct') !== null) {
+      $_tmp0 = \json_encode(HH\FIXME\UNSAFE_CAST<mixed, \test\fixtures\basic\MyStruct>($parsed['myStruct']));
+      $_tmp1 = \test\fixtures\basic\MyStruct::withDefaultValues();
+      $_tmp1->readFromJson($_tmp0);
+      $this->myStruct = $_tmp1;
+    }
+    if (idx($parsed, 'myUnion') !== null) {
+      $_tmp2 = \json_encode(HH\FIXME\UNSAFE_CAST<mixed, \test\fixtures\basic\MyUnion>($parsed['myUnion']));
+      $_tmp3 = \test\fixtures\basic\MyUnion::withDefaultValues();
+      $_tmp3->readFromJson($_tmp2);
+      $this->myUnion = $_tmp3;
     }
   }
 
@@ -901,7 +1355,7 @@ enum MyRenamedUnionEnum: int {
 }
 
 /**
- * Original thrift struct:-
+ * Original thrift union:-
  * UnionToBeRenamed
  */
 <<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/basic/UnionToBeRenamed'))>>

@@ -189,6 +189,8 @@ static const struct {
                                       Stack1,       OutNull         }},
   { OpFatal,       {Stack1|DontGuardAny,
                                       None,         OutNone         }},
+  { OpStaticAnalysisError,
+                   {None,             None,         OutNone         }},
 
   /*** 4. Control flow instructions ***/
 
@@ -290,12 +292,10 @@ static const struct {
 
   /*** 11. Iterator instructions ***/
 
-  { OpIterInit,    {Stack1,           Local,        OutUnknown      }},
-  { OpLIterInit,   {Local,            Local,        OutUnknown      }},
-  { OpIterNext,    {None,             Local,        OutUnknown      }},
-  { OpLIterNext,   {Local,            Local,        OutUnknown      }},
+  { OpIterBase,    {Stack1,           Stack1,       OutUnknown      }},
+  { OpIterInit,    {Local,            Local,        OutUnknown      }},
+  { OpIterNext,    {Local,            Local,        OutUnknown      }},
   { OpIterFree,    {None,             None,         OutNone         }},
-  { OpLIterFree,   {Local,            None,         OutNone         }},
 
   /*** 12. Include, eval, and define instructions ***/
 
@@ -382,13 +382,11 @@ static const struct {
                    {Stack1,           Stack1,       OutClsMethLike  }},
   { OpResolveRClsMethodS,
                    {Stack1,           Stack1,       OutClsMethLike  }},
-  { OpResolveClass,{None,             Stack1,       OutClass      }},
+  { OpResolveClass,{None,             Stack1,       OutClass        }},
   { OpSetImplicitContextByValue,
                    {Stack1,           Stack1,       OutUnknown      }},
-  { OpVerifyImplicitContextState,
-                   {None,             None,         OutNone         }},
-  { OpCreateSpecialImplicitContext,
-                   {StackTop2,        Stack1,       OutUnknown      }},
+  { OpGetInaccessibleImplicitContext,
+                   {None,             Stack1,       OutUnknown      }},
 
   /*** 14. Generator instructions ***/
 
@@ -609,9 +607,8 @@ bool isAlwaysNop(const NormalizedInstruction& ni) {
 
 size_t localImmIdx(Op op) {
   switch (op) {
-    case Op::LIterInit:
-    case Op::LIterNext:
-    case Op::LIterFree:
+    case Op::IterInit:
+    case Op::IterNext:
       return 1;
     default:
       break;

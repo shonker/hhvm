@@ -7,8 +7,6 @@
 
 pub mod services;
 
-pub mod errors;
-
 #[allow(unused_imports)]
 pub(crate) use crate as types;
 
@@ -133,7 +131,7 @@ pub struct TrivialNestedWithDefault {
     pub _dot_dot_Default_default: self::dot_dot::OtherFields,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct ComplexString {
     pub a: ::std::string::String,
     pub b: ::std::collections::BTreeMap<::std::string::String, ::std::primitive::i32>,
@@ -222,7 +220,7 @@ pub struct Renaming {
     pub _dot_dot_Default_default: self::dot_dot::OtherFields,
 }
 
-#[derive(Clone, PartialEq)]
+#[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct AnnotatedTypes {
     pub binary_field: crate::types::TBinary_8623,
     pub list_field: crate::types::SomeListOfTypeMap_2468,
@@ -851,10 +849,17 @@ impl ::fbthrift::GetUri for self::empty_struct {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::empty_struct {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::empty_struct
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("empty_struct");
         p.write_field_stop();
@@ -866,6 +871,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::empty_struct
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
         ];
@@ -943,10 +949,17 @@ impl ::fbthrift::GetUri for self::decorated_struct {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::decorated_struct {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::decorated_struct
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("decorated_struct");
         p.write_field_begin("field", ::fbthrift::TType::String, 1);
@@ -961,6 +974,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::decorated_struct
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("field", ::fbthrift::TType::String, 1),
@@ -1058,10 +1072,17 @@ impl ::fbthrift::GetUri for self::ContainerStruct {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::ContainerStruct {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::ContainerStruct
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("ContainerStruct");
         p.write_field_begin("fieldA", ::fbthrift::TType::List, 12);
@@ -1097,6 +1118,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::ContainerStruct
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("fieldA", ::fbthrift::TType::List, 12),
@@ -1220,6 +1242,17 @@ impl ::fbthrift::metadata::ThriftAnnotations for ContainerStruct {
             6 => {
             },
             7 => {
+
+                if type_id == ::std::any::TypeId::of::<cpp__types::Type>() {
+                    let mut tmp = Some(cpp__types::Type {
+                        name: ::std::default::Default::default(),
+                        template: "folly::sorted_vector_map".to_owned(),
+                        ..::std::default::Default::default()
+                    });
+                    let r: &mut dyn ::std::any::Any = &mut tmp;
+                    let r: &mut Option<T> = r.downcast_mut().unwrap();
+                    return r.take();
+                }
             },
             8 => {
             },
@@ -1266,10 +1299,17 @@ impl ::fbthrift::GetUri for self::CppTypeStruct {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::CppTypeStruct {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::CppTypeStruct
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("CppTypeStruct");
         p.write_field_begin("fieldA", ::fbthrift::TType::List, 1);
@@ -1284,6 +1324,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::CppTypeStruct
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("fieldA", ::fbthrift::TType::List, 1),
@@ -1378,10 +1419,17 @@ impl ::fbthrift::GetUri for self::VirtualStruct {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::VirtualStruct {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::VirtualStruct
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("VirtualStruct");
         p.write_field_begin("MyIntField", ::fbthrift::TType::I64, 1);
@@ -1396,6 +1444,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::VirtualStruct
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("MyIntField", ::fbthrift::TType::I64, 1),
@@ -1481,10 +1530,17 @@ impl ::fbthrift::GetUri for self::MyStructWithForwardRefEnum {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::MyStructWithForwardRefEnum {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::MyStructWithForwardRefEnum
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("MyStructWithForwardRefEnum");
         p.write_field_begin("a", ::fbthrift::TType::I32, 1);
@@ -1502,6 +1558,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::MyStructWithForwardRefEnum
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("a", ::fbthrift::TType::I32, 1),
@@ -1593,10 +1650,17 @@ impl ::fbthrift::GetUri for self::TrivialNumeric {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::TrivialNumeric {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::TrivialNumeric
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("TrivialNumeric");
         p.write_field_begin("a", ::fbthrift::TType::I32, 1);
@@ -1614,6 +1678,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::TrivialNumeric
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("a", ::fbthrift::TType::I32, 1),
@@ -1709,10 +1774,17 @@ impl ::fbthrift::GetUri for self::TrivialNestedWithDefault {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::TrivialNestedWithDefault {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::TrivialNestedWithDefault
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("TrivialNestedWithDefault");
         p.write_field_begin("z", ::fbthrift::TType::I32, 1);
@@ -1730,6 +1802,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::TrivialNestedWithDefault
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("n", ::fbthrift::TType::Struct, 2),
@@ -1825,10 +1898,17 @@ impl ::fbthrift::GetUri for self::ComplexString {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::ComplexString {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::ComplexString
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("ComplexString");
         p.write_field_begin("a", ::fbthrift::TType::String, 1);
@@ -1846,6 +1926,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::ComplexString
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("a", ::fbthrift::TType::String, 1),
@@ -1945,10 +2026,17 @@ impl ::fbthrift::GetUri for self::ComplexNestedWithDefault {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::ComplexNestedWithDefault {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::ComplexNestedWithDefault
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("ComplexNestedWithDefault");
         p.write_field_begin("z", ::fbthrift::TType::String, 1);
@@ -1966,6 +2054,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::ComplexNestedWithDefault
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("n", ::fbthrift::TType::Struct, 2),
@@ -2071,10 +2160,17 @@ impl ::fbthrift::GetUri for self::MinPadding {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::MinPadding {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::MinPadding
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("MinPadding");
         p.write_field_begin("small", ::fbthrift::TType::Byte, 1);
@@ -2101,6 +2197,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::MinPadding
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("big", ::fbthrift::TType::I64, 2),
@@ -2225,10 +2322,17 @@ impl ::fbthrift::GetUri for self::MinPaddingWithCustomType {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::MinPaddingWithCustomType {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::MinPaddingWithCustomType
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("MinPaddingWithCustomType");
         p.write_field_begin("small", ::fbthrift::TType::Byte, 1);
@@ -2255,6 +2359,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::MinPaddingWithCustomType
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("big", ::fbthrift::TType::I64, 2),
@@ -2417,10 +2522,17 @@ impl ::fbthrift::GetUri for self::MyStruct {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::MyStruct {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::MyStruct
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("MyStruct");
         p.write_field_begin("MyIntField", ::fbthrift::TType::I64, 1);
@@ -2444,6 +2556,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::MyStruct
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("MyIntField", ::fbthrift::TType::I64, 1),
@@ -2543,10 +2656,17 @@ impl ::fbthrift::GetUri for self::MyDataItem {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::MyDataItem {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::MyDataItem
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("MyDataItem");
         p.write_field_stop();
@@ -2558,6 +2678,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::MyDataItem
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
         ];
@@ -2635,10 +2756,17 @@ impl ::fbthrift::GetUri for self::Renaming {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::Renaming {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::Renaming
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("Renaming");
         p.write_field_begin("foo", ::fbthrift::TType::I64, 1);
@@ -2653,6 +2781,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::Renaming
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("foo", ::fbthrift::TType::I64, 1),
@@ -2738,10 +2867,17 @@ impl ::fbthrift::GetUri for self::AnnotatedTypes {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::AnnotatedTypes {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::AnnotatedTypes
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("AnnotatedTypes");
         p.write_field_begin("binary_field", ::fbthrift::TType::String, 1);
@@ -2759,6 +2895,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::AnnotatedTypes
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("binary_field", ::fbthrift::TType::String, 1),
@@ -2850,10 +2987,17 @@ impl ::fbthrift::GetUri for self::ForwardUsageRoot {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::ForwardUsageRoot {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::ForwardUsageRoot
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("ForwardUsageRoot");
         if let ::std::option::Option::Some(some) = &self.ForwardUsageStruct {
@@ -2875,6 +3019,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::ForwardUsageRoot
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("ForwardUsageByRef", ::fbthrift::TType::Struct, 2),
@@ -2974,10 +3119,17 @@ impl ::fbthrift::GetUri for self::ForwardUsageStruct {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::ForwardUsageStruct {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::ForwardUsageStruct
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("ForwardUsageStruct");
         if let ::std::option::Option::Some(some) = &self.foo {
@@ -2994,6 +3146,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::ForwardUsageStruct
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("foo", ::fbthrift::TType::Struct, 1),
@@ -3087,10 +3240,17 @@ impl ::fbthrift::GetUri for self::ForwardUsageByRef {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::ForwardUsageByRef {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::ForwardUsageByRef
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("ForwardUsageByRef");
         if let ::std::option::Option::Some(some) = &self.foo {
@@ -3107,6 +3267,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::ForwardUsageByRef
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("foo", ::fbthrift::TType::Struct, 1),
@@ -3200,10 +3361,17 @@ impl ::fbthrift::GetUri for self::IncompleteMap {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::IncompleteMap {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::IncompleteMap
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("IncompleteMap");
         if let ::std::option::Option::Some(some) = &self.field {
@@ -3220,6 +3388,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::IncompleteMap
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("field", ::fbthrift::TType::Map, 1),
@@ -3301,10 +3470,17 @@ impl ::fbthrift::GetUri for self::IncompleteMapDep {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::IncompleteMapDep {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::IncompleteMapDep
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("IncompleteMapDep");
         p.write_field_stop();
@@ -3316,6 +3492,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::IncompleteMapDep
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
         ];
@@ -3393,10 +3570,17 @@ impl ::fbthrift::GetUri for self::CompleteMap {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::CompleteMap {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::CompleteMap
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("CompleteMap");
         if let ::std::option::Option::Some(some) = &self.field {
@@ -3413,6 +3597,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::CompleteMap
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("field", ::fbthrift::TType::Map, 1),
@@ -3505,10 +3690,17 @@ impl ::fbthrift::GetUri for self::CompleteMapDep {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::CompleteMapDep {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::CompleteMapDep
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("CompleteMapDep");
         p.write_field_stop();
@@ -3520,6 +3712,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::CompleteMapDep
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
         ];
@@ -3597,10 +3790,17 @@ impl ::fbthrift::GetUri for self::IncompleteList {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::IncompleteList {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::IncompleteList
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("IncompleteList");
         if let ::std::option::Option::Some(some) = &self.field {
@@ -3617,6 +3817,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::IncompleteList
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("field", ::fbthrift::TType::List, 1),
@@ -3709,10 +3910,17 @@ impl ::fbthrift::GetUri for self::IncompleteListDep {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::IncompleteListDep {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::IncompleteListDep
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("IncompleteListDep");
         p.write_field_stop();
@@ -3724,6 +3932,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::IncompleteListDep
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
         ];
@@ -3801,10 +4010,17 @@ impl ::fbthrift::GetUri for self::CompleteList {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::CompleteList {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::CompleteList
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("CompleteList");
         if let ::std::option::Option::Some(some) = &self.field {
@@ -3821,6 +4037,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::CompleteList
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("field", ::fbthrift::TType::List, 1),
@@ -3913,10 +4130,17 @@ impl ::fbthrift::GetUri for self::CompleteListDep {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::CompleteListDep {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::CompleteListDep
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("CompleteListDep");
         p.write_field_stop();
@@ -3928,6 +4152,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::CompleteListDep
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
         ];
@@ -4005,10 +4230,17 @@ impl ::fbthrift::GetUri for self::AdaptedList {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::AdaptedList {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::AdaptedList
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("AdaptedList");
         if let ::std::option::Option::Some(some) = &self.field {
@@ -4025,6 +4257,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::AdaptedList
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("field", ::fbthrift::TType::List, 1),
@@ -4108,10 +4341,17 @@ impl ::fbthrift::GetUri for self::AdaptedListDep {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::AdaptedListDep {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::AdaptedListDep
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("AdaptedListDep");
         p.write_field_begin("field", ::fbthrift::TType::Struct, 1);
@@ -4126,6 +4366,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::AdaptedListDep
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("field", ::fbthrift::TType::Struct, 1),
@@ -4227,10 +4468,17 @@ impl ::fbthrift::GetUri for self::DependentAdaptedList {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::DependentAdaptedList {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::DependentAdaptedList
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("DependentAdaptedList");
         if let ::std::option::Option::Some(some) = &self.field {
@@ -4247,6 +4495,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::DependentAdaptedList
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("field", ::fbthrift::TType::List, 1),
@@ -4330,10 +4579,17 @@ impl ::fbthrift::GetUri for self::DependentAdaptedListDep {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::DependentAdaptedListDep {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::DependentAdaptedListDep
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("DependentAdaptedListDep");
         if let ::std::option::Option::Some(some) = &self.field {
@@ -4350,6 +4606,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::DependentAdaptedListDep
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("field", ::fbthrift::TType::I16, 1),
@@ -4472,10 +4729,17 @@ impl ::fbthrift::GetUri for self::AllocatorAware {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::AllocatorAware {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::AllocatorAware
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("AllocatorAware");
         p.write_field_begin("aa_list", ::fbthrift::TType::List, 1);
@@ -4508,6 +4772,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::AllocatorAware
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("aa_list", ::fbthrift::TType::List, 1),
@@ -4649,10 +4914,17 @@ impl ::fbthrift::GetUri for self::AllocatorAware2 {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::AllocatorAware2 {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::AllocatorAware2
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("AllocatorAware2");
         p.write_field_begin("not_a_container", ::fbthrift::TType::I32, 1);
@@ -4672,6 +4944,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::AllocatorAware2
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("box_field", ::fbthrift::TType::I32, 2),
@@ -4774,10 +5047,17 @@ impl ::fbthrift::GetUri for self::TypedefStruct {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::TypedefStruct {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::TypedefStruct
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("TypedefStruct");
         p.write_field_begin("i32_field", ::fbthrift::TType::I32, 1);
@@ -4798,6 +5078,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::TypedefStruct
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("IntTypedef_field", ::fbthrift::TType::I32, 2),
@@ -4893,10 +5174,17 @@ impl ::fbthrift::GetUri for self::StructWithDoubleUnderscores {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::StructWithDoubleUnderscores {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::StructWithDoubleUnderscores
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("StructWithDoubleUnderscores");
         p.write_field_begin("__field", ::fbthrift::TType::I32, 1);
@@ -4911,6 +5199,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::StructWithDoubleUnderscores
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("__field", ::fbthrift::TType::I32, 1),
@@ -4999,6 +5288,7 @@ pub(crate) mod r#impl {
     where
         P: ::fbthrift::ProtocolWriter,
     {
+        #[inline]
         fn write(&self, p: &mut P) {
             p.write_map_begin(
                 <::std::primitive::i32 as ::fbthrift::GetTType>::TTYPE,
@@ -5019,6 +5309,7 @@ pub(crate) mod r#impl {
     where
         P: ::fbthrift::ProtocolReader,
     {
+        #[inline]
         fn read(p: &mut P) -> ::anyhow::Result<Self> {
             let (_key_ty, _val_ty, len) = p.read_map_begin()?;
             let mut map = <::sorted_vector_map::SortedVectorMap<::std::primitive::i32, ::std::string::String>>::with_capacity(len.unwrap_or_default());
@@ -5053,6 +5344,7 @@ pub(crate) mod r#impl {
     where
         P: ::fbthrift::ProtocolWriter,
     {
+        #[inline]
         fn write(&self, p: &mut P) {
             p.write_set_begin(
                 <::std::primitive::i32 as ::fbthrift::GetTType>::TTYPE,
@@ -5070,6 +5362,7 @@ pub(crate) mod r#impl {
     where
         P: ::fbthrift::ProtocolReader,
     {
+        #[inline]
         fn read(p: &mut P) -> ::anyhow::Result<Self> {
             let (_elem_ty, len) = p.read_set_begin()?;
             let mut set = <::sorted_vector_map::SortedVectorSet<::std::primitive::i32>>::with_capacity(len.unwrap_or_default());

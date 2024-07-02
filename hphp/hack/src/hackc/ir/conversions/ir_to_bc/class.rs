@@ -3,10 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the "hack" directory of this source tree.
 
-use ffi::Maybe;
-
 use crate::convert::UnitBuilder;
-use crate::types;
 
 pub(crate) fn convert_class(unit: &mut UnitBuilder, class: ir::Class) {
     let ir::Class {
@@ -23,16 +20,11 @@ pub(crate) fn convert_class(unit: &mut UnitBuilder, class: ir::Class) {
         name,
         properties,
         requirements,
-        src_loc,
+        span,
         type_constants,
         upper_bounds,
         uses,
     } = class;
-
-    let enum_type: Maybe<_> = enum_type
-        .as_ref()
-        .map(|et| types::convert(et).unwrap())
-        .into();
 
     let methods = Vec::from_iter(
         methods
@@ -47,14 +39,14 @@ pub(crate) fn convert_class(unit: &mut UnitBuilder, class: ir::Class) {
         ctx_constants: ctx_constants.into(),
         doc_comment: doc_comment.map(|c| c.into()).into(),
         enum_includes: enum_includes.into(),
-        enum_type,
+        enum_type: enum_type.into(),
         flags,
         implements: implements.into(),
         methods: methods.into(),
         name,
         properties: properties.into(),
         requirements: requirements.into(),
-        span: src_loc.to_span(),
+        span,
         type_constants: type_constants.into(),
         upper_bounds: upper_bounds.into(),
         uses: uses.into(),

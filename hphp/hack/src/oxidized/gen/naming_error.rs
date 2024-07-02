@@ -3,7 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the "hack" directory of this source tree.
 //
-// @generated SignedSource<<31b8dd8fbd9ab0ce6ed54ab3a8f2dceb>>
+// @generated SignedSource<<f520ec94fe802cf76c0a05c34d3db527>>
 //
 // To regenerate this file, run:
 //   hphp/hack/src/oxidized_regen.sh
@@ -191,6 +191,8 @@ pub enum NamingError {
     DynamicNewInStrictMode(pos::Pos),
     #[rust_to_ocaml(name = "Invalid_type_access_root")]
     InvalidTypeAccessRoot { pos: pos::Pos, id: Option<String> },
+    #[rust_to_ocaml(name = "Invalid_type_access_in_where")]
+    InvalidTypeAccessInWhere(pos::Pos),
     #[rust_to_ocaml(name = "Duplicate_user_attribute")]
     DuplicateUserAttribute {
         pos: pos::Pos,
@@ -413,4 +415,6 @@ pub enum NamingError {
     },
     #[rust_to_ocaml(name = "Toplevel_statement")]
     ToplevelStatement(pos::Pos),
+    #[rust_to_ocaml(name = "Attribute_outside_allowed_files")]
+    AttributeOutsideAllowedFiles(pos::Pos),
 }

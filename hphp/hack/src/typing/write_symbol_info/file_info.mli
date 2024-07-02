@@ -46,12 +46,11 @@ type t = private {
   symbols: symbol list;
   sym_hash: Md5.t option;
   fanout: bool;
+  root_path: string;
 }
 
-(** all the root (i.e. non-hhi) files referenced by t through xrefs. t
-   must have been created using [sym_path] set to [true], otherwise
-   the result set is empty *)
-val referenced : t -> SSet.t
+(** all the root (i.e. non-hhi) files referenced by t through xrefs. *)
+val referenced : Provider_context.t -> t -> SSet.t
 
 (** If [gen_sym_hash] is true, computes the [sym_hash] for this file. This
   is needed for incremental indexing, when indexing bases, or increments.
@@ -60,7 +59,6 @@ val create :
   Provider_context.t ->
   Indexable.t ->
   gen_sym_hash:bool ->
-  gen_references:bool ->
   root_path:string ->
   hhi_path:string ->
   t

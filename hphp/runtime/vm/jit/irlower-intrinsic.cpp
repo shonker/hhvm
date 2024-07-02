@@ -21,6 +21,7 @@
 #include "hphp/runtime/base/stats.h"
 #include "hphp/runtime/base/string-data.h"
 #include "hphp/runtime/base/tv-mutate.h"
+#include "hphp/runtime/base/implicit-context.h"
 
 #include "hphp/runtime/ext/hh/ext_hh.h"
 #include "hphp/runtime/ext/hh/ext_implicit_context.h"
@@ -62,7 +63,6 @@ TRACE_SET_MOD(irlower);
 void cgNop(IRLS&, const IRInstruction*) {}
 void cgDefConst(IRLS&, const IRInstruction*) {}
 void cgEndGuards(IRLS&, const IRInstruction*) {}
-void cgJmpPlaceholder(IRLS&, const IRInstruction*) {}
 
 ///////////////////////////////////////////////////////////////////////////////
 
@@ -181,12 +181,12 @@ void cgMov(IRLS& env, const IRInstruction* inst) {
 
 void cgUnreachable(IRLS& env, const IRInstruction* inst) {
   auto reason = inst->extra<AssertReason>()->reason;
-  vmain(env) << trap{reason};
+  vmain(env) << trap{reason, Fixup::none()};
 }
 
 void cgEndBlock(IRLS& env, const IRInstruction* inst) {
   auto reason = inst->extra<AssertReason>()->reason;
-  vmain(env) << trap{reason};
+  vmain(env) << trap{reason, Fixup::none()};
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -1030,7 +1030,7 @@ void cgLdUnitPerRequestFilepath(IRLS& env, const IRInstruction* inst) {
     auto const sf = checkRDSHandleInitialized(v, handle);
     unlikelyIfThen(
       v, vcold(env), CC_NE, sf,
-      [&] (Vout& v) { v << trap{TRAP_REASON}; }
+      [&] (Vout& v) { v << trap{TRAP_REASON, Fixup::none()}; }
     );
   }
   emitLdLowPtr(v, rvmtl()[handle], dst, sizeof(LowStringPtr));
@@ -1054,22 +1054,20 @@ void cgDirFromFilepath(IRLS& env, const IRInstruction* inst) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
-void cgCreateSpecialImplicitContext(IRLS& env, const IRInstruction* inst) {
-  auto args = argGroup(env, inst).ssa(0);
-  if (inst->src(1)->isA(TStr)) {
-    args.ssa(1);
-  } else {
-    args.immPtr(nullptr);
+void cgStaticAnalysisError(IRLS& env, const IRInstruction* inst) {
+  if (RO::EvalCrashOnStaticAnalysisError) {
+    auto& v = vmain(env);
+    v << trap{TRAP_REASON, makeFixup(inst->marker(), SyncOptions::Sync)};
+    return;
   }
-  args.ssa(2);
 
   cgCallHelper(
     vmain(env),
     env,
-    CallSpec::direct(create_special_implicit_context_explicit),
-    callDestTV(env, inst),
-    SyncOptions::None,
-    args
+    CallSpec::direct(raiseStaticAnalysisError),
+    kVoidDest,
+    SyncOptions::Sync,
+    argGroup(env, inst)
   );
 }
 

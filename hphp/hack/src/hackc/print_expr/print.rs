@@ -307,7 +307,7 @@ fn print_expr(
     use ast::Expr_;
     match expr {
         Expr_::Id(id) => print_expr_id(w, env, id.1.as_ref()),
-        Expr_::Lvar(lid) => w.write_all((lid.1).1.as_bytes()),
+        Expr_::Lvar(lid) => w.write_all(fixup_name(&(lid.1).1).as_bytes()),
         Expr_::Float(f) => {
             if f.contains('E') || f.contains('e') {
                 let s = format!(
@@ -646,6 +646,9 @@ fn print_expr(
             if ctx.dump_lambdas {
                 let fun_ = &lfun.0;
                 write::paren(w, |w| {
+                    if fun_.fun_kind.is_fasync() || fun_.fun_kind.is_fasync_generator() {
+                        write!(w, "async ",)?;
+                    };
                     write::paren(w, |w| {
                         write::concat_by(w, ", ", &fun_.params, |w, param| {
                             print_fparam(ctx, w, env, param)
@@ -661,9 +664,9 @@ fn print_expr(
                 .into())
             }
         }
-        Expr_::ETSplice(splice) => {
+        Expr_::ETSplice(box ast::EtSplice { spliced_expr, .. }) => {
             w.write_all(b"${")?;
-            print_expr(ctx, w, env, splice)?;
+            print_expr(ctx, w, env, spliced_expr)?;
             w.write_all(b"}")
         }
         Expr_::EnumClassLabel(ecl) => match &ecl.0 {
@@ -685,9 +688,9 @@ fn print_expr(
             Some(expr) => print_expr(ctx, w, env, expr),
             _ => Ok(()),
         },
+        Expr_::ExpressionTree(et) => print_expr(ctx, w, env, &et.runtime_expr),
         Expr_::Package(_)
         | Expr_::Dollardollar(_)
-        | Expr_::ExpressionTree(_)
         | Expr_::Hole(_)
         | Expr_::KeyValCollection(_)
         | Expr_::Lplaceholder(_)
@@ -779,7 +782,7 @@ fn print_efun(
                 ", ",
                 use_list,
                 |w: &mut dyn Write, ast::CaptureLid(_, ast::Lid(_, id))| {
-                    w.write_all(local_id::get_name(id).as_bytes())
+                    w.write_all(fixup_name(local_id::get_name(id)).as_bytes())
                 },
             )
         })?;
@@ -870,6 +873,11 @@ fn print_statement(
     }
 }
 
+fn fixup_name(n: &str) -> String {
+    let re = Regex::new("^[$]([0-9]*)").unwrap();
+    re.replace(n, "$").into_owned()
+}
+
 fn print_fparam(
     ctx: &Context<'_>,
     w: &mut dyn Write,
@@ -879,18 +887,29 @@ fn print_fparam(
     if param.callconv.is_pinout() {
         w.write_all(b"inout ")?;
     }
-    if param.is_variadic {
-        w.write_all(b"...")?;
+    match param.info {
+        ast::FunParamInfo::ParamVariadic => {
+            w.write_all(b"...")?;
+        }
+        ast::FunParamInfo::ParamOptional(None) => {
+            w.write_all(b"optional ")?;
+        }
+        ast::FunParamInfo::ParamRequired | ast::FunParamInfo::ParamOptional(Some(_)) => {}
     }
     write::option(w, &(param.type_hint).1, |w, h| {
         print_hint(w, true, h)?;
         w.write_all(b" ")
     })?;
-    w.write_all(param.name.as_bytes())?;
-    write::option(w, &param.expr, |w, e| {
-        w.write_all(b" = ")?;
-        print_expr(ctx, w, env, e)
-    })
+    w.write_all(fixup_name(&param.name).as_bytes())?;
+    match &param.info {
+        ast::FunParamInfo::ParamOptional(Some(expr)) => {
+            w.write_all(b" = ")?;
+            print_expr(ctx, w, env, expr)
+        }
+        ast::FunParamInfo::ParamOptional(None)
+        | ast::FunParamInfo::ParamRequired
+        | ast::FunParamInfo::ParamVariadic => Ok(()),
+    }
 }
 
 fn print_bop(w: &mut dyn Write, bop: &ast_defs::Bop) -> Result<()> {

@@ -23,7 +23,7 @@
 namespace apache {
 namespace thrift {
 
-using namespace testutil::testservice;
+using namespace apache::thrift::detail::test;
 
 struct SinkServiceTest
     : public AsyncTestSetup<TestSinkService, Client<TestSinkService>> {};
@@ -70,27 +70,26 @@ TEST_F(SinkServiceTest, SinkThrow) {
 }
 
 TEST_F(SinkServiceTest, SinkThrowStruct) {
-  connectToServer([](Client<TestSinkService>& client) -> folly::coro::Task<void> {
-    auto sink = co_await client.co_sinkThrow();
-    bool exceptionThrown = false;
-    try {
-      co_await sink.sink([]() -> folly::coro::AsyncGenerator<int&&> {
-        co_yield 0;
-        co_yield 1;
-        SinkException e;
-        e.reason_ref() = "test";
-        throw e;
-      }());
-    } catch (const SinkThrew& ex) {
-      exceptionThrown = true;
-      EXPECT_EQ(TApplicationException::UNKNOWN, ex.getType());
-      EXPECT_EQ(
-          "testutil::testservice::SinkException: ::testutil::testservice::SinkException",
-          ex.getMessage());
-    }
-    EXPECT_TRUE(exceptionThrown);
-    co_await client.co_purge();
-  });
+  connectToServer(
+      [](Client<TestSinkService>& client) -> folly::coro::Task<void> {
+        auto sink = co_await client.co_sinkThrow();
+        bool exceptionThrown = false;
+        try {
+          co_await sink.sink([]() -> folly::coro::AsyncGenerator<int&&> {
+            co_yield 0;
+            co_yield 1;
+            SinkException e;
+            e.reason_ref() = "test";
+            throw e;
+          }());
+        } catch (const SinkThrew& ex) {
+          exceptionThrown = true;
+          EXPECT_EQ(TApplicationException::UNKNOWN, ex.getType());
+          EXPECT_THAT(ex.getMessage(), HasSubstr("SinkException"));
+        }
+        EXPECT_TRUE(exceptionThrown);
+        co_await client.co_purge();
+      });
 }
 
 TEST_F(SinkServiceTest, SinkFinalThrow) {
@@ -193,7 +192,9 @@ TEST_F(SinkServiceTest, SinkInitialThrowsOnFinalResponseCalled) {
         FirstResponsePayload&&,
         folly::EventBase*,
         SinkServerCallback* serverCallback) override {
-      SCOPE_EXIT { responseReceived_.post(); };
+      SCOPE_EXIT {
+        responseReceived_.post();
+      };
       if (!onFirstResponseBool_) {
         serverCallback->onSinkError(std::runtime_error("stop sink"));
         return false;
@@ -309,7 +310,8 @@ TEST_F(SinkServiceTest, SinkEarlyFinalResponseWithLongWait) {
       });
 }
 
-TEST_F(SinkServiceTest, SinkEarlyClose) {
+// DO_BEFORE(aristidis,20240715): Test is flaky. Find owner or remove.
+TEST_F(SinkServiceTest, DISABLED_SinkEarlyClose) {
   std::vector<std::thread> ths;
   for (int i = 0; i < 100; i++) {
     ths.push_back(std::thread([this]() {

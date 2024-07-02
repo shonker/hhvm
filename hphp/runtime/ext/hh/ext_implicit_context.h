@@ -22,9 +22,7 @@
 namespace HPHP {
 ///////////////////////////////////////////////////////////////////////////////
 
-TypedValue create_special_implicit_context_explicit(int64_t,
-                                                    const StringData*,
-                                                    const Func* func);
+Object initEmptyContext();
 
 ///////////////////////////////////////////////////////////////////////////////
 }

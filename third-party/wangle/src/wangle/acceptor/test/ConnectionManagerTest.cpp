@@ -16,6 +16,7 @@
 
 #include <wangle/acceptor/ConnectionManager.h>
 
+#include <folly/SocketAddress.h>
 #include <folly/portability/GFlags.h>
 #include <folly/portability/GMock.h>
 #include <folly/portability/GTest.h>
@@ -24,6 +25,7 @@ using namespace testing;
 using namespace wangle;
 
 namespace {
+folly::SocketAddress dummyAddress("127.0.0.1", 0);
 
 class ConnectionManagerTest;
 
@@ -72,8 +74,6 @@ class MockConnection : public ManagedConnection {
     return dummyAddress;
   }
 
-  folly::SocketAddress dummyAddress;
-
   void setIdle(bool idle) {
     idle_ = idle;
     closeWhenIdleImpl();
@@ -111,6 +111,12 @@ class ConnectionManagerTest : public testing::Test {
         conn.reset();
       }
     }
+  }
+
+  // Set exactly this many connections
+  void setConns(uint64_t n) {
+    conns_.clear();
+    addConns(n);
   }
 
  protected:
@@ -158,10 +164,10 @@ TEST_F(ConnectionManagerTest, testRemoveDrainIterator) {
   cm_->onActivated(*conns_.front());
   EXPECT_EQ(cm_->getNumActiveConnections(), 66);
   for (size_t i = 0; i < conns_.size() - 1; i++) {
-    EXPECT_CALL(*conns_[i], notifyPendingShutdown());
+    EXPECT_CALL(*conns_.at(i), notifyPendingShutdown());
   }
-  auto conn65 = conns_[conns_.size() - 2].get();
-  auto conn66 = conns_[conns_.size() - 1].get();
+  auto conn65 = conns_.at(conns_.size() - 2).get();
+  auto conn66 = conns_.at(conns_.size() - 1).get();
   eventBase_.runInLoop([&] {
     // deactivate the drain iterator
     cm_->onDeactivated(*conn65);
@@ -175,7 +181,7 @@ TEST_F(ConnectionManagerTest, testRemoveDrainIterator) {
   // iterator
   eventBase_.loopOnce();
   for (size_t i = 0; i < conns_.size() - 1; i++) {
-    EXPECT_CALL(*conns_[i], closeWhenIdle());
+    EXPECT_CALL(*conns_.at(i), closeWhenIdle());
   }
 
   eventBase_.loop();
@@ -257,7 +263,7 @@ TEST_F(ConnectionManagerTest, testDropEstablishedVerifyOrder) {
   // identifiers vector, meaning everything will be sorted in increasing order
   ASSERT_TRUE(identifiers.size() >= 2);
   for (int i = 1; i < identifiers.size(); i++) {
-    ASSERT_TRUE(identifiers[i] > identifiers[i - 1]);
+    ASSERT_TRUE(identifiers[i] > identifiers.at(i - 1));
   }
 }
 
@@ -338,12 +344,7 @@ TEST_F(ConnectionManagerTest, testDropPercent) {
   InSequence enforceOrder;
 
   // Make sure we have exactly 100 connections.
-  const size_t numToAdd = 100 - conns_.size();
-  addConns(numToAdd);
-  const size_t numToRemove = conns_.size() - 100;
-  for (size_t i = 0; i < numToRemove; i++) {
-    removeConn(conns_.begin()->get());
-  }
+  setConns(100);
   EXPECT_EQ(100, cm_->getNumConnections());
   EXPECT_EQ(100, cm_->getNumActiveConnections());
 
@@ -377,6 +378,29 @@ TEST_F(ConnectionManagerTest, testDropPercent) {
   EXPECT_EQ(0, numToDrop);
   EXPECT_EQ(40, cm_->getNumConnections());
   EXPECT_EQ(40, cm_->getNumActiveConnections());
+}
+
+TEST_F(ConnectionManagerTest, testDropConnection) {
+  // Just need to ensure 1 connection exists
+  setConns(1);
+  EXPECT_EQ(cm_->getNumActiveConnections(), 1);
+
+  EXPECT_CALL(*conns_[0], dropConnection(_))
+      .WillOnce(Invoke(
+          [&](const std::string&) { cm_->removeConnection(conns_[0].get()); }));
+
+  // Does not match the connection
+  {
+    auto noMatchAddress = folly::SocketAddress("127.0.0.1", 1);
+    cm_->dropConnection(noMatchAddress);
+    EXPECT_EQ(cm_->getNumActiveConnections(), 1);
+  }
+
+  // Matches the connection so it is dropped
+  {
+    cm_->dropConnection(dummyAddress);
+    EXPECT_EQ(cm_->getNumActiveConnections(), 0);
+  }
 }
 
 TEST_F(ConnectionManagerTest, testDrainPercent) {
@@ -430,7 +454,7 @@ TEST_F(ConnectionManagerTest, testDrainAllAfterPct) {
   for (size_t i = 0;
        i < conns_.size() - static_cast<size_t>(conns_.size() * drain_pct);
        ++i) {
-    EXPECT_CALL(*conns_[i], notifyPendingShutdown());
+    EXPECT_CALL(*conns_.at(i), notifyPendingShutdown());
   }
 
   cm_->initiateGracefulShutdown(std::chrono::milliseconds(50));
@@ -454,7 +478,7 @@ TEST_F(ConnectionManagerTest, testDropIdle) {
   // Mark the first half of the connections idle
   for (size_t i = 0; i < conns_.size() / 2; i++) {
     EXPECT_EQ(cm_->getNumIdleConnections(), idleCount_);
-    cm_->onDeactivated(*conns_[i]);
+    cm_->onDeactivated(*conns_.at(i));
     idleCount_++;
   }
   EXPECT_EQ(
@@ -472,9 +496,9 @@ TEST_F(ConnectionManagerTest, testDropIdle) {
 
   // Expect the remaining idle conns to drop
   for (size_t i = 2; i < conns_.size() / 2; i++) {
-    EXPECT_CALL(*conns_[i], dropConnection(_))
+    EXPECT_CALL(*conns_.at(i), dropConnection(_))
         .WillOnce(Invoke([this, i](const std::string&) {
-          cm_->removeConnection(conns_[i].get());
+          cm_->removeConnection(conns_.at(i).get());
         }));
   }
 
@@ -547,7 +571,7 @@ TEST_F(ConnectionManagerTest, testDropIdleConnectionsBasedOnIdleTimeDropHalf) {
 
   // Mark the first half of the connections idle
   for (size_t i = 0; i < conns_.size() / 2; i++) {
-    cm_->onDeactivated(*conns_[i]);
+    cm_->onDeactivated(*conns_.at(i));
   }
   // reactivate conn 0
   cm_->onActivated(*conns_[0]);
@@ -558,9 +582,9 @@ TEST_F(ConnectionManagerTest, testDropIdleConnectionsBasedOnIdleTimeDropHalf) {
 
   // Expect the remaining idle conns to drop
   for (size_t i = 2; i < conns_.size() / 2; i++) {
-    EXPECT_CALL(*conns_[i], dropConnection(_))
+    EXPECT_CALL(*conns_.at(i), dropConnection(_))
         .WillOnce(Invoke([this, i](const std::string&) {
-          cm_->removeConnection(conns_[i].get());
+          cm_->removeConnection(conns_.at(i).get());
         }));
   }
 
@@ -583,7 +607,7 @@ TEST_F(ConnectionManagerTest, testDropIdleConnectionsBasedOnIdleTimeEarlyStop) {
 
   for (size_t i = 0; i < halfConnectionsSize; i++) {
     // Set everyone to be idle for 100ms
-    EXPECT_CALL(*conns_[i], getIdleTime())
+    EXPECT_CALL(*conns_.at(i), getIdleTime())
         .WillRepeatedly(Return(std::chrono::milliseconds(100)));
   }
 
@@ -596,9 +620,9 @@ TEST_F(ConnectionManagerTest, testDropIdleConnectionsBasedOnIdleTimeEarlyStop) {
 
   // Expect the remaining idle conns to drop
   for (size_t i = 0; i < halfConnectionsSize; i++) {
-    EXPECT_CALL(*conns_[i], dropConnection(_))
+    EXPECT_CALL(*conns_.at(i), dropConnection(_))
         .WillOnce(Invoke([this, i](const std::string&) {
-          cm_->removeConnection(conns_[i].get());
+          cm_->removeConnection(conns_.at(i).get());
         }));
   }
 

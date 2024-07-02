@@ -11,7 +11,7 @@ Errors:
       c_namespace =
       { Namespace_env.ns_ns_uses = <opaque>; ns_class_uses = <opaque>; 
         ns_fun_uses = <opaque>; ns_const_uses = <opaque>; ns_name = None; 
-        ns_is_codegen = false; ns_disable_xhp_element_mangling = false };
+        ns_mode = Namespace_env.ForTypecheck; ns_disable_xhp_element_mangling = false };
       c_user_attributes = [{ ua_name = ([2:7-8], "__SupportDynamicType"); ua_params = [] }]; 
       c_file_attributes = []; c_docs_url = None; c_enum = None; c_doc_comment = None; 
       c_emit_id = None; c_internal = false; c_module = None });
@@ -19,7 +19,7 @@ Errors:
      { fd_namespace =
        { Namespace_env.ns_ns_uses = <opaque>; ns_class_uses = <opaque>; 
          ns_fun_uses = <opaque>; ns_const_uses = <opaque>; ns_name = None; 
-         ns_is_codegen = false; ns_disable_xhp_element_mangling = false };
+         ns_mode = Namespace_env.ForTypecheck; ns_disable_xhp_element_mangling = false };
        fd_file_attributes = []; fd_mode = Mstrict; fd_name = ([4:10-40], "\\expected_class_union_classname");
        fd_fun =
        { f_span = [4:1-7:2]; f_readonly_this = None; f_annotation = (); 
@@ -28,9 +28,9 @@ Errors:
          [{ param_annotation = ((int | classname<C>));
             param_type_hint =
             (((int | classname<C>)), (Some ([4:41-61], (Hunion [([4:42-45], (Hprim Tint)); ([4:48-60], (Happly (([4:48-57], "\\HH\\classname"), [([4:58-59], (Happly (([4:58-59], "\\C"), [])))])))]))));
-            param_is_variadic = false; param_pos = [4:62-73]; param_name = "$class_name"; 
-            param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-            param_user_attributes = []; param_visibility = None }
+            param_pos = [4:62-73]; param_name = "$class_name"; param_info = Param_required; 
+            param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+            param_visibility = None }
            ];
          f_ctxs = None; f_unsafe_ctxs = None;
          f_body =

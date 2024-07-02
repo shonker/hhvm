@@ -35,7 +35,7 @@ fn emit_constant_cinit<'a, 'd>(
     let name = String::new() + strip_global_ns(ns) + "86cinit_" + name;
     let original_name = hhbc::FunctionName::intern(&name);
     let ret = constant.type_.as_ref();
-    let return_type_info = ret
+    let return_type = ret
         .map(|h| {
             emit_type_hint::hint_to_type_info(
                 &Kind::Return,
@@ -47,11 +47,14 @@ fn emit_constant_cinit<'a, 'd>(
         })
         .transpose()?;
     init.map(|instrs| {
-        let verify_instr = match return_type_info {
+        let verify_instr = match return_type {
             None => instr::empty(),
             Some(_) => instr::verify_ret_type_c(),
         };
         let instrs = InstrSeq::gather(vec![instrs, verify_instr, instr::ret_c()]);
+        let mut attrs = Attr::AttrNoInjection;
+        attrs.set(Attr::AttrPersistent, e.systemlib());
+        attrs.set(Attr::AttrBuiltin, e.systemlib());
         let body = emit_body::make_body(
             e,
             instrs,
@@ -60,23 +63,20 @@ fn emit_constant_cinit<'a, 'd>(
             false,  /* is_memoize_wrapper_lsb */
             vec![], /* upper_bounds */
             vec![], /* shadowed_params */
+            vec![], /* attributes */
+            attrs,
+            Coeffects::default(),
             vec![], /* params */
-            return_type_info,
+            return_type,
             None, /* doc_comment */
             Some(env),
             Span::from_pos(&constant.span),
         )?;
-        let mut attrs = Attr::AttrNoInjection;
-        attrs.set(Attr::AttrPersistent, e.systemlib());
-        attrs.set(Attr::AttrBuiltin, e.systemlib());
 
         Ok(Function {
-            attributes: Default::default(),
             name: original_name,
             body,
-            coeffects: Coeffects::default(),
             flags: FunctionFlags::empty(),
-            attrs,
         })
     })
     .transpose()

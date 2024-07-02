@@ -50,6 +50,10 @@ struct ArrayKeyTypes {
     return m_bits == other.m_bits;
   }
 
+  ArrayKeyTypes operator|(ArrayKeyTypes other) const {
+    return FromBits(m_bits | other.m_bits);
+  }
+
   /*
    * A variety of getters for the key-types bitset. Because of our conservative
    * tracking, "may have" functions may return false positive, and "must have"
@@ -86,6 +90,12 @@ struct ArrayKeyTypes {
   }
   static constexpr ArrayKeyTypes Strs() {
     return FromBits(static_cast<uint8_t>(kStaticStrKey | kNonStaticStrKey));
+  }
+  static constexpr ArrayKeyTypes ArrayKeys() {
+    return Ints() | Strs();
+  }
+  static constexpr ArrayKeyTypes Any() {
+    return FromBits(kAnyKey);
   }
 
   static constexpr ArrayKeyTypes FromBits(uint8_t bits) {
@@ -155,6 +165,7 @@ private:
   static constexpr uint8_t kStaticStrKey    = 0b0010;
   static constexpr uint8_t kIntKey          = 0b0100;
   static constexpr uint8_t kTombstoneKey    = 0b1000;
+  static constexpr uint8_t kAnyKey          = 0b1111;
 
   uint8_t m_bits;
 };

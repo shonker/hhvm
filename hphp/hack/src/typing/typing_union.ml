@@ -16,7 +16,7 @@ module TySet = Typing_set
 module Utils = Typing_utils
 module MakeType = Typing_make_type
 module Nast = Aast
-module Cls = Decl_provider.Class
+module Cls = Folded_class
 
 exception Dont_simplify
 
@@ -211,7 +211,7 @@ let exact_least_upper_bound e1 e2 =
   | (Exact, Exact) -> Exact
   | (_, _) -> nonexact
 
-let rec union env ?(approx_cancel_neg = false) ty1 ty2 =
+let rec union env ?reason ?(approx_cancel_neg = false) ty1 ty2 =
   let r1 = get_reason ty1 in
   let r2 = get_reason ty2 in
   Log.log_union r2 ty1 ty2
@@ -223,7 +223,11 @@ let rec union env ?(approx_cancel_neg = false) ty1 ty2 =
   else if Utils.is_sub_type_for_union env ty2 ty1 then
     (env, ty1)
   else
-    let r = union_reason r1 r2 in
+    let r =
+      match reason with
+      | Some r -> r
+      | _ -> union_reason r1 r2
+    in
     let (env, non_ty2) =
       Typing_intersection.negate_type env Reason.none ty2 ~approx:Utils.ApproxUp
     in
@@ -315,7 +319,7 @@ and simplify_union_ ~approx_cancel_neg env ty1 ty2 r =
     | ((_, Ttuple tyl1), (_, Ttuple tyl2)) ->
       if Int.equal (List.length tyl1) (List.length tyl2) then
         let (env, tyl) =
-          List.map2_env env tyl1 tyl2 ~f:(union ~approx_cancel_neg)
+          List.map2_env env tyl1 tyl2 ~f:(union ?reason:None ~approx_cancel_neg)
         in
         (env, Some (mk (r, Ttuple tyl)))
       else
@@ -368,16 +372,12 @@ and simplify_union_ ~approx_cancel_neg env ty1 ty2 r =
     | ((_, Tclass ((_, c2), Exact, _ :: _)), (_, Tneg (Neg_class (_, c1))))
       when approx_cancel_neg && String.equal c1 c2 ->
       (env, Some (MakeType.mixed r))
-    | ((_, Tneg (Neg_prim tp1)), (_, Tprim tp2))
-    | ((_, Tprim tp1), (_, Tneg (Neg_prim tp2)))
-      when Aast_defs.equal_tprim tp1 tp2 ->
-      (env, Some (MakeType.mixed r))
-    | ((_, Tneg (Neg_prim Aast.Tnum)), (_, Tprim Aast.Tarraykey))
-    | ((_, Tprim Aast.Tarraykey), (_, Tneg (Neg_prim Aast.Tnum))) ->
-      (env, Some (MakeType.neg r (Neg_prim Aast.Tfloat)))
-    | ((_, Tneg (Neg_prim Aast.Tarraykey)), (_, Tprim Aast.Tnum))
-    | ((_, Tprim Aast.Tnum), (_, Tneg (Neg_prim Aast.Tarraykey))) ->
-      (env, Some (MakeType.neg r (Neg_prim Aast.Tstring)))
+    | ((_, Tneg (Neg_predicate IsNum)), (_, Tprim Aast.Tarraykey))
+    | ((_, Tprim Aast.Tarraykey), (_, Tneg (Neg_predicate IsNum))) ->
+      (env, Some (MakeType.neg r (Neg_predicate IsFloat)))
+    | ((_, Tneg (Neg_predicate IsArraykey)), (_, Tprim Aast.Tnum))
+    | ((_, Tprim Aast.Tnum), (_, Tneg (Neg_predicate IsArraykey))) ->
+      (env, Some (MakeType.neg r (Neg_predicate IsString)))
     | ((r1, Tintersection tyl1), (r2, Tintersection tyl2)) ->
       (match Typing_algebra.factorize_common_types tyl1 tyl2 with
       | ([], _, _) ->
@@ -439,7 +439,7 @@ and simplify_union_ ~approx_cancel_neg env ty1 ty2 r =
            * types, etc. - so for now we leave it here.
            * TODO improve that. *)
           | Tnonnull | Tany _ | Tintersection _ | Toption _ | Tunion _
-          | Taccess _ | Tneg _ ) ),
+          | Tlabel _ | Taccess _ | Tneg _ ) ),
         (_, _) ) ->
       ty_equiv env ty1 ty2 ~are_ty_param:false
   with
@@ -663,7 +663,7 @@ and union_shapes
               sft_ty
             else
               let r =
-                Reason.Rmissing_optional_field
+                Reason.missing_optional_field
                   (Reason.to_pos r, Utils.get_printable_shape_field_name k)
               in
               with_reason shape_kind_other r
@@ -690,9 +690,9 @@ and union_shape_kind ~approx_cancel_neg env shape_kind1 shape_kind2 =
 (* TODO: add a new reason with positions of merge point and possibly merged
  * envs.*)
 and union_reason r1 r2 =
-  if Reason.is_none r1 then
+  if Reason.Predicates.is_none r1 then
     r2
-  else if Reason.is_none r2 then
+  else if Reason.Predicates.is_none r2 then
     r1
   else if Reason.compare r1 r2 <= 0 then
     r1
@@ -842,7 +842,7 @@ let fold_union env ?(approx_cancel_neg = false) r tyl =
     env
     tyl
     ~init:(MakeType.nothing r)
-    ~f:(union ~approx_cancel_neg)
+    ~f:(union ?reason:None ~approx_cancel_neg)
 
 (* See documentation in mli file *)
 let simplify_unions env ?(approx_cancel_neg = false) ?on_tyvar ty =

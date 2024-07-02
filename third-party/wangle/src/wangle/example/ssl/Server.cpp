@@ -17,7 +17,6 @@
 #include <folly/init/Init.h>
 #include <folly/io/async/AsyncSSLSocket.h>
 #include <folly/portability/GFlags.h>
-#include <folly/ssl/Init.h>
 #include <wangle/acceptor/Acceptor.h>
 #include <wangle/bootstrap/ServerBootstrap.h>
 #include <wangle/channel/AsyncSocketHandler.h>
@@ -117,7 +116,7 @@ void initCredProcessorCallbacks(
           return;
         }
         evb->runInEventBaseThread(
-            [acceptor] { acceptor->resetSSLContextConfigs(); });
+            [acceptor] { acceptor->reloadSSLContextConfigs(); });
       });
     }
   });
@@ -126,9 +125,8 @@ void initCredProcessorCallbacks(
 
 int main(int argc, char** argv) {
   folly::Init init(&argc, &argv);
-  folly::ssl::init();
 
-  ServerSocketConfig cfg;
+  auto cfg = std::make_shared<ServerSocketConfig>();
   folly::Optional<TLSTicketKeySeeds> seeds;
 
   ServerBootstrap<EchoPipeline> sb;
@@ -137,7 +135,7 @@ int main(int argc, char** argv) {
   if (!FLAGS_tickets_path.empty()) {
     seeds = TLSCredProcessor::processTLSTickets(FLAGS_tickets_path);
     if (seeds) {
-      cfg.initialTicketSeeds = *seeds;
+      cfg->initialTicketSeeds = *seeds;
       // watch for changes
       processor.setTicketPathToWatch(FLAGS_tickets_path);
     }
@@ -149,12 +147,12 @@ int main(int argc, char** argv) {
     sslCfg.addCertificate(FLAGS_cert_path, FLAGS_key_path, "");
     sslCfg.clientCAFiles = std::vector<std::string>{FLAGS_ca_path};
     sslCfg.isDefault = true;
-    cfg.sslContextConfigs.push_back(sslCfg);
+    cfg->sslContextConfigs.push_back(sslCfg);
     // IMPORTANT: when allowing both plaintext and ssl on the same port,
     // the acceptor requires 9 bytes of data to determine what kind of
     // connection is coming in.  If the client does not send 9 bytes the
     // connection will idle out before the EchoCallback receives data.
-    cfg.allowInsecureConnectionsOnSecureServer = true;
+    cfg->allowInsecureConnectionsOnSecureServer = true;
 
     // reload ssl contexts when certs change
     std::set<std::string> pathsToWatch{FLAGS_cert_path, FLAGS_key_path};
@@ -171,7 +169,7 @@ int main(int argc, char** argv) {
       std::make_shared<folly::IOThreadPoolExecutor>(FLAGS_num_workers);
 
   // create a server
-  sb.acceptorConfig(cfg);
+  sb.acceptorConfig(std::move(cfg));
   sb.childPipeline(std::make_shared<EchoPipelineFactory>());
   sb.setUseSharedSSLContextManager(FLAGS_enable_share_ssl_ctx);
   sb.group(workers);

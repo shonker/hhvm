@@ -15,37 +15,41 @@ import thrift.python.exceptions as _fbthrift_python_exceptions
 
 class SomeStruct(metaclass=_fbthrift_python_types.StructMeta):
     _fbthrift_SPEC = (
-        (
+        _fbthrift_python_types.FieldInfo(
             1,  # id
             _fbthrift_python_types.FieldQualifier.Unqualified, # qualifier
             "reasonable",  # name
+            "reasonable",  # python name (from @python.Name annotation)
             lambda: _fbthrift_python_types.EnumTypeInfo(Metasyntactic),  # typeinfo
             lambda: Metasyntactic.FOO,  # default value
             None,  # adapter info
             False, # field type is primitive
         ),
-        (
+        _fbthrift_python_types.FieldInfo(
             2,  # id
             _fbthrift_python_types.FieldQualifier.Unqualified, # qualifier
             "fine",  # name
+            "fine",  # python name (from @python.Name annotation)
             lambda: _fbthrift_python_types.EnumTypeInfo(Metasyntactic),  # typeinfo
             lambda: Metasyntactic.BAR,  # default value
             None,  # adapter info
             False, # field type is primitive
         ),
-        (
+        _fbthrift_python_types.FieldInfo(
             3,  # id
             _fbthrift_python_types.FieldQualifier.Unqualified, # qualifier
             "questionable",  # name
+            "questionable",  # python name (from @python.Name annotation)
             lambda: _fbthrift_python_types.EnumTypeInfo(Metasyntactic),  # typeinfo
             lambda: _fbthrift_python_types.BadEnum(Metasyntactic, -1),  # default value
             None,  # adapter info
             False, # field type is primitive
         ),
-        (
+        _fbthrift_python_types.FieldInfo(
             4,  # id
             _fbthrift_python_types.FieldQualifier.Unqualified, # qualifier
             "tags",  # name
+            "tags",  # python name (from @python.Name annotation)
             lambda: _fbthrift_python_types.SetTypeInfo(_fbthrift_python_types.typeinfo_i32),  # typeinfo
             lambda: _fbthrift_python_types.Set(_fbthrift_python_types.typeinfo_i32, ()),  # default value
             None,  # adapter info
@@ -87,37 +91,41 @@ class SomeStruct(metaclass=_fbthrift_python_types.StructMeta):
 
 class MyStruct(metaclass=_fbthrift_python_types.StructMeta):
     _fbthrift_SPEC = (
-        (
+        _fbthrift_python_types.FieldInfo(
             1,  # id
             _fbthrift_python_types.FieldQualifier.Unqualified, # qualifier
             "me2_3",  # name
+            "me2_3",  # python name (from @python.Name annotation)
             lambda: _fbthrift_python_types.EnumTypeInfo(MyEnum2),  # typeinfo
             lambda: _fbthrift_python_types.BadEnum(MyEnum2, 3),  # default value
             None,  # adapter info
             False, # field type is primitive
         ),
-        (
+        _fbthrift_python_types.FieldInfo(
             2,  # id
             _fbthrift_python_types.FieldQualifier.Unqualified, # qualifier
             "me3_n3",  # name
+            "me3_n3",  # python name (from @python.Name annotation)
             lambda: _fbthrift_python_types.EnumTypeInfo(MyEnum3),  # typeinfo
             lambda: _fbthrift_python_types.BadEnum(MyEnum3, -3),  # default value
             None,  # adapter info
             False, # field type is primitive
         ),
-        (
+        _fbthrift_python_types.FieldInfo(
             4,  # id
             _fbthrift_python_types.FieldQualifier.Unqualified, # qualifier
             "me1_t1",  # name
+            "me1_t1",  # python name (from @python.Name annotation)
             lambda: _fbthrift_python_types.EnumTypeInfo(MyEnum1),  # typeinfo
             lambda: MyEnum1.ME1_1,  # default value
             None,  # adapter info
             False, # field type is primitive
         ),
-        (
+        _fbthrift_python_types.FieldInfo(
             6,  # id
             _fbthrift_python_types.FieldQualifier.Unqualified, # qualifier
             "me1_t2",  # name
+            "me1_t2",  # python name (from @python.Name annotation)
             lambda: _fbthrift_python_types.EnumTypeInfo(MyEnum1),  # typeinfo
             lambda: MyEnum1.ME1_1,  # default value
             None,  # adapter info
@@ -159,6 +167,7 @@ class MyStruct(metaclass=_fbthrift_python_types.StructMeta):
 # This unfortunately has to be down here to prevent circular imports
 import test.fixtures.enums.module.thrift_metadata
 
+
 class Metasyntactic(_fbthrift_python_types.Enum, int):
     FOO = 1
     BAR = 2
@@ -186,6 +195,8 @@ class Metasyntactic(_fbthrift_python_types.Enum, int):
 
     def _to_py_deprecated(self):
         return self.value
+
+
 class MyEnum1(_fbthrift_python_types.Enum, int):
     ME1_0 = 0
     ME1_1 = 1
@@ -215,6 +226,8 @@ class MyEnum1(_fbthrift_python_types.Enum, int):
 
     def _to_py_deprecated(self):
         return self.value
+
+
 class MyEnum2(_fbthrift_python_types.Enum, int):
     ME2_0 = 0
     ME2_1 = 1
@@ -241,6 +254,8 @@ class MyEnum2(_fbthrift_python_types.Enum, int):
 
     def _to_py_deprecated(self):
         return self.value
+
+
 class MyEnum3(_fbthrift_python_types.Enum, int):
     ME3_0 = 0
     ME3_1 = 1
@@ -270,6 +285,8 @@ class MyEnum3(_fbthrift_python_types.Enum, int):
 
     def _to_py_deprecated(self):
         return self.value
+
+
 class MyEnum4(_fbthrift_python_types.Enum, int):
     ME4_A = 2147483645
     ME4_B = 2147483646
@@ -297,6 +314,8 @@ class MyEnum4(_fbthrift_python_types.Enum, int):
 
     def _to_py_deprecated(self):
         return self.value
+
+
 class MyBitmaskEnum1(_fbthrift_python_types.Enum, int):
     ONE = 1
     TWO = 2
@@ -323,6 +342,8 @@ class MyBitmaskEnum1(_fbthrift_python_types.Enum, int):
 
     def _to_py_deprecated(self):
         return self.value
+
+
 class MyBitmaskEnum2(_fbthrift_python_types.Enum, int):
     ONE = 1
     TWO = 2
@@ -350,6 +371,7 @@ class MyBitmaskEnum2(_fbthrift_python_types.Enum, int):
     def _to_py_deprecated(self):
         return self.value
 
+
 _fbthrift_all_enums = [
     Metasyntactic,
     MyEnum1,
@@ -362,8 +384,11 @@ _fbthrift_all_enums = [
 
 def _fbthrift_metadata__struct_SomeStruct():
     return test.fixtures.enums.module.thrift_metadata.gen_metadata_struct_SomeStruct()
+
+
 def _fbthrift_metadata__struct_MyStruct():
     return test.fixtures.enums.module.thrift_metadata.gen_metadata_struct_MyStruct()
+
 
 _fbthrift_all_structs = [
     SomeStruct,

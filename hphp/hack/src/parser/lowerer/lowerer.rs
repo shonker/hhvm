@@ -35,6 +35,7 @@ use ocaml_helper::parse_int;
 use ocaml_helper::ParseIntError;
 use oxidized::aast;
 use oxidized::aast::Binop;
+use oxidized::aast_defs::ClassName;
 use oxidized::aast_defs::ClassReq;
 use oxidized::aast_defs::DocComment;
 use oxidized::aast_visitor::AstParams;
@@ -48,8 +49,9 @@ use oxidized::errors::Error as HHError;
 use oxidized::errors::Naming;
 use oxidized::errors::NastCheck;
 use oxidized::file_info;
-use oxidized::global_options::GlobalOptions;
 use oxidized::namespace_env::Env as NamespaceEnv;
+use oxidized::namespace_env::Mode;
+use oxidized::parser_options::ParserOptions;
 use oxidized::pos::Pos;
 use parser_core_types::indexed_source_text::IndexedSourceText;
 use parser_core_types::lexable_token::LexablePositionedToken;
@@ -168,7 +170,7 @@ const EXP_RECURSION_LIMIT: usize = 30_000;
 
 #[derive(Clone)]
 pub struct Env<'a> {
-    pub codegen: bool,
+    pub codegen: oxidized::namespace_env::Mode,
     quick_mode: bool,
     /// Show errors even in quick mode.
     /// Hotfix until we can properly set up saved states to surface parse errors during
@@ -181,25 +183,32 @@ pub struct Env<'a> {
     pos_none: Pos,
     pub empty_ns_env: Arc<NamespaceEnv>,
 
-    pub saw_yield: bool, /* Information flowing back up */
+    // Whether we have encountered an yield expression
+    pub found_yield: bool,
+    // Whether we have encountered an await expression
+    found_await: bool,
+    // Whether we are in the body of an async function
+    pub in_async: bool,
 
     pub indexed_source_text: &'a IndexedSourceText<'a>,
-    pub parser_options: &'a GlobalOptions,
+    pub parser_options: &'a ParserOptions,
 
     pub token_factory: PositionedTokenFactory<'a>,
     pub arena: &'a Bump,
+
+    expression_tree_class: Option<ClassName>,
 
     state: Rc<RefCell<State>>,
 }
 
 impl<'a> Env<'a> {
     pub fn make(
-        codegen: bool,
+        codegen: oxidized::namespace_env::Mode,
         quick_mode: bool,
         show_all_errors: bool,
         mode: file_info::Mode,
         indexed_source_text: &'a IndexedSourceText<'a>,
-        parser_options: &'a GlobalOptions,
+        parser_options: &'a ParserOptions,
         namespace_env: Arc<NamespaceEnv>,
         token_factory: PositionedTokenFactory<'a>,
         arena: &'a Bump,
@@ -210,13 +219,16 @@ impl<'a> Env<'a> {
             show_all_errors,
             file_mode: mode,
             top_level_statements: true,
-            saw_yield: false,
+            found_yield: false,
+            found_await: false,
+            in_async: false,
             indexed_source_text,
             parser_options,
             pos_none: Pos::NONE,
             empty_ns_env: namespace_env,
             token_factory,
             arena,
+            expression_tree_class: None,
 
             state: Rc::new(RefCell::new(State {
                 cls_generics: HashMap::default(),
@@ -242,11 +254,11 @@ impl<'a> Env<'a> {
     }
 
     pub fn is_typechecker(&self) -> bool {
-        !self.codegen
+        matches!(self.codegen, Mode::ForTypecheck)
     }
 
-    fn codegen(&self) -> bool {
-        self.codegen
+    fn is_codegen(&self) -> bool {
+        matches!(self.codegen, Mode::ForCodegen)
     }
 
     fn source_text(&self) -> &SourceText<'a> {
@@ -336,6 +348,32 @@ impl<'a> Env<'a> {
             Either::Right(e)
         }
     }
+
+    // A function body introduces a new scope for yields and awaits, and it
+    // doesn't inherit whether it's async from its context, so we need to clear
+    // these flags for checking the body, and then restore them after.
+    fn reset_for_function_body<F, R>(
+        &mut self,
+        node: S<'a>,
+        async_: SuspensionKind,
+        p: F,
+    ) -> Result<(R, bool)>
+    where
+        F: FnOnce(S<'a>, &mut Env<'a>) -> Result<R>,
+    {
+        let outer_found_yield = self.found_yield;
+        let outer_found_await = self.found_await;
+        let outer_in_async = self.in_async;
+        self.found_yield = false;
+        self.found_await = false;
+        self.in_async = matches!(async_, SuspensionKind::SKAsync);
+        let r = p(node, self);
+        let found_yield = self.found_yield;
+        self.found_yield = outer_found_yield;
+        self.found_await = outer_found_await;
+        self.in_async = outer_in_async;
+        Ok((r?, found_yield))
+    }
 }
 
 impl<'a> AsMut<Env<'a>> for Env<'a> {
@@ -402,7 +440,7 @@ fn raise_parsing_error_pos(pos: &Pos, env: &mut Env<'_>, msg: &str) {
 }
 
 fn raise_parsing_error_(pos: Pos, env: &mut Env<'_>, msg: &str) {
-    if env.should_surface_error() || env.codegen() {
+    if env.should_surface_error() || env.is_codegen() {
         env.parsing_errors().push((pos, String::from(msg)))
     }
 }
@@ -829,7 +867,7 @@ fn p_hint_<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Hint_> {
                 );
             }
 
-            if env.file_mode() != file_info::Mode::Mhhi && !env.codegen() {
+            if env.file_mode() != file_info::Mode::Mhhi && !env.is_codegen() {
                 let sn = strip_ns(&name);
                 if sn.starts_with(sn::coeffects::CONTEXTS)
                     || sn.starts_with(sn::coeffects::CAPABILITIES)
@@ -1404,12 +1442,12 @@ fn p_expr_lit<'a>(
         Token(_) => {
             let s = expr.text(env.indexed_source_text.source_text());
             let check_lint_err = |e: &mut Env<'a>, s: &str, expected: &str| {
-                if !e.codegen() && s != expected {
+                if !e.is_codegen() && s != expected {
                     raise_lint_error(e, LintError::lowercase_constant(p_pos(expr, e), s));
                 }
             };
             match (location, token_kind(expr)) {
-                (ExprLocation::InDoubleQuotedString, _) if env.codegen() => {
+                (ExprLocation::InDoubleQuotedString, _) if env.is_codegen() => {
                     Ok(Expr_::String(mk_str(expr, env, s, unesc_dbl)))
                 }
                 (_, Some(TK::DecimalLiteral))
@@ -1634,7 +1672,7 @@ fn p_expr_impl<'a>(
         YieldExpression(c) => p_yield_expr(node, c, env, pos, location),
         ScopeResolutionExpression(c) => p_scope_resolution_expr(node, c, env, pos, location),
         CastExpression(c) => p_cast_expr(c, env),
-        PrefixedCodeExpression(c) => p_prefixed_code_expr(c, env),
+        PrefixedCodeExpression(c) => p_prefixed_code_expr(node, c, env),
         ETSpliceExpression(c) => p_et_splice_expr(&c.expression, env, location),
         ConditionalExpression(c) => p_conditional_expr(c, env),
         SubscriptExpression(c) => p_subscript_expr(c, env),
@@ -1688,10 +1726,9 @@ fn p_lambda_expression<'a>(
                 vec![ast::FunParam {
                     annotation: (),
                     type_hint: ast::TypeHint((), None),
-                    is_variadic: false,
                     pos: p,
                     name: n,
-                    expr: None,
+                    info: ast::FunParamInfo::ParamRequired,
                     callconv: ast::ParamKind::Pnormal,
                     readonly: None,
                     user_attributes: Default::default(),
@@ -1706,10 +1743,11 @@ fn p_lambda_expression<'a>(
     };
 
     let (body, yield_) = if !c.body.is_compound_statement() {
-        map_yielding(&c.body, env, p_function_body)?
+        env.reset_for_function_body(&c.body, suspension_kind, p_function_body)?
     } else {
         let mut env1 = Env::clone_and_unset_toplevel_if_toplevel(env);
-        map_yielding(&c.body, env1.as_mut(), p_function_body)?
+        env1.as_mut()
+            .reset_for_function_body(&c.body, suspension_kind, p_function_body)?
     };
     let external = c.body.is_external();
     let fun = ast::Fun_ {
@@ -1929,10 +1967,10 @@ fn p_pre_post_unary_decorated_expr<'a>(node: S<'a>, env: &mut Env<'a>, pos: Pos)
     let mk_unop = |op, e| Ok(Expr_::mk_unop(op, e));
     let op_kind = token_kind(op);
     if let Some(TK::At) = op_kind {
-        if env.parser_options.po_disallow_silence {
+        if env.parser_options.disallow_silence {
             raise_parsing_error(op, env, &syntax_error::no_silence);
         }
-        if env.codegen() {
+        if env.is_codegen() {
             let expr = p_expr(operand, env)?;
             mk_unop(Usilence, expr)
         } else {
@@ -1950,7 +1988,10 @@ fn p_pre_post_unary_decorated_expr<'a>(node: S<'a>, env: &mut Env<'a>, pos: Pos)
             Some(TK::Tilde) => mk_unop(Utild, expr),
             Some(TK::Plus) => mk_unop(Uplus, expr),
             Some(TK::Minus) => mk_unop(Uminus, expr),
-            Some(TK::Await) => Ok(Expr_::mk_await(expr)),
+            Some(TK::Await) => {
+                env.found_await = true;
+                Ok(Expr_::mk_await(expr))
+            }
             Some(TK::Readonly) => Ok(process_readonly_expr(expr)),
             Some(TK::Clone) => Ok(Expr_::mk_clone(expr)),
             Some(TK::Print) => Ok(Expr_::mk_call(ast::CallExpr {
@@ -2027,7 +2068,7 @@ fn p_yield_expr<'a>(
     location: ExprLocation,
 ) -> Result<Expr_> {
     use ExprLocation::*;
-    env.saw_yield = true;
+    env.found_yield = true;
     if location != AsStatement
         && location != RightOfAssignment
         && location != RightOfAssignmentInUsingStatement
@@ -2138,15 +2179,52 @@ fn p_cast_expr<'a>(
 }
 
 fn p_prefixed_code_expr<'a>(
+    node: S<'a>,
     c: &'a PrefixedCodeExpressionChildren<'_, PositionedToken<'_>, PositionedValue<'_>>,
     env: &mut Env<'a>,
 ) -> Result<Expr_> {
+    let mut clear_et_class_at_end = false;
+    let missing = c.prefix.is_missing();
+    let nested_id = match (pos_name(&c.prefix, env), &env.expression_tree_class) {
+        (Ok(nested_id), Some(enclosing_id)) => {
+            if !missing {
+                if enclosing_id.1 != nested_id.1 {
+                    raise_parsing_error(
+                        node,
+                        env,
+                        &format!(
+                            "{} {} inside of {}",
+                            syntax_error::expression_tree_name_mismatch,
+                            nested_id.1,
+                            enclosing_id.1,
+                        ),
+                    );
+                };
+                Ok(nested_id)
+            } else {
+                Ok(enclosing_id.clone())
+            }
+        }
+        (Ok(nested_id), None) => {
+            let nested_id = if !missing {
+                nested_id
+            } else {
+                Id(nested_id.0, "MISSING_DSL".to_string())
+            };
+            clear_et_class_at_end = true;
+            env.expression_tree_class = Some(nested_id.clone());
+            Ok(nested_id)
+        }
+        (Err(e), _) => Err(e),
+    }?;
     let src_expr = if !c.body.is_compound_statement() {
         p_expr(&c.body, env)?
     } else {
         let pos = p_pos(&c.body, env);
+        let suspension_kind = SuspensionKind::SKSync;
         // Take the body and create a no argument lambda expression
-        let (body, yield_) = map_yielding(&c.body, env, p_function_body)?;
+        let (body, yield_) =
+            env.reset_for_function_body(&c.body, suspension_kind, p_function_body)?;
         let external = c.body.is_external();
         let fun = ast::Fun_ {
             span: pos.clone(),
@@ -2155,7 +2233,7 @@ fn p_prefixed_code_expr<'a>(
             readonly_ret: None,
             ret: ast::TypeHint((), None),
             body: ast::FuncBody { fb_ast: body },
-            fun_kind: mk_fun_kind(SuspensionKind::SKSync, yield_),
+            fun_kind: mk_fun_kind(suspension_kind, yield_),
             params: vec![],
             ctxs: None,
             unsafe_ctxs: None,
@@ -2174,22 +2252,31 @@ fn p_prefixed_code_expr<'a>(
         });
         ast::Expr::new((), pos, expr)
     };
-
-    let cls = pos_name(&c.prefix, env)?;
-
-    let desugar_result = desugar(&cls, src_expr, env);
+    let desugar_result = desugar(&nested_id, src_expr, env);
     for (pos, msg) in desugar_result.errors {
         raise_parsing_error_pos(&pos, env, &msg);
+    }
+    if clear_et_class_at_end {
+        env.expression_tree_class = None;
     }
 
     Ok(desugar_result.expr.2)
 }
 
 fn p_et_splice_expr<'a>(expr: S<'a>, env: &mut Env<'a>, location: ExprLocation) -> Result<Expr_> {
+    // Clear out found awaits since we want to see if there is one in this splice expression.
+    let old_found_await = env.found_await;
+    env.found_await = false;
     let inner_pos = p_pos(expr, env);
     let inner_expr_ = p_expr_recurse(location, expr, env, None)?;
-    let inner_expr = ast::Expr::new((), inner_pos, inner_expr_);
-    Ok(Expr_::ETSplice(Box::new(inner_expr)))
+    let spliced_expr = ast::Expr::new((), inner_pos, inner_expr_);
+    let contains_await = env.found_await;
+    env.found_await |= old_found_await;
+    Ok(Expr_::ETSplice(Box::new(aast::EtSplice {
+        spliced_expr,
+        contains_await,
+        extract_client_type: true,
+    })))
 }
 
 fn p_conditional_expr<'a>(
@@ -2324,6 +2411,7 @@ fn p_anonymous_function<'a>(
     c: &'a AnonymousFunctionChildren<'_, PositionedToken<'_>, PositionedValue<'_>>,
     env: &mut Env<'a>,
 ) -> Result<Expr_> {
+    let suspension_kind = mk_suspension_kind(&c.async_keyword);
     let ctxs = p_contexts(
         &c.ctx_list,
         env,
@@ -2338,10 +2426,10 @@ fn p_anonymous_function<'a>(
         AnonymousFunctionUseClause(c) => could_map(&c.variables, e, p_use_var),
         _ => Ok(vec![]),
     };
-    let suspension_kind = mk_suspension_kind(&c.async_keyword);
     let (body, yield_) = {
         let mut env1 = Env::clone_and_unset_toplevel_if_toplevel(env);
-        map_yielding(&c.body, env1.as_mut(), p_function_body)?
+        env1.as_mut()
+            .reset_for_function_body(&c.body, suspension_kind, p_function_body)?
     };
     let doc_comment = extract_docblock(node, env).or_else(|| env.top_docblock().clone());
     let user_attributes = p_user_attributes(&c.attribute_spec, env);
@@ -2376,7 +2464,8 @@ fn p_awaitable_creation_expr<'a>(
     pos: Pos,
 ) -> Result<Expr_> {
     let suspension_kind = mk_suspension_kind(&c.async_);
-    let (blk, yld) = map_yielding(&c.compound_statement, env, p_function_body)?;
+    let (blk, yld) =
+        env.reset_for_function_body(&c.compound_statement, suspension_kind, p_function_body)?;
     let user_attributes = p_user_attributes(&c.attribute_spec, env);
     let external = c.compound_statement.is_external();
     let body = ast::Fun_ {
@@ -2478,26 +2567,32 @@ fn p_nameof<'a>(
     p: &'a NameofExpressionChildren<'_, PositionedToken<'_>, PositionedValue<'_>>,
     env: &mut Env<'a>,
 ) -> Result<Expr_> {
-    let target = p_expr(&p.target, env)?;
-    match &target.2 {
-        Expr_::Id(id) => {
-            if env.get_reification(id.name()).is_some() {
-                raise_parsing_error(
-                    &p.target,
-                    env,
-                    "`nameof` cannot be used with a generic type",
-                );
+    let basic_error = |env| Error::ParsingError {
+        message: String::from("`nameof` can only be used with a class"),
+        pos: p_pos(&p.target, env),
+    };
+    match &p.target.children {
+        Token(_) | SimpleTypeSpecifier(_) | QualifiedName(_) => {
+            let target = p_expr(&p.target, env)?;
+            match &target.2 {
+                Expr_::Id(id) => {
+                    if env.get_reification(id.name()).is_some() {
+                        Err(Error::ParsingError {
+                            message: String::from("`nameof` cannot be used with a generic type"),
+                            pos: p_pos(&p.target, env),
+                        })
+                    } else {
+                        Ok(Expr_::mk_nameof(ast::ClassId(
+                            (),
+                            target.1.clone(),
+                            ast::ClassId_::CIexpr(target),
+                        )))
+                    }
+                }
+                _ => Err(basic_error(env)),
             }
-            Ok(Expr_::mk_nameof(ast::ClassId(
-                (),
-                target.1.clone(),
-                ast::ClassId_::CIexpr(target),
-            )))
         }
-        _ => Err(Error::ParsingError {
-            message: String::from("`nameof` can only be used with a class"),
-            pos: p_pos(&p.target, env),
-        }),
+        _ => Err(basic_error(env)),
     }
 }
 
@@ -2538,7 +2633,7 @@ fn p_obj_get<'a>(
     name: S<'a>,
     e: &mut Env<'a>,
 ) -> Result<Expr_> {
-    if recv.is_object_creation_expression() && !e.codegen() {
+    if recv.is_object_creation_expression() && !e.is_codegen() {
         raise_parsing_error(recv, e, &syntax_error::invalid_constructor_method_call);
     }
     let recv = p_expr(recv, e)?;
@@ -2560,13 +2655,13 @@ where
     F: FnOnce(&[u8]) -> Vec<u8>,
 {
     if let Some(kind) = token_kind(node) {
-        if env.codegen() && TK::XHPStringLiteral == kind {
+        if env.is_codegen() && TK::XHPStringLiteral == kind {
             let p = p_pos(node, env);
             /* for XHP string literals (attribute values) just extract
             value from quotes and decode HTML entities  */
             let text = html_entities::decode(get_quoted_content(node.full_text(env.source_text())));
             Ok(ast::Expr::new((), p, Expr_::make_string(text)))
-        } else if env.codegen() && TK::XHPBody == kind {
+        } else if env.is_codegen() && TK::XHPBody == kind {
             let p = p_pos(node, env);
             /* for XHP body - only decode HTML entities */
             let text = html_entities::decode(&unesc_xhp(node.full_text(env.source_text())));
@@ -2588,7 +2683,7 @@ fn p_xhp_attr<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::XhpAttribute> {
             let name = p_pstring(&c.name, env)?;
             let expr = if attr_expr.is_braced_expression()
                 && env.file_mode() == file_info::Mode::Mhhi
-                && !env.codegen()
+                && !env.is_codegen()
             {
                 ast::Expr::new((), env.mk_none_pos(), Expr_::Null)
             } else {
@@ -2742,11 +2837,13 @@ fn p_stmt_list_<'a>(
             Some(n) => match &n.children {
                 UsingStatementFunctionScoped(c) => {
                     let body = p_stmt_list_(pos, nodes, env)?;
+                    let has_await = !c.await_keyword.is_missing();
+                    env.found_await |= has_await;
                     let using = ast::Stmt::new(
                         pos.clone(),
                         ast::Stmt_::mk_using(ast::UsingStmt {
                             is_block_scoped: false,
-                            has_await: !c.await_keyword.is_missing(),
+                            has_await,
                             exprs: p_exprs_with_loc(&c.expression, env)?,
                             block: ast::Block(body),
                         }),
@@ -2807,7 +2904,7 @@ fn p_stmt_<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Stmt> {
         TryStatement(c) => p_try_stmt(env, pos, c),
         ReturnStatement(c) => p_return_stmt(env, pos, c),
         YieldBreakStatement(_) => {
-            env.saw_yield = true;
+            env.found_yield = true;
             Ok(ast::Stmt::new(pos, ast::Stmt_::mk_yield_break()))
         }
         EchoStatement(c) => p_echo_stmt(env, pos, c),
@@ -2849,6 +2946,22 @@ fn p_throw_stmt<'a>(
     Ok(new(pos, S_::mk_throw(p_expr(&c.expression, env)?)))
 }
 
+fn check_continue_break<'a>(env: &mut Env<'a>, blk_kind: TK, blk: &ast::Block) {
+    blk.iter().for_each(|ast::Stmt(p_, stmt_)| match stmt_ {
+        ast::Stmt_::Continue => raise_parsing_error_pos(
+            p_,
+            env,
+            &syntax_error::no_continue_in_finally(blk_kind, TK::Continue),
+        ),
+        ast::Stmt_::Break => raise_parsing_error_pos(
+            p_,
+            env,
+            &syntax_error::no_continue_in_finally(blk_kind, TK::Break),
+        ),
+        _ => (),
+    });
+}
+
 fn p_try_stmt<'a>(
     env: &mut Env<'a>,
     pos: Pos,
@@ -2858,10 +2971,11 @@ fn p_try_stmt<'a>(
     use ast::Stmt_ as S_;
     let new = Stmt::new;
 
+    let try_blk = p_block(false, &c.compound_statement, env)?;
     Ok(new(
         pos,
         S_::mk_try(
-            p_block(false, &c.compound_statement, env)?,
+            try_blk,
             could_map(&c.catch_clauses, env, |n, e| match &n.children {
                 CatchClause(c) => Ok(ast::Catch(
                     pos_name(&c.type_, e)?,
@@ -2886,16 +3000,18 @@ fn p_concurrent_stmt<'a>(
     use ast::Stmt;
     use ast::Stmt_ as S_;
     let new = Stmt::new;
-    if env.parser_options.po_unwrap_concurrent {
+    if env.parser_options.unwrap_concurrent {
         return p_stmt(&c.statement, env);
     }
     Ok(new(
-        if env.codegen {
+        match env.codegen {
+            Mode::ForCodegen =>
             // Existing uses and tests have different expectations for the location depending
             // on whether it's for codegen or not
-            p_pos(&c.keyword, env)
-        } else {
-            pos
+            {
+                p_pos(&c.keyword, env)
+            }
+            Mode::ForTypecheck => pos,
         },
         S_::mk_concurrent(p_block(true, &c.statement, env)?),
     ))
@@ -2993,7 +3109,10 @@ fn p_foreach_stmt<'a>(
 
     let col = p_expr(&c.collection, env)?;
     let akw = match token_kind(&c.await_keyword) {
-        Some(TK::Await) => Some(p_pos(&c.await_keyword, env)),
+        Some(TK::Await) => {
+            env.found_await = true;
+            Some(p_pos(&c.await_keyword, env))
+        }
         _ => None,
     };
     let value = p_expr(&c.value, env)?;
@@ -3030,12 +3149,13 @@ fn p_using_statement_function_scoped_stmt<'a>(
     use ast::Stmt;
     use ast::Stmt_ as S_;
     let new = Stmt::new;
-
+    let has_await = !&c.await_keyword.is_missing();
+    env.found_await |= has_await;
     Ok(new(
         pos,
         S_::mk_using(ast::UsingStmt {
             is_block_scoped: false,
-            has_await: !&c.await_keyword.is_missing(),
+            has_await,
             exprs: p_exprs_with_loc(&c.expression, env)?,
             block: ast::Block(vec![mk_noop(env)]),
         }),
@@ -3050,12 +3170,13 @@ fn p_using_statement_block_scoped_stmt<'a>(
     use ast::Stmt;
     use ast::Stmt_ as S_;
     let new = Stmt::new;
-
+    let has_await = !&c.await_keyword.is_missing();
+    env.found_await |= has_await;
     Ok(new(
         pos,
         S_::mk_using(ast::UsingStmt {
             is_block_scoped: true,
-            has_await: !&c.await_keyword.is_missing(),
+            has_await,
             exprs: p_exprs_with_loc(&c.expressions, env)?,
             block: p_block(false, &c.body, env)?,
         }),
@@ -3132,7 +3253,13 @@ fn p_switch_stmt_<'a>(
         match &n.children {
             CaseLabel(c) => Ok(aast::GenCase::Case(aast::Case(
                 p_expr(&c.expression, e)?,
-                Default::default(),
+                // inject a fallthrough for all not-last labels
+                // (last ones get overwritten in p_section)
+                {
+                    let mut blk = ast::Block::default();
+                    blk.push(new(e.mk_none_pos(), S_::Fallthrough));
+                    blk
+                },
             ))),
             DefaultLabel(_) => Ok(aast::GenCase::Default(aast::DefaultCase(
                 p_pos(n, e),
@@ -3642,12 +3769,18 @@ fn rewrite_effect_polymorphism<'a>(
         _ => raise_parsing_error_pos(&hint.0, env, &syntax_error::ctx_var_invalid_type_hint(name)),
     };
 
-    let mut hint_by_param: HashMap<&str, (&mut Option<ast::Hint>, &Pos, aast::IsVariadic)> =
-        HashMap::default();
+    let mut hint_by_param: HashMap<&str, (&mut Option<ast::Hint>, &Pos, bool)> = HashMap::default();
     for param in params.iter_mut() {
         hint_by_param.insert(
             param.name.as_ref(),
-            (&mut param.type_hint.1, &param.pos, param.is_variadic),
+            (
+                &mut param.type_hint.1,
+                &param.pos,
+                match param.info {
+                    ast::FunParamInfo::ParamVariadic => true,
+                    _ => false,
+                },
+            ),
         );
     }
 
@@ -3655,7 +3788,7 @@ fn rewrite_effect_polymorphism<'a>(
         match *context_hint.1 {
             HfunContext(ref name) => match hint_by_param.get_mut::<str>(name) {
                 Some((hint_opt, param_pos, _is_variadic)) => match hint_opt {
-                    Some(_) if env.codegen() => {}
+                    Some(_) if env.is_codegen() => {}
                     Some(ref mut param_hint) => rewrite_fun_ctx(env, tparams, param_hint, name),
                     None => raise_parsing_error_pos(
                         param_pos,
@@ -3682,7 +3815,7 @@ fn rewrite_effect_polymorphism<'a>(
                                 )
                             } else {
                                 match hint_opt {
-                                    Some(_) if env.codegen() => {}
+                                    Some(_) if env.is_codegen() => {}
                                     Some(ref mut param_hint) => {
                                         let mut rewrite = |h| {
                                             rewrite_arg_ctx(
@@ -3734,7 +3867,7 @@ fn rewrite_effect_polymorphism<'a>(
                             env,
                             &syntax_error::ctx_generic_invalid(id, haccess_string(id, csts)),
                         ),
-                        Some(true) if env.codegen() => {}
+                        Some(true) if env.is_codegen() => {}
                         Some(true) => {
                             let left_id = ast::Id(
                                 context_hint.0.clone(),
@@ -3791,10 +3924,9 @@ fn param_template<'a>(node: S<'a>, env: &Env<'_>) -> ast::FunParam {
     ast::FunParam {
         annotation: (),
         type_hint: ast::TypeHint((), None),
-        is_variadic: false,
         pos,
         name: text(node, env),
-        expr: None,
+        info: ast::FunParamInfo::ParamRequired,
         callconv: ast::ParamKind::Pnormal,
         readonly: None,
         user_attributes: Default::default(),
@@ -3830,15 +3962,22 @@ fn p_fun_param<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::FunParam> {
                     &syntax_error::no_attributes_on_variadic_parameter,
                 );
             }
+            let expr = p_fun_param_default_value(default_value, env)?;
+            let callconv = p_param_kind(call_convention, env)?;
+            let info = match expr {
+                _ if is_variadic => ast::FunParamInfo::ParamVariadic,
+                Some(_) => ast::FunParamInfo::ParamOptional(expr),
+                _ => ast::FunParamInfo::ParamRequired,
+            };
+
             Ok(ast::FunParam {
                 annotation: (),
                 type_hint: ast::TypeHint((), hint),
                 user_attributes,
-                is_variadic,
                 pos,
                 name,
-                expr: p_fun_param_default_value(default_value, env)?,
-                callconv: p_param_kind(call_convention, env)?,
+                info,
+                callconv,
                 readonly: map_optional(readonly, env, p_readonly)?,
                 /* implicit field via constructor parameter.
                  * This is always None except for constructors and the modifier
@@ -3849,7 +3988,7 @@ fn p_fun_param<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::FunParam> {
         }
         Token(_) if text_str(node, env) == "..." => {
             let mut param = param_template(node, env);
-            param.is_variadic = true;
+            param.info = ast::FunParamInfo::ParamVariadic;
             Ok(param)
         }
         _ => missing_syntax("function parameter", node, env),
@@ -4107,8 +4246,8 @@ fn p_fun_pos<'a>(node: S<'a>, env: &Env<'_>) -> Pos {
     };
     let p = p_pos(node, env);
     match &node.children {
-        FunctionDeclaration(c) if env.codegen() => get_pos(&c.declaration_header, p),
-        MethodishDeclaration(c) if env.codegen() => get_pos(&c.function_decl_header, p),
+        FunctionDeclaration(c) if env.is_codegen() => get_pos(&c.declaration_header, p),
+        MethodishDeclaration(c) if env.is_codegen() => get_pos(&c.function_decl_header, p),
         _ => p,
     }
 }
@@ -4132,6 +4271,7 @@ fn p_finally_block<'a>(
 ) -> Result<ast::FinallyBlock> {
     let ast::Stmt(p, stmt_) = p_stmt(node, env)?;
     if let ast::Stmt_::Block(box (_, blk)) = stmt_ {
+        check_continue_break(env, TK::Finally, &blk);
         if remove_noop && blk.len() == 1 && blk[0].1.is_noop() {
             return Ok(Default::default());
         }
@@ -4155,12 +4295,12 @@ fn p_function_body<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<ast::Block> {
             match (compound_statements, compound_right_brace) {
                 (Missing, Token(_)) => mk_noop_result(env),
                 (SyntaxList(t), _) if t.len() == 1 && t[0].is_yield() => {
-                    env.saw_yield = true;
+                    env.found_yield = true;
                     mk_noop_result(env)
                 }
                 _ => {
                     if !env.top_level_statements
-                        && ((env.file_mode() == file_info::Mode::Mhhi && !env.codegen())
+                        && ((env.file_mode() == file_info::Mode::Mhhi && !env.is_codegen())
                             || env.quick_mode)
                     {
                         mk_noop_result(env)
@@ -4289,6 +4429,7 @@ fn is_valid_attribute_arg<'a>(node: S<'a>, env: &mut Env<'a>, attr_name: &str) {
                 }
             }
         }
+        NameofExpression(_) => {} // matches the ::class case
         // ::class strings
         ScopeResolutionExpression(c) => {
             if let Some(TK::Class) = token_kind(&c.name) {
@@ -4399,18 +4540,6 @@ fn p_docs_url<'a>(attrs: &ast::UserAttributes, env: &mut Env<'a>) -> Option<Stri
     }
 
     url
-}
-
-fn map_yielding<'a, F, R>(node: S<'a>, env: &mut Env<'a>, p: F) -> Result<(R, bool)>
-where
-    F: FnOnce(S<'a>, &mut Env<'a>) -> Result<R>,
-{
-    let outer_saw_yield = env.saw_yield;
-    env.saw_yield = false;
-    let r = p(node, env);
-    let saw_yield = env.saw_yield;
-    env.saw_yield = outer_saw_yield;
-    Ok((r?, saw_yield))
 }
 
 fn mk_empty_ns_env(env: &Env<'_>) -> Arc<NamespaceEnv> {
@@ -4922,15 +5051,15 @@ fn p_class_elt<'a>(class: &mut ast::Class_, node: S<'a>, env: &mut Env<'a>) {
             let classvar_init = |param: &ast::FunParam| -> (ast::Stmt, ast::ClassVar) {
                 let cvname = drop_prefix(&param.name, '$');
                 let p = &param.pos;
-                let span = match &param.expr {
-                    Some(ast::Expr(_, pos_end, _)) => {
+                let span = match &param.info {
+                    ast::FunParamInfo::ParamOptional(Some(ast::Expr(_, pos_end, _))) => {
                         Pos::btw(p, pos_end).unwrap_or_else(|_| p.clone())
                     }
                     _ => p.clone(),
                 };
                 let e = |expr_: Expr_| -> ast::Expr { ast::Expr::new((), p.clone(), expr_) };
-                let prop_type_hint = match &param.type_hint.1 {
-                    Some(h) if param.is_variadic => ast::TypeHint(
+                let prop_type_hint = match (&param.type_hint.1, &param.info) {
+                    (Some(h), ast::FunParamInfo::ParamVariadic) => ast::TypeHint(
                         (),
                         Some(ast::Hint::new(
                             param.pos.clone(),
@@ -5001,15 +5130,18 @@ fn p_class_elt<'a>(class: &mut ast::Class_, node: S<'a>, env: &mut Env<'a>) {
             let readonly_this = kinds.has(modifier::READONLY);
             *env.in_static_method() = is_static;
             check_effect_polymorphic_reification(hdr.contexts.as_ref(), env, node);
-            let (mut body, body_has_yield) =
-                match map_yielding(&c.function_body, env, p_function_body) {
-                    Ok(value) => value,
-                    Err(e) => {
-                        emit_error(e, env);
-                        return;
-                    }
-                };
-            if env.codegen() {
+            let (mut body, body_has_yield) = match env.reset_for_function_body(
+                &c.function_body,
+                hdr.suspension_kind,
+                p_function_body,
+            ) {
+                Ok(value) => value,
+                Err(e) => {
+                    emit_error(e, env);
+                    return;
+                }
+            };
+            if env.is_codegen() {
                 member_init.reverse();
             }
             member_init.append(&mut body.0);
@@ -5213,13 +5345,20 @@ fn p_namespace_use_clause<'a>(
                 let x = NAMESPACE_USE.find(&n).unwrap().as_str();
                 ast::Id(p.clone(), x.to_string())
             } else {
-                pos_name(alias, env)?
+                let result = pos_name(alias, env)?;
+                if result.1.contains(':') || result.1.contains('-') {
+                    raise_parsing_error(alias, env, &syntax_error::invalid_namespace_alias);
+                }
+                result
             };
             let kind = if clause_kind.is_missing() {
                 kind
             } else {
                 p_namespace_use_kind(clause_kind, env)
             }?;
+            if n.contains(':') || n.contains('-') {
+                raise_parsing_error(node, env, &syntax_error::invalid_namespace_name);
+            }
             Ok((
                 kind,
                 ast::Id(
@@ -5458,7 +5597,7 @@ fn check_effect_polymorphic_reification<'a>(
 fn p_const_value<'a>(node: S<'a>, env: &mut Env<'a>, default_pos: Pos) -> Result<ast::Expr> {
     match &node.children {
         SimpleInitializer(c) => p_expr(&c.value, env),
-        _ if env.file_mode() == file_info::Mode::Mhhi && !env.codegen() => {
+        _ if env.file_mode() == file_info::Mode::Mhhi && !env.is_codegen() => {
             // We use Omitted as a placeholder here because we don't care about
             // the constant's value when in HHI mode
             Ok(Expr::new((), default_pos, Expr_::Omitted))
@@ -5483,7 +5622,7 @@ fn p_def<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<Vec<ast::Def>> {
             let (block, yield_) = if is_external {
                 (Default::default(), false)
             } else {
-                map_yielding(body, env, p_function_body)?
+                env.reset_for_function_body(body, hdr.suspension_kind, p_function_body)?
             };
             let user_attributes = p_user_attributes(attribute_spec, env);
             check_effect_memoized(hdr.contexts.as_ref(), &user_attributes, "function", env);
@@ -6028,7 +6167,7 @@ fn p_def<'a>(node: S<'a>, env: &mut Env<'a>) -> Result<Vec<ast::Def>> {
             }
             Ok(vec![ast::Def::mk_class(enum_class)])
         }
-        InclusionDirective(c) if env.file_mode() != file_info::Mode::Mhhi || env.codegen() => {
+        InclusionDirective(c) if env.file_mode() != file_info::Mode::Mhhi || env.is_codegen() => {
             let expr = p_expr(&c.expression, env)?;
             Ok(vec![ast::Def::mk_stmt(ast::Stmt::new(
                 p_pos(node, env),
@@ -6141,7 +6280,7 @@ fn insert_default_module_if_missing_module_membership(program: &mut Vec<ast::Def
     }
 }
 
-fn post_process<'a>(env: &mut Env<'a>, program: Vec<ast::Def>, acc: &mut Vec<ast::Def>) {
+fn post_process<'a>(_env: &mut Env<'a>, program: Vec<ast::Def>, acc: &mut Vec<ast::Def>) {
     use aast::Def;
     use aast::Def::*;
     let mut saw_ns: Option<(ast::Sid, Vec<ast::Def>)> = None;
@@ -6159,7 +6298,7 @@ fn post_process<'a>(env: &mut Env<'a>, program: Vec<ast::Def>, acc: &mut Vec<ast
                 saw_ns = Some((n, vec![]));
             } else {
                 let mut acc_ = vec![];
-                post_process(env, defs, &mut acc_);
+                post_process(_env, defs, &mut acc_);
                 acc.push(Def::mk_namespace(n, acc_));
             }
 
@@ -6199,7 +6338,7 @@ fn p_program<'a>(node: S<'a>, env: &mut Env<'a>) -> ast::Program {
     }
     let mut program = vec![];
     post_process(env, acc, &mut program);
-    if env.codegen() {
+    if env.is_codegen() {
         insert_default_module_if_missing_module_membership(&mut program);
     }
     ast::Program(program)

@@ -58,13 +58,23 @@ bool noError(quic::QuicErrorCode error) {
           *error.asTransportErrorCode() == quic::TransportErrorCode::NO_ERROR);
 }
 
-bool isVlogLevel(quic::TransportErrorCode code) {
+bool isVlogLevel(const quic::TransportErrorCode& code) {
   return code == quic::TransportErrorCode::INVALID_MIGRATION;
 }
 
-bool isVlogLevel(quic::QuicErrorCode error) {
-  return error.type() == quic::QuicErrorCode::Type::TransportErrorCode &&
-         isVlogLevel(*error.asTransportErrorCode());
+bool isVlogLevel(const quic::LocalErrorCode& code) {
+  return code == quic::LocalErrorCode::CONNECTION_ABANDONED;
+}
+
+bool isVlogLevel(const quic::QuicErrorCode& error) {
+  switch (error.type()) {
+    case quic::QuicErrorCode::Type::TransportErrorCode:
+      return isVlogLevel(*error.asTransportErrorCode());
+    case quic::QuicErrorCode::Type::LocalErrorCode:
+      return isVlogLevel(*error.asLocalErrorCode());
+    default:
+      return false;
+  }
 }
 
 // handleSessionError is mostly setup to process application error codes
@@ -250,9 +260,9 @@ void HQSession::onStopSending(quic::StreamId id,
 void HQSession::onKnob(uint64_t knobSpace,
                        uint64_t knobId,
                        quic::Buf knobBlob) {
-  VLOG(3) << __func__ << " sess=" << *this << " knob frame received: "
-          << " KnobSpace: " << std::hex << knobSpace << " KnobId: " << knobId
-          << " KnobBlob: "
+  VLOG(3) << __func__ << " sess=" << *this
+          << " knob frame received: " << " KnobSpace: " << std::hex << knobSpace
+          << " KnobId: " << knobId << " KnobBlob: "
           << std::string(reinterpret_cast<const char*>(knobBlob->data()),
                          knobBlob->length());
 }
@@ -566,7 +576,9 @@ size_t HQSession::sendPriority(HTTPCodec::StreamID id, HTTPPriority priority) {
   if (streams_.find(id) == streams_.end() && !findPushStream(id)) {
     return 0;
   }
-  sock_->setStreamPriority(id, toQuicPriority(priority));
+  if (enableEgressPrioritization_) {
+    sock_->setStreamPriority(id, toQuicPriority(priority));
+  }
   // PRIORITY_UPDATE frames are sent by clients on the control stream.
   // Servers do not send PRIORITY_UPDATE
   if (direction_ == TransportDirection::DOWNSTREAM) {
@@ -594,7 +606,10 @@ size_t HQSession::sendPushPriority(hq::PushId pushId, HTTPPriority priority) {
                << " with pushId=" << pushId << " presented in id map";
     return 0;
   }
-  sock_->setStreamPriority(streamId, toQuicPriority(priority));
+
+  if (enableEgressPrioritization_) {
+    sock_->setStreamPriority(streamId, toQuicPriority(priority));
+  }
   auto controlStream = findControlStream(UnidirectionalStreamType::CONTROL);
   if (!controlStream) {
     return 0;
@@ -785,9 +800,10 @@ void HQSession::closeWhenIdle() {
 }
 
 void HQSession::dropConnection(const std::string& errorMsg) {
-  auto msg = errorMsg.empty() ? "Stopping" : errorMsg;
-  dropConnectionSync(quic::QuicError(HTTP3::ErrorCode::HTTP_NO_ERROR, msg),
-                     kErrorDropped);
+  std::string msg = errorMsg.empty() ? "Stopping" : errorMsg;
+  dropConnectionSync(
+      quic::QuicError(HTTP3::ErrorCode::HTTP_NO_ERROR, std::move(msg)),
+      kErrorDropped);
 }
 
 void HQSession::dropConnectionAsync(quic::QuicError errorCode,
@@ -1051,11 +1067,18 @@ void HQSession::runLoopCallback() noexcept {
 
   // Then handle the writes
   // Write all the control streams first
+  auto maxToSendOrig = maxToSend_;
   maxToSend_ -= writeControlStreams(maxToSend_);
   // Then write the request streams
   if (!txnEgressQueue_.empty() && maxToSend_ > 0) {
     // TODO: we could send FIN only?
     maxToSend_ = writeRequestStreams(maxToSend_);
+  }
+  auto sent = maxToSendOrig - maxToSend_;
+  if (sent > 0) {
+    if (infoCallback_) {
+      infoCallback_->onWrite(*this, sent);
+    }
   }
   // Zero out maxToSend_ here.  We won't egress anything else until the next
   // onWriteReady call
@@ -1095,7 +1118,17 @@ void HQSession::scheduleWrite() {
   }
 
   scheduledWrite_ = true;
-  sock_->notifyPendingWriteOnConnection(this);
+  if (auto* evb = getEventBase()) {
+    evb->runInLoop(&writeScheduler_, /*thisIteration=*/true);
+  } else {
+    sock_->notifyPendingWriteOnConnection(this);
+  }
+}
+
+void HQSession::WriteScheduler::runLoopCallback() noexcept {
+  if (session_.sock_) {
+    session_.sock_->notifyPendingWriteOnConnection(&session_);
+  }
 }
 
 void HQSession::scheduleLoopCallback(bool thisIteration) {
@@ -1142,8 +1175,7 @@ void HQSession::readAvailable(quic::StreamId id) noexcept {
           << ": readAvailable on streamID=" << id;
   if (readsPerLoop_ >= kMaxReadsPerLoop) {
     VLOG(2) << __func__ << ": skipping read for streamID=" << id
-            << " maximum reads per loop reached"
-            << " sess=" << *this;
+            << " maximum reads per loop reached" << " sess=" << *this;
     return;
   }
   readsPerLoop_++;
@@ -1502,7 +1534,7 @@ void HQSession::applySettings(const SettingsList& settings) {
           break;
         case hq::SettingId::ENABLE_WEBTRANSPORT:
           hasWT = setting.value;
-          LOG(INFO) << "Peer sent ENABLE_WEBTRANSPORT: " << uint32_t(hasWT);
+          VLOG(3) << "Peer sent ENABLE_WEBTRANSPORT: " << uint32_t(hasWT);
           supportsWebTransport_.set(folly::to_underlying(SettingEnabled::PEER));
           break;
         case hq::SettingId::WEBTRANSPORT_MAX_SESSIONS:
@@ -1584,7 +1616,9 @@ void HQSession::onPriority(quic::StreamId streamId, const HTTPPriority& pri) {
     priorityUpdatesBuffer_.insert(streamId, pri);
     return;
   }
-  sock_->setStreamPriority(streamId, toQuicPriority(pri));
+  if (enableEgressPrioritization_) {
+    sock_->setStreamPriority(streamId, toQuicPriority(pri));
+  }
 }
 
 void HQSession::onPushPriority(hq::PushId pushId, const HTTPPriority& pri) {
@@ -1612,7 +1646,9 @@ void HQSession::onPushPriority(hq::PushId pushId, const HTTPPriority& pri) {
   if (!stream) {
     return;
   }
-  sock_->setStreamPriority(streamId, toQuicPriority(pri));
+  if (enableEgressPrioritization_) {
+    sock_->setStreamPriority(streamId, toQuicPriority(pri));
+  }
 }
 
 void HQSession::notifyEgressBodyBuffered(int64_t bytes) {
@@ -1751,10 +1787,6 @@ uint64_t HQSession::controlStreamWriteImpl(HQControlStream* ctrlStream,
       << __func__ << " after write sess=" << *this
       << ": streamID=" << ctrlStream->getEgressStreamId() << " sent=" << sendLen
       << " buflen=" << static_cast<int>(ctrlStream->writeBuf_.chainLength());
-  if (infoCallback_) {
-    infoCallback_->onWrite(*this, sendLen);
-  }
-
   return sendLen;
 }
 
@@ -1820,7 +1852,8 @@ void HQSession::handleSessionError(HQStreamBase* stream,
   // close received from the remote, we may have other readError callbacks on
   // other streams after this one. So run in the next loop callback, in this
   // same loop
-  dropConnectionAsync(quic::QuicError(appError, appErrorMsg), proxygenError);
+  dropConnectionAsync(quic::QuicError(appError, std::move(appErrorMsg)),
+                      proxygenError);
 }
 
 uint64_t HQSession::writeRequestStreams(uint64_t maxEgress) noexcept {
@@ -2017,9 +2050,6 @@ uint64_t HQSession::requestStreamWriteImpl(HQStreamTransportBase* hqStream,
           << " buflen=" << hqStream->writeBufferSize()
           << " hasPendingBody=" << hqStream->txn_.hasPendingBody()
           << " EOM=" << hqStream->pendingEOM_;
-  if (infoCallback_) {
-    infoCallback_->onWrite(*this, sent);
-  }
   CHECK_GE(maxEgress, sent);
 
   bool flowControlBlocked = (sent == streamSendWindow && !sendEof);
@@ -2520,7 +2550,8 @@ void HQSession::HQStreamTransportBase::onHeadersComplete(
       const auto event =
           HTTPSessionObserverInterface::RequestStartedEvent::Builder()
               .setTimestamp(HTTPSessionObserverInterface::Clock::now())
-              .setHeaders(msgPtr->getHeaders())
+              .setRequest(*msg)
+              .setTxnObserverAccessor(txn_.getObserverAccessor())
               .build();
       session_.sessionObserverContainer_.invokeInterfaceMethod<
           HTTPSessionObserverInterface::Events::RequestStarted>(
@@ -2562,7 +2593,7 @@ void HQSession::HQStreamTransportBase::onHeadersComplete(
 
   // In case a priority update was received on the control stream before
   // getting here that overrides the initial priority received in the headers
-  if (sock) {
+  if (sock && session_.enableEgressPrioritization_) {
     auto itr = session_.priorityUpdatesBuffer_.find(streamId);
     if (itr != session_.priorityUpdatesBuffer_.end()) {
       sock->setStreamPriority(streamId, toQuicPriority(itr->second));
@@ -2707,7 +2738,7 @@ void HQSession::HQStreamTransportBase::updatePriority(
   const auto& sock = session_.sock_;
   auto streamId = getStreamId();
   auto httpPriority = httpPriorityFromHTTPMessage(headers);
-  if (sock && httpPriority) {
+  if (sock && httpPriority && session_.enableEgressPrioritization_) {
     sock->setStreamPriority(streamId, toQuicPriority(httpPriority.value()));
   }
 }
@@ -2876,7 +2907,8 @@ void HQSession::HQStreamTransportBase::sendHeaders(HTTPTransaction* txn,
     const auto event =
         HTTPSessionObserverInterface::RequestStartedEvent::Builder()
             .setTimestamp(HTTPSessionObserverInterface::Clock::now())
-            .setHeaders(headers.getHeaders())
+            .setRequest(headers)
+            .setTxnObserverAccessor(txn->getObserverAccessor())
             .build();
     session_.sessionObserverContainer_.invokeInterfaceMethod<
         HTTPSessionObserverInterface::Events::RequestStarted>(
@@ -3673,26 +3705,26 @@ void HQSession::onDatagramsAvailable() noexcept {
           kErrorConnection);
       break;
     }
-    // TODO: draft 8 and rfc don't include context ID
-    auto ctxId = quic::decodeQuicInteger(cursor);
-    if (!ctxId) {
-      dropConnectionAsync(
-          quic::QuicError(HTTP3::ErrorCode::HTTP_GENERAL_PROTOCOL_ERROR,
-                          "H3_DATAGRAM: error decoding context-id"),
-          kErrorConnection);
-    }
-
-    quic::BufQueue datagramQ;
-    datagramQ.append(std::move(datagram));
-    datagramQ.trimStart(quarterStreamId->second + ctxId->second);
-
     auto streamId = quarterStreamId->first * 4;
     auto stream = findNonDetachedStream(streamId);
+    folly::Optional<std::pair<uint64_t, size_t>> ctxId;
+    if (!stream || !stream->txn_.isWebTransportConnectStream()) {
+      // TODO: draft 8 and rfc don't include context ID
+      ctxId = quic::decodeQuicInteger(cursor);
+      if (!ctxId) {
+        dropConnectionAsync(
+            quic::QuicError(HTTP3::ErrorCode::HTTP_GENERAL_PROTOCOL_ERROR,
+                            "H3_DATAGRAM: error decoding context-id"),
+            kErrorConnection);
+      }
+    }
+    quic::BufQueue datagramQ;
+    datagramQ.append(std::move(datagram));
+    datagramQ.trimStart(quarterStreamId->second + (ctxId ? ctxId->second : 0));
 
     if (!stream || !stream->hasHeaders_) {
       VLOG(4) << "Stream cannot receive datagrams yet. streamId=" << streamId
-              << " ctx=" << ctxId->first << " len=" << datagramQ.chainLength()
-              << " sess=" << *this;
+              << " len=" << datagramQ.chainLength() << " sess=" << *this;
       // TODO: a possible optimization would be to discard datagrams destined
       // to streams that were already closed
       auto itr = datagramsBuffer_.find(streamId);
@@ -3709,9 +3741,9 @@ void HQSession::onDatagramsAvailable() noexcept {
       continue;
     }
 
-    VLOG(4) << "Received datagram for streamId=" << streamId
-            << " ctx=" << ctxId->first << " len=" << datagramQ.chainLength()
-            << " sess=" << *this;
+    VLOG(4) << "Received datagram for streamId=" << streamId << " ctx="
+            << (ctxId ? folly::to<std::string>(ctxId->first) : std::string())
+            << " len=" << datagramQ.chainLength() << " sess=" << *this;
     stream->txn_.onDatagram(datagramQ.move());
   }
 }
@@ -3746,11 +3778,13 @@ bool HQSession::HQStreamTransport::sendDatagram(
   if (streamIdRes.hasError()) {
     return false;
   }
-  // Always use context-id = 0 for now
-  auto ctxIdRes =
-      quic::encodeQuicInteger(0, [&](auto val) { appender.writeBE(val); });
-  if (ctxIdRes.hasError()) {
-    return false;
+  if (!txn_.isWebTransportConnectStream()) {
+    // Always use context-id = 0 for now
+    auto ctxIdRes =
+        quic::encodeQuicInteger(0, [&](auto val) { appender.writeBE(val); });
+    if (ctxIdRes.hasError()) {
+      return false;
+    }
   }
   VLOG(4) << "Sending datagram for streamId=" << streamId_.value()
           << " len=" << datagram->computeChainDataLength()

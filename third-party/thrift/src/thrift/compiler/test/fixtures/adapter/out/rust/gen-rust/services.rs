@@ -8,16 +8,23 @@
 pub mod service {
     #[derive(Clone, Debug)]
     pub enum FuncExn {
-        #[doc(hidden)]
-        Success(crate::types::MyI32_4873),
+
         ApplicationException(::fbthrift::ApplicationException),
     }
 
-    impl ::std::convert::From<crate::errors::service::FuncError> for FuncExn {
-        fn from(err: crate::errors::service::FuncError) -> Self {
+    impl ::std::convert::From<FuncExn> for ::fbthrift::NonthrowingFunctionError {
+        fn from(err: FuncExn) -> Self {
             match err {
-                crate::errors::service::FuncError::ApplicationException(aexn) => FuncExn::ApplicationException(aexn),
-                crate::errors::service::FuncError::ThriftError(err) => FuncExn::ApplicationException(::fbthrift::ApplicationException {
+                FuncExn::ApplicationException(aexn) => ::fbthrift::NonthrowingFunctionError::ApplicationException(aexn),
+            }
+        }
+    }
+
+    impl ::std::convert::From<::fbthrift::NonthrowingFunctionError> for FuncExn {
+        fn from(err: ::fbthrift::NonthrowingFunctionError) -> Self {
+            match err {
+                ::fbthrift::NonthrowingFunctionError::ApplicationException(aexn) => FuncExn::ApplicationException(aexn),
+                ::fbthrift::NonthrowingFunctionError::ThriftError(err) => FuncExn::ApplicationException(::fbthrift::ApplicationException {
                     message: err.to_string(),
                     type_: ::fbthrift::ApplicationExceptionErrorCode::InternalError,
                 }),
@@ -34,21 +41,18 @@ pub mod service {
     impl ::fbthrift::ExceptionInfo for FuncExn {
         fn exn_name(&self) -> &'static str {
             match self {
-                Self::Success(_) => panic!("ExceptionInfo::exn_name called on Success"),
                 Self::ApplicationException(aexn) => aexn.exn_name(),
             }
         }
 
         fn exn_value(&self) -> String {
             match self {
-                Self::Success(_) => panic!("ExceptionInfo::exn_value called on Success"),
                 Self::ApplicationException(aexn) => aexn.exn_value(),
             }
         }
 
         fn exn_is_declared(&self) -> bool {
             match self {
-                Self::Success(_) => panic!("ExceptionInfo::exn_is_declared called on Success"),
                 Self::ApplicationException(aexn) => aexn.exn_is_declared(),
             }
         }
@@ -57,87 +61,38 @@ pub mod service {
     impl ::fbthrift::ResultInfo for FuncExn {
         fn result_type(&self) -> ::fbthrift::ResultType {
             match self {
-                Self::Success(_) => ::fbthrift::ResultType::Return,
                 Self::ApplicationException(_aexn) => ::fbthrift::ResultType::Exception,
             }
         }
     }
 
-    impl ::fbthrift::GetTType for FuncExn {
-        const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
-    }
+    impl ::fbthrift::help::SerializeExn for FuncExn {
+        type Success = crate::types::MyI32_4873;
 
-    impl<P> ::fbthrift::Serialize<P> for FuncExn
-    where
-        P: ::fbthrift::ProtocolWriter,
-    {
-        fn write(&self, p: &mut P) {
-            if let Self::ApplicationException(aexn) = self {
-                return aexn.write(p);
+        fn write_result<P>(
+            res: ::std::result::Result<&Self::Success, &Self>,
+            p: &mut P,
+            function_name: &'static str,
+        )
+        where
+            P: ::fbthrift::ProtocolWriter,
+        {
+            if let ::std::result::Result::Err(Self::ApplicationException(aexn)) = res {
+                ::fbthrift::Serialize::write(aexn, p);
+                return;
             }
-            p.write_struct_begin("Func");
-            match self {
-                Self::Success(inner) => {
-                    p.write_field_begin(
-                        "Success",
-                        ::fbthrift::TType::I32,
-                        0i16,
-                    );
-                    inner.write(p);
+            p.write_struct_begin(function_name);
+            match res {
+                ::std::result::Result::Ok(_success) => {
+                    p.write_field_begin("Success", ::fbthrift::TType::I32, 0i16);
+                    ::fbthrift::Serialize::write(&<crate::types::adapters::MyI32 as ::fbthrift::adapter::ThriftAdapter>::to_thrift_field::<::fbthrift::metadata::NoThriftAnnotations>(_success, 0), p);
                     p.write_field_end();
                 }
-                Self::ApplicationException(_aexn) => unreachable!(),
+
+                ::std::result::Result::Err(Self::ApplicationException(_aexn)) => unreachable!(),
             }
             p.write_field_stop();
             p.write_struct_end();
-        }
-    }
-
-    impl<P> ::fbthrift::Deserialize<P> for FuncExn
-    where
-        P: ::fbthrift::ProtocolReader,
-    {
-        fn read(p: &mut P) -> ::anyhow::Result<Self> {
-            static RETURNS: &[::fbthrift::Field] = &[
-                ::fbthrift::Field::new("Success", ::fbthrift::TType::I32, 0),
-            ];
-            let _ = p.read_struct_begin(|_| ())?;
-            let mut once = false;
-            let mut alt = ::std::option::Option::None;
-            loop {
-                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
-                match ((fty, fid as ::std::primitive::i32), once) {
-                    ((::fbthrift::TType::Stop, _), _) => {
-                        p.read_field_end()?;
-                        break;
-                    }
-                    ((::fbthrift::TType::I32, 0i32), false) => {
-                        once = true;
-                        alt = ::std::option::Option::Some(Self::Success(::fbthrift::Deserialize::read(p)?));
-                    }
-                    ((ty, _id), false) => p.skip(ty)?,
-                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
-                        ::fbthrift::ApplicationException::new(
-                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
-                            format!(
-                                "unwanted extra union {} field ty {:?} id {}",
-                                "FuncExn",
-                                badty,
-                                badid,
-                            ),
-                        )
-                    )),
-                }
-                p.read_field_end()?;
-            }
-            p.read_struct_end()?;
-            alt.ok_or_else(||
-                ::fbthrift::ApplicationException::new(
-                    ::fbthrift::ApplicationExceptionErrorCode::MissingResult,
-                    format!("Empty union {}", "FuncExn"),
-                )
-                .into(),
-            )
         }
     }
 }
@@ -146,16 +101,23 @@ pub mod service {
 pub mod adapter_service {
     #[derive(Clone, Debug)]
     pub enum CountExn {
-        #[doc(hidden)]
-        Success(crate::types::CountingStruct),
+
         ApplicationException(::fbthrift::ApplicationException),
     }
 
-    impl ::std::convert::From<crate::errors::adapter_service::CountError> for CountExn {
-        fn from(err: crate::errors::adapter_service::CountError) -> Self {
+    impl ::std::convert::From<CountExn> for ::fbthrift::NonthrowingFunctionError {
+        fn from(err: CountExn) -> Self {
             match err {
-                crate::errors::adapter_service::CountError::ApplicationException(aexn) => CountExn::ApplicationException(aexn),
-                crate::errors::adapter_service::CountError::ThriftError(err) => CountExn::ApplicationException(::fbthrift::ApplicationException {
+                CountExn::ApplicationException(aexn) => ::fbthrift::NonthrowingFunctionError::ApplicationException(aexn),
+            }
+        }
+    }
+
+    impl ::std::convert::From<::fbthrift::NonthrowingFunctionError> for CountExn {
+        fn from(err: ::fbthrift::NonthrowingFunctionError) -> Self {
+            match err {
+                ::fbthrift::NonthrowingFunctionError::ApplicationException(aexn) => CountExn::ApplicationException(aexn),
+                ::fbthrift::NonthrowingFunctionError::ThriftError(err) => CountExn::ApplicationException(::fbthrift::ApplicationException {
                     message: err.to_string(),
                     type_: ::fbthrift::ApplicationExceptionErrorCode::InternalError,
                 }),
@@ -172,21 +134,18 @@ pub mod adapter_service {
     impl ::fbthrift::ExceptionInfo for CountExn {
         fn exn_name(&self) -> &'static str {
             match self {
-                Self::Success(_) => panic!("ExceptionInfo::exn_name called on Success"),
                 Self::ApplicationException(aexn) => aexn.exn_name(),
             }
         }
 
         fn exn_value(&self) -> String {
             match self {
-                Self::Success(_) => panic!("ExceptionInfo::exn_value called on Success"),
                 Self::ApplicationException(aexn) => aexn.exn_value(),
             }
         }
 
         fn exn_is_declared(&self) -> bool {
             match self {
-                Self::Success(_) => panic!("ExceptionInfo::exn_is_declared called on Success"),
                 Self::ApplicationException(aexn) => aexn.exn_is_declared(),
             }
         }
@@ -195,102 +154,60 @@ pub mod adapter_service {
     impl ::fbthrift::ResultInfo for CountExn {
         fn result_type(&self) -> ::fbthrift::ResultType {
             match self {
-                Self::Success(_) => ::fbthrift::ResultType::Return,
                 Self::ApplicationException(_aexn) => ::fbthrift::ResultType::Exception,
             }
         }
     }
 
-    impl ::fbthrift::GetTType for CountExn {
-        const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
-    }
+    impl ::fbthrift::help::SerializeExn for CountExn {
+        type Success = crate::types::CountingStruct;
 
-    impl<P> ::fbthrift::Serialize<P> for CountExn
-    where
-        P: ::fbthrift::ProtocolWriter,
-    {
-        fn write(&self, p: &mut P) {
-            if let Self::ApplicationException(aexn) = self {
-                return aexn.write(p);
+        fn write_result<P>(
+            res: ::std::result::Result<&Self::Success, &Self>,
+            p: &mut P,
+            function_name: &'static str,
+        )
+        where
+            P: ::fbthrift::ProtocolWriter,
+        {
+            if let ::std::result::Result::Err(Self::ApplicationException(aexn)) = res {
+                ::fbthrift::Serialize::write(aexn, p);
+                return;
             }
-            p.write_struct_begin("Count");
-            match self {
-                Self::Success(inner) => {
-                    p.write_field_begin(
-                        "Success",
-                        ::fbthrift::TType::Struct,
-                        0i16,
-                    );
-                    inner.write(p);
+            p.write_struct_begin(function_name);
+            match res {
+                ::std::result::Result::Ok(_success) => {
+                    p.write_field_begin("Success", ::fbthrift::TType::Struct, 0i16);
+                    ::fbthrift::Serialize::write(_success, p);
                     p.write_field_end();
                 }
-                Self::ApplicationException(_aexn) => unreachable!(),
+
+                ::std::result::Result::Err(Self::ApplicationException(_aexn)) => unreachable!(),
             }
             p.write_field_stop();
             p.write_struct_end();
         }
     }
 
-    impl<P> ::fbthrift::Deserialize<P> for CountExn
-    where
-        P: ::fbthrift::ProtocolReader,
-    {
-        fn read(p: &mut P) -> ::anyhow::Result<Self> {
-            static RETURNS: &[::fbthrift::Field] = &[
-                ::fbthrift::Field::new("Success", ::fbthrift::TType::Struct, 0),
-            ];
-            let _ = p.read_struct_begin(|_| ())?;
-            let mut once = false;
-            let mut alt = ::std::option::Option::None;
-            loop {
-                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
-                match ((fty, fid as ::std::primitive::i32), once) {
-                    ((::fbthrift::TType::Stop, _), _) => {
-                        p.read_field_end()?;
-                        break;
-                    }
-                    ((::fbthrift::TType::Struct, 0i32), false) => {
-                        once = true;
-                        alt = ::std::option::Option::Some(Self::Success(::fbthrift::Deserialize::read(p)?));
-                    }
-                    ((ty, _id), false) => p.skip(ty)?,
-                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
-                        ::fbthrift::ApplicationException::new(
-                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
-                            format!(
-                                "unwanted extra union {} field ty {:?} id {}",
-                                "CountExn",
-                                badty,
-                                badid,
-                            ),
-                        )
-                    )),
-                }
-                p.read_field_end()?;
-            }
-            p.read_struct_end()?;
-            alt.ok_or_else(||
-                ::fbthrift::ApplicationException::new(
-                    ::fbthrift::ApplicationExceptionErrorCode::MissingResult,
-                    format!("Empty union {}", "CountExn"),
-                )
-                .into(),
-            )
-        }
-    }
-
     #[derive(Clone, Debug)]
     pub enum AdaptedTypesExn {
-        #[doc(hidden)]
-        Success(crate::types::HeapAllocated),
+
         ApplicationException(::fbthrift::ApplicationException),
     }
 
-    impl ::std::convert::From<crate::errors::adapter_service::AdaptedTypesError> for AdaptedTypesExn {
-        fn from(err: crate::errors::adapter_service::AdaptedTypesError) -> Self {
+    impl ::std::convert::From<AdaptedTypesExn> for ::fbthrift::NonthrowingFunctionError {
+        fn from(err: AdaptedTypesExn) -> Self {
             match err {
-                crate::errors::adapter_service::AdaptedTypesError::ApplicationException(aexn) => AdaptedTypesExn::ApplicationException(aexn),
-                crate::errors::adapter_service::AdaptedTypesError::ThriftError(err) => AdaptedTypesExn::ApplicationException(::fbthrift::ApplicationException {
+                AdaptedTypesExn::ApplicationException(aexn) => ::fbthrift::NonthrowingFunctionError::ApplicationException(aexn),
+            }
+        }
+    }
+
+    impl ::std::convert::From<::fbthrift::NonthrowingFunctionError> for AdaptedTypesExn {
+        fn from(err: ::fbthrift::NonthrowingFunctionError) -> Self {
+            match err {
+                ::fbthrift::NonthrowingFunctionError::ApplicationException(aexn) => AdaptedTypesExn::ApplicationException(aexn),
+                ::fbthrift::NonthrowingFunctionError::ThriftError(err) => AdaptedTypesExn::ApplicationException(::fbthrift::ApplicationException {
                     message: err.to_string(),
                     type_: ::fbthrift::ApplicationExceptionErrorCode::InternalError,
                 }),
@@ -307,21 +224,18 @@ pub mod adapter_service {
     impl ::fbthrift::ExceptionInfo for AdaptedTypesExn {
         fn exn_name(&self) -> &'static str {
             match self {
-                Self::Success(_) => panic!("ExceptionInfo::exn_name called on Success"),
                 Self::ApplicationException(aexn) => aexn.exn_name(),
             }
         }
 
         fn exn_value(&self) -> String {
             match self {
-                Self::Success(_) => panic!("ExceptionInfo::exn_value called on Success"),
                 Self::ApplicationException(aexn) => aexn.exn_value(),
             }
         }
 
         fn exn_is_declared(&self) -> bool {
             match self {
-                Self::Success(_) => panic!("ExceptionInfo::exn_is_declared called on Success"),
                 Self::ApplicationException(aexn) => aexn.exn_is_declared(),
             }
         }
@@ -330,87 +244,38 @@ pub mod adapter_service {
     impl ::fbthrift::ResultInfo for AdaptedTypesExn {
         fn result_type(&self) -> ::fbthrift::ResultType {
             match self {
-                Self::Success(_) => ::fbthrift::ResultType::Return,
                 Self::ApplicationException(_aexn) => ::fbthrift::ResultType::Exception,
             }
         }
     }
 
-    impl ::fbthrift::GetTType for AdaptedTypesExn {
-        const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
-    }
+    impl ::fbthrift::help::SerializeExn for AdaptedTypesExn {
+        type Success = crate::types::HeapAllocated;
 
-    impl<P> ::fbthrift::Serialize<P> for AdaptedTypesExn
-    where
-        P: ::fbthrift::ProtocolWriter,
-    {
-        fn write(&self, p: &mut P) {
-            if let Self::ApplicationException(aexn) = self {
-                return aexn.write(p);
+        fn write_result<P>(
+            res: ::std::result::Result<&Self::Success, &Self>,
+            p: &mut P,
+            function_name: &'static str,
+        )
+        where
+            P: ::fbthrift::ProtocolWriter,
+        {
+            if let ::std::result::Result::Err(Self::ApplicationException(aexn)) = res {
+                ::fbthrift::Serialize::write(aexn, p);
+                return;
             }
-            p.write_struct_begin("AdaptedTypes");
-            match self {
-                Self::Success(inner) => {
-                    p.write_field_begin(
-                        "Success",
-                        ::fbthrift::TType::Struct,
-                        0i16,
-                    );
-                    inner.write(p);
+            p.write_struct_begin(function_name);
+            match res {
+                ::std::result::Result::Ok(_success) => {
+                    p.write_field_begin("Success", ::fbthrift::TType::Struct, 0i16);
+                    ::fbthrift::Serialize::write(_success, p);
                     p.write_field_end();
                 }
-                Self::ApplicationException(_aexn) => unreachable!(),
+
+                ::std::result::Result::Err(Self::ApplicationException(_aexn)) => unreachable!(),
             }
             p.write_field_stop();
             p.write_struct_end();
-        }
-    }
-
-    impl<P> ::fbthrift::Deserialize<P> for AdaptedTypesExn
-    where
-        P: ::fbthrift::ProtocolReader,
-    {
-        fn read(p: &mut P) -> ::anyhow::Result<Self> {
-            static RETURNS: &[::fbthrift::Field] = &[
-                ::fbthrift::Field::new("Success", ::fbthrift::TType::Struct, 0),
-            ];
-            let _ = p.read_struct_begin(|_| ())?;
-            let mut once = false;
-            let mut alt = ::std::option::Option::None;
-            loop {
-                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
-                match ((fty, fid as ::std::primitive::i32), once) {
-                    ((::fbthrift::TType::Stop, _), _) => {
-                        p.read_field_end()?;
-                        break;
-                    }
-                    ((::fbthrift::TType::Struct, 0i32), false) => {
-                        once = true;
-                        alt = ::std::option::Option::Some(Self::Success(::fbthrift::Deserialize::read(p)?));
-                    }
-                    ((ty, _id), false) => p.skip(ty)?,
-                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
-                        ::fbthrift::ApplicationException::new(
-                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
-                            format!(
-                                "unwanted extra union {} field ty {:?} id {}",
-                                "AdaptedTypesExn",
-                                badty,
-                                badid,
-                            ),
-                        )
-                    )),
-                }
-                p.read_field_end()?;
-            }
-            p.read_struct_end()?;
-            alt.ok_or_else(||
-                ::fbthrift::ApplicationException::new(
-                    ::fbthrift::ApplicationExceptionErrorCode::MissingResult,
-                    format!("Empty union {}", "AdaptedTypesExn"),
-                )
-                .into(),
-            )
         }
     }
 }

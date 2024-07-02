@@ -185,7 +185,7 @@ pub struct FmtBid<'a>(pub &'a Func, pub BlockId, /* verbose */ pub bool);
 impl Display for FmtBid<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let FmtBid(body, bid, verbose) = *self;
-        if let Some(block) = body.get_block(bid) {
+        if let Some(block) = body.repr.get_block(bid) {
             let pname = block.pname_hint.as_ref();
             if !verbose {
                 if let Some(pname) = pname {
@@ -289,7 +289,7 @@ impl Display for FmtFuncParams<'_> {
         write!(
             w,
             "({})",
-            FmtSep::comma(&func.params, |w, param| crate::print::print_param(
+            FmtSep::comma(&func.repr.params, |w, param| crate::print::print_param(
                 w, func, param
             ))
         )
@@ -349,27 +349,29 @@ pub(crate) struct FmtImmediate<'a>(pub(crate) &'a Immediate);
 
 impl Display for FmtImmediate<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
-        let FmtImmediate(imm) = self;
-        match imm {
-            Immediate::Array(tv) => write!(f, "array({})", FmtTypedValue(tv)),
-            Immediate::Bool(b) => write!(f, "{b}"),
+        match self.0 {
             Immediate::Dir => write!(f, "dir"),
             Immediate::EnumClassLabel(value) => {
                 write!(f, "enum_class_label({})", FmtQuotedStringId(*value))
             }
-            Immediate::Float(value) => FmtFloat(value.to_f64()).fmt(f),
             Immediate::File => write!(f, "file"),
             Immediate::FuncCred => write!(f, "func_cred"),
-            Immediate::Int(value) => write!(f, "{}", value),
-            Immediate::LazyClass(cid) => {
-                write!(f, "lazy_class({})", FmtIdentifierId(cid.as_bytes_id()))
-            }
             Immediate::Method => write!(f, "method"),
             Immediate::Named(name) => write!(f, "constant({})", FmtIdentifier(name.as_bytes())),
             Immediate::NewCol(k) => write!(f, "new_col({:?})", k),
-            Immediate::Null => write!(f, "null"),
-            Immediate::String(value) => FmtQuotedStringId(*value).fmt(f),
-            Immediate::Uninit => write!(f, "uninit"),
+            Immediate::Bool(_)
+            | Immediate::Float(_)
+            | Immediate::Int(_)
+            | Immediate::LazyClass(_)
+            | Immediate::Null
+            | Immediate::String(_)
+            | Immediate::Uninit
+            | Immediate::Vec(_)
+            | Immediate::Dict(_)
+            | Immediate::Keyset(_) => {
+                let tv: TypedValue = self.0.clone().try_into().unwrap();
+                FmtTypedValue(&tv).fmt(f)
+            }
         }
     }
 }
@@ -388,7 +390,7 @@ impl Display for FmtVid<'_> {
                 }
             }
             FullInstrId::Instr(iid) => {
-                if let Some(instr) = body.get_instr(iid) {
+                if let Some(instr) = body.repr.get_instr(iid) {
                     if matches!(instr, Instr::Special(Special::Tombstone)) {
                         write!(f, "tombstone(%{})", iid.as_usize())
                     } else {
@@ -417,8 +419,10 @@ impl Display for FmtDocComment<'_> {
     }
 }
 
+#[allow(dead_code)]
 pub(crate) struct FmtIncDecOp(pub IncDecOp);
 
+#[allow(dead_code)]
 impl FmtIncDecOp {
     pub(crate) fn as_str(&self) -> &'static str {
         match self.0 {
@@ -455,9 +459,9 @@ pub struct FmtInstr<'a>(pub &'a Func, pub InstrId);
 impl Display for FmtInstr<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let FmtInstr(func, iid) = self;
-        let instr = func.get_instr(*iid).unwrap();
+        let instr = func.repr.get_instr(*iid).unwrap();
         let mut ctx = FuncContext {
-            cur_loc_id: instr.loc_id(),
+            cur_loc: *func.repr.get_loc(instr.loc_id()).unwrap(),
             live_instrs: Default::default(),
             verbose: true,
         };
@@ -523,7 +527,7 @@ pub(crate) struct FmtImmId<'a>(pub(crate) &'a Func, pub(crate) ImmId);
 impl Display for FmtImmId<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let FmtImmId(body, cid) = *self;
-        let imm = body.imm(cid);
+        let imm = body.repr.imm(cid);
         FmtImmediate(imm).fmt(f)
     }
 }
@@ -557,7 +561,7 @@ pub struct FmtLocId<'a>(pub &'a Func, pub LocId);
 impl Display for FmtLocId<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {
         let FmtLocId(func, loc_id) = *self;
-        if let Some(loc) = func.locs.get(loc_id) {
+        if let Some(loc) = func.repr.locs.get(loc_id) {
             FmtLoc(loc).fmt(f)
         } else {
             write!(f, "<unknown loc #{loc_id}>")
@@ -706,7 +710,7 @@ impl Display for FmtTParams<'_> {
     }
 }
 
-pub(crate) struct FmtShadowedTParams<'a>(pub(crate) &'a Vec<ClassName>);
+pub(crate) struct FmtShadowedTParams<'a>(pub(crate) &'a [ClassName]);
 
 impl Display for FmtShadowedTParams<'_> {
     fn fmt(&self, f: &mut Formatter<'_>) -> Result {

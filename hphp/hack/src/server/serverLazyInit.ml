@@ -101,6 +101,7 @@ let run_saved_state_future
       compressed_dep_table_path = _;
       naming_sqlite_table_path;
       errors_path;
+      warning_hashes_path;
     } =
       main_artifacts
     in
@@ -130,11 +131,12 @@ let run_saved_state_future
       ) else
         ServerCheckUtils.get_naming_table_fallback_path genv
     in
-    let (old_naming_table, old_errors) =
+    let (old_naming_table, { SaveStateServiceTypes.old_errors; old_warnings }) =
       SaveStateService.load_saved_state_exn
         ctx
         ~naming_table_fallback_path
         ~errors_path:(Path.to_string errors_path)
+        ~warning_hashes_path:(Path.to_string warning_hashes_path)
     in
     let t = Unix.time () in
     (match
@@ -175,6 +177,7 @@ let run_saved_state_future
           dirty_local_files;
           old_naming_table;
           old_errors;
+          old_warnings;
           saved_state_delta;
           naming_table_manifold_path;
         })
@@ -324,13 +327,15 @@ let use_precomputed_state_exn
       ServerCheckUtils.get_naming_table_fallback_path genv
   in
   let errors_path = ServerArgs.errors_path_for_target_info info in
-  let (old_naming_table, old_errors) =
+  let warning_hashes_path = ServerArgs.warnings_path_for_target_info info in
+  let (old_naming_table, { SaveStateServiceTypes.old_errors; old_warnings }) =
     CgroupProfiler.step_start_end cgroup_steps "load saved state"
     @@ fun _cgroup_step ->
     SaveStateService.load_saved_state_exn
       ctx
       ~naming_table_fallback_path
       ~errors_path
+      ~warning_hashes_path
   in
   let log_saved_state_age_and_distance =
     ctx
@@ -355,6 +360,7 @@ let use_precomputed_state_exn
     dirty_local_files = changes;
     old_naming_table;
     old_errors;
+    old_warnings;
     saved_state_delta;
     naming_table_manifold_path = None;
   }
@@ -890,7 +896,9 @@ let write_symbol_info
       | Some s -> s
     in
     let opts = Indexer_options.create env.swriteopt ~out_dir in
-    let namespace_map = ParserOptions.auto_namespace_map env.tcopt in
+    let namespace_map =
+      env.tcopt.GlobalOptions.po.ParserOptions.auto_namespace_map
+    in
     let ctx = Provider_utils.ctx_from_server_env env in
     Entrypoint.go genv.workers ctx opts ~namespace_map ~files;
     (env, t)
@@ -1009,6 +1017,7 @@ let update_naming_table
     mergebase_rev = _;
     mergebase = _;
     old_errors;
+    old_warnings = _;
     deptable_fn = _;
     naming_table_fn = _;
     corresponding_rev = _;
@@ -1176,6 +1185,7 @@ let post_saved_state_initialization
     mergebase_rev;
     mergebase;
     old_errors;
+    old_warnings;
     deptable_fn;
     naming_table_fn = _;
     corresponding_rev = _;
@@ -1199,6 +1209,7 @@ let post_saved_state_initialization
         {
           env.init_env with
           mergebase;
+          mergebase_warning_hashes = old_warnings;
           naming_table_manifold_path;
           saved_state_delta;
         };

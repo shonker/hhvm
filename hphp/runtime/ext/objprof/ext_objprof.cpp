@@ -51,6 +51,8 @@
 #include "hphp/runtime/vm/named-entity-defs.h"
 #include "hphp/util/alloc.h"
 #include "hphp/util/low-ptr.h"
+#include "hphp/runtime/base/implicit-context.h"
+
 
 namespace HPHP {
 size_t asio_object_size(const ObjectData*);
@@ -135,6 +137,12 @@ std::string pathString(const ObjprofStack& stack, const char* sep) {
   return os.str();
 }
 
+bool cycleExists(ObjprofState& env, const void* ptr) {
+  auto ptr_begin = env.val_stack.begin();
+  auto ptr_end = env.val_stack.end();
+  return std::find(ptr_begin, ptr_end, ptr) != ptr_end;
+}
+
 void issueWarnings(std::vector<std::string>& deferred_warnings) {
   for (auto const& warning : deferred_warnings) {
     raise_warning(warning);
@@ -158,6 +166,7 @@ bool isObjprofRoot(
   auto cls_name = cls->name()->toCppString();
   // Classes in exclude_classes not considered root
   if (exclude_classes.find(cls_name) != exclude_classes.end()) return false;
+  if (obj == *ImplicitContext::emptyCtx) return false;
   // In USER_TYPES_ONLY mode, Classes with "HH\\" prefix not considered root
   if ((flags & ObjprofFlags::USER_TYPES_ONLY) != 0) {
     if (cls_name.compare(0, 3, "HH\\") == 0) return false;
@@ -178,9 +187,7 @@ std::pair<int, double> sizeOfArray(
   const ArrayData* ad, ObjprofState& env, Class* cls,
   hphp_fast_map<ClassProp, ObjprofMetrics>* histogram
 ) {
-  auto ptr_begin = env.val_stack.begin();
-  auto ptr_end = env.val_stack.end();
-  if (std::find(ptr_begin, ptr_end, ad) != ptr_end) {
+  if (cycleExists(env, ad)) {
     FTRACE(3, "Cycle found for ArrayData*({})\n", ad);
     return std::make_pair(0, 0);
   }
@@ -479,9 +486,7 @@ std::pair<int, double> getObjSize(
 ) {
   Class* cls = obj->getVMClass();
 
-  auto ptr_begin = env.val_stack.begin();
-  auto ptr_end = env.val_stack.end();
-  if (std::find(ptr_begin, ptr_end, obj) != ptr_end) {
+  if (cycleExists(env, obj)) {
     FTRACE(3, "Cycle found for {}*({})\n", obj->getClassName().data(), obj);
     return std::make_pair(0, 0);
   }

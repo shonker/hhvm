@@ -251,7 +251,7 @@ struct TccStructTraits<::facebook::thrift::test::Person2> {
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 template <class Protocol_>
 void MyAnnotation::readNoXfer(Protocol_* iprot) {
@@ -5145,8 +5145,8 @@ uint32_t ReorderedStruct::write(Protocol_* prot_) const {
       xfer += ::apache::thrift::op::encode<::apache::thrift::type::adapted<::apache::thrift::test::IdentityAdapter<detail::DeclaredAfterStruct>, ::apache::thrift::type::struct_t<::facebook::thrift::test::detail::DeclaredAfterStruct>>>(*prot_, *this->__fbthrift_field_reordered_dependent_adapted);
     } else {
       xfer += prot_->writeStructBegin("DeclaredAfterStruct");
-      xfer += prot_->writeStructEnd();
       xfer += prot_->writeFieldStop();
+      xfer += prot_->writeStructEnd();
     }
     xfer += prot_->writeFieldEnd();
   }
@@ -6417,4 +6417,4 @@ extern template uint32_t Person2::serializedSize<>(apache::thrift::CompactProtoc
 extern template uint32_t Person2::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test

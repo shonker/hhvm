@@ -27,11 +27,11 @@
       ],
       "location": {
         "file": "fbcode/thrift/lib/cpp2/op/detail/Compare.h",
-        "line": "269",
-        "column": "1",
+        "line": "274",
+        "column": "8",
         "bodyfile": "fbcode/thrift/lib/cpp2/op/detail/Compare.h",
-        "bodystart": "269",
-        "bodyend": "274"
+        "bodystart": "274",
+        "bodyend": "279"
       },
       "definition": {
         "simple_html": "bool operator()(F lhs, F rhs) const",
@@ -53,5 +53,11 @@
   "brief_html": "",
   "groupname_html": "",
   "href": "/ref/cpp/f/struct/special/structapache_1_1thrift_1_1op_1_1detail_1_1IdenticalTo_3_01type_1_1double__t_01_4/operator.call",
-  "refid": "/ref/cpp/f/struct/special/structapache_1_1thrift_1_1op_1_1detail_1_1IdenticalTo_3_01type_1_1double__t_01_4/operator.call"
+  "refid": "/ref/cpp/f/struct/special/structapache_1_1thrift_1_1op_1_1detail_1_1IdenticalTo_3_01type_1_1double__t_01_4/operator.call",
+  "parent_links": [
+    {
+      "text_html": "IdenticalTo&lt; type::double_t &gt;",
+      "href": "/ref/cpp/struct/special/structapache_1_1thrift_1_1op_1_1detail_1_1IdenticalTo_3_01type_1_1double__t_01_4"
+    }
+  ]
 }

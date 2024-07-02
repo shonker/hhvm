@@ -26,6 +26,7 @@
 #include "hphp/runtime/ext/thrift/field_wrapper.h"
 #include "hphp/runtime/ext/thrift/type_wrapper.h"
 #include "hphp/runtime/ext/thrift/util.h"
+#include "hphp/util/configs/eval.h"
 #include "hphp/util/hash-map.h"
 
 #include <folly/concurrency/ConcurrentHashMap.h>
@@ -184,7 +185,7 @@ StructSpec compileSpec(const Array& spec, const Class* cls) {
     // Determine if we can safely skip the type check when deserializing.
     field.noTypeCheck = [&] {
       // Check this first, so we skip the type check even if the next one fails.
-      if (RuntimeOption::EvalCheckPropTypeHints <= 0) return true;
+      if (Cfg::Eval::CheckPropTypeHints <= 0) return true;
       // If the class isn't persistent, we can't elide any type checks
       // anyways, so set it to false pessimistically.
       if (!classHasPersistentRDS(cls)) return false;
@@ -304,7 +305,7 @@ const StructSpec& SpecHolder::getSpec(const Class* cls) {
     void* expected = nullptr;
     if (specSlot->compare_exchange_strong(
           expected, (void*)compiled.get(),
-          std::memory_order_release, std::memory_order_relaxed)) {
+          std::memory_order_acq_rel, std::memory_order_relaxed)) {
       return *compiled.release();
     }
     return *static_cast<StructSpec*>(expected);

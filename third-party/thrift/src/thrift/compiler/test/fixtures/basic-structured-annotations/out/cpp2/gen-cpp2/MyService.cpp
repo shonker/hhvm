@@ -62,7 +62,7 @@ folly::coro::Task<std::unique_ptr<::test::fixtures::basic-structured-annotations
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test::fixtures::basic-structured-annotations::MyService>::async_tm_first(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::test::fixtures::basic-structured-annotations::annotated_inline_string>>> callback) {
+void apache::thrift::ServiceHandler<::test::fixtures::basic-structured-annotations::MyService>::async_tm_first(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::test::fixtures::basic-structured-annotations::annotated_inline_string>> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -120,7 +120,7 @@ determineInvocationType:
       {
         ::test::fixtures::basic-structured-annotations::annotated_inline_string _return;
         sync_first(_return);
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -172,7 +172,7 @@ folly::coro::Task<bool> apache::thrift::ServiceHandler<::test::fixtures::basic-s
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test::fixtures::basic-structured-annotations::MyService>::async_tm_second(std::unique_ptr<apache::thrift::HandlerCallback<bool>> callback, ::std::int64_t p_count) {
+void apache::thrift::ServiceHandler<::test::fixtures::basic-structured-annotations::MyService>::async_tm_second(apache::thrift::HandlerCallbackPtr<bool> callback, ::std::int64_t p_count) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -247,11 +247,11 @@ determineInvocationType:
 }
 
 
-namespace test { namespace fixtures { namespace basic-structured-annotations {
+namespace test::fixtures::basic-structured-annotations {
 
-void MyServiceSvNull::first(::test::fixtures::basic-structured-annotations::annotated_inline_string& /*_return*/) {}
+void MyServiceSvNull::first(::test::fixtures::basic-structured-annotations::annotated_inline_string& /*_return*/) {  }
 
-bool MyServiceSvNull::second(::std::int64_t /*count*/) {
+bool MyServiceSvNull::second(::std::int64_t /*count*/) { 
   return 0;
 }
 
@@ -297,14 +297,14 @@ apache::thrift::ServiceRequestInfoMap const& MyServiceServiceInfoHolder::request
 apache::thrift::ServiceRequestInfoMap MyServiceServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"first",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "MyService.first",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"second",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "MyService.second",
      std::nullopt,
@@ -314,4 +314,4 @@ apache::thrift::ServiceRequestInfoMap MyServiceServiceInfoHolder::staticRequestI
 
   return requestInfoMap;
 }
-}}} // test::fixtures::basic-structured-annotations
+} // namespace test::fixtures::basic-structured-annotations

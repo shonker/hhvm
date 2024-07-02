@@ -30,9 +30,9 @@ pub fn split_critical_edges(func: &mut Func, rpo_sort: bool) {
         },
     );
     let mut work = Vec::new();
-    let num_blocks = func.blocks.len();
-    for bid in func.block_ids() {
-        let term = func.terminator_mut(bid);
+    let num_blocks = func.repr.blocks.len();
+    for bid in func.repr.block_ids() {
+        let term = func.repr.terminator_mut(bid);
         let loc = term.loc_id();
         let edges = term.edges_mut();
         if edges.len() > 1 {
@@ -52,12 +52,13 @@ pub fn split_critical_edges(func: &mut Func, rpo_sort: bool) {
         }
     }
     if !work.is_empty() {
-        func.blocks
+        func.repr
+            .blocks
             .resize(num_blocks + work.len(), Block::default());
         for item in work.drain(..) {
-            let _params = func.block(item.old_target).params.len();
+            let _params = func.repr.block(item.old_target).params.len();
             let instr = Instr::jmp(item.old_target, item.loc);
-            func.emit(item.split_bid, instr);
+            func.repr.emit(item.split_bid, instr);
         }
         if rpo_sort {
             crate::rpo_sort(func)

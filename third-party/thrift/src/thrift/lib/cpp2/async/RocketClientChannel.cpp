@@ -21,31 +21,26 @@
 
 #include <fmt/core.h>
 #include <folly/ExceptionString.h>
-#include <folly/GLog.h>
 #include <folly/Memory.h>
 #include <folly/Range.h>
 #include <folly/Try.h>
 #include <folly/compression/Compression.h>
-#include <folly/fibers/FiberManager.h>
 #include <folly/io/IOBuf.h>
 #include <folly/io/IOBufQueue.h>
 #include <folly/io/async/AsyncTransport.h>
 #include <folly/io/async/EventBase.h>
-#include <folly/io/async/Request.h>
 
 #include <thrift/lib/cpp/TApplicationException.h>
 #include <thrift/lib/cpp/protocol/TBase64Utils.h>
 #include <thrift/lib/cpp/protocol/TProtocolTypes.h>
 #include <thrift/lib/cpp/transport/THeader.h>
 #include <thrift/lib/cpp2/Flags.h>
-#include <thrift/lib/cpp2/async/HeaderChannel.h>
-#include <thrift/lib/cpp2/async/RequestChannel.h>
 #include <thrift/lib/cpp2/async/ResponseChannel.h>
 #include <thrift/lib/cpp2/async/RpcTypes.h>
 #include <thrift/lib/cpp2/protocol/CompactProtocol.h>
 #include <thrift/lib/cpp2/protocol/Protocol.h>
 #include <thrift/lib/cpp2/protocol/Serializer.h>
-#include <thrift/lib/cpp2/transport/core/EnvelopeUtil.h>
+#include <thrift/lib/cpp2/transport/core/RpcMetadataPlugins.h>
 #include <thrift/lib/cpp2/transport/core/RpcMetadataUtil.h>
 #include <thrift/lib/cpp2/transport/core/ThriftClientCallback.h>
 #include <thrift/lib/cpp2/transport/core/TryUtil.h>
@@ -68,6 +63,7 @@ const int64_t kRocketClientMinVersion = 8;
 THRIFT_FLAG_DEFINE_bool(rocket_client_new_protocol_key, true);
 THRIFT_FLAG_DEFINE_int64(rocket_client_max_version, kRocketClientMaxVersion);
 THRIFT_FLAG_DEFINE_bool(rocket_client_rocket_skip_protocol_key, false);
+THRIFT_FLAG_DEFINE_bool(rocket_client_enable_bidirectional_propagation, true);
 
 using namespace apache::thrift::transport;
 
@@ -137,7 +133,7 @@ folly::Try<FirstResponsePayload> decodeResponseError(
     return folly::Try<FirstResponsePayload>(
         folly::make_exception_wrapper<TApplicationException>(fmt::format(
             "Error parsing error frame: {}",
-            folly::exceptionStr(std::current_exception()).toStdString())));
+            folly::exceptionStr(folly::current_exception()).toStdString())));
   }
 
   folly::Optional<std::string> exCode;
@@ -295,7 +291,7 @@ FOLLY_NODISCARD folly::exception_wrapper processFirstResponse(
               } catch (...) {
                 return TApplicationException(
                     "anyException deserialization failure: " +
-                    folly::exceptionStr(std::current_exception())
+                    folly::exceptionStr(folly::current_exception())
                         .toStdString());
               }
               if (*anyException.protocol_ref() == type::kNoProtocol) {
@@ -387,7 +383,9 @@ class FirstRequestProcessorStream : public StreamClientCallback,
       FirstResponsePayload&& firstResponse,
       folly::EventBase* evb,
       StreamServerCallback* serverCallback) override {
-    SCOPE_EXIT { delete this; };
+    SCOPE_EXIT {
+      delete this;
+    };
     DCHECK_EQ(evb, evb_);
     LegacyResponseSerializationHandler handler(protocolId_, methodName_.view());
     if (auto error = processFirstResponse(
@@ -404,7 +402,9 @@ class FirstRequestProcessorStream : public StreamClientCallback,
         std::move(firstResponse), evb, serverCallback);
   }
   void onFirstResponseError(folly::exception_wrapper ew) override {
-    SCOPE_EXIT { delete this; };
+    SCOPE_EXIT {
+      delete this;
+    };
     ew.handle(
         [&](rocket::RocketException& ex) {
           LegacyResponseSerializationHandler handler(
@@ -460,7 +460,9 @@ class FirstRequestProcessorSink : public SinkClientCallback,
       FirstResponsePayload&& firstResponse,
       folly::EventBase* evb,
       SinkServerCallback* serverCallback) override {
-    SCOPE_EXIT { delete this; };
+    SCOPE_EXIT {
+      delete this;
+    };
     LegacyResponseSerializationHandler handler(protocolId_, methodName_.view());
     if (auto error = processFirstResponse(
             protocolId_,
@@ -479,7 +481,9 @@ class FirstRequestProcessorSink : public SinkClientCallback,
         std::move(firstResponse), evb, serverCallback);
   }
   void onFirstResponseError(folly::exception_wrapper ew) override {
-    SCOPE_EXIT { delete this; };
+    SCOPE_EXIT {
+      delete this;
+    };
     ew.handle(
         [&](rocket::RocketException& ex) {
           LegacyResponseSerializationHandler handler(
@@ -585,7 +589,7 @@ class RocketClientChannel::SingleRequestSingleResponseCallback final
       folly::Try<rocket::Payload>&& payload) noexcept override {
     folly::Try<FirstResponsePayload> response;
     folly::Try<folly::SocketFds> tryFds;
-    RpcSizeStats stats;
+    RpcTransportStats stats;
     stats.requestSerializedSizeBytes = requestSerializedSize_;
     stats.requestWireSizeBytes = requestWireSize_;
     stats.requestMetadataAndPayloadSizeBytes = requestMetadataAndPayloadSize_;
@@ -653,7 +657,15 @@ class RocketClientChannel::SingleRequestSingleResponseCallback final
     if (tryFds.hasValue()) {
       tHeader->fds = std::move(tryFds->dcheckReceivedOrEmpty());
     }
-
+    if (THRIFT_FLAG(rocket_client_enable_bidirectional_propagation)) {
+      auto otherMetadata = response->metadata.otherMetadata_ref();
+      if (!otherMetadata ||
+          !detail::ingestFrameworkMetadataOnResponseHeader(*otherMetadata)) {
+        if (auto tfmr = response->metadata.frameworkMetadata_ref()) {
+          detail::ingestFrameworkMetadataOnResponse(std::move(*tfmr));
+        }
+      }
+    }
     apache::thrift::detail::fillTHeaderFromResponseRpcMetadata(
         response->metadata, *tHeader);
     cb_.release()->onResponse(ClientReceiveState(

@@ -22,10 +22,17 @@ struct readonly;
 struct idempotent;
 struct floatSet;
 struct no_hack_codegen_field;
+struct I32List;
+struct StringSet;
+struct StringToI64Map;
 struct myEnum;
 struct myStruct;
 struct myDataItem;
 struct floatSet;
+struct MyIntField;
+struct MyStringField;
+struct myStruct;
+struct myUnion;
 struct reserved_field;
 struct reserved_field;
 } // namespace ident
@@ -66,6 +73,18 @@ APACHE_THRIFT_DEFINE_ACCESSOR(floatSet);
 #define APACHE_THRIFT_ACCESSOR_no_hack_codegen_field
 APACHE_THRIFT_DEFINE_ACCESSOR(no_hack_codegen_field);
 #endif
+#ifndef APACHE_THRIFT_ACCESSOR_I32List
+#define APACHE_THRIFT_ACCESSOR_I32List
+APACHE_THRIFT_DEFINE_ACCESSOR(I32List);
+#endif
+#ifndef APACHE_THRIFT_ACCESSOR_StringSet
+#define APACHE_THRIFT_ACCESSOR_StringSet
+APACHE_THRIFT_DEFINE_ACCESSOR(StringSet);
+#endif
+#ifndef APACHE_THRIFT_ACCESSOR_StringToI64Map
+#define APACHE_THRIFT_ACCESSOR_StringToI64Map
+APACHE_THRIFT_DEFINE_ACCESSOR(StringToI64Map);
+#endif
 #ifndef APACHE_THRIFT_ACCESSOR_myEnum
 #define APACHE_THRIFT_ACCESSOR_myEnum
 APACHE_THRIFT_DEFINE_ACCESSOR(myEnum);
@@ -82,6 +101,22 @@ APACHE_THRIFT_DEFINE_ACCESSOR(myDataItem);
 #define APACHE_THRIFT_ACCESSOR_floatSet
 APACHE_THRIFT_DEFINE_ACCESSOR(floatSet);
 #endif
+#ifndef APACHE_THRIFT_ACCESSOR_MyIntField
+#define APACHE_THRIFT_ACCESSOR_MyIntField
+APACHE_THRIFT_DEFINE_ACCESSOR(MyIntField);
+#endif
+#ifndef APACHE_THRIFT_ACCESSOR_MyStringField
+#define APACHE_THRIFT_ACCESSOR_MyStringField
+APACHE_THRIFT_DEFINE_ACCESSOR(MyStringField);
+#endif
+#ifndef APACHE_THRIFT_ACCESSOR_myStruct
+#define APACHE_THRIFT_ACCESSOR_myStruct
+APACHE_THRIFT_DEFINE_ACCESSOR(myStruct);
+#endif
+#ifndef APACHE_THRIFT_ACCESSOR_myUnion
+#define APACHE_THRIFT_ACCESSOR_myUnion
+APACHE_THRIFT_DEFINE_ACCESSOR(myUnion);
+#endif
 #ifndef APACHE_THRIFT_ACCESSOR_reserved_field
 #define APACHE_THRIFT_ACCESSOR_reserved_field
 APACHE_THRIFT_DEFINE_ACCESSOR(reserved_field);
@@ -95,7 +130,7 @@ APACHE_THRIFT_DEFINE_ACCESSOR(reserved_field);
 } // namespace apache
 
 // BEGIN declare_enums
-namespace test { namespace fixtures { namespace basic {
+namespace test::fixtures::basic {
 
 enum class MyEnum {
   MyValue1 = 0,
@@ -111,7 +146,7 @@ enum class HackEnum {
 
 
 
-}}} // test::fixtures::basic
+} // namespace test::fixtures::basic
 
 namespace std {
 template<> struct hash<::test::fixtures::basic::MyEnum> :
@@ -172,13 +207,15 @@ template <> struct TEnumTraits<::test::fixtures::basic::HackEnum> {
 
 // END declare_enums
 // BEGIN forward_declare
-namespace test { namespace fixtures { namespace basic {
+namespace test::fixtures::basic {
 class MyStruct;
+class Containers;
 class MyDataItem;
 class MyUnion;
+class MyException;
 class ReservedKeyword;
 class UnionToBeRenamed;
-}}} // test::fixtures::basic
+} // namespace test::fixtures::basic
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -188,12 +225,14 @@ namespace apache::thrift::detail::qualifier {
 
 // BEGIN hash_and_equal_to
 // END hash_and_equal_to
-namespace test { namespace fixtures { namespace basic {
+namespace test::fixtures::basic {
 using ::apache::thrift::detail::operator!=;
 using ::apache::thrift::detail::operator>;
 using ::apache::thrift::detail::operator<=;
 using ::apache::thrift::detail::operator>=;
 
+typedef ::test::fixtures::basic::MyEnum MyEnumAlias;
+typedef ::test::fixtures::basic::MyDataItem MyDataItemAlias;
 
 class MyDataItem final  {
  private:
@@ -238,6 +277,8 @@ class MyDataItem final  {
  public:
   using __fbthrift_cpp2_type = MyDataItem;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -350,6 +391,8 @@ class MyStruct final  {
   using __fbthrift_cpp2_type = MyStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -358,7 +401,7 @@ class MyStruct final  {
 
   // FragileConstructor for use in initialization lists only.
   [[deprecated("This constructor is deprecated")]]
-  MyStruct(apache::thrift::FragileConstructor, ::std::int64_t MyIntField__arg, ::std::string MyStringField__arg, ::test::fixtures::basic::MyDataItem MyDataField__arg, ::test::fixtures::basic::MyEnum myEnum__arg, bool oneway__arg, bool readonly__arg, bool idempotent__arg, ::std::set<float> floatSet__arg, ::std::string no_hack_codegen_field__arg);
+  MyStruct(apache::thrift::FragileConstructor, ::std::int64_t MyIntField__arg, ::std::string MyStringField__arg, ::test::fixtures::basic::MyDataItemAlias MyDataField__arg, ::test::fixtures::basic::MyEnum myEnum__arg, bool oneway__arg, bool readonly__arg, bool idempotent__arg, ::std::set<float> floatSet__arg, ::std::string no_hack_codegen_field__arg);
 
   MyStruct(MyStruct&&) noexcept;
 
@@ -375,7 +418,7 @@ class MyStruct final  {
  private:
   ::std::string __fbthrift_field_MyStringField;
  private:
-  ::test::fixtures::basic::MyDataItem __fbthrift_field_MyDataField;
+  ::test::fixtures::basic::MyDataItemAlias __fbthrift_field_MyDataField;
  private:
   ::test::fixtures::basic::MyEnum __fbthrift_field_myEnum;
  private:
@@ -476,42 +519,42 @@ class MyStruct final  {
     return {static_cast<T&&>(this->__fbthrift_field_MyStringField), __isset.at(1), __isset.bit(1)};
   }
 
-  template <typename..., typename T = ::test::fixtures::basic::MyDataItem>
+  template <typename..., typename T = ::test::fixtures::basic::MyDataItemAlias>
   FOLLY_ERASE ::apache::thrift::field_ref<const T&> MyDataField_ref() const& {
     return {this->__fbthrift_field_MyDataField, __isset.at(2), __isset.bit(2)};
   }
 
-  template <typename..., typename T = ::test::fixtures::basic::MyDataItem>
+  template <typename..., typename T = ::test::fixtures::basic::MyDataItemAlias>
   FOLLY_ERASE ::apache::thrift::field_ref<const T&&> MyDataField_ref() const&& {
     return {static_cast<const T&&>(this->__fbthrift_field_MyDataField), __isset.at(2), __isset.bit(2)};
   }
 
-  template <typename..., typename T = ::test::fixtures::basic::MyDataItem>
+  template <typename..., typename T = ::test::fixtures::basic::MyDataItemAlias>
   FOLLY_ERASE ::apache::thrift::field_ref<T&> MyDataField_ref() & {
     return {this->__fbthrift_field_MyDataField, __isset.at(2), __isset.bit(2)};
   }
 
-  template <typename..., typename T = ::test::fixtures::basic::MyDataItem>
+  template <typename..., typename T = ::test::fixtures::basic::MyDataItemAlias>
   FOLLY_ERASE ::apache::thrift::field_ref<T&&> MyDataField_ref() && {
     return {static_cast<T&&>(this->__fbthrift_field_MyDataField), __isset.at(2), __isset.bit(2)};
   }
 
-  template <typename..., typename T = ::test::fixtures::basic::MyDataItem>
+  template <typename..., typename T = ::test::fixtures::basic::MyDataItemAlias>
   FOLLY_ERASE ::apache::thrift::field_ref<const T&> MyDataField() const& {
     return {this->__fbthrift_field_MyDataField, __isset.at(2), __isset.bit(2)};
   }
 
-  template <typename..., typename T = ::test::fixtures::basic::MyDataItem>
+  template <typename..., typename T = ::test::fixtures::basic::MyDataItemAlias>
   FOLLY_ERASE ::apache::thrift::field_ref<const T&&> MyDataField() const&& {
     return {static_cast<const T&&>(this->__fbthrift_field_MyDataField), __isset.at(2), __isset.bit(2)};
   }
 
-  template <typename..., typename T = ::test::fixtures::basic::MyDataItem>
+  template <typename..., typename T = ::test::fixtures::basic::MyDataItemAlias>
   FOLLY_ERASE ::apache::thrift::field_ref<T&> MyDataField() & {
     return {this->__fbthrift_field_MyDataField, __isset.at(2), __isset.bit(2)};
   }
 
-  template <typename..., typename T = ::test::fixtures::basic::MyDataItem>
+  template <typename..., typename T = ::test::fixtures::basic::MyDataItemAlias>
   FOLLY_ERASE ::apache::thrift::field_ref<T&&> MyDataField() && {
     return {static_cast<T&&>(this->__fbthrift_field_MyDataField), __isset.at(2), __isset.bit(2)};
   }
@@ -780,12 +823,12 @@ class MyStruct final  {
     MyStringField_ref() = std::forward<T_MyStruct_MyStringField_struct_setter>(MyStringField_);
     return __fbthrift_field_MyStringField;
   }
-  const ::test::fixtures::basic::MyDataItem& get_MyDataField() const&;
-  ::test::fixtures::basic::MyDataItem get_MyDataField() &&;
+  const ::test::fixtures::basic::MyDataItemAlias& get_MyDataField() const&;
+  ::test::fixtures::basic::MyDataItemAlias get_MyDataField() &&;
 
-  template <typename T_MyStruct_MyDataField_struct_setter = ::test::fixtures::basic::MyDataItem>
+  template <typename T_MyStruct_MyDataField_struct_setter = ::test::fixtures::basic::MyDataItemAlias>
   [[deprecated("Use `FOO.MyDataField_ref() = BAR;` instead of `FOO.set_MyDataField(BAR);`")]]
-  ::test::fixtures::basic::MyDataItem& set_MyDataField(T_MyStruct_MyDataField_struct_setter&& MyDataField_) {
+  ::test::fixtures::basic::MyDataItemAlias& set_MyDataField(T_MyStruct_MyDataField_struct_setter&& MyDataField_) {
     MyDataField_ref() = std::forward<T_MyStruct_MyDataField_struct_setter>(MyDataField_);
     return __fbthrift_field_MyDataField;
   }
@@ -879,6 +922,264 @@ unsigned long MyStruct::read(Protocol_* iprot) {
 }
 
 
+class Containers final  {
+ private:
+  friend struct ::apache::thrift::detail::st::struct_private_access;
+  template<class> friend struct ::apache::thrift::detail::invoke_reffer;
+
+  //  used by a static_assert in the corresponding source
+  static constexpr bool __fbthrift_cpp2_gen_json = false;
+  static constexpr bool __fbthrift_cpp2_is_runtime_annotation = false;
+  static const char* __fbthrift_thrift_uri();
+  static std::string_view __fbthrift_get_field_name(::apache::thrift::FieldOrdinal ord);
+  static std::string_view __fbthrift_get_class_name();
+  using __fbthrift_reflection_ident_list = folly::tag_t<
+    ::apache::thrift::ident::I32List,
+    ::apache::thrift::ident::StringSet,
+    ::apache::thrift::ident::StringToI64Map
+  >;
+
+  static constexpr std::int16_t __fbthrift_reflection_field_id_list[] = {0,1,2,3};
+  using __fbthrift_reflection_type_tags = folly::tag_t<
+    ::apache::thrift::type::list<::apache::thrift::type::i32_t>,
+    ::apache::thrift::type::set<::apache::thrift::type::string_t>,
+    ::apache::thrift::type::map<::apache::thrift::type::string_t, ::apache::thrift::type::i64_t>
+  >;
+
+  static constexpr std::size_t __fbthrift_field_size_v = 3;
+
+  template<class T>
+  using __fbthrift_id = ::apache::thrift::type::field_id<__fbthrift_reflection_field_id_list[folly::to_underlying(T::value)]>;
+
+  template<class T>
+  using __fbthrift_type_tag = ::apache::thrift::detail::at<__fbthrift_reflection_type_tags, T::value>;
+
+  template<class T>
+  using __fbthrift_ident = ::apache::thrift::detail::at<__fbthrift_reflection_ident_list, T::value>;
+
+  template<class T> using __fbthrift_ordinal = ::apache::thrift::type::ordinal_tag<
+    ::apache::thrift::detail::getFieldOrdinal<T,
+                                              __fbthrift_reflection_ident_list,
+                                              __fbthrift_reflection_type_tags>(
+      __fbthrift_reflection_field_id_list
+    )
+  >;
+  void __fbthrift_clear();
+  void __fbthrift_clear_terse_fields();
+  bool __fbthrift_is_empty() const;
+
+ public:
+  using __fbthrift_cpp2_type = Containers;
+  static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
+
+
+ public:
+
+  Containers();
+
+  // FragileConstructor for use in initialization lists only.
+  [[deprecated("This constructor is deprecated")]]
+  Containers(apache::thrift::FragileConstructor, ::std::vector<::std::int32_t> I32List__arg, ::std::set<::std::string> StringSet__arg, ::std::map<::std::string, ::std::int64_t> StringToI64Map__arg);
+
+  Containers(Containers&&) noexcept;
+
+  Containers(const Containers& src);
+
+
+  Containers& operator=(Containers&&) noexcept;
+  Containers& operator=(const Containers& src);
+
+  ~Containers();
+
+ private:
+  ::std::vector<::std::int32_t> __fbthrift_field_I32List;
+ private:
+  ::std::set<::std::string> __fbthrift_field_StringSet;
+ private:
+  ::std::map<::std::string, ::std::int64_t> __fbthrift_field_StringToI64Map;
+ private:
+  apache::thrift::detail::isset_bitset<3, apache::thrift::detail::IssetBitsetOption::Unpacked> __isset;
+
+ public:
+
+  bool operator==(const Containers&) const;
+  bool operator<(const Containers&) const;
+
+  template <typename..., typename T = ::std::vector<::std::int32_t>>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&> I32List_ref() const& {
+    return {this->__fbthrift_field_I32List, __isset.at(0), __isset.bit(0)};
+  }
+
+  template <typename..., typename T = ::std::vector<::std::int32_t>>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&&> I32List_ref() const&& {
+    return {static_cast<const T&&>(this->__fbthrift_field_I32List), __isset.at(0), __isset.bit(0)};
+  }
+
+  template <typename..., typename T = ::std::vector<::std::int32_t>>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&> I32List_ref() & {
+    return {this->__fbthrift_field_I32List, __isset.at(0), __isset.bit(0)};
+  }
+
+  template <typename..., typename T = ::std::vector<::std::int32_t>>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&&> I32List_ref() && {
+    return {static_cast<T&&>(this->__fbthrift_field_I32List), __isset.at(0), __isset.bit(0)};
+  }
+
+  template <typename..., typename T = ::std::vector<::std::int32_t>>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&> I32List() const& {
+    return {this->__fbthrift_field_I32List, __isset.at(0), __isset.bit(0)};
+  }
+
+  template <typename..., typename T = ::std::vector<::std::int32_t>>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&&> I32List() const&& {
+    return {static_cast<const T&&>(this->__fbthrift_field_I32List), __isset.at(0), __isset.bit(0)};
+  }
+
+  template <typename..., typename T = ::std::vector<::std::int32_t>>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&> I32List() & {
+    return {this->__fbthrift_field_I32List, __isset.at(0), __isset.bit(0)};
+  }
+
+  template <typename..., typename T = ::std::vector<::std::int32_t>>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&&> I32List() && {
+    return {static_cast<T&&>(this->__fbthrift_field_I32List), __isset.at(0), __isset.bit(0)};
+  }
+
+  template <typename..., typename T = ::std::set<::std::string>>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&> StringSet_ref() const& {
+    return {this->__fbthrift_field_StringSet, __isset.at(1), __isset.bit(1)};
+  }
+
+  template <typename..., typename T = ::std::set<::std::string>>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&&> StringSet_ref() const&& {
+    return {static_cast<const T&&>(this->__fbthrift_field_StringSet), __isset.at(1), __isset.bit(1)};
+  }
+
+  template <typename..., typename T = ::std::set<::std::string>>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&> StringSet_ref() & {
+    return {this->__fbthrift_field_StringSet, __isset.at(1), __isset.bit(1)};
+  }
+
+  template <typename..., typename T = ::std::set<::std::string>>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&&> StringSet_ref() && {
+    return {static_cast<T&&>(this->__fbthrift_field_StringSet), __isset.at(1), __isset.bit(1)};
+  }
+
+  template <typename..., typename T = ::std::set<::std::string>>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&> StringSet() const& {
+    return {this->__fbthrift_field_StringSet, __isset.at(1), __isset.bit(1)};
+  }
+
+  template <typename..., typename T = ::std::set<::std::string>>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&&> StringSet() const&& {
+    return {static_cast<const T&&>(this->__fbthrift_field_StringSet), __isset.at(1), __isset.bit(1)};
+  }
+
+  template <typename..., typename T = ::std::set<::std::string>>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&> StringSet() & {
+    return {this->__fbthrift_field_StringSet, __isset.at(1), __isset.bit(1)};
+  }
+
+  template <typename..., typename T = ::std::set<::std::string>>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&&> StringSet() && {
+    return {static_cast<T&&>(this->__fbthrift_field_StringSet), __isset.at(1), __isset.bit(1)};
+  }
+
+  template <typename..., typename T = ::std::map<::std::string, ::std::int64_t>>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&> StringToI64Map_ref() const& {
+    return {this->__fbthrift_field_StringToI64Map, __isset.at(2), __isset.bit(2)};
+  }
+
+  template <typename..., typename T = ::std::map<::std::string, ::std::int64_t>>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&&> StringToI64Map_ref() const&& {
+    return {static_cast<const T&&>(this->__fbthrift_field_StringToI64Map), __isset.at(2), __isset.bit(2)};
+  }
+
+  template <typename..., typename T = ::std::map<::std::string, ::std::int64_t>>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&> StringToI64Map_ref() & {
+    return {this->__fbthrift_field_StringToI64Map, __isset.at(2), __isset.bit(2)};
+  }
+
+  template <typename..., typename T = ::std::map<::std::string, ::std::int64_t>>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&&> StringToI64Map_ref() && {
+    return {static_cast<T&&>(this->__fbthrift_field_StringToI64Map), __isset.at(2), __isset.bit(2)};
+  }
+
+  template <typename..., typename T = ::std::map<::std::string, ::std::int64_t>>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&> StringToI64Map() const& {
+    return {this->__fbthrift_field_StringToI64Map, __isset.at(2), __isset.bit(2)};
+  }
+
+  template <typename..., typename T = ::std::map<::std::string, ::std::int64_t>>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&&> StringToI64Map() const&& {
+    return {static_cast<const T&&>(this->__fbthrift_field_StringToI64Map), __isset.at(2), __isset.bit(2)};
+  }
+
+  template <typename..., typename T = ::std::map<::std::string, ::std::int64_t>>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&> StringToI64Map() & {
+    return {this->__fbthrift_field_StringToI64Map, __isset.at(2), __isset.bit(2)};
+  }
+
+  template <typename..., typename T = ::std::map<::std::string, ::std::int64_t>>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&&> StringToI64Map() && {
+    return {static_cast<T&&>(this->__fbthrift_field_StringToI64Map), __isset.at(2), __isset.bit(2)};
+  }
+  const ::std::vector<::std::int32_t>& get_I32List() const&;
+  ::std::vector<::std::int32_t> get_I32List() &&;
+
+  template <typename T_Containers_I32List_struct_setter = ::std::vector<::std::int32_t>>
+  [[deprecated("Use `FOO.I32List_ref() = BAR;` instead of `FOO.set_I32List(BAR);`")]]
+  ::std::vector<::std::int32_t>& set_I32List(T_Containers_I32List_struct_setter&& I32List_) {
+    I32List_ref() = std::forward<T_Containers_I32List_struct_setter>(I32List_);
+    return __fbthrift_field_I32List;
+  }
+  const ::std::set<::std::string>& get_StringSet() const&;
+  ::std::set<::std::string> get_StringSet() &&;
+
+  template <typename T_Containers_StringSet_struct_setter = ::std::set<::std::string>>
+  [[deprecated("Use `FOO.StringSet_ref() = BAR;` instead of `FOO.set_StringSet(BAR);`")]]
+  ::std::set<::std::string>& set_StringSet(T_Containers_StringSet_struct_setter&& StringSet_) {
+    StringSet_ref() = std::forward<T_Containers_StringSet_struct_setter>(StringSet_);
+    return __fbthrift_field_StringSet;
+  }
+  const ::std::map<::std::string, ::std::int64_t>& get_StringToI64Map() const&;
+  ::std::map<::std::string, ::std::int64_t> get_StringToI64Map() &&;
+
+  template <typename T_Containers_StringToI64Map_struct_setter = ::std::map<::std::string, ::std::int64_t>>
+  [[deprecated("Use `FOO.StringToI64Map_ref() = BAR;` instead of `FOO.set_StringToI64Map(BAR);`")]]
+  ::std::map<::std::string, ::std::int64_t>& set_StringToI64Map(T_Containers_StringToI64Map_struct_setter&& StringToI64Map_) {
+    StringToI64Map_ref() = std::forward<T_Containers_StringToI64Map_struct_setter>(StringToI64Map_);
+    return __fbthrift_field_StringToI64Map;
+  }
+
+  template <class Protocol_>
+  unsigned long read(Protocol_* iprot);
+  template <class Protocol_>
+  uint32_t serializedSize(Protocol_ const* prot_) const;
+  template <class Protocol_>
+  uint32_t serializedSizeZC(Protocol_ const* prot_) const;
+  template <class Protocol_>
+  uint32_t write(Protocol_* prot_) const;
+
+ private:
+  template <class Protocol_>
+  void readNoXfer(Protocol_* iprot);
+
+  friend class ::apache::thrift::Cpp2Ops<Containers>;
+  friend void swap(Containers& a, Containers& b);
+};
+
+template <class Protocol_>
+unsigned long Containers::read(Protocol_* iprot) {
+  auto _xferStart = iprot->getCursorPosition();
+  readNoXfer(iprot);
+  return iprot->getCursorPosition() - _xferStart;
+}
+
+
 class MyUnion final  {
  private:
   friend struct ::apache::thrift::detail::st::struct_private_access;
@@ -931,6 +1232,8 @@ class MyUnion final  {
   using __fbthrift_cpp2_type = MyUnion;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1027,7 +1330,7 @@ class MyUnion final  {
   ~MyUnion();
 
   union storage_type {
-    ::test::fixtures::basic::MyEnum myEnum;
+    ::test::fixtures::basic::MyEnumAlias myEnum;
     ::test::fixtures::basic::MyStruct myStruct;
     ::test::fixtures::basic::MyDataItem myDataItem;
     ::std::set<float> floatSet;
@@ -1040,8 +1343,8 @@ class MyUnion final  {
   bool operator<(const MyUnion&) const;
 
   template <typename... A, std::enable_if_t<!sizeof...(A), int> = 0>
-  ::test::fixtures::basic::MyEnum& set_myEnum(::test::fixtures::basic::MyEnum t = ::test::fixtures::basic::MyEnum()) {
-    using T0 = ::test::fixtures::basic::MyEnum;
+  ::test::fixtures::basic::MyEnumAlias& set_myEnum(::test::fixtures::basic::MyEnumAlias t = ::test::fixtures::basic::MyEnumAlias()) {
+    using T0 = ::test::fixtures::basic::MyEnumAlias;
     using T = folly::type_t<T0, A...>;
     __fbthrift_clear();
     type_ = folly::to_underlying(Type::myEnum);
@@ -1131,7 +1434,7 @@ class MyUnion final  {
     return value_.floatSet;
   }
 
-  ::test::fixtures::basic::MyEnum const& get_myEnum() const {
+  ::test::fixtures::basic::MyEnumAlias const& get_myEnum() const {
     if (getType() != Type::myEnum) {
       ::apache::thrift::detail::throw_on_bad_union_field_access();
     }
@@ -1159,7 +1462,7 @@ class MyUnion final  {
     return value_.floatSet;
   }
 
-  ::test::fixtures::basic::MyEnum& mutable_myEnum() {
+  ::test::fixtures::basic::MyEnumAlias& mutable_myEnum() {
     assert(getType() == Type::myEnum);
     return value_.myEnum;
   }
@@ -1179,7 +1482,7 @@ class MyUnion final  {
     return value_.floatSet;
   }
 
-  ::test::fixtures::basic::MyEnum move_myEnum() {
+  ::test::fixtures::basic::MyEnumAlias move_myEnum() {
     assert(getType() == Type::myEnum);
     return std::move(value_.myEnum);
   }
@@ -1199,22 +1502,22 @@ class MyUnion final  {
     return std::move(value_.floatSet);
   }
 
-  template <typename..., typename T = ::test::fixtures::basic::MyEnum>
+  template <typename..., typename T = ::test::fixtures::basic::MyEnumAlias>
   FOLLY_ERASE ::apache::thrift::union_field_ref<const T&> myEnum_ref() const& {
     return {value_.myEnum, type_, folly::to_underlying(Type::myEnum), this, ::apache::thrift::detail::union_field_ref_owner_vtable_for<decltype(*this)>};
   }
 
-  template <typename..., typename T = ::test::fixtures::basic::MyEnum>
+  template <typename..., typename T = ::test::fixtures::basic::MyEnumAlias>
   FOLLY_ERASE ::apache::thrift::union_field_ref<const T&&> myEnum_ref() const&& {
     return {std::move(value_.myEnum), type_, folly::to_underlying(Type::myEnum), this, ::apache::thrift::detail::union_field_ref_owner_vtable_for<decltype(*this)>};
   }
 
-  template <typename..., typename T = ::test::fixtures::basic::MyEnum>
+  template <typename..., typename T = ::test::fixtures::basic::MyEnumAlias>
   FOLLY_ERASE ::apache::thrift::union_field_ref<T&> myEnum_ref() & {
     return {value_.myEnum, type_, folly::to_underlying(Type::myEnum), this, ::apache::thrift::detail::union_field_ref_owner_vtable_for<decltype(*this)>};
   }
 
-  template <typename..., typename T = ::test::fixtures::basic::MyEnum>
+  template <typename..., typename T = ::test::fixtures::basic::MyEnumAlias>
   FOLLY_ERASE ::apache::thrift::union_field_ref<T&&> myEnum_ref() && {
     return {std::move(value_.myEnum), type_, folly::to_underlying(Type::myEnum), this, ::apache::thrift::detail::union_field_ref_owner_vtable_for<decltype(*this)>};
   }
@@ -1305,6 +1608,334 @@ unsigned long MyUnion::read(Protocol_* iprot) {
 }
 
 
+class FOLLY_EXPORT MyException : public virtual apache::thrift::TException {
+ private:
+  friend struct ::apache::thrift::detail::st::struct_private_access;
+  template<class> friend struct ::apache::thrift::detail::invoke_reffer;
+
+  //  used by a static_assert in the corresponding source
+  static constexpr bool __fbthrift_cpp2_gen_json = false;
+  static constexpr bool __fbthrift_cpp2_is_runtime_annotation = false;
+  static const char* __fbthrift_thrift_uri();
+  static std::string_view __fbthrift_get_field_name(::apache::thrift::FieldOrdinal ord);
+  static std::string_view __fbthrift_get_class_name();
+  using __fbthrift_reflection_ident_list = folly::tag_t<
+    ::apache::thrift::ident::MyIntField,
+    ::apache::thrift::ident::MyStringField,
+    ::apache::thrift::ident::myStruct,
+    ::apache::thrift::ident::myUnion
+  >;
+
+  static constexpr std::int16_t __fbthrift_reflection_field_id_list[] = {0,1,2,3,4};
+  using __fbthrift_reflection_type_tags = folly::tag_t<
+    ::apache::thrift::type::i64_t,
+    ::apache::thrift::type::string_t,
+    ::apache::thrift::type::struct_t<::test::fixtures::basic::MyStruct>,
+    ::apache::thrift::type::union_t<::test::fixtures::basic::MyUnion>
+  >;
+
+  static constexpr std::size_t __fbthrift_field_size_v = 4;
+
+  template<class T>
+  using __fbthrift_id = ::apache::thrift::type::field_id<__fbthrift_reflection_field_id_list[folly::to_underlying(T::value)]>;
+
+  template<class T>
+  using __fbthrift_type_tag = ::apache::thrift::detail::at<__fbthrift_reflection_type_tags, T::value>;
+
+  template<class T>
+  using __fbthrift_ident = ::apache::thrift::detail::at<__fbthrift_reflection_ident_list, T::value>;
+
+  template<class T> using __fbthrift_ordinal = ::apache::thrift::type::ordinal_tag<
+    ::apache::thrift::detail::getFieldOrdinal<T,
+                                              __fbthrift_reflection_ident_list,
+                                              __fbthrift_reflection_type_tags>(
+      __fbthrift_reflection_field_id_list
+    )
+  >;
+  void __fbthrift_clear();
+  void __fbthrift_clear_terse_fields();
+  bool __fbthrift_is_empty() const;
+  static constexpr ::apache::thrift::ExceptionKind __fbthrift_cpp2_gen_exception_kind =
+         ::apache::thrift::ExceptionKind::UNSPECIFIED;
+  static constexpr ::apache::thrift::ExceptionSafety __fbthrift_cpp2_gen_exception_safety =
+         ::apache::thrift::ExceptionSafety::UNSPECIFIED;
+  static constexpr ::apache::thrift::ExceptionBlame __fbthrift_cpp2_gen_exception_blame =
+         ::apache::thrift::ExceptionBlame::UNSPECIFIED;
+
+ public:
+  using __fbthrift_cpp2_type = MyException;
+  static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
+
+
+ public:
+
+  MyException();
+
+  // FragileConstructor for use in initialization lists only.
+  [[deprecated("This constructor is deprecated")]]
+  MyException(apache::thrift::FragileConstructor, ::std::int64_t MyIntField__arg, ::std::string MyStringField__arg, ::test::fixtures::basic::MyStruct myStruct__arg, ::test::fixtures::basic::MyUnion myUnion__arg);
+
+  MyException(MyException&&) noexcept;
+
+  MyException(const MyException& src);
+
+
+  MyException& operator=(MyException&&) noexcept;
+  MyException& operator=(const MyException& src);
+
+  ~MyException() override;
+
+ private:
+  ::std::int64_t __fbthrift_field_MyIntField;
+ private:
+  ::std::string __fbthrift_field_MyStringField;
+ private:
+  ::test::fixtures::basic::MyStruct __fbthrift_field_myStruct;
+ private:
+  ::test::fixtures::basic::MyUnion __fbthrift_field_myUnion;
+ private:
+  apache::thrift::detail::isset_bitset<4, apache::thrift::detail::IssetBitsetOption::Unpacked> __isset;
+
+ public:
+
+  bool operator==(const MyException&) const;
+  bool operator<(const MyException&) const;
+
+  template <typename..., typename T = ::std::int64_t>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&> MyIntField_ref() const& {
+    return {this->__fbthrift_field_MyIntField, __isset.at(0), __isset.bit(0)};
+  }
+
+  template <typename..., typename T = ::std::int64_t>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&&> MyIntField_ref() const&& {
+    return {static_cast<const T&&>(this->__fbthrift_field_MyIntField), __isset.at(0), __isset.bit(0)};
+  }
+
+  template <typename..., typename T = ::std::int64_t>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&> MyIntField_ref() & {
+    return {this->__fbthrift_field_MyIntField, __isset.at(0), __isset.bit(0)};
+  }
+
+  template <typename..., typename T = ::std::int64_t>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&&> MyIntField_ref() && {
+    return {static_cast<T&&>(this->__fbthrift_field_MyIntField), __isset.at(0), __isset.bit(0)};
+  }
+
+  template <typename..., typename T = ::std::int64_t>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&> MyIntField() const& {
+    return {this->__fbthrift_field_MyIntField, __isset.at(0), __isset.bit(0)};
+  }
+
+  template <typename..., typename T = ::std::int64_t>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&&> MyIntField() const&& {
+    return {static_cast<const T&&>(this->__fbthrift_field_MyIntField), __isset.at(0), __isset.bit(0)};
+  }
+
+  template <typename..., typename T = ::std::int64_t>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&> MyIntField() & {
+    return {this->__fbthrift_field_MyIntField, __isset.at(0), __isset.bit(0)};
+  }
+
+  template <typename..., typename T = ::std::int64_t>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&&> MyIntField() && {
+    return {static_cast<T&&>(this->__fbthrift_field_MyIntField), __isset.at(0), __isset.bit(0)};
+  }
+
+  template <typename..., typename T = ::std::string>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&> MyStringField_ref() const& {
+    return {this->__fbthrift_field_MyStringField, __isset.at(1), __isset.bit(1)};
+  }
+
+  template <typename..., typename T = ::std::string>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&&> MyStringField_ref() const&& {
+    return {static_cast<const T&&>(this->__fbthrift_field_MyStringField), __isset.at(1), __isset.bit(1)};
+  }
+
+  template <typename..., typename T = ::std::string>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&> MyStringField_ref() & {
+    return {this->__fbthrift_field_MyStringField, __isset.at(1), __isset.bit(1)};
+  }
+
+  template <typename..., typename T = ::std::string>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&&> MyStringField_ref() && {
+    return {static_cast<T&&>(this->__fbthrift_field_MyStringField), __isset.at(1), __isset.bit(1)};
+  }
+
+  template <typename..., typename T = ::std::string>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&> MyStringField() const& {
+    return {this->__fbthrift_field_MyStringField, __isset.at(1), __isset.bit(1)};
+  }
+
+  template <typename..., typename T = ::std::string>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&&> MyStringField() const&& {
+    return {static_cast<const T&&>(this->__fbthrift_field_MyStringField), __isset.at(1), __isset.bit(1)};
+  }
+
+  template <typename..., typename T = ::std::string>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&> MyStringField() & {
+    return {this->__fbthrift_field_MyStringField, __isset.at(1), __isset.bit(1)};
+  }
+
+  template <typename..., typename T = ::std::string>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&&> MyStringField() && {
+    return {static_cast<T&&>(this->__fbthrift_field_MyStringField), __isset.at(1), __isset.bit(1)};
+  }
+
+  template <typename..., typename T = ::test::fixtures::basic::MyStruct>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&> myStruct_ref() const& {
+    return {this->__fbthrift_field_myStruct, __isset.at(2), __isset.bit(2)};
+  }
+
+  template <typename..., typename T = ::test::fixtures::basic::MyStruct>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&&> myStruct_ref() const&& {
+    return {static_cast<const T&&>(this->__fbthrift_field_myStruct), __isset.at(2), __isset.bit(2)};
+  }
+
+  template <typename..., typename T = ::test::fixtures::basic::MyStruct>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&> myStruct_ref() & {
+    return {this->__fbthrift_field_myStruct, __isset.at(2), __isset.bit(2)};
+  }
+
+  template <typename..., typename T = ::test::fixtures::basic::MyStruct>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&&> myStruct_ref() && {
+    return {static_cast<T&&>(this->__fbthrift_field_myStruct), __isset.at(2), __isset.bit(2)};
+  }
+
+  template <typename..., typename T = ::test::fixtures::basic::MyStruct>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&> myStruct() const& {
+    return {this->__fbthrift_field_myStruct, __isset.at(2), __isset.bit(2)};
+  }
+
+  template <typename..., typename T = ::test::fixtures::basic::MyStruct>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&&> myStruct() const&& {
+    return {static_cast<const T&&>(this->__fbthrift_field_myStruct), __isset.at(2), __isset.bit(2)};
+  }
+
+  template <typename..., typename T = ::test::fixtures::basic::MyStruct>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&> myStruct() & {
+    return {this->__fbthrift_field_myStruct, __isset.at(2), __isset.bit(2)};
+  }
+
+  template <typename..., typename T = ::test::fixtures::basic::MyStruct>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&&> myStruct() && {
+    return {static_cast<T&&>(this->__fbthrift_field_myStruct), __isset.at(2), __isset.bit(2)};
+  }
+
+  template <typename..., typename T = ::test::fixtures::basic::MyUnion>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&> myUnion_ref() const& {
+    return {this->__fbthrift_field_myUnion, __isset.at(3), __isset.bit(3)};
+  }
+
+  template <typename..., typename T = ::test::fixtures::basic::MyUnion>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&&> myUnion_ref() const&& {
+    return {static_cast<const T&&>(this->__fbthrift_field_myUnion), __isset.at(3), __isset.bit(3)};
+  }
+
+  template <typename..., typename T = ::test::fixtures::basic::MyUnion>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&> myUnion_ref() & {
+    return {this->__fbthrift_field_myUnion, __isset.at(3), __isset.bit(3)};
+  }
+
+  template <typename..., typename T = ::test::fixtures::basic::MyUnion>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&&> myUnion_ref() && {
+    return {static_cast<T&&>(this->__fbthrift_field_myUnion), __isset.at(3), __isset.bit(3)};
+  }
+
+  template <typename..., typename T = ::test::fixtures::basic::MyUnion>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&> myUnion() const& {
+    return {this->__fbthrift_field_myUnion, __isset.at(3), __isset.bit(3)};
+  }
+
+  template <typename..., typename T = ::test::fixtures::basic::MyUnion>
+  FOLLY_ERASE ::apache::thrift::field_ref<const T&&> myUnion() const&& {
+    return {static_cast<const T&&>(this->__fbthrift_field_myUnion), __isset.at(3), __isset.bit(3)};
+  }
+
+  template <typename..., typename T = ::test::fixtures::basic::MyUnion>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&> myUnion() & {
+    return {this->__fbthrift_field_myUnion, __isset.at(3), __isset.bit(3)};
+  }
+
+  template <typename..., typename T = ::test::fixtures::basic::MyUnion>
+  FOLLY_ERASE ::apache::thrift::field_ref<T&&> myUnion() && {
+    return {static_cast<T&&>(this->__fbthrift_field_myUnion), __isset.at(3), __isset.bit(3)};
+  }
+
+  ::std::int64_t get_MyIntField() const {
+    return __fbthrift_field_MyIntField;
+  }
+
+  [[deprecated("Use `FOO.MyIntField_ref() = BAR;` instead of `FOO.set_MyIntField(BAR);`")]]
+  ::std::int64_t& set_MyIntField(::std::int64_t MyIntField_) {
+    MyIntField_ref() = MyIntField_;
+    return __fbthrift_field_MyIntField;
+  }
+
+  const ::std::string& get_MyStringField() const& {
+    return __fbthrift_field_MyStringField;
+  }
+
+  ::std::string get_MyStringField() && {
+    return std::move(__fbthrift_field_MyStringField);
+  }
+
+  template <typename T_MyException_MyStringField_struct_setter = ::std::string>
+  [[deprecated("Use `FOO.MyStringField_ref() = BAR;` instead of `FOO.set_MyStringField(BAR);`")]]
+  ::std::string& set_MyStringField(T_MyException_MyStringField_struct_setter&& MyStringField_) {
+    MyStringField_ref() = std::forward<T_MyException_MyStringField_struct_setter>(MyStringField_);
+    return __fbthrift_field_MyStringField;
+  }
+  const ::test::fixtures::basic::MyStruct& get_myStruct() const&;
+  ::test::fixtures::basic::MyStruct get_myStruct() &&;
+
+  template <typename T_MyException_myStruct_struct_setter = ::test::fixtures::basic::MyStruct>
+  [[deprecated("Use `FOO.myStruct_ref() = BAR;` instead of `FOO.set_myStruct(BAR);`")]]
+  ::test::fixtures::basic::MyStruct& set_myStruct(T_MyException_myStruct_struct_setter&& myStruct_) {
+    myStruct_ref() = std::forward<T_MyException_myStruct_struct_setter>(myStruct_);
+    return __fbthrift_field_myStruct;
+  }
+  const ::test::fixtures::basic::MyUnion& get_myUnion() const&;
+  ::test::fixtures::basic::MyUnion get_myUnion() &&;
+
+  template <typename T_MyException_myUnion_struct_setter = ::test::fixtures::basic::MyUnion>
+  [[deprecated("Use `FOO.myUnion_ref() = BAR;` instead of `FOO.set_myUnion(BAR);`")]]
+  ::test::fixtures::basic::MyUnion& set_myUnion(T_MyException_myUnion_struct_setter&& myUnion_) {
+    myUnion_ref() = std::forward<T_MyException_myUnion_struct_setter>(myUnion_);
+    return __fbthrift_field_myUnion;
+  }
+
+  template <class Protocol_>
+  unsigned long read(Protocol_* iprot);
+  template <class Protocol_>
+  uint32_t serializedSize(Protocol_ const* prot_) const;
+  template <class Protocol_>
+  uint32_t serializedSizeZC(Protocol_ const* prot_) const;
+  template <class Protocol_>
+  uint32_t write(Protocol_* prot_) const;
+
+  const char* what() const noexcept override {
+    return "::test::fixtures::basic::MyException";
+  }
+
+ private:
+  template <class Protocol_>
+  void readNoXfer(Protocol_* iprot);
+
+  friend class ::apache::thrift::Cpp2Ops<MyException>;
+  friend void swap(MyException& a, MyException& b);
+};
+
+template <class Protocol_>
+unsigned long MyException::read(Protocol_* iprot) {
+  auto _xferStart = iprot->getCursorPosition();
+  readNoXfer(iprot);
+  return iprot->getCursorPosition() - _xferStart;
+}
+
+
 class ReservedKeyword final  {
  private:
   friend struct ::apache::thrift::detail::st::struct_private_access;
@@ -1350,6 +1981,8 @@ class ReservedKeyword final  {
  public:
   using __fbthrift_cpp2_type = ReservedKeyword;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -1501,6 +2134,8 @@ class UnionToBeRenamed final  {
   using __fbthrift_cpp2_type = UnionToBeRenamed;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1647,7 +2282,7 @@ unsigned long UnionToBeRenamed::read(Protocol_* iprot) {
 }
 
 
-}}} // test::fixtures::basic
+} // namespace test::fixtures::basic
 
 namespace apache { namespace thrift {
 

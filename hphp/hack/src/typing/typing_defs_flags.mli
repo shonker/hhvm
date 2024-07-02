@@ -102,6 +102,7 @@ module FunParam : sig
     inout: bool;
     has_default: bool;
     readonly: bool;
+    ignore_readonly_error: bool;
   }
 
   val accept_disposable : t -> bool
@@ -112,6 +113,8 @@ module FunParam : sig
 
   val readonly : t -> bool
 
+  val ignore_readonly_error : t -> bool
+
   val set_accept_disposable : bool -> t -> t
 
   val set_inout : bool -> t -> t
@@ -120,14 +123,19 @@ module FunParam : sig
 
   val set_readonly : bool -> t -> t
 
+  val set_ignore_readonly_error : bool -> t -> t
+
   val make :
     inout:bool ->
     accept_disposable:bool ->
     has_default:bool ->
     readonly:bool ->
+    ignore_readonly_error:bool ->
     t
 
   val as_record : t -> record
+
+  val default : t
 end
 
 module ClassElt : sig

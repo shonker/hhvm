@@ -79,7 +79,9 @@ let maybe_make_supportdyn r env ~supportdyn ty =
  * that validates the get operation. For example, if `vec<string>` is a lower
  * bound, then the type must be a subtype of `KeyedContainer<#1,#2>` for some
  * unresolved types #1 and #2. If `(string,int)` is a lower bound, then
- * `(#1, #2)` is a suitable upper bound. Shapes are the most complex. If
+ * `(#1, #2)` is a suitable upper bound.
+ *
+ * Shapes are the most complex. If
  * `shape(known_fields, ...)` is a lower bound (an open shape type), and the
  * access is through a literal field f, then `shape('f' => #1, ...)` is a
  * suitable upper bound.
@@ -93,9 +95,9 @@ let widen_for_array_get ~lhs_of_null_coalesce ~expr_pos index_expr env ty =
           [Log_head ("widen_for_array_get", [Log_type ("ty", ty)])]));
   match deref ty with
   (* The null type is valid only with a null-coalescing use of array get *)
-  | (_, Tprim Tnull) when lhs_of_null_coalesce -> ((env, None), Some ty)
+  | (_, Tprim Tnull) when lhs_of_null_coalesce -> (env, Some ty)
   (* dynamic is valid for array get *)
-  | (_, Tdynamic) -> ((env, None), Some ty)
+  | (_, Tdynamic) -> (env, Some ty)
   (* All class-based containers, and keyset, vec and dict, are subtypes of
    * some instantiation of KeyedContainer
    *)
@@ -114,13 +116,13 @@ let widen_for_array_get ~lhs_of_null_coalesce ~expr_pos index_expr env ty =
     let (env, element_ty) = Env.fresh_type_invariant env expr_pos in
     let (env, index_ty) = Env.fresh_type_invariant env expr_pos in
     let ty = MakeType.keyed_container r index_ty element_ty in
-    ((env, None), Some ty)
+    (env, Some ty)
   (* The same is true of PHP arrays *)
   | (r, Tvec_or_dict _) ->
     let (env, element_ty) = Env.fresh_type_invariant env expr_pos in
     let (env, index_ty) = Env.fresh_type_invariant env expr_pos in
     let ty = MakeType.keyed_container r index_ty element_ty in
-    ((env, None), Some ty)
+    (env, Some ty)
   (* For tuples, we just freshen the element types *)
   | (r, Ttuple tyl) -> begin
     (* requires integer literal *)
@@ -131,37 +133,30 @@ let widen_for_array_get ~lhs_of_null_coalesce ~expr_pos index_expr env ty =
         List.map_env env tyl ~f:(fun env _ty ->
             Env.fresh_type_invariant env expr_pos)
       in
-      ((env, None), Some (MakeType.tuple r params))
-    | _ -> ((env, None), None)
+      (env, Some (MakeType.tuple r params))
+    | _ -> (env, None)
   end
   (* Whatever the lower bound, construct an open, singleton shape type. *)
-  | (r, Tshape { s_fields = fdm; _ }) -> begin
-    let (fld_opt, ty_err_opt) =
-      TUtils.shape_field_name_with_ty_err env index_expr
-    in
-    Option.iter ~f:(Typing_error_utils.add_typing_error ~env) ty_err_opt;
-    match fld_opt with
-    | None -> ((env, None), None)
-    | Some field ->
-      let field = TShapeField.of_ast Pos_or_decl.of_raw_pos field in
-      (match TShapeMap.find_opt field fdm with
-      (* If field is in the lower bound but is optional, then no upper bound makes sense
-       * unless this is a null-coalesce access *)
-      | Some { sft_optional = true; _ } when not lhs_of_null_coalesce ->
-        ((env, None), None)
-      | _ ->
-        let (env, element_ty) = Env.fresh_type_invariant env expr_pos in
-        let (env, rest_ty) = Env.fresh_type_invariant env expr_pos in
-        let upper_fdm =
-          TShapeMap.add
-            field
-            { sft_optional = lhs_of_null_coalesce; sft_ty = element_ty }
-            TShapeMap.empty
-        in
-        let upper_shape_ty = MakeType.shape r rest_ty upper_fdm in
-        ((env, None), Some upper_shape_ty))
-  end
-  | _ -> ((env, None), None)
+  | (r, Tshape { s_fields = fdm; s_origin = _; s_unknown_value = _ }) ->
+    Typing_shapes.do_with_field_expr env index_expr ~with_error:(env, None)
+    @@ fun field_name ->
+    (match TShapeMap.find_opt field_name fdm with
+    (* If field is in the lower bound but is optional, then no upper bound makes sense
+     * unless this is a null-coalesce access *)
+    | Some { sft_optional = true; sft_ty = _ } when not lhs_of_null_coalesce ->
+      (env, None)
+    | _ ->
+      let (env, element_ty) = Env.fresh_type_invariant env expr_pos in
+      let (env, rest_ty) = Env.fresh_type_invariant env expr_pos in
+      let upper_fdm =
+        TShapeMap.add
+          field_name
+          { sft_optional = lhs_of_null_coalesce; sft_ty = element_ty }
+          TShapeMap.empty
+      in
+      let upper_shape_ty = MakeType.shape r rest_ty upper_fdm in
+      (env, Some upper_shape_ty))
+  | _ -> (env, None)
 
 (* Check that an index to a map-like collection passes the basic test of
  * being a subtype of arraykey
@@ -177,7 +172,7 @@ let check_arraykey_index error env pos container_ty index_ty =
     let info_of_type ty = (get_pos ty, lazy (Typing_print.error env ty)) in
     let container_info = info_of_type container_ty in
     let index_info = info_of_type index_ty in
-    let ty_arraykey = MakeType.arraykey (Reason.Ridx_dict pos) in
+    let ty_arraykey = MakeType.arraykey (Reason.idx_dict pos) in
     (* If we have an error in coercion here, we will add a `Hole` indicating the
        actual and expected type. The `Hole` may then be used in a codemod to
        add a call to `UNSAFE_CAST` so we need to consider what type we expect.
@@ -298,19 +293,16 @@ let pessimised_tup_assign p env arg_ty =
   Option.iter ~f:(Typing_error_utils.add_typing_error ~env) ty_err_opt;
   (env, ty)
 
-(* Typing of array-get like expressions; [ty1] is the type of the expression
-   into which we are indexing (the 'collection'), [e2] is the index expression
-   and [ty2] is the type of that expression.
-
-   We return:
-   1) the (modified) typing environment,
-   2) the type of the resulting expression (i.e. the type of the element we are 'getting')
-   3) the actual and expected type of the indexed expression, indicating a type mismatch (if any)
-   4) the actual and expected type of the indexing expression, indicating a type mismatch (if any)
-   and an optional type mismatch giving the actual vs expected type of the
-
-   The function has an error side-effect
-*)
+(** Typing of array-get like expressions; [ty1] is the type of the expression
+  into which we are indexing (the 'collection'), [e2] is the index expression
+  and [ty2] is the type of that expression.
+  We return:
+  1) the (modified) typing environment,
+  2) the type of the resulting expression (i.e. the type of the element we are 'getting')
+  3) the actual and expected type of the indexed expression, indicating a type mismatch (if any)
+  4) the actual and expected type of the indexing expression, indicating a type mismatch (if any)
+  and an optional type mismatch giving the actual vs expected type of the
+  The function has an error side-effect *)
 let rec array_get
     ~array_pos
     ~expr_pos
@@ -322,11 +314,35 @@ let rec array_get
     ty1
     e2
     ty2 =
+  Typing_log.(
+    log_with_level env "typing" ~level:1 (fun () ->
+        log_types
+          (Pos_or_decl.of_raw_pos array_pos)
+          env
+          [
+            Log_head
+              ( "array_get",
+                [
+                  Log_type ("receiver_type", ty1);
+                  Log_type ("indexing_type", ty2);
+                  Log_head
+                    ( Printf.sprintf
+                        "lhs_of_null_coalesce: %b"
+                        lhs_of_null_coalesce,
+                      [] );
+                  Log_head (Printf.sprintf "is_lvalue: %b" is_lvalue, []);
+                  Log_head (Printf.sprintf "ignore_error: %b" ignore_error, []);
+                ] );
+          ]));
   let ((env, ty_err1), ty1) =
     Typing_solver.expand_type_and_narrow
       env
       ~description_of_expected:"an array or collection"
-      (widen_for_array_get ~lhs_of_null_coalesce ~expr_pos e2)
+      (fun env ty ->
+        let (env, ty) =
+          widen_for_array_get ~lhs_of_null_coalesce ~expr_pos e2 env ty
+        in
+        ((env, None), ty))
       array_pos
       ty1
   in
@@ -441,7 +457,7 @@ let rec array_get
             err_witness env expr_pos
         in
         let (_, p2, _) = e2 in
-        let ty1 = MakeType.int (Reason.Ridx_vector p2) in
+        let ty1 = MakeType.int (Reason.idx_vector p2) in
         let ((env, ty_err_opt), idx_err_res) =
           type_index env expr_pos ty2 ty1 Enforced (Reason.index_class cn)
         in
@@ -529,7 +545,7 @@ let rec array_get
             err_witness env expr_pos
         in
         let (_, p2, _) = e2 in
-        let ty1 = MakeType.int (Reason.Ridx (p2, r)) in
+        let ty1 = MakeType.int (Reason.idx (p2, r)) in
         let ((env, ty_err1), idx_err_res) =
           type_index env expr_pos ty2 ty1 Enforced (Reason.index_class cn)
         in
@@ -561,9 +577,9 @@ let rec array_get
       | Tany _ ->
         (env, (ty1, dflt_arr_res, Ok ty2))
       | Tprim Tstring ->
-        let ty = MakeType.string (Reason.Rwitness expr_pos) in
+        let ty = MakeType.string (Reason.witness expr_pos) in
         let (_, p2, _) = e2 in
-        let ty1 = MakeType.int (Reason.Ridx (p2, r)) in
+        let ty1 = MakeType.int (Reason.idx (p2, r)) in
         let ((env, ty_err1), idx_err_res) =
           type_index env expr_pos ty2 ty1 Enforced Reason.index_array
         in
@@ -642,90 +658,85 @@ let rec array_get
           (env, (ty, dflt_arr_res, Error (ty2, MakeType.int Reason.none))))
       | Tshape { s_origin; s_fields = fdm; s_unknown_value; _ } ->
         let (_, p, _) = e2 in
-        begin
-          let (fld_opt, ty_err_opt) =
-            TUtils.shape_field_name_with_ty_err env e2
+        Typing_shapes.do_with_field_expr
+          env
+          e2
+          ~with_error:
+            ((* there was already an error in shape_field name,
+                don't report another one for a missing field *)
+             let (env, ty) = err_witness env p in
+             (env, (ty, dflt_arr_res, Ok ty2)))
+        @@ fun field ->
+        if is_lvalue || lhs_of_null_coalesce then
+          (* The expression $s['x'] ?? $y is semantically equivalent to
+             Shapes::idx ($s, 'x') ?? $y.  I.e., if $s['x'] occurs on
+             the left of a coalesce operator, then for type checking it
+             can be treated as if it evaluated to null instead of
+             throwing an exception if the field 'x' doesn't exist in $s.
+          *)
+          let (env, ty) =
+            Typing_shapes.idx_without_default
+              env
+              ty1
+              field
+              ~expr_pos
+              ~shape_pos:array_pos
           in
-          Option.iter ~f:(Typing_error_utils.add_typing_error ~env) ty_err_opt;
-          match fld_opt with
+          (env, (ty, dflt_arr_res, Ok ty2))
+        else begin
+          match TShapeMap.find_opt field fdm with
           | None ->
-            (* there was already an error in shape_field name,
-               don't report another one for a missing field *)
-            let (env, ty) = err_witness env p in
-            (env, (ty, dflt_arr_res, Ok ty2))
-          | Some field ->
-            let field = TShapeField.of_ast Pos_or_decl.of_raw_pos field in
-            if is_lvalue || lhs_of_null_coalesce then
-              (* The expression $s['x'] ?? $y is semantically equivalent to
-                 Shapes::idx ($s, 'x') ?? $y.  I.e., if $s['x'] occurs on
-                 the left of a coalesce operator, then for type checking it
-                 can be treated as if it evaluated to null instead of
-                 throwing an exception if the field 'x' doesn't exist in $s.
-              *)
-              let (env, ty) =
-                Typing_shapes.idx_without_default
-                  env
-                  ty1
-                  field
-                  ~expr_pos
-                  ~shape_pos:array_pos
+            let decl_pos =
+              match s_origin with
+              | From_alias (_, Some pos) -> pos
+              | _ -> Reason.to_pos r
+            in
+            Typing_error_utils.add_typing_error
+              ~env
+              Typing_error.(
+                primary
+                @@ Primary.Undefined_field
+                     {
+                       pos = p;
+                       name = TUtils.get_printable_shape_field_name field;
+                       decl_pos;
+                     });
+            (* Even though this is an error, we can produce a sound type for the field *)
+            (env, (s_unknown_value, dflt_arr_res, Ok ty2))
+          | Some { sft_optional; sft_ty } ->
+            if sft_optional then (
+              let declared_field =
+                List.find_exn
+                  ~f:(fun x -> TShapeField.equal field x)
+                  (TShapeMap.keys fdm)
               in
+              Typing_error_utils.add_typing_error
+                ~env
+                Typing_error.(
+                  primary
+                  @@ Primary.Array_get_with_optional_field
+                       {
+                         recv_pos = array_pos;
+                         field_pos = p;
+                         field_name =
+                           TUtils.get_printable_shape_field_name field;
+                         decl_pos = Typing_defs.TShapeField.pos declared_field;
+                       });
+              let (env, ty) = err_witness env p in
               (env, (ty, dflt_arr_res, Ok ty2))
-            else begin
-              match TShapeMap.find_opt field fdm with
-              | None ->
-                let decl_pos =
-                  match s_origin with
-                  | From_alias (_, Some pos) -> pos
-                  | _ -> Reason.to_pos r
-                in
-                Typing_error_utils.add_typing_error
-                  ~env
-                  Typing_error.(
-                    primary
-                    @@ Primary.Undefined_field
-                         {
-                           pos = p;
-                           name = TUtils.get_printable_shape_field_name field;
-                           decl_pos;
-                         });
-                (* Even though this is an error, we can produce a sound type for the field *)
-                (env, (s_unknown_value, dflt_arr_res, Ok ty2))
-              | Some { sft_optional; sft_ty } ->
-                if sft_optional then (
-                  let declared_field =
-                    List.find_exn
-                      ~f:(fun x -> TShapeField.equal field x)
-                      (TShapeMap.keys fdm)
-                  in
-                  Typing_error_utils.add_typing_error
-                    ~env
-                    Typing_error.(
-                      primary
-                      @@ Primary.Array_get_with_optional_field
-                           {
-                             recv_pos = array_pos;
-                             field_pos = p;
-                             field_name =
-                               TUtils.get_printable_shape_field_name field;
-                             decl_pos =
-                               Typing_defs.TShapeField.pos declared_field;
-                           });
-                  let (env, ty) = err_witness env p in
-                  (env, (ty, dflt_arr_res, Ok ty2))
-                ) else
-                  (env, (sft_ty, dflt_arr_res, Ok ty2))
-            end
+            ) else
+              (env, (sft_ty, dflt_arr_res, Ok ty2))
         end
       | Toption ty ->
         let (env, (ty, err_opt_arr, err_opt_idx)) =
           nullable_container_get env ty
         in
+        (* Construct the hole on the outer type  *)
         let err_res_arr =
           Option.value_map
             err_opt_arr
             ~default:dflt_arr_res
-            ~f:(fun (ty_have, ty_expect) -> Error (ty_have, ty_expect))
+            ~f:(fun (_ty_have, ty_expect) -> Error (ty1, ty_expect))
         in
         let err_res_idx =
           Option.value_map
@@ -738,7 +749,7 @@ let rec array_get
         if Tast.is_under_dynamic_assumptions env.Typing_env_types.checked then
           got_dynamic ()
         else
-          let ty = MakeType.nothing Reason.Rnone in
+          let ty = MakeType.nothing Reason.none in
           let (env, (ty, err_opt_arr, err_opt_idx)) =
             nullable_container_get env ty
           in
@@ -811,7 +822,7 @@ let rec array_get
           let ty_nothing = MakeType.nothing Reason.none in
           let (env, ty_key) =
             MakeType.arraykey Reason.none
-            |> Typing_intersection.intersect ~r:Reason.Rnone env ty2
+            |> Typing_intersection.intersect ~r:Reason.none env ty2
           in
           let ty_keyedcontainer =
             MakeType.(keyed_container Reason.none ty_key ty_nothing)
@@ -830,13 +841,14 @@ let rec array_get
       | Tunion _
       | Tintersection _
       | Taccess _
+      | Tlabel _
       | Tneg _ ->
         if not ignore_error then error_array env expr_pos expr_ty;
         let (env, res_ty) = err_witness env expr_pos in
         let ty_nothing = MakeType.nothing Reason.none in
         let (env, ty_key) =
           MakeType.arraykey Reason.none
-          |> Typing_intersection.intersect ~r:Reason.Rnone env ty2
+          |> Typing_intersection.intersect ~r:Reason.none env ty2
         in
         let ty_keyedcontainer =
           MakeType.(keyed_container Reason.none ty_key ty_nothing)
@@ -851,7 +863,7 @@ let rec array_get
         let (env, value) = Env.fresh_type env expr_pos in
         let (env, ty_key) =
           MakeType.arraykey Reason.none
-          |> Typing_intersection.intersect ~r:Reason.Rnone env ty2
+          |> Typing_intersection.intersect ~r:Reason.none env ty2
         in
         let keyed_container = MakeType.keyed_container r ty_key value in
         let (env, arr_ty_err_opt) =
@@ -962,7 +974,7 @@ let assign_array_append ~array_pos ~expr_pos ur env ty1 ty2 =
         when String.equal n SN.Collections.cKeyset ->
         let (env, err_res) = check_keyset_value env expr_pos ty1 ty2 in
         let (env, tk') =
-          let r = Reason.Rkey_value_collection_key expr_pos in
+          let r = Reason.key_value_collection_key expr_pos in
           let ak_t = MakeType.arraykey r in
           let (env, ty2) = Typing_intersection.intersect env ~r ak_t ty2 in
           Typing_union.union env tv ty2
@@ -975,7 +987,7 @@ let assign_array_append ~array_pos ~expr_pos ur env ty1 ty2 =
           | (_, Error _) as err_res -> err_res
           | (env, _) ->
             let (env, tv', enforced) =
-              let ak_t = MakeType.arraykey (Reason.Ridx_vector expr_pos) in
+              let ak_t = MakeType.arraykey (Reason.idx_vector expr_pos) in
               let (env, tv) = maybe_pessimise_type env tv in
               if TUtils.is_sub_type_for_union env ak_t tv then
                 (* hhvm will enforce that the key is an arraykey, so if
@@ -1025,7 +1037,8 @@ let assign_array_append ~array_pos ~expr_pos ur env ty1 ty2 =
       | ( r,
           ( Tnonnull | Tvec_or_dict _ | Toption _ | Tprim _ | Tvar _ | Tfun _
           | Tclass _ | Ttuple _ | Tshape _ | Tunion _ | Tintersection _
-          | Tgeneric _ | Tnewtype _ | Tdependent _ | Taccess _ | Tneg _ ) ) ->
+          | Tlabel _ | Tgeneric _ | Tnewtype _ | Tdependent _ | Taccess _
+          | Tneg _ ) ) ->
         let (env, ty) = error_assign_array_append env expr_pos ty1 in
         let (env, ty) = maybe_make_supportdyn r env ~supportdyn ty in
         let ty_nothing = MakeType.nothing Reason.none in
@@ -1139,7 +1152,7 @@ let assign_array_get ~array_pos ~expr_pos ur env ty1 (key : Nast.expr) tkey ty2
         in
         let (env, tv) = maybe_make_supportdyn r env ~supportdyn tv in
         let (_, p, _) = key in
-        let tk = MakeType.int (Reason.Ridx_vector p) in
+        let tk = MakeType.int (Reason.idx_vector p) in
         let ((env, ty_err1), idx_err) =
           type_index env expr_pos tkey tk Enforced (Reason.index_class cn)
         in
@@ -1167,7 +1180,7 @@ let assign_array_get ~array_pos ~expr_pos ur env ty1 (key : Nast.expr) tkey ty2
             err_witness env expr_pos
         in
         let (_, p, _) = key in
-        let tk = MakeType.int (Reason.Ridx_vector p) in
+        let tk = MakeType.int (Reason.idx_vector p) in
         let ((env, ty_err1), idx_err) =
           type_index env expr_pos tkey tk Enforced (Reason.index_class cn)
         in
@@ -1191,7 +1204,7 @@ let assign_array_get ~array_pos ~expr_pos ur env ty1 (key : Nast.expr) tkey ty2
         let (env, tv) = maybe_make_supportdyn r env ~supportdyn tv in
         let (env, enforced, tk) =
           let (_, p, _) = key in
-          let ak_t = MakeType.arraykey (Reason.Ridx_vector p) in
+          let ak_t = MakeType.arraykey (Reason.idx_vector p) in
           let (env, tk) = maybe_pessimise_type env tk in
           if TUtils.is_sub_type_for_union env ak_t tk then
             (* hhvm will enforce that the key is an arraykey, so if
@@ -1243,15 +1256,11 @@ let assign_array_get ~array_pos ~expr_pos ur env ty1 (key : Nast.expr) tkey ty2
         let (env, tv) = maybe_make_supportdyn r env ~supportdyn tv in
         let (env, tk') =
           let (_, p, _) = key in
-          let ak_t = MakeType.arraykey (Reason.Ridx_dict p) in
+          let ak_t = MakeType.arraykey (Reason.idx_dict p) in
           match idx_err with
           | Ok _ ->
             let (env, tkey_new) =
-              Typing_intersection.intersect
-                env
-                ~r:(Reason.Ridx_dict p)
-                tkey
-                ak_t
+              Typing_intersection.intersect env ~r:(Reason.idx_dict p) tkey ak_t
             in
             Typing_union.union env tk tkey_new
           | _ -> Typing_union.union env tk tkey
@@ -1348,8 +1357,8 @@ let assign_array_get ~array_pos ~expr_pos ur env ty1 (key : Nast.expr) tkey ty2
         got_dynamic ()
       | Tprim Tstring ->
         let (_, p, _) = key in
-        let tk = MakeType.int (Reason.Ridx (p, r)) in
-        let tv = MakeType.string (Reason.Rwitness expr_pos) in
+        let tk = MakeType.int (Reason.idx (p, r)) in
+        let tv = MakeType.string (Reason.witness expr_pos) in
         let ((env, ty_err1), idx_err) =
           type_index env expr_pos tkey tk Enforced Reason.index_array
         in
@@ -1393,42 +1402,37 @@ let assign_array_get ~array_pos ~expr_pos ur env ty1 (key : Nast.expr) tkey ty2
             fail (Error (tkey, MakeType.int Reason.none)) Reason.URtuple_access
         end
       | Tshape { s_origin = _; s_unknown_value = shape_kind; s_fields = fdm } ->
-      begin
-        let (fld_opt, ty_err_opt) =
-          TUtils.shape_field_name_with_ty_err env key
+        Typing_shapes.do_with_field_expr
+          env
+          key
+          ~with_error:
+            (let (env, ety1) = maybe_make_supportdyn r env ~supportdyn ety1 in
+             (env, (ety1, Ok ety1, Ok tkey, Ok ty2)))
+        @@ fun field ->
+        let (env, fdm) =
+          if supportdyn then
+            let f env _name { sft_optional; sft_ty } =
+              let (env, sft_ty) = TUtils.make_supportdyn r env sft_ty in
+              (env, { sft_optional; sft_ty })
+            in
+            TShapeMap.map_env f env fdm
+          else
+            (env, fdm)
         in
-        Option.iter ~f:(Typing_error_utils.add_typing_error ~env) ty_err_opt;
-        match fld_opt with
-        | None ->
-          let (env, ety1) = maybe_make_supportdyn r env ~supportdyn ety1 in
-          (env, (ety1, Ok ety1, Ok tkey, Ok ty2))
-        | Some field ->
-          let field = TShapeField.of_ast Pos_or_decl.of_raw_pos field in
-          let (env, fdm) =
-            if supportdyn then
-              let f env _name { sft_optional; sft_ty } =
-                let (env, sft_ty) = TUtils.make_supportdyn r env sft_ty in
-                (env, { sft_optional; sft_ty })
-              in
-              TShapeMap.map_env f env fdm
-            else
-              (env, fdm)
-          in
-          let fdm' =
-            TShapeMap.add field { sft_optional = false; sft_ty = ty2 } fdm
-          in
-          let ty =
-            mk
-              ( r,
-                Tshape
-                  {
-                    s_origin = Missing_origin;
-                    s_unknown_value = shape_kind;
-                    s_fields = fdm';
-                  } )
-          in
-          (env, (ty, Ok ty, Ok tkey, Ok ty2))
-      end
+        let fdm' =
+          TShapeMap.add field { sft_optional = false; sft_ty = ty2 } fdm
+        in
+        let ty =
+          mk
+            ( r,
+              Tshape
+                {
+                  s_origin = Missing_origin;
+                  s_unknown_value = shape_kind;
+                  s_fields = fdm';
+                } )
+        in
+        (env, (ty, Ok ty, Ok tkey, Ok ty2))
       | Tnewtype (cid, _, _bound) when String.equal cid SN.Classes.cSupportDyn
         ->
         (* We must be under_dynamic_assumptions because
@@ -1451,6 +1455,7 @@ let assign_array_get ~array_pos ~expr_pos ur env ty1 (key : Nast.expr) tkey ty2
       | Tfun _
       | Tclass _
       | Taccess _
+      | Tlabel _
       | Tneg _ ->
         Typing_error_utils.add_typing_error
           ~env

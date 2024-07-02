@@ -159,11 +159,19 @@ class HQSession
     }
   }
 
+  std::shared_ptr<QuicProtocolInfo> getQuicInfo() {
+    return quicInfo_;
+  }
+
   void setForceUpstream1_1(bool force) {
     forceUpstream1_1_ = force;
   }
   void setStrictValidation(bool strictValidation) {
     strictValidation_ = strictValidation;
+  }
+
+  void setEnableEgressPrioritization(bool enableEgressPrioritization) {
+    enableEgressPrioritization_ = enableEgressPrioritization;
   }
 
   void setSessionStats(HTTPSessionStats* stats) override;
@@ -758,6 +766,9 @@ class HQSession
   // Callback pointer used for correctness testing. Not used
   // for session logic.
   ServerPushLifecycleCallback* serverPushLifecycleCb_{nullptr};
+
+  // Debug feature to test the impact of request body prioritization.
+  bool enableEgressPrioritization_{true};
 
  private:
   std::unique_ptr<HTTPCodec> createStreamCodec(quic::StreamId streamId);
@@ -2051,6 +2062,18 @@ class HQSession
     return const_cast<HTTPSessionObserverContainer*>(
         &sessionObserverContainer_);
   }
+
+  class WriteScheduler : public folly::EventBase::LoopCallback {
+   public:
+    explicit WriteScheduler(HQSession& session) : session_(session) {
+    }
+    ~WriteScheduler() override = default;
+    void runLoopCallback() noexcept override;
+
+   private:
+    HQSession& session_;
+  };
+  WriteScheduler writeScheduler_{*this};
 }; // HQSession
 
 std::ostream& operator<<(std::ostream& os, HQSession::DrainState drainState);

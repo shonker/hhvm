@@ -93,6 +93,7 @@ namespace Trace {
       TM(traceAsync)  /* Meta: lazy writes to disk */ \
       TM(apc)           \
       TM(asmx64)        \
+      TM(async_jit)     \
       TM(atomicvector)  \
       TM(bcinterp)      \
       TM(bespoke)       \
@@ -126,6 +127,7 @@ namespace Trace {
       TM(hhbbc_cfg)     \
       TM(hhbbc_dce)     \
       TM(hhbbc_dump)    \
+      TM(hhbbc_dump_trace) \
       TM(hhbbc_parse)   \
       TM(hhbbc_emit)    \
       TM(hhbbc_iface)   \

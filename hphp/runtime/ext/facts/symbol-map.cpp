@@ -117,15 +117,18 @@ SymbolMap::SymbolMap(
     AutoloadDB::Opener dbOpener,
     hphp_vector_set<Symbol<SymKind::Type>> indexedMethodAttrs,
     bool enableBlockingDbWait,
+    bool useSymbolMapForGetFilesWithAttrAndAnyVal,
     std::chrono::milliseconds blockingDbWaitTimeout)
-    : m_exec{std::make_shared<folly::CPUThreadPoolExecutor>(
+    : m_exec{std::make_unique<folly::CPUThreadPoolExecutor>(
           1,
           std::make_shared<folly::NamedThreadFactory>("Autoload DB update"))},
       m_root{std::move(root)},
       m_dbVault{std::move(dbOpener)},
       m_indexedMethodAttrs{std::move(indexedMethodAttrs)},
       m_enableBlockingDbWait{enableBlockingDbWait},
-      m_blockingDbWaitTimeout{blockingDbWaitTimeout} {
+      m_blockingDbWaitTimeout{blockingDbWaitTimeout},
+      m_useSymbolMapForGetFilesWithAttrAndAnyVal{
+          useSymbolMapForGetFilesWithAttrAndAnyVal} {
   assertx(m_root.is_absolute());
 }
 
@@ -787,8 +790,8 @@ std::vector<Path> SymbolMap::getFilesWithAttributeAndAnyValue(
     Symbol<SymKind::Type> attr,
     const folly::dynamic& value) {
   using PathVec = std::vector<Path>;
-  // This API uses a 'db only' strategy because it is unable to update
-  // the symbol map without overfetching.  That means:
+  // We have a flag to control whether this function uses the memory map
+  // or a 'db only' strategy.  If the flag is not set, then we will.
   // 1) never look in memory for the answer
   // 2) always wait for db commit before returning from db
   // 3) never try to update memory with the answer.
@@ -797,7 +800,27 @@ std::vector<Path> SymbolMap::getFilesWithAttributeAndAnyValue(
   // gonna do it.
   auto paths = readOrUpdate<PathVec>(
       [&](const UNUSED Data& data) -> Optional<PathVec> {
-        return std::nullopt;
+        if (!m_useSymbolMapForGetFilesWithAttrAndAnyVal) {
+          return std::nullopt;
+        }
+        auto pathsWithAttr = data.m_fileAttrs.getKeysWithAttribute(attr);
+        if (!pathsWithAttr) {
+          return std::nullopt;
+        }
+        PathVec pathsRet;
+        for (auto&& path : *pathsWithAttr) {
+          auto args = data.m_fileAttrs.getAttributeArgs(path, attr);
+          if (!args) {
+            return std::nullopt;
+          }
+          for (auto&& arg : *args) {
+            if (arg == value) {
+              pathsRet.push_back(path);
+              break;
+            }
+          }
+        }
+        return pathsRet;
       },
       [&](std::shared_ptr<AutoloadDB> db) -> PathVec {
         // This is necessary to prevent a race condition where the db isn't
@@ -1188,6 +1211,10 @@ Clock SymbolMap::getClock() const noexcept {
   return rlock->m_clock;
 }
 
+void SymbolMap::validate(const std::set<std::string>& types_to_ignore) {
+  getDB()->validate(types_to_ignore);
+}
+
 Clock SymbolMap::dbClock() const {
   return getDB()->getClock();
 }
@@ -1574,27 +1601,22 @@ void SymbolMap::Data::updatePath(
       // Remove method attributes not in the allowlist if the allowlist exists
       auto& attrs = method.attributes;
       if (!indexedMethodAttrs.empty()) {
-        size_t j = 0;
-        for (size_t i = 0; i < attrs.size(); ++i) {
-          // XXX interning every queried attribute name
-          if (indexedMethodAttrs.count(
-                  Symbol<SymKind::Type>{as_slice(attrs[i].name)})) {
-            if (j < i) {
-              attrs[j] = std::move(attrs[i]);
-            }
-            j++;
-          }
-        }
-        if (j < attrs.size()) {
-          attrs.truncate(j);
+        auto iter = std::partition(attrs.begin(), attrs.end(), [&](auto& attr) {
+          return std::find(
+                     indexedMethodAttrs.begin(),
+                     indexedMethodAttrs.end(),
+                     Symbol<SymKind::Type>{as_slice(attr.name)}) !=
+              indexedMethodAttrs.end();
+        });
+        if (iter != attrs.end()) {
+          attrs.truncate(std::distance(attrs.begin(), iter));
         }
       }
-      if (!attrs.empty()) {
-        MethodDecl methodDecl{
-            .m_type = {.m_name = typeName, .m_path = path},
-            .m_method = Symbol<SymKind::Method>{as_slice(method.name)}};
-        m_methodAttrs.setAttributes(methodDecl, std::move(attrs));
-      }
+
+      MethodDecl methodDecl{
+          .m_type = {.m_name = typeName, .m_path = path},
+          .m_method = Symbol<SymKind::Method>{as_slice(method.name)}};
+      m_methodAttrs.setAttributes(methodDecl, std::move(attrs));
     }
   }
 

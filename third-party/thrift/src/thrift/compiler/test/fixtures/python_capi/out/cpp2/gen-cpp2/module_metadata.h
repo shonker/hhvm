@@ -10,7 +10,6 @@
 
 #include <thrift/lib/cpp2/gen/module_metadata_h.h>
 #include "thrift/compiler/test/fixtures/python_capi/gen-cpp2/module_types.h"
-#include "thrift/lib/thrift/gen-cpp2/patch_metadata.h"
 #include "thrift/compiler/test/fixtures/python_capi/src/gen-cpp2/thrift_dep_metadata.h"
 #include "thrift/compiler/test/fixtures/python_capi/src/gen-cpp2/serialized_dep_metadata.h"
 #include "thrift/lib/thrift/gen-cpp2/id_metadata.h"
@@ -94,56 +93,6 @@ class StructMetadata<::test::fixtures::python_capi::ComposeStruct> {
 };
 template <>
 class StructMetadata<::test::fixtures::python_capi::Shallot> {
- public:
-  static const ::apache::thrift::metadata::ThriftStruct& gen(ThriftMetadata& metadata);
-};
-template <>
-class StructMetadata<::test::fixtures::python_capi::MyStructPatchStruct> {
- public:
-  static const ::apache::thrift::metadata::ThriftStruct& gen(ThriftMetadata& metadata);
-};
-template <>
-class StructMetadata<::test::fixtures::python_capi::MyStructField4PatchStruct> {
- public:
-  static const ::apache::thrift::metadata::ThriftStruct& gen(ThriftMetadata& metadata);
-};
-template <>
-class StructMetadata<::test::fixtures::python_capi::MyStructField6PatchStruct> {
- public:
-  static const ::apache::thrift::metadata::ThriftStruct& gen(ThriftMetadata& metadata);
-};
-template <>
-class StructMetadata<::test::fixtures::python_capi::MyStructField7PatchStruct> {
- public:
-  static const ::apache::thrift::metadata::ThriftStruct& gen(ThriftMetadata& metadata);
-};
-template <>
-class StructMetadata<::test::fixtures::python_capi::MyStructField8PatchStruct> {
- public:
-  static const ::apache::thrift::metadata::ThriftStruct& gen(ThriftMetadata& metadata);
-};
-template <>
-class StructMetadata<::test::fixtures::python_capi::MyStructFieldPatchStruct> {
- public:
-  static const ::apache::thrift::metadata::ThriftStruct& gen(ThriftMetadata& metadata);
-};
-template <>
-class StructMetadata<::test::fixtures::python_capi::MyStructEnsureStruct> {
- public:
-  static const ::apache::thrift::metadata::ThriftStruct& gen(ThriftMetadata& metadata);
-};
-template <>
-class StructMetadata<::test::fixtures::python_capi::MyDataItemPatchStruct> {
- public:
-  static const ::apache::thrift::metadata::ThriftStruct& gen(ThriftMetadata& metadata);
-};
-template <>
-class StructMetadata<::test::fixtures::python_capi::MyDataItemFieldPatchStruct> {
- public:
-  static const ::apache::thrift::metadata::ThriftStruct& gen(ThriftMetadata& metadata);
-};
-template <>
-class StructMetadata<::test::fixtures::python_capi::MyDataItemEnsureStruct> {
  public:
   static const ::apache::thrift::metadata::ThriftStruct& gen(ThriftMetadata& metadata);
 };

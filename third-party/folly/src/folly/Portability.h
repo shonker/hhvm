@@ -35,7 +35,11 @@
 static_assert(FOLLY_CPLUSPLUS >= 201703L, "__cplusplus >= 201703L");
 
 #if defined(__GNUC__) && !defined(__clang__)
-static_assert(__GNUC__ >= 7, "__GNUC__ >= 7");
+static_assert(__GNUC__ >= 10, "__GNUC__ >= 10");
+#endif
+
+#if defined(_MSC_VER)
+static_assert(_MSC_VER >= 1920);
 #endif
 
 #if defined(_MSC_VER) || defined(_CPPLIB_VER)
@@ -543,6 +547,17 @@ constexpr auto kCpplibVer = 0;
 #define FOLLY_CXX20_CONSTEXPR
 #endif
 
+//  FOLLY_CXX23_CONSTEXPR
+//
+//  C++23 permits more cases to be marked constexpr, including definitions of
+//  variables of non-literal type in constexpr function as long as they are not
+//  constant-evaluated.
+#if FOLLY_CPLUSPLUS >= 202302L
+#define FOLLY_CXX23_CONSTEXPR constexpr
+#else
+#define FOLLY_CXX23_CONSTEXPR
+#endif
+
 // C++20 constinit
 #if defined(__cpp_constinit) && __cpp_constinit >= 201907L
 #define FOLLY_CONSTINIT constinit
@@ -553,7 +568,6 @@ constexpr auto kCpplibVer = 0;
 #if defined(FOLLY_CFG_NO_COROUTINES)
 #define FOLLY_HAS_COROUTINES 0
 #else
-#if FOLLY_CPLUSPLUS >= 201703L
 // folly::coro requires C++17 support
 #if defined(__NVCC__)
 // For now, NVCC matches other compilers but does not offer coroutines.
@@ -584,16 +598,7 @@ constexpr auto kCpplibVer = 0;
 #else
 #define FOLLY_HAS_COROUTINES 0
 #endif
-#else
-#define FOLLY_HAS_COROUTINES 0
-#endif // FOLLY_CPLUSPLUS >= 201703L
 #endif // FOLLY_CFG_NO_COROUTINES
-
-#if __cpp_inline_variables >= 201606L || FOLLY_CPLUSPLUS >= 201703L
-#define FOLLY_INLINE_VARIABLE inline
-#else
-#define FOLLY_INLINE_VARIABLE
-#endif
 
 // C++20 consteval
 #if FOLLY_CPLUSPLUS >= 202002L

@@ -9,7 +9,7 @@
 open Hh_prelude
 open Typing_defs
 open Typing_env_types
-module Cls = Decl_provider.Class
+module Cls = Folded_class
 module Env = Typing_env
 module SN = Naming_special_names
 
@@ -327,6 +327,9 @@ module DataType = struct
   let shape_to_datatypes ~trail : 'phase t =
     Set.singleton ~reason:DataTypeReason.(make Shapes trail) Tag.DictData
 
+  let label_to_datatypes ~trail : 'phase t =
+    Set.singleton ~reason:DataTypeReason.(make NoSubreason trail) Tag.LabelData
+
   module Class = struct
     (* Set of interfaces that contain non-object members *)
     let special_interfaces =
@@ -460,7 +463,7 @@ module DataType = struct
               let trail =
                 DataTypeReason.sealed_interface
                   ~trail
-                  (Reason.Rwitness_from_decl (Cls.pos cls))
+                  (Reason.witness_from_decl (Cls.pos cls))
                   name
               in
               SSet.fold
@@ -501,6 +504,14 @@ module DataType = struct
     let reason = DataTypeReason.(make NoSubreason trail) in
     match predicate with
     | IsBool -> Set.singleton ~reason BoolData
+    | IsInt -> Set.singleton ~reason IntData
+    | IsString -> Set.singleton ~reason StringData
+    | IsArraykey -> Set.of_list ~reason [IntData; StringData]
+    | IsFloat -> Set.singleton ~reason FloatData
+    | IsNum -> Set.of_list ~reason [IntData; FloatData]
+    | IsResource -> Set.singleton ~reason ResourceData
+    | IsNull -> Set.singleton ~reason NullData
+    | IsTupleOf _ -> Set.singleton ~reason VecData
 
   let rec fromTy ~trail (env : env) (ty : locl_ty) : 'phase t =
     let open Tag in
@@ -524,6 +535,7 @@ module DataType = struct
     | Tfun _ -> fun_to_datatypes ~trail
     | Ttuple _ -> tuple_to_datatypes ~trail
     | Tshape _ -> shape_to_datatypes ~trail
+    | Tlabel _ -> label_to_datatypes ~trail
     | Tvar _ -> mixed ~reason
     | Tgeneric (name, tyl) ->
       let upper_bounds =
@@ -566,7 +578,7 @@ module DataType = struct
       fromTy ~trail env as_ty
     | Tnewtype (name, _, _)
       when String.equal name Naming_special_names.Classes.cEnumClassLabel ->
-      Set.singleton ~reason:DataTypeReason.(make NoSubreason trail) LabelData
+      label_to_datatypes ~trail
     | Tnewtype (name, tyl, as_ty) -> begin
       match Env.get_typedef env name with
       (* When determining the datatype associated with a type we should
@@ -624,7 +636,6 @@ module DataType = struct
     | Tneg n ->
       let right =
         match n with
-        | Neg_prim prim -> prim_to_datatypes ~trail prim
         | Neg_class (_, cls) -> Class.to_datatypes ~trail env cls
         | Neg_predicate predicate -> fromPredicate ~trail env predicate
       in
@@ -779,6 +790,7 @@ module AtomicDataTypes = struct
     | Nonnull
     | Tuple
     | Shape
+    | Label
     | Class of string
 
   let trail =
@@ -796,16 +808,27 @@ module AtomicDataTypes = struct
 
   let mixed = DataType.mixed ~reason:DataTypeReason.(make NoSubreason trail)
 
+  let label = DataType.label_to_datatypes ~trail
+
   let of_ty env = function
     | Primitive prim -> DataType.prim_to_datatypes ~trail prim
     | Function -> function_
     | Nonnull -> nonnull
     | Tuple -> tuple
     | Shape -> shape
+    | Label -> label
     | Class name -> DataType.Class.to_datatypes ~trail env name
 
   let of_predicate env = function
     | IsBool -> of_ty env (Primitive Aast.Tbool)
+    | IsInt -> of_ty env (Primitive Aast.Tint)
+    | IsString -> of_ty env (Primitive Aast.Tstring)
+    | IsArraykey -> of_ty env (Primitive Aast.Tarraykey)
+    | IsFloat -> of_ty env (Primitive Aast.Tfloat)
+    | IsNum -> of_ty env (Primitive Aast.Tnum)
+    | IsResource -> of_ty env (Primitive Aast.Tresource)
+    | IsNull -> of_ty env (Primitive Aast.Tnull)
+    | IsTupleOf _ -> of_ty env Tuple
 
   let complement dt = DataType.Set.diff mixed dt
 

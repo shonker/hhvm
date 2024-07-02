@@ -160,11 +160,11 @@ static auto local_byte_counter = ServiceData::createCounter("admin.vm-tcspace.RD
 static auto pers_byte_counter = ServiceData::createCounter("admin.vm-tcspace.PersistentRDS");
 
 // Current allocation frontier for the non-persistent region.
-size_t s_normal_frontier = sizeof(Header);
+std::atomic_size_t s_normal_frontier = sizeof(Header);
 
 // Frontier for the "local" part of the persistent region (data not
 // shared between threads, but not zero'd)---downward-growing.
-size_t s_local_frontier = 0;
+std::atomic_size_t s_local_frontier = 0;
 size_t s_local_base = 0;
 
 #if !RDS_FIXED_PERSISTENT_BASE
@@ -197,7 +197,15 @@ std::atomic<size_t> s_normal_alloc_descs_size;
 std::atomic<size_t> s_local_alloc_descs_size;
 
 /*
- * Round base up to align, which must be a power of two.
+ * Round `base' down to `align', which must be a power of 2.
+ */
+size_t roundDown(size_t base, size_t align) {
+  assertx(folly::isPowTwo(align));
+  return base & ~(align - 1);
+}
+
+/*
+ * Round `base' up to `align', which must be a power of 2.
  */
 size_t roundUp(size_t base, size_t align) {
   assertx(folly::isPowTwo(align));
@@ -320,8 +328,8 @@ Handle alloc(Mode mode, size_t numBytes,
           return handle;
         }
 
-        auto const oldFrontier = s_normal_frontier;
-        s_normal_frontier = roundUp(s_normal_frontier, align);
+        auto const oldFrontier = s_normal_frontier.load(std::memory_order_acquire);
+        s_normal_frontier.store(roundUp(oldFrontier, align), std::memory_order_release);
 
         addFreeBlock(s_normal_free_lists, oldFrontier,
                      s_normal_frontier - oldFrontier);
@@ -397,7 +405,8 @@ Handle alloc(Mode mode, size_t numBytes,
         align = folly::nextPowTwo(align);
         always_assert(align <= numBytes);
 
-        const auto old_local_frontier = s_local_frontier;
+        const auto old_local_frontier =
+          s_local_frontier.load(std::memory_order_acquire);
         auto& frontier = s_local_frontier;
 
         frontier -= numBytes;
@@ -487,8 +496,7 @@ void bindOnLinkImpl(std::atomic<Handle>& handle,
                     type_scan::Index tsi, const void* init_val) {
   Handle c = kUninitHandle;
   if (handle.compare_exchange_strong(c, kBeingBound,
-                                     std::memory_order_relaxed,
-                                     std::memory_order_relaxed)) {
+                                     std::memory_order_acq_rel)) {
     // we flipped it from kUninitHandle, so we get to fill in the value.
     auto const h = allocUnlocked(mode, size, align, tsi, &sym);
     recordRds(h, size, sym);
@@ -518,13 +526,12 @@ void bindOnLinkImpl(std::atomic<Handle>& handle,
   // Someone else beat us to it, so wait until they've filled it in.
   if (c == kBeingBound) {
     handle.compare_exchange_strong(c, kBeingBoundWithWaiters,
-                                   std::memory_order_relaxed,
-                                   std::memory_order_relaxed);
+                                   std::memory_order_acq_rel);
   }
   while (handle.load(std::memory_order_acquire) == kBeingBoundWithWaiters) {
     futex_wait(&handle, kBeingBoundWithWaiters);
   }
-  assertx(isHandleBound(handle.load(std::memory_order_relaxed)));
+  assertx(isHandleBound(handle.load(std::memory_order_acquire)));
 }
 
 }
@@ -639,27 +646,29 @@ void requestExit() {
 
 void flush() {
   if (madvise(tl_base, s_normal_frontier, MADV_DONTNEED) == -1) {
-    Logger::Warning("RDS madvise failure: %s\n",
-                    folly::errnoStr(errno).c_str());
+    Logger::Warning("RDS madvise failure: %s", folly::errnoStr(errno).c_str());
   }
+
   if (jit::mcgen::retranslateAllEnabled() &&
       !jit::mcgen::retranslateAllPending()) {
     // Madvise away everything except the rds-locals. These may lie in
     // the middle of the local section, we have to do it separately
     // for the data before and after (rounding up to page sizes).
-    auto const rdsLocalsBegin =
-      local::detail::RDSLocalNode::s_RDSLocalsBase & ~0xfff;
+    auto const pageSize = sysconf(_SC_PAGESIZE);
+    auto const rdsLocalsBegin = roundDown(
+      local::detail::RDSLocalNode::s_RDSLocalsBase,
+      pageSize
+    );
     auto const rdsLocalsEnd = roundUp(
       local::detail::RDSLocalNode::s_RDSLocalsBase + local::detail::s_usedbytes,
-      4096
+      pageSize
     );
-
     if (s_local_frontier < rdsLocalsBegin) {
-      auto const offset = s_local_frontier & ~0xfff;
+      auto const offset = roundDown(s_local_frontier, pageSize);
       if (madvise(static_cast<char*>(tl_base) + offset,
-                  rdsLocalsBegin - s_local_frontier,
+                  rdsLocalsBegin - offset,
                   MADV_DONTNEED)) {
-        Logger::Warning("RDS local madvise failure: %s\n",
+        Logger::Warning("RDS local madvise failure: %s",
                         folly::errnoStr(errno).c_str());
       }
     }
@@ -667,7 +676,7 @@ void flush() {
       if (madvise(static_cast<char*>(tl_base) + rdsLocalsEnd,
                   s_local_base - rdsLocalsEnd,
                   MADV_DONTNEED)) {
-        Logger::Warning("RDS local madvise failure: %s\n",
+        Logger::Warning("RDS local madvise failure: %s",
                         folly::errnoStr(errno).c_str());
       }
     }

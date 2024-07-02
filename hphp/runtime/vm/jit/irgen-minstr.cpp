@@ -45,6 +45,7 @@
 #include "hphp/runtime/ext/collections/ext_collections-pair.h"
 #include "hphp/runtime/ext/collections/ext_collections-vector.h"
 
+#include "hphp/util/configs/eval.h"
 #include "hphp/util/safe-cast.h"
 #include "hphp/util/struct-log.h"
 
@@ -115,7 +116,7 @@ Type knownTypeForProp(const Class::Prop& prop,
                       const Class* ctx,
                       bool ignoreLateInit) {
   auto knownType = TCell;
-  if (RuntimeOption::EvalCheckPropTypeHints >= 3) {
+  if (Cfg::Eval::CheckPropTypeHints >= 3) {
     knownType = typeFromPropTC(prop.typeConstraint, propCls, ctx, false);
     if (!(prop.attrs & AttrNoImplicitNullable)) knownType |= TInitNull;
   }
@@ -660,6 +661,7 @@ SSATmp* emitCGetElemQuiet(IRGS& env, SSATmp* base, SSATmp* key,
     case SimpleOp::Pair:
     case SimpleOp::Map:
       assertx(mode != MOpMode::InOut);
+      [[fallthrough]];
     case SimpleOp::None:
       return gen(env, CGetElem, MOpModeData{mode}, base, key);
   }
@@ -2130,7 +2132,7 @@ SSATmp* setOpPropImpl(IRGS& env, SetOpOp op, SSATmp* base,
      * check isn't necessary.
      */
     auto const fast = [&]{
-      if (RuntimeOption::EvalCheckPropTypeHints <= 0) return true;
+      if (Cfg::Eval::CheckPropTypeHints <= 0) return true;
       if (!propInfo->typeConstraint ||
           !propInfo->typeConstraint->isCheckable()) {
         return true;

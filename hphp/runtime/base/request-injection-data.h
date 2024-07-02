@@ -67,7 +67,7 @@ private:
   bool m_hasTimer{false};
 
   /* Set true when we activate a timer, cleared when the signal handler runs. */
-  std::atomic<bool> m_timerActive{false};
+  std::atomic_bool m_timerActive{false};
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -172,7 +172,7 @@ struct RequestInjectionData {
   }
   void clearHostOOMFlag() {
     clearFlag(MemExceededFlag);
-    m_hostOutOfMemory.store(false, std::memory_order_relaxed);
+    m_hostOutOfMemory.store(false, std::memory_order_release);
   }
   bool hostOOMFlag() const {
     return m_hostOutOfMemory.load(std::memory_order_acquire);

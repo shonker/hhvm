@@ -219,6 +219,7 @@ pub const error1066: Error = Cow::Borrowed("Only one 'exports to' is allowed.");
 pub const error1067: Error = Cow::Borrowed("Only one 'imports from' is allowed.");
 pub const error1068: Error =
     Cow::Borrowed("The `default` module name cannot appear in a compound module name.");
+pub const error1069: Error = Cow::Borrowed("`imports` clause must come before `exports` clause.");
 pub const error2001: Error = Cow::Borrowed("A type annotation is required in `strict` mode.");
 pub const error2003: Error =
     Cow::Borrowed("A `case` statement may only appear directly inside a `switch`.");
@@ -490,6 +491,10 @@ pub const pair_initializer_arity: Error =
     Cow::Borrowed("Pair objects must have exactly 2 elements");
 pub const invalid_reified: Error =
     Cow::Borrowed("`reify` keyword can only appear at function or class type parameter position");
+pub const invalid_namespace_name: Error =
+    Cow::Borrowed("Cannot use namespace with xhp-style names (contains `:` or `-`)");
+pub const invalid_namespace_alias: Error =
+    Cow::Borrowed("Cannot use namespace alias with xhp-style names (contains `:` or `-`)");
 pub fn reified_in_invalid_classish(s: &str) -> Error {
     Cow::Owned(format!(
         "Invalid to use a reified type within {}'s type parameters",
@@ -1144,6 +1149,9 @@ pub const enum_class_constant_missing_initializer: Error =
 pub const enum_class_abstract_constant_with_value: Error =
     Cow::Borrowed("Abstract enum class constants must not provide any initial value");
 
+pub const enum_class_references_this: Error =
+    Cow::Borrowed("`$this` cannot be used inside an enum class");
+
 pub const enum_with_modifiers: Error = Cow::Borrowed("Enums can't have any modifiers");
 
 pub const enum_missing_base_type: Error =
@@ -1254,3 +1262,21 @@ pub const varray_darray_banned: Error =
 
 pub const optional_precedes_non_optional: Error =
     Cow::Borrowed("An optional parameter cannot precede a non-optional parameter.");
+
+pub const expression_tree_name: Error =
+    Cow::Borrowed("Expression trees must provide the DSL name.");
+
+pub const expression_tree_name_mismatch: Error = Cow::Borrowed(
+    "Nested expression trees must use the same DSL name as the enclosing expression tree, got",
+);
+
+pub const invalid_package_override: Error =
+    Cow::Borrowed("Package override must specify exactly one package name.");
+
+pub fn no_continue_in_finally(blk_token: TokenKind, stmt_token: TokenKind) -> Error {
+    Cow::Owned(format!(
+        "`{};` is not allowed as a top-level statement in a `{}` block",
+        stmt_token.to_string(),
+        blk_token.to_string()
+    ))
+}

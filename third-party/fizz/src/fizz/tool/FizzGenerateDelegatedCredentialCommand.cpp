@@ -6,8 +6,9 @@
  *  LICENSE file in the root directory of this source tree.
  */
 
+#include <fizz/backend/openssl/certificate/CertUtils.h>
 #include <fizz/extensions/delegatedcred/DelegatedCredentialUtils.h>
-#include <fizz/protocol/CertUtils.h>
+#include <fizz/extensions/delegatedcred/Serialization.h>
 #include <fizz/tool/FizzCommandCommon.h>
 #include <fizz/util/Parse.h>
 #include <folly/FileUtil.h>
@@ -117,17 +118,18 @@ int fizzGenerateDelegatedCredentialCommand(
   try {
     std::shared_ptr<SelfCert> cert;
     if (!certKeyPass.empty()) {
-      cert = CertUtils::makeSelfCert(certData, certKeyData, certKeyPass);
+      cert =
+          openssl::CertUtils::makeSelfCert(certData, certKeyData, certKeyPass);
     } else {
-      cert = CertUtils::makeSelfCert(certData, certKeyData);
+      cert = openssl::CertUtils::makeSelfCert(certData, certKeyData);
     }
 
     folly::ssl::EvpPkeyUniquePtr certPrivKey =
-        CertUtils::readPrivateKeyFromBuffer(
+        openssl::CertUtils::readPrivateKeyFromBuffer(
             certKeyData, certKeyPass.empty() ? nullptr : &certKeyPass[0]);
 
     folly::ssl::EvpPkeyUniquePtr credPrivKey =
-        CertUtils::readPrivateKeyFromBuffer(
+        openssl::CertUtils::readPrivateKeyFromBuffer(
             credKeyData, credKeyPass.empty() ? nullptr : &credKeyPass[0]);
 
     if (!credSignScheme) {
@@ -135,25 +137,42 @@ int fizzGenerateDelegatedCredentialCommand(
     }
 
     if (!credVerifScheme) {
-      switch (CertUtils::getKeyType(credPrivKey)) {
-        case KeyType::RSA:
-          credVerifScheme = CertUtils::getSigSchemes<KeyType::RSA>().front();
-          break;
-        case KeyType::P256:
-          credVerifScheme = CertUtils::getSigSchemes<KeyType::P256>().front();
-          break;
-        case KeyType::P384:
-          credVerifScheme = CertUtils::getSigSchemes<KeyType::P384>().front();
-          break;
-        case KeyType::P521:
-          credVerifScheme = CertUtils::getSigSchemes<KeyType::P521>().front();
-          break;
-        case KeyType::ED25519:
+      switch (openssl::CertUtils::getKeyType(credPrivKey)) {
+        case openssl::KeyType::RSA:
           credVerifScheme =
-              CertUtils::getSigSchemes<KeyType::ED25519>().front();
+              openssl::CertUtils::getSigSchemes<openssl::KeyType::RSA>()
+                  .front();
+          break;
+        case openssl::KeyType::P256:
+          credVerifScheme =
+              openssl::CertUtils::getSigSchemes<openssl::KeyType::P256>()
+                  .front();
+          break;
+        case openssl::KeyType::P384:
+          credVerifScheme =
+              openssl::CertUtils::getSigSchemes<openssl::KeyType::P384>()
+                  .front();
+          break;
+        case openssl::KeyType::P521:
+          credVerifScheme =
+              openssl::CertUtils::getSigSchemes<openssl::KeyType::P521>()
+                  .front();
+          break;
+        case openssl::KeyType::ED25519:
+          credVerifScheme =
+              openssl::CertUtils::getSigSchemes<openssl::KeyType::ED25519>()
+                  .front();
           break;
       }
     }
+
+    folly::ssl::BioUniquePtr bio(BIO_new(BIO_s_mem()));
+    BUF_MEM* bptr = nullptr;
+    if (!PEM_write_bio_X509(bio.get(), cert->getX509().get())) {
+      throw std::runtime_error("Failed to re-encode cert");
+    }
+    BIO_get_mem_ptr(bio.get(), &bptr);
+    auto certPem = std::string(bptr->data, bptr->length);
 
     auto credential = DelegatedCredentialUtils::generateCredential(
         std::move(cert),
@@ -162,12 +181,14 @@ int fizzGenerateDelegatedCredentialCommand(
         *credSignScheme,
         *credVerifScheme,
         validSec);
-    auto encodedCred = fizz::extensions::encodeExtension(credential);
-    auto credData = encodedCred.extension_data->moveToFbString().toStdString();
+
+    auto pem = fizz::extensions::generateDelegatedCredentialPEM(
+        std::move(credential), std::move(certPem), std::move(credKeyData));
+
     if (outPath.empty()) {
-      std::cout << credData;
+      std::cout << pem;
     } else {
-      if (!writeFile(credData, outPath.c_str())) {
+      if (!writeFile(pem, outPath.c_str())) {
         LOG(ERROR) << "Failed to write out credential: " << errnoStr(errno);
         return 1;
       }

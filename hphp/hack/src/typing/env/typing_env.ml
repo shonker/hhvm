@@ -17,7 +17,7 @@ module Inf = Typing_inference_env
 module LID = Local_id
 module LEnvC = Typing_per_cont_env
 module C = Typing_continuations
-module Cls = Decl_provider.Class
+module Cls = Folded_class
 module Fake = Typing_fake_members
 module ITySet = Internal_type_set
 module TPEnv = Type_parameter_env
@@ -90,8 +90,24 @@ let log_env_change name ?(level = 1) old_env new_env =
   env
 
 let expand_var env r v =
-  let (inference_env, ty) = Inf.expand_var env.inference_env r v in
-  ({ env with inference_env }, ty)
+  let (inference_env, ty_solution) = Inf.expand_var env.inference_env r v in
+  (* When we have a concrete solution r, record the flow of that solution as a
+     prefix to the original type variables's reason; when we linearize the
+     path, we should then see the path of the relevant uppper / lower bounds
+     as the prefix for any flow through typing.
+     We don't record the flow when we are pointing at another tyvar on the
+     heap since we would end up with a chain of flows representing unification
+  *)
+  let ty_solution =
+    if
+      (not (is_tyvar ty_solution))
+      && TypecheckerOptions.yolo_extended_reasons env.genv.tcopt
+    then
+      map_reason ty_solution ~f:(fun from -> Typing_reason.flow (from, r))
+    else
+      ty_solution
+  in
+  ({ env with inference_env }, ty_solution)
 
 let fresh_type_reason ?variance env p r =
   log_env_change_ "fresh_type_reason" env
@@ -123,10 +139,11 @@ let fresh_type_error env p =
   let (inference_env, res) =
     Inf.fresh_type_reason
       ~variance:Ast_defs.Invariant
+      ~is_error:true
       env.inference_env
       env.tvar_id_provider
       p
-      (Reason.Rtype_variable_error p)
+      (Reason.type_variable_error p)
   in
   ({ env with inference_env }, res)
 
@@ -136,10 +153,11 @@ let fresh_type_error_contravariant env p =
   let (inference_env, res) =
     Inf.fresh_type_reason
       ~variance:Ast_defs.Contravariant
+      ~is_error:true
       env.inference_env
       env.tvar_id_provider
       p
-      (Reason.Rtype_variable_error p)
+      (Reason.type_variable_error p)
   in
   ({ env with inference_env }, res)
 
@@ -247,12 +265,19 @@ let get_type env r var =
   ({ env with inference_env }, res)
 
 let expand_type env ty =
-  let (inference_env, res) = Inf.expand_type env.inference_env ty in
-  ({ env with inference_env }, res)
+  match deref ty with
+  | (reason, Tvar tvid) -> expand_var env reason tvid
+  | _ ->
+    (* If this expansion was applied to a concrete type, don't modify the
+       reason *)
+    (env, ty)
 
 let expand_internal_type env ty =
-  let (inference_env, res) = Inf.expand_internal_type env.inference_env ty in
-  ({ env with inference_env }, res)
+  match ty with
+  | LoclType ty ->
+    let (env, ty) = expand_type env ty in
+    (env, LoclType ty)
+  | _ -> (env, ty)
 
 let get_tyvar_pos env var = Inf.get_tyvar_pos env.inference_env var
 
@@ -583,6 +608,19 @@ let set_current_module env m =
 
 let get_current_module env = Option.map env.genv.current_module ~f:snd
 
+let set_current_package_override_from_file_attributes env file_attributes =
+  match
+    List.find_map file_attributes ~f:(fun { fa_user_attributes; _ } ->
+        Naming_attributes.find
+          Naming_special_names.UserAttributes.uaPackageOverride
+          fa_user_attributes)
+  with
+  | Some { ua_params = [(_, _, Aast.String pkg)]; _ } ->
+    { env with genv = { env.genv with current_package_override = Some pkg } }
+  | _ -> env
+
+let get_current_package_override env = env.genv.current_package_override
+
 (** Register the current top-level structure as being dependent on the current
     module *)
 let make_depend_on_current_module env =
@@ -655,11 +693,21 @@ let get_package_for_module env md =
   let info = get_tcopt env |> TypecheckerOptions.package_info in
   PackageInfo.get_package_for_module info md
 
+let get_package_for_file env file =
+  let info = get_tcopt env |> TypecheckerOptions.package_info in
+  PackageInfo.get_package_for_file info file
+
 let get_package_by_name env pkg_name =
   let info = get_tcopt env |> TypecheckerOptions.package_info in
   PackageInfo.get_package info pkg_name
 
 let is_package_loaded env package = SSet.mem package env.loaded_packages
+
+let package_v2 env = TypecheckerOptions.package_v2 @@ get_tcopt env
+
+let package_v2_bypass_package_check_for_class_const env =
+  TypecheckerOptions.package_v2_bypass_package_check_for_class_const
+  @@ get_tcopt env
 
 let load_packages env packages =
   { env with loaded_packages = SSet.union env.loaded_packages packages }
@@ -746,7 +794,8 @@ let add_parent_dep env ~skip_constructor_dep ~is_req name : unit =
   let _ = get_parent env ~skip_constructor_dep ~is_req name in
   ()
 
-let get_class_or_typedef env x =
+let get_class_or_typedef env x :
+    Folded_class.t class_or_typedef_result Decl_entry.t =
   if is_typedef env x then
     Decl_entry.map (get_typedef env x) ~f:(fun td -> TypedefResult td)
   else
@@ -1030,7 +1079,9 @@ let set_no_auto_likes env b =
 
 let set_everything_sdt env b =
   map_tcopt
-    ~f:(fun tcopt -> { tcopt with GlobalOptions.tco_everything_sdt = b })
+    ~f:(fun tcopt ->
+      GlobalOptions.
+        { tcopt with po = { tcopt.po with ParserOptions.everything_sdt = b } })
     env
 
 let get_support_dynamic_type env = env.genv.this_support_dynamic_type
@@ -1214,7 +1265,7 @@ let get_local_in_ctx ~undefined_err_fun env x ctx_opt =
     Some
       Typing_local_types.
         {
-          ty = Typing_make_type.nothing Reason.Rnone;
+          ty = Typing_make_type.nothing Reason.none;
           defined = false;
           bound_ty = None;
           pos = Pos.none;
@@ -1245,7 +1296,7 @@ let get_local_ty_in_ctx ~undefined_err_fun env x ctx_opt =
     ( false,
       Typing_local_types.
         {
-          ty = Typing_make_type.nothing Reason.Rnone;
+          ty = Typing_make_type.nothing Reason.none;
           defined = false;
           bound_ty = None;
           pos = Pos.none;
@@ -1257,7 +1308,7 @@ let get_local_ty_in_ctx ~undefined_err_fun env x ctx_opt =
       if local.defined then
         local.ty
       else
-        Typing_make_type.nothing Reason.Rnone
+        Typing_make_type.nothing Reason.none
     in
     (true, { local with ty })
 
@@ -1338,7 +1389,7 @@ let get_fake_members env =
   | Some next_cont -> next_cont.LEnvC.fake_members
 
 let update_lost_info name blame env ty =
-  let info r = Reason.Rlost_info (name, r, blame) in
+  let info r = Reason.lost_info (name, r, blame) in
   let rec update_ty (env, seen_tyvars) ty =
     let (env, ty) = expand_type env ty in
     match deref ty with
@@ -1464,9 +1515,12 @@ let closure env f =
   let old_params = get_params env in
   let outer_fun_kind = get_fn_kind env in
   let outer_check_status = env.checked in
+  let old_in_lambda = env.in_lambda in
+  let env = { env with in_lambda = true } in
   (* Typing *)
   let (env, ret) = f env in
   (* Restore the environment fields that were clobbered *)
+  let env = { env with in_lambda = old_in_lambda } in
   let env = { env with lenv = old_lenv } in
   let env = set_params env old_params in
   let env = set_return env old_return in
@@ -1613,6 +1667,7 @@ and get_tyvars_i env (ty : internal_type) =
         Tvid.Set.union positive1 positive2,
         Tvid.Set.union negative1 negative2 )
     | Tunapplied_alias _ -> (env, Tvid.Set.empty, Tvid.Set.empty)
+    | Tlabel _name -> (env, Tvid.Set.empty, Tvid.Set.empty)
     | Taccess (ty, _ids) -> get_tyvars env ty)
   | ConstraintType ty ->
     (match deref_constraint_type ty with
@@ -1664,7 +1719,8 @@ and get_tyvars_i env (ty : internal_type) =
       let (env, positive2, negative2) = get_tyvars env ty_false in
       ( env,
         Tvid.Set.union positive1 positive2,
-        Tvid.Set.union negative1 negative2 ))
+        Tvid.Set.union negative1 negative2 )
+    | (_, Thas_const { name = _; ty }) -> get_tyvars env ty)
 
 and get_tyvars_variance_list (env, acc_positive, acc_negative) variancel tyl =
   match (variancel, tyl) with

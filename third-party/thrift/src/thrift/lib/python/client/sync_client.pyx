@@ -25,7 +25,7 @@ from thrift.python.client.request_channel cimport RequestChannel
 from thrift.python.exceptions cimport create_py_exception
 from thrift.python.exceptions import ApplicationError, ApplicationErrorType
 from thrift.python.serializer import serialize_iobuf, deserialize
-from thrift.py3.common cimport cRpcOptions, RpcOptions
+from thrift.python.common cimport cRpcOptions, RpcOptions
 
 cdef string blank_interaction = b""
 
@@ -107,6 +107,11 @@ cdef class SyncClient:
 
     def set_persistent_header(SyncClient self, string key, string value):
         self._persistent_headers[key] = value
+
+    cdef add_event_handler(SyncClient self, const shared_ptr[cTProcessorEventHandler]& handler):
+        if not self._omni_client:
+            raise RuntimeError("Connection already closed")
+        deref(self._omni_client).addEventHandler(handler)
 
     def _at_exit(SyncClient self, callback):
         self._exit_callbacks.append(callback)

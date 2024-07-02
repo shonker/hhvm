@@ -16,28 +16,32 @@
 
 #include <folly/futures/ManualTimekeeper.h>
 
+#include <folly/synchronization/AtomicUtil.h>
+
 namespace folly {
 
 ManualTimekeeper::ManualTimekeeper() : now_{std::chrono::steady_clock::now()} {}
 
 SemiFuture<Unit> ManualTimekeeper::after(HighResDuration dur) {
-  auto contract = folly::makePromiseContract<Unit>();
+  auto [promise, future] = folly::makePromiseContract<Unit>();
   if (dur.count() == 0) {
-    contract.first.setValue(folly::unit);
+    promise.setValue(folly::unit);
   } else {
-    auto handler = TimeoutHandler::create(std::move(contract.first));
-    schedule_.withWLock([&handler, key = now_ + dur](auto& schedule) {
+    auto handler = TimeoutHandler::create(std::move(promise));
+    schedule_.withWLock([&handler, key = now() + dur](auto& schedule) {
       schedule.emplace(key, std::move(handler));
     });
   }
-  return std::move(contract.second);
+  return std::move(future);
 }
 
 void ManualTimekeeper::advance(Duration dur) {
-  now_ += dur;
+  atomic_fetch_modify(
+      now_, [=](auto val) { return val + dur; }, std::memory_order_relaxed);
+
   schedule_.withWLock([this](auto& schedule) {
     auto start = schedule.begin();
-    auto end = schedule.upper_bound(now_);
+    auto end = schedule.upper_bound(now());
     for (auto iter = start; iter != end; iter++) {
       iter->second->trySetTimeout();
     }
@@ -46,7 +50,7 @@ void ManualTimekeeper::advance(Duration dur) {
 }
 
 std::chrono::steady_clock::time_point ManualTimekeeper::now() const {
-  return now_;
+  return now_.load(std::memory_order_relaxed);
 }
 
 std::size_t ManualTimekeeper::numScheduled() const {

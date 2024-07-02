@@ -14,18 +14,17 @@
 //! Units are composed of the information needed to represent the program:
 //! classes, constants, functions, typedefs.
 //!
-//! Each class (see `Class` in class.rs) has a class description and a list of
-//! methods.
+//! Each class has a class description and a list of methods.
 //!
-//! Methods (see `Method` in func.rs) and functions (see `Function` in func.rs)
-//! are backed by a common `Func` structure (see `Func` in func.rs) which is the
-//! basic representation of a Hack callable.
+//! Methods (see `MethodImpl` in hhbc/method.rs) and functions
+//! (see `FunctionImpl` in hhbc/function.rs) are backed by a common `BodyImpl`
+//! structure (see `BodyImpl` in hhbc/body.rs) which is the basic representation
+//! of a Hack callable.
 //!
-//! Funcs are composed of instructions (see `Instr` in instr.rs) and basic
+//! IrRepr consists of instructions (see `Instr` in instr.rs) and basic
 //! blocks (see `Block` in block.rs).
 
 pub mod block;
-pub mod class;
 pub mod func;
 pub mod func_builder;
 pub mod func_builder_ex;
@@ -34,23 +33,26 @@ pub mod instr;
 pub mod newtype;
 pub mod type_struct;
 pub mod types;
-pub mod unit;
 
 // Re-export some types in from hhbc so users of `ir` don't have to figure out
 // which random stuff to get from `ir` and which to get elsewhere.
+pub use ::newtype::IdVec;
 pub use ffi::Maybe;
 pub use hhbc::dict_get;
 pub use hhbc::intern;
 pub use hhbc::intern_bytes;
 pub use hhbc::string_id;
+pub use hhbc::ArcVec;
 pub use hhbc::AsTypeStructExceptionKind;
 pub use hhbc::Attribute;
 pub use hhbc::BareThisOp;
+pub use hhbc::BodyImpl;
 pub use hhbc::BytesId;
 pub use hhbc::CcParam;
 pub use hhbc::CcReified;
 pub use hhbc::CcThis;
 pub use hhbc::ClassGetCMode;
+pub use hhbc::ClassImpl;
 pub use hhbc::ClassName;
 pub use hhbc::ClassishKind;
 pub use hhbc::Coeffects;
@@ -66,15 +68,18 @@ pub use hhbc::Fatal;
 pub use hhbc::FatalOp;
 pub use hhbc::FloatBits;
 pub use hhbc::FunctionFlags;
+pub use hhbc::FunctionImpl;
 pub use hhbc::FunctionName;
 pub use hhbc::IncDecOp;
 pub use hhbc::IncludePath;
 pub use hhbc::InitPropOp;
 pub use hhbc::IsLogAsDynamicCallOp;
 pub use hhbc::IsTypeOp;
+pub use hhbc::IterArgsFlags;
 pub use hhbc::IterId;
 pub use hhbc::MOpMode;
 pub use hhbc::MethodFlags;
+pub use hhbc::MethodImpl;
 pub use hhbc::MethodName;
 pub use hhbc::Module;
 pub use hhbc::ModuleName;
@@ -102,6 +107,7 @@ pub use hhbc::TypeStructEnforceKind;
 pub use hhbc::TypeStructResolveOp;
 pub use hhbc::TypedValue;
 pub use hhbc::Typedef;
+pub use hhbc::UnitImpl;
 pub use hhbc::UpperBound;
 pub use hhbc::Visibility;
 pub use hhvm_types_ffi::ffi::Attr;
@@ -110,12 +116,12 @@ pub use hhvm_types_ffi::ffi::TypeStructureKind;
 pub use naming_special_names_rust::coeffects::Ctx;
 
 pub use self::block::Block;
-pub use self::class::Class;
 pub use self::func::DefaultValue;
 pub use self::func::ExFrameId;
 pub use self::func::Filename;
 pub use self::func::Func;
 pub use self::func::Function;
+pub use self::func::IrRepr;
 pub use self::func::Method;
 pub use self::func::TryCatchId;
 pub use self::func_builder::FuncBuilder;
@@ -144,4 +150,6 @@ pub use self::newtype::ValueIdSet;
 pub use self::newtype::VarId;
 pub use self::types::BaseType;
 pub use self::types::EnforceableType;
-pub use self::unit::Unit;
+
+pub type Unit = UnitImpl<IrRepr>;
+pub type Class = ClassImpl<IrRepr>;

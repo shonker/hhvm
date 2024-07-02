@@ -17,23 +17,22 @@ type t = {
   keep_user_attributes: bool;
   include_assignment_values: bool;
   stack_size: int;
+  deregister_php_stdlib: bool;
 }
 [@@deriving show]
 
-let from_parser_options popt =
-  let open GlobalOptions in
+let from_parser_options (popt : ParserOptions.t) =
+  let open ParserOptions in
   {
-    auto_namespace_map = popt.po_auto_namespace_map;
-    disable_xhp_element_mangling = popt.po_disable_xhp_element_mangling;
-    interpret_soft_types_as_like_types =
-      popt.po_interpret_soft_types_as_like_types;
-    enable_xhp_class_modifier = popt.po_enable_xhp_class_modifier;
-    everything_sdt = popt.tco_everything_sdt;
+    auto_namespace_map = popt.auto_namespace_map;
+    disable_xhp_element_mangling = popt.disable_xhp_element_mangling;
+    interpret_soft_types_as_like_types = popt.interpret_soft_types_as_like_types;
+    enable_xhp_class_modifier = popt.enable_xhp_class_modifier;
+    everything_sdt = popt.everything_sdt;
     php5_compat_mode = false;
     hhvm_compat_mode = false;
-    keep_user_attributes = popt.po_keep_user_attributes;
+    keep_user_attributes = popt.keep_user_attributes;
     include_assignment_values = false;
-    stack_size = popt.po_stack_size;
+    stack_size = popt.stack_size;
+    deregister_php_stdlib = popt.deregister_php_stdlib;
   }
-
-let default = from_parser_options ParserOptions.default

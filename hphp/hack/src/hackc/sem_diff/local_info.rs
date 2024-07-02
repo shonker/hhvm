@@ -48,9 +48,8 @@ impl LocalInfo {
             | Opcode::IsTypeL(local, _)
             | Opcode::IsUnsetL(local)
             | Opcode::IssetL(local)
-            | Opcode::LIterFree(_, local)
-            | Opcode::LIterInit(_, local, _)
-            | Opcode::LIterNext(_, local, _) => LocalInfo::Read(*local),
+            | Opcode::IterInit(_, local, _)
+            | Opcode::IterNext(_, local, _) => LocalInfo::Read(*local),
 
             Opcode::PopL(local) | Opcode::SetL(local) | Opcode::UnsetL(local) => {
                 LocalInfo::Write(*local)
@@ -120,7 +119,7 @@ impl LocalInfo {
             | Opcode::ContValid
             | Opcode::CreateCl(..)
             | Opcode::CreateCont
-            | Opcode::CreateSpecialImplicitContext
+            | Opcode::GetInaccessibleImplicitContext
             | Opcode::DblAsBits
             | Opcode::Dict(..)
             | Opcode::Dim(..)
@@ -167,9 +166,8 @@ impl LocalInfo {
             | Opcode::IsTypeStructC(..)
             | Opcode::IssetG
             | Opcode::IssetS
+            | Opcode::IterBase
             | Opcode::IterFree(..)
-            | Opcode::IterInit(..)
-            | Opcode::IterNext(..)
             | Opcode::Jmp(..)
             | Opcode::JmpNZ(..)
             | Opcode::JmpZ(..)
@@ -239,6 +237,7 @@ impl LocalInfo {
             | Opcode::SetS(..)
             | Opcode::Shl
             | Opcode::Shr
+            | Opcode::StaticAnalysisError
             | Opcode::String(..)
             | Opcode::Sub
             | Opcode::Switch(..)
@@ -251,7 +250,6 @@ impl LocalInfo {
             | Opcode::UnsetG
             | Opcode::UnsetM(..)
             | Opcode::Vec(..)
-            | Opcode::VerifyImplicitContextState
             | Opcode::VerifyOutType(..)
             | Opcode::VerifyParamType(..)
             | Opcode::VerifyParamTypeTS(..)

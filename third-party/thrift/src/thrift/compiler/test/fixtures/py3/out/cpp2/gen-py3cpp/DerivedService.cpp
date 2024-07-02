@@ -60,7 +60,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::py3::simple::
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::py3::simple::DerivedService>::async_tm_get_six(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::py3::simple::DerivedService>::async_tm_get_six(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -135,9 +135,9 @@ determineInvocationType:
 }
 
 
-namespace py3 { namespace simple {
+namespace py3::simple {
 
-::std::int32_t DerivedServiceSvNull::get_six() {
+::std::int32_t DerivedServiceSvNull::get_six() { 
   return 0;
 }
 
@@ -178,7 +178,7 @@ apache::thrift::ServiceRequestInfoMap const& DerivedServiceServiceInfoHolder::re
 apache::thrift::ServiceRequestInfoMap DerivedServiceServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"get_six",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "DerivedService.get_six",
      std::nullopt,
@@ -190,4 +190,4 @@ apache::thrift::ServiceRequestInfoMap DerivedServiceServiceInfoHolder::staticReq
 
   return requestInfoMap;
 }
-}} // py3::simple
+} // namespace py3::simple

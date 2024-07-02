@@ -9,6 +9,7 @@ use serde::Serialize;
 use crate::opcodes::Opcode;
 use crate::BytesId;
 use crate::FCallArgsFlags;
+use crate::IterArgsFlags;
 use crate::PropName;
 use crate::ReadonlyOp;
 use crate::SrcLoc;
@@ -156,7 +157,7 @@ impl FCallArgs {
 #[repr(C)]
 pub struct Local {
     /// 0-based index into HHBC stack frame locals.
-    pub idx: u32,
+    idx: u32,
 }
 
 impl std::fmt::Display for Local {
@@ -167,21 +168,19 @@ impl std::fmt::Display for Local {
 
 impl Local {
     pub const INVALID: Self = Self { idx: u32::MAX };
-    pub const ZERO: Self = Self { idx: 0 };
 
+    #[inline]
     pub fn new(x: usize) -> Self {
         Self { idx: x as u32 }
     }
 
+    #[inline]
     pub fn is_valid(self) -> bool {
         self != Self::INVALID
     }
 
-    pub fn from_usize(idx: usize) -> Local {
-        Local { idx: idx as u32 }
-    }
-
-    pub fn as_usize(&self) -> usize {
+    #[inline]
+    pub fn index(&self) -> usize {
         self.idx as usize
     }
 }
@@ -192,7 +191,19 @@ impl Local {
 #[repr(C)]
 pub struct IterId {
     /// 0-based index into HHBC stack frame iterators
-    pub idx: u32,
+    idx: u32,
+}
+
+impl IterId {
+    #[inline]
+    pub fn new(idx: usize) -> Self {
+        Self { idx: idx as u32 }
+    }
+
+    #[inline]
+    pub fn index(self) -> usize {
+        self.idx as usize
+    }
 }
 
 impl std::fmt::Display for IterId {
@@ -207,6 +218,7 @@ pub struct IterArgs {
     pub iter_id: IterId,
     pub key_id: Local,
     pub val_id: Local,
+    pub flags: IterArgsFlags,
 }
 
 impl std::default::Default for IterArgs {
@@ -215,6 +227,7 @@ impl std::default::Default for IterArgs {
             iter_id: Default::default(),
             key_id: Local::INVALID,
             val_id: Local::INVALID,
+            flags: IterArgsFlags::None,
         }
     }
 }
@@ -313,22 +326,23 @@ pub struct LocalRange {
 }
 
 impl LocalRange {
-    pub const EMPTY: LocalRange = LocalRange {
+    pub const EMPTY: Self = Self {
         start: Local::INVALID,
         len: 0,
     };
 
-    pub fn from_local(local: Local) -> LocalRange {
-        LocalRange {
+    #[inline]
+    pub fn from_local(local: Local) -> Self {
+        Self {
             start: local,
             len: 1,
         }
     }
 
     pub fn iter(&self) -> impl Iterator<Item = Local> {
-        let start = self.start.as_usize();
+        let start = self.start.index();
         let end = start + self.len as usize;
-        (start..end).map(Local::from_usize)
+        (start..end).map(Local::new)
     }
 }
 
@@ -432,5 +446,21 @@ impl Instruct {
             Self::Pseudo(Pseudo::TryCatchEnd) => "TryCatchEnd",
             Self::Pseudo(Pseudo::SrcLoc(_)) => "SrcLoc",
         }
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    #[test]
+    fn opcode_size() {
+        println!(
+            "sizeof TypedValue {}",
+            std::mem::size_of::<crate::TypedValue>()
+        );
+        println!(
+            "sizeof FCallArgs {}",
+            std::mem::size_of::<super::FCallArgs>()
+        );
+        println!("sizeof Opcode {}", std::mem::size_of::<super::Opcode>());
     }
 }

@@ -14,6 +14,7 @@ use bumpalo::Bump;
 use ocamlrep::ptr::UnsafeOcamlPtr;
 use ocamlrep::FromOcamlRep;
 use ocamlrep_ocamlpool::ocaml_ffi;
+use oxidized::namespace_env::Mode;
 use oxidized::parser_options::ParserOptions;
 use parser_core_types::source_text::SourceText;
 use parser_core_types::syntax_by_ref::positioned_syntax::PositionedSyntax;
@@ -35,7 +36,7 @@ unsafe fn parser_options_from_ocaml_only_for_parser_errors(
 
     let po_disable_lval_as_an_expression = bool::from_ocaml(*ocaml_opts.add(3)).unwrap();
     let po_disable_legacy_soft_typehints = bool::from_ocaml(*ocaml_opts.add(4)).unwrap();
-    let tco_const_static_props = bool::from_ocaml(*ocaml_opts.add(5)).unwrap();
+    let po_const_static_props = bool::from_ocaml(*ocaml_opts.add(5)).unwrap();
     let po_disable_legacy_attribute_syntax = bool::from_ocaml(*ocaml_opts.add(6)).unwrap();
     let po_const_default_func_args = bool::from_ocaml(*ocaml_opts.add(7)).unwrap();
     let po_abstract_static_props = bool::from_ocaml(*ocaml_opts.add(8)).unwrap();
@@ -51,23 +52,23 @@ unsafe fn parser_options_from_ocaml_only_for_parser_errors(
         bool::from_ocaml(*ocaml_opts.add(17)).unwrap();
     let po_disallow_direct_superglobals_refs = bool::from_ocaml(*ocaml_opts.add(18)).unwrap();
 
-    parser_options.po_disable_lval_as_an_expression = po_disable_lval_as_an_expression;
-    parser_options.po_disable_legacy_soft_typehints = po_disable_legacy_soft_typehints;
-    parser_options.tco_const_static_props = tco_const_static_props;
-    parser_options.po_disable_legacy_attribute_syntax = po_disable_legacy_attribute_syntax;
-    parser_options.po_const_default_func_args = po_const_default_func_args;
-    parser_options.po_abstract_static_props = po_abstract_static_props;
-    parser_options.po_disallow_func_ptrs_in_constants = po_disallow_func_ptrs_in_constants;
-    parser_options.po_enable_xhp_class_modifier = po_enable_xhp_class_modifier;
-    parser_options.po_disable_xhp_element_mangling = po_disable_xhp_element_mangling;
-    parser_options.po_disable_xhp_children_declarations = po_disable_xhp_children_declarations;
-    parser_options.po_const_default_lambda_args = po_const_default_lambda_args;
-    parser_options.po_allow_unstable_features = po_allow_unstable_features;
-    parser_options.po_interpret_soft_types_as_like_types = po_interpret_soft_types_as_like_types;
-    parser_options.tco_is_systemlib = tco_is_systemlib;
-    parser_options.po_disallow_static_constants_in_default_func_args =
+    parser_options.disable_lval_as_an_expression = po_disable_lval_as_an_expression;
+    parser_options.disable_legacy_soft_typehints = po_disable_legacy_soft_typehints;
+    parser_options.const_static_props = po_const_static_props;
+    parser_options.disable_legacy_attribute_syntax = po_disable_legacy_attribute_syntax;
+    parser_options.const_default_func_args = po_const_default_func_args;
+    parser_options.abstract_static_props = po_abstract_static_props;
+    parser_options.disallow_func_ptrs_in_constants = po_disallow_func_ptrs_in_constants;
+    parser_options.enable_xhp_class_modifier = po_enable_xhp_class_modifier;
+    parser_options.disable_xhp_element_mangling = po_disable_xhp_element_mangling;
+    parser_options.disable_xhp_children_declarations = po_disable_xhp_children_declarations;
+    parser_options.const_default_lambda_args = po_const_default_lambda_args;
+    parser_options.allow_unstable_features = po_allow_unstable_features;
+    parser_options.interpret_soft_types_as_like_types = po_interpret_soft_types_as_like_types;
+    parser_options.is_systemlib = tco_is_systemlib;
+    parser_options.disallow_static_constants_in_default_func_args =
         po_disallow_static_constants_in_default_func_args;
-    parser_options.po_disallow_direct_superglobals_refs = po_disallow_direct_superglobals_refs;
+    parser_options.disallow_direct_superglobals_refs = po_disallow_direct_superglobals_refs;
     (
         parser_options,
         (hhvm_compat_mode, hhi_mode, codegen, tco_is_systemlib),
@@ -108,7 +109,11 @@ ocaml_ffi! {
             parser_options,
             hhvm_compat_mode,
             hhi_mode,
-            codegen,
+            if codegen {
+                Mode::ForCodegen
+            } else {
+                Mode::ForTypecheck
+            },
             is_systemlib,
             HashSet::default(),
         );

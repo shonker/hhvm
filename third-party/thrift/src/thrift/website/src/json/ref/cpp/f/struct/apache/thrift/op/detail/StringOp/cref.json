@@ -24,7 +24,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp2/op/detail/BaseOp.h",
         "line": "58",
-        "column": "1",
+        "column": "18",
         "bodyfile": "fbcode/thrift/lib/cpp2/op/detail/BaseOp.h",
         "bodystart": "58",
         "bodyend": "58"
@@ -49,5 +49,11 @@
   "brief_html": "",
   "groupname_html": "",
   "href": "/ref/cpp/f/struct/apache/thrift/op/detail/StringOp/cref",
-  "refid": "/ref/cpp/f/struct/apache/thrift/op/detail/StringOp/cref"
+  "refid": "/ref/cpp/f/struct/apache/thrift/op/detail/StringOp/cref",
+  "parent_links": [
+    {
+      "text_html": "StringOp",
+      "href": "/ref/cpp/struct/apache/thrift/op/detail/StringOp"
+    }
+  ]
 }

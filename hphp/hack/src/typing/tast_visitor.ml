@@ -66,20 +66,9 @@ class virtual iter =
       let env = Env.set_allow_wildcards env in
       super#on_As env e
 
-    method! on_expression_tree
-        env
-        Aast.
-          {
-            et_class;
-            et_splices;
-            et_function_pointers;
-            et_runtime_expr;
-            et_dollardollar_pos = _;
-          } =
+    method! on_expression_tree env Aast.{ et_class; et_runtime_expr } =
       self#on_id env et_class;
-      self#on_block env et_splices;
       let env = Env.inside_expr_tree env et_class in
-      self#on_block env et_function_pointers;
       self#on_expr env et_runtime_expr
 
     method! on_ET_Splice env e =
@@ -152,20 +141,9 @@ class virtual ['state] iter_with_state =
       let env = Env.set_allow_wildcards env in
       super#on_As (env, state) e
 
-    method! on_expression_tree
-        (env, state)
-        Aast.
-          {
-            et_class;
-            et_splices;
-            et_function_pointers;
-            et_runtime_expr;
-            et_dollardollar_pos = _;
-          } =
+    method! on_expression_tree (env, state) Aast.{ et_class; et_runtime_expr } =
       self#on_id (env, state) et_class;
-      self#on_block (env, state) et_splices;
       let env = Env.inside_expr_tree env et_class in
-      self#on_block (env, state) et_function_pointers;
       self#on_expr (env, state) et_runtime_expr
 
     method! on_ET_Splice (env, state) e =
@@ -231,24 +209,11 @@ class virtual ['a] reduce =
       let env = Env.set_allow_wildcards env in
       super#on_As env e
 
-    method! on_expression_tree
-        env
-        Aast.
-          {
-            et_class = cls;
-            et_splices;
-            et_function_pointers;
-            et_runtime_expr;
-            et_dollardollar_pos = _;
-          } =
+    method! on_expression_tree env Aast.{ et_class = cls; et_runtime_expr } =
       let et_class = self#on_id env cls in
-      let et_splices = self#on_block env et_splices in
       let env = Env.inside_expr_tree env cls in
-      let et_function_pointers = self#on_block env et_function_pointers in
       let et_runtime_expr = self#on_expr env et_runtime_expr in
-      self#plus
-        et_class
-        (self#plus et_splices (self#plus et_function_pointers et_runtime_expr))
+      self#plus et_class et_runtime_expr
 
     method! on_ET_Splice env e =
       let env = Env.outside_expr_tree env in
@@ -320,34 +285,13 @@ class virtual map =
       let env = Env.set_allow_wildcards env in
       super#on_As env e
 
-    method! on_expression_tree
-        env
-        Aast.
-          {
-            et_class;
-            et_splices;
-            et_function_pointers;
-            et_runtime_expr;
-            et_dollardollar_pos;
-          } =
+    method! on_expression_tree env Aast.{ et_class; et_runtime_expr } =
       let et_class = self#on_id env et_class in
-      let et_splices = self#on_block env et_splices in
-      let et_function_pointers =
-        let env = Env.inside_expr_tree env et_class in
-        self#on_block env et_function_pointers
-      in
       let et_runtime_expr =
         let env = Env.inside_expr_tree env et_class in
         self#on_expr env et_runtime_expr
       in
-      Aast.
-        {
-          et_class;
-          et_splices;
-          et_function_pointers;
-          et_runtime_expr;
-          et_dollardollar_pos;
-        }
+      Aast.{ et_class; et_runtime_expr }
 
     method! on_ET_Splice env e =
       let env = Env.outside_expr_tree env in
@@ -419,34 +363,13 @@ class virtual endo =
       let env = Env.set_allow_wildcards env in
       super#on_As env e
 
-    method! on_expression_tree
-        env
-        Aast.
-          {
-            et_class;
-            et_splices;
-            et_function_pointers;
-            et_runtime_expr;
-            et_dollardollar_pos;
-          } =
+    method! on_expression_tree env Aast.{ et_class; et_runtime_expr } =
       let et_class = self#on_id env et_class in
-      let et_splices = self#on_block env et_splices in
-      let et_function_pointers =
-        let env = Env.inside_expr_tree env et_class in
-        self#on_block env et_function_pointers
-      in
       let et_runtime_expr =
         let env = Env.inside_expr_tree env et_class in
         self#on_expr env et_runtime_expr
       in
-      Aast.
-        {
-          et_class;
-          et_splices;
-          et_function_pointers;
-          et_runtime_expr;
-          et_dollardollar_pos;
-        }
+      Aast.{ et_class; et_runtime_expr }
 
     method! on_ET_Splice env e =
       let env = Env.outside_expr_tree env in

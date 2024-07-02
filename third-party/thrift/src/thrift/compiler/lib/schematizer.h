@@ -22,7 +22,7 @@
 #include <thrift/compiler/ast/t_const_value.h>
 #include <thrift/compiler/ast/t_enum.h>
 #include <thrift/compiler/ast/t_program.h>
-#include <thrift/compiler/ast/t_program_bundle.h>
+#include <thrift/compiler/ast/t_scope.h>
 #include <thrift/compiler/ast/t_service.h>
 #include <thrift/compiler/ast/t_structured.h>
 #include <thrift/compiler/ast/t_typedef.h>
@@ -35,10 +35,39 @@ class schematizer {
   using InternFunc = std::function<t_program::value_id(
       std::unique_ptr<t_const_value> val, t_program* program)>;
 
-  explicit schematizer(
-      const t_program_bundle* bundle,
-      InternFunc intern_value = &default_intern_value)
-      : bundle_(bundle), intern_value_(std::move(intern_value)) {}
+  enum class included_data : uint16_t {
+    DoubleWrites = 1, // Legacy copies of data for backcompat
+    Annotations = 2,
+    Docs = 4,
+  };
+
+  struct included_data_set {
+    bool test(included_data item) const {
+      return data & static_cast<storage>(item);
+    }
+    void set(included_data item) { data |= static_cast<storage>(item); }
+    void reset(included_data item) { data &= ~static_cast<storage>(item); }
+
+    // Needed to work around https://github.com/llvm/llvm-project/issues/36032
+    included_data_set() : data(static_cast<storage>(-1)) {}
+
+   private:
+    using storage = std::underlying_type_t<included_data>;
+    storage data;
+  };
+
+  struct options {
+    included_data_set include;
+    InternFunc intern_value;
+    bool use_hash = false; // Uses typeHashPrefixSha2_256 in typeUri and
+                           // definitionKey instead of definitionId.
+    bool include_generated_ = false;
+    bool source_ranges_ = false;
+    bool only_root_program_ = false;
+  };
+
+  explicit schematizer(const t_scope& scope, options opts)
+      : scope_(scope), opts_(std::move(opts)) {}
 
   // Creates a constant of type schema.Struct describing the argument.
   // https://github.com/facebook/fbthrift/blob/main/thrift/lib/thrift/schema.thrift
@@ -53,12 +82,14 @@ class schematizer {
   // types recursively referenced by it. Calls gen_schema internally.
   std::unique_ptr<t_const_value> gen_full_schema(const t_service& node);
 
- private:
-  const t_program_bundle* bundle_;
-  InternFunc intern_value_;
+  // Gets a universally unique identifier for a definition that is consistent
+  // across runs on different including programs.
+  static std::string identify_definition(const t_named& node);
+  static int64_t identify_program(const t_program& node);
 
-  static t_program::value_id default_intern_value(
-      std::unique_ptr<t_const_value> val, t_program* program);
+ private:
+  const t_scope& scope_;
+  options opts_;
 
   t_type_ref stdType(std::string_view uri);
   std::unique_ptr<t_const_value> typeUri(const t_type& type);
@@ -92,6 +123,17 @@ class schematizer {
 // TODO: allow increasing type fidelity.
 std::unique_ptr<t_const_value> wrap_with_protocol_value(
     const t_const_value& value, t_type_ref ttype);
+
+// Tag for obtaining a compact-encoded schema for the root program via pluggable
+// function.
+struct GetSchemaTag {
+  static std::string defaultImpl(
+      schematizer::options& /* schema_opts */,
+      const source_manager& /* source_mgr */,
+      const t_program& /* root_program */) {
+    return {};
+  }
+};
 } // namespace compiler
 } // namespace thrift
 } // namespace apache

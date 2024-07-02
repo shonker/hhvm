@@ -4,9 +4,7 @@
 // LICENSE file in the "hack" directory of this source tree.
 
 use std::collections::VecDeque;
-use std::sync::Arc;
 
-use hash::HashMap;
 use hhbc::BytesId;
 use hhbc::Instruct;
 use ir::instr;
@@ -21,7 +19,6 @@ use ir::ValueId;
 use ir::VarId;
 use newtype::newtype_int;
 
-use crate::convert::UnitState;
 use crate::sequence::Sequence;
 
 pub(crate) type LabelMap<T> =
@@ -46,8 +43,6 @@ impl Addr {
 
 /// Context used during conversion of an HhasBody to an ir::Func.
 pub(crate) struct Context<'b> {
-    /// Conversion from hhbc::AdataId to the hhbc:TypedValue it represents.
-    pub(crate) adata_lookup: &'b HashMap<hhbc::AdataId, Arc<ir::TypedValue>>,
     /// Source instructions from the bytecode
     pub(crate) instrs: &'b [Instruct],
     pub(crate) addr_to_seq: AddrMap<Sequence>,
@@ -63,12 +58,11 @@ pub(crate) struct Context<'b> {
 }
 
 impl<'b> Context<'b> {
-    pub(crate) fn new(func: ir::Func, instrs: &'b [Instruct], unit_state: &'b UnitState) -> Self {
+    pub(crate) fn new(func: ir::Func, instrs: &'b [Instruct]) -> Self {
         let mut builder = FuncBuilder::with_func(func);
         let (label_to_addr, bid_to_addr, addr_to_seq) = Sequence::compute(&mut builder, instrs);
 
         let mut ctx = Context {
-            adata_lookup: &unit_state.adata_lookup,
             instrs,
             addr_to_seq,
             label_to_addr,
@@ -109,7 +103,7 @@ impl<'b> Context<'b> {
     pub(crate) fn alloc_bid(&mut self) -> BlockId {
         let bid = self.builder.alloc_bid();
         let tcid = self.builder.cur_block().tcid;
-        self.builder.func.block_mut(bid).tcid = tcid;
+        self.builder.func.repr.block_mut(bid).tcid = tcid;
         bid
     }
 

@@ -36,7 +36,7 @@ APACHE_THRIFT_DEFINE_ACCESSOR(MyTransitiveField);
 // BEGIN forward_declare
 namespace cpp2 {
 class Included;
-} // cpp2
+} // namespace cpp2
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -101,6 +101,8 @@ class Included final  {
  public:
   using __fbthrift_cpp2_type = Included;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -258,4 +260,4 @@ unsigned long Included::read(Protocol_* iprot) {
 }
 
 
-} // cpp2
+} // namespace cpp2

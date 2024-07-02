@@ -62,7 +62,7 @@ folly::coro::Task<std::unique_ptr<::test::fixtures::basic::ReservedKeyword>> apa
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test::fixtures::basic::FB303Service>::async_tm_simple_rpc(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::test::fixtures::basic::ReservedKeyword>>> callback, ::std::int32_t p_int_parameter) {
+void apache::thrift::ServiceHandler<::test::fixtures::basic::FB303Service>::async_tm_simple_rpc(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::test::fixtures::basic::ReservedKeyword>> callback, ::std::int32_t p_int_parameter) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -120,7 +120,7 @@ determineInvocationType:
       {
         ::test::fixtures::basic::ReservedKeyword _return;
         sync_simple_rpc(_return, p_int_parameter);
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -139,9 +139,9 @@ determineInvocationType:
 }
 
 
-namespace test { namespace fixtures { namespace basic {
+namespace test::fixtures::basic {
 
-void FB303ServiceSvNull::simple_rpc(::test::fixtures::basic::ReservedKeyword& /*_return*/, ::std::int32_t /*int_parameter*/) {}
+void FB303ServiceSvNull::simple_rpc(::test::fixtures::basic::ReservedKeyword& /*_return*/, ::std::int32_t /*int_parameter*/) {  }
 
 
 const char* FB303ServiceAsyncProcessor::getServiceName() {
@@ -180,7 +180,7 @@ apache::thrift::ServiceRequestInfoMap const& FB303ServiceServiceInfoHolder::requ
 apache::thrift::ServiceRequestInfoMap FB303ServiceServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"simple_rpc",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "FB303Service.simple_rpc",
      std::nullopt,
@@ -190,4 +190,4 @@ apache::thrift::ServiceRequestInfoMap FB303ServiceServiceInfoHolder::staticReque
 
   return requestInfoMap;
 }
-}}} // test::fixtures::basic
+} // namespace test::fixtures::basic

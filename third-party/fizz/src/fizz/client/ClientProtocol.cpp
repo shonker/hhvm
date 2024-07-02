@@ -178,7 +178,8 @@ Actions ClientStateMachine::processConnect(
   connect.extensions = extensions;
   connect.cachedPsk = std::move(cachedPsk);
   connect.echConfigs = std::move(echConfigs);
-  return detail::processEvent(state, std::move(connect));
+  fizz::Param p(std::move(connect));
+  return detail::processEvent(state, p);
 }
 
 Actions ClientStateMachine::processSocketData(
@@ -196,7 +197,7 @@ Actions ClientStateMachine::processSocketData(
     if (!param.has_value()) {
       return actions(WaitForData{param.sizeHint});
     }
-    return detail::processEvent(state, std::move(*param));
+    return detail::processEvent(state, *param);
   } catch (const FizzException& e) {
     return detail::handleError(
         state,
@@ -219,19 +220,22 @@ Actions ClientStateMachine::processSocketData(
 Actions ClientStateMachine::processWriteNewSessionTicket(
     const State& state,
     WriteNewSessionTicket write) {
-  return detail::processEvent(state, std::move(write));
+  fizz::Param p = std::move(write);
+  return detail::processEvent(state, p);
 }
 
 Actions ClientStateMachine::processAppWrite(
     const State& state,
     AppWrite write) {
-  return detail::processEvent(state, std::move(write));
+  fizz::Param p = std::move(write);
+  return detail::processEvent(state, p);
 }
 
 Actions ClientStateMachine::processEarlyAppWrite(
     const State& state,
     EarlyAppWrite write) {
-  return detail::processEvent(state, std::move(write));
+  fizz::Param p = std::move(write);
+  return detail::processEvent(state, p);
 }
 
 Actions ClientStateMachine::processAppClose(const State& state) {
@@ -245,16 +249,17 @@ Actions ClientStateMachine::processAppCloseImmediate(const State& state) {
 Actions ClientStateMachine::processKeyUpdateInitiation(
     const State& state,
     KeyUpdateInitiation keyUpdateInitiation) {
-  return detail::processEvent(state, std::move(keyUpdateInitiation));
+  fizz::Param p = std::move(keyUpdateInitiation);
+  return detail::processEvent(state, p);
 }
 
 namespace detail {
 
-Actions processEvent(const State& state, Param param) {
+Actions processEvent(const State& state, Param& param) {
   auto event = EventVisitor()(param);
   try {
     return sm::StateMachine<ClientTypes>::getHandler(state.state(), event)(
-        state, std::move(param));
+        state, param);
   } catch (const FizzException& e) {
     return detail::handleError(
         state,
@@ -330,7 +335,8 @@ Actions handleAppClose(const State& state) {
   }
 }
 
-Actions handleInvalidEvent(const State& state, Event event, Param param) {
+Actions handleInvalidEvent(const State& state, Param& param) {
+  auto event = EventVisitor()(param);
   if (event == Event::Alert) {
     auto& alert = *param.asAlert();
     throw FizzException(
@@ -629,11 +635,17 @@ static ech::SupportedECHConfig getSupportedECHConfig(
   // Convert vectors to use HPKE types.
   std::vector<hpke::KEMId> supportedKEMs(supportedGroups.size());
   for (const auto& group : supportedGroups) {
-    supportedKEMs.push_back(hpke::getKEMId(group));
+    const auto kemId = hpke::tryGetKEMId(group);
+    if (kemId.has_value()) {
+      supportedKEMs.push_back(*kemId);
+    }
   }
   std::vector<hpke::AeadId> supportedAeads(supportedCiphers.size());
   for (const auto& suite : supportedCiphers) {
-    supportedAeads.push_back(hpke::getAeadId(suite));
+    const auto aeadId = hpke::tryGetAeadId(suite);
+    if (aeadId.has_value()) {
+      supportedAeads.push_back(*aeadId);
+    }
   }
 
   // Get a supported ECH config.
@@ -771,7 +783,7 @@ static ClientHello constructEncryptedClientHello(
 Actions
 EventHandler<ClientTypes, StateEnum::Uninitialized, Event::Connect>::handle(
     const State& /*state*/,
-    Param param) {
+    Param& param) {
   auto& connect = *param.asConnect();
 
   auto context = std::move(connect.context);
@@ -925,7 +937,7 @@ EventHandler<ClientTypes, StateEnum::Uninitialized, Event::Connect>::handle(
 
     // Update SNI now
     echSni = std::move(sni);
-    sni = echParams->fakeSni->clone()->moveToFbString().toStdString();
+    sni = echParams->fakeSni->to<std::string>();
 
     // Save client hello inner
     encodedECH = std::move(encodedClientHello);
@@ -1171,7 +1183,7 @@ static NegotiatedPsk negotiatePsk(
 
 Actions
 EventHandler<ClientTypes, StateEnum::ExpectingServerHello, Event::ServerHello>::
-    handle(const State& state, Param param) {
+    handle(const State& state, Param& param) {
   auto shlo = std::move(*param.asServerHello());
 
   Protocol::checkAllowedExtensions(shlo, *state.requestedExtensions());
@@ -1297,9 +1309,7 @@ EventHandler<ClientTypes, StateEnum::ExpectingServerHello, Event::ServerHello>::
   }
 
   // Servers cannot accept GREASE PSK
-  if (echStatus == ECHStatus::Rejected &&
-      (negotiatedPsk.type == PskType::External ||
-       negotiatedPsk.type == PskType::Resumption)) {
+  if (echStatus == ECHStatus::Rejected && isPskAccepted(negotiatedPsk.type)) {
     throw FizzException(
         "ech rejected but server accepted psk",
         AlertDescription::illegal_parameter);
@@ -1346,10 +1356,12 @@ EventHandler<ClientTypes, StateEnum::ExpectingServerHello, Event::ServerHello>::
       folly::IOBuf::copyBuffer(handshakeReadSecret.secret);
 
   folly::Optional<ClientAuthType> authType;
-  if (negotiatedPsk.clientCert) {
-    authType = ClientAuthType::Stored;
-  } else if (negotiatedPsk.serverCert) {
-    authType = ClientAuthType::NotRequested;
+  if (isPskAccepted(negotiatedPsk.type)) {
+    if (negotiatedPsk.clientCert) {
+      authType = ClientAuthType::Stored;
+    } else {
+      authType = ClientAuthType::NotRequested;
+    }
   }
 
   std::chrono::system_clock::time_point handshakeTime;
@@ -1463,7 +1475,7 @@ static std::map<NamedGroup, std::unique_ptr<KeyExchange>> getHrrKeyExchangers(
 Actions EventHandler<
     ClientTypes,
     StateEnum::ExpectingServerHello,
-    Event::HelloRetryRequest>::handle(const State& state, Param param) {
+    Event::HelloRetryRequest>::handle(const State& state, Param& param) {
   auto hrr = std::move(*param.asHelloRetryRequest());
 
   Protocol::checkAllowedExtensions(hrr, *state.requestedExtensions());
@@ -1731,7 +1743,7 @@ static void validateAcceptedEarly(
 Actions EventHandler<
     ClientTypes,
     StateEnum::ExpectingEncryptedExtensions,
-    Event::EncryptedExtensions>::handle(const State& state, Param param) {
+    Event::EncryptedExtensions>::handle(const State& state, Param& param) {
   auto ee = std::move(*param.asEncryptedExtensions());
 
   Protocol::checkAllowedExtensions(ee, *state.requestedExtensions());
@@ -1746,8 +1758,7 @@ Actions EventHandler<
           "alpn list does not contain exactly one protocol",
           AlertDescription::illegal_parameter);
     }
-    appProto =
-        alpn->protocol_name_list.front().name->moveToFbString().toStdString();
+    appProto = alpn->protocol_name_list.front().name->to<std::string>();
     if (std::find(
             state.context()->getSupportedAlpns().begin(),
             state.context()->getSupportedAlpns().end(),
@@ -1779,11 +1790,15 @@ Actions EventHandler<
   }
 
   folly::Optional<std::vector<ech::ECHConfig>> retryConfigs;
+  folly::Optional<ECHRetryAvailable> echRetryAvailable;
   if (state.echState().has_value()) {
     // Check if we were sent retry configs
     auto serverECH = getExtension<ech::ECHEncryptedExtensions>(ee.extensions);
     if (serverECH.has_value()) {
       retryConfigs = std::move(serverECH->retry_configs);
+      echRetryAvailable = ECHRetryAvailable{};
+      echRetryAvailable->sni = state.echState()->sni.value_or("");
+      echRetryAvailable->configs = retryConfigs.value();
     }
   }
 
@@ -1791,7 +1806,8 @@ Actions EventHandler<
     state.extensions()->onEncryptedExtensions(ee.extensions);
   }
 
-  MutateState mutateState(
+  Actions ret;
+  ret.emplace_back(MutateState(
       [appProto = std::move(appProto),
        earlyDataType,
        retryConfigs = std::move(retryConfigs)](State& newState) mutable {
@@ -1801,56 +1817,47 @@ Actions EventHandler<
         if (retryConfigs.has_value()) {
           newState.echState()->retryConfigs = std::move(retryConfigs);
         }
-      });
+      }));
 
-  if (state.pskType() == PskType::Resumption ||
-      state.pskType() == PskType::External) {
-    return actions(
-        std::move(mutateState),
-        MutateState(&Transition<StateEnum::ExpectingFinished>));
-  } else {
-    return actions(
-        std::move(mutateState),
-        MutateState(&Transition<StateEnum::ExpectingCertificate>));
+  if (echRetryAvailable) {
+    ret.emplace_back(std::move(*echRetryAvailable));
   }
+
+  auto nextState = (isPskAccepted(*state.pskType()))
+      ? &Transition<StateEnum::ExpectingFinished>
+      : &Transition<StateEnum::ExpectingCertificate>;
+  ret.emplace_back(MutateState(nextState));
+
+  return ret;
 }
 
-static std::tuple<
-    folly::Optional<SignatureScheme>,
-    std::shared_ptr<const SelfCert>>
-getClientCert(const State& state, const std::vector<SignatureScheme>& schemes) {
-  folly::Optional<SignatureScheme> selectedScheme;
-  auto clientCert = state.context()->getClientCertificate();
+static folly::Optional<
+    std::pair<std::shared_ptr<const SelfCert>, SignatureScheme>>
+getClientCert(
+    const State& state,
+    const std::vector<SignatureScheme>& schemes,
+    const std::vector<Extension>& peerExtensions) {
+  auto certManager = state.context()->getCertManager();
+  if (certManager == nullptr) {
+    return folly::none;
+  }
   const auto& supportedSchemes = state.context()->getSupportedSigSchemes();
-
-  if (clientCert) {
-    const auto certSchemes = clientCert->getSigSchemes();
-    for (const auto& scheme : supportedSchemes) {
-      if (std::find(certSchemes.begin(), certSchemes.end(), scheme) !=
-              certSchemes.end() &&
-          std::find(schemes.begin(), schemes.end(), scheme) != schemes.end()) {
-        selectedScheme = scheme;
-        break;
-      }
-    }
-
-    if (!selectedScheme) {
-      VLOG(1) << "client cert/context doesn't support any signature algorithms "
-              << "specified by the server";
-    }
+  auto result = certManager->getCert(
+      state.sni(), supportedSchemes, schemes, peerExtensions);
+  if (!result) {
+    VLOG(1) << "client cert/context doesn't support any signature algorithms "
+            << "specified by the server";
+    return folly::none;
   }
 
-  if (!selectedScheme) {
-    clientCert = nullptr;
-  }
-
-  return std::make_tuple(std::move(selectedScheme), std::move(clientCert));
+  std::shared_ptr<const SelfCert> cert = result->cert;
+  return std::make_pair(cert, result->scheme);
 }
 
 Actions EventHandler<
     ClientTypes,
     StateEnum::ExpectingCertificate,
-    Event::CertificateRequest>::handle(const State& state, Param param) {
+    Event::CertificateRequest>::handle(const State& state, Param& param) {
   if (state.clientAuthRequested()) {
     throw FizzException(
         "duplicate certificate request message",
@@ -1874,12 +1881,19 @@ Actions EventHandler<
         AlertDescription::illegal_parameter);
   }
 
+  auto certAndScheme = getClientCert(
+      state,
+      sigAlgsExtension->supported_signature_algorithms,
+      certRequest.extensions);
+
   folly::Optional<SignatureScheme> scheme;
   std::shared_ptr<const SelfCert> cert;
-  std::tie(scheme, cert) =
-      getClientCert(state, sigAlgsExtension->supported_signature_algorithms);
-  ClientAuthType authType =
-      scheme ? ClientAuthType::Sent : ClientAuthType::RequestedNoMatch;
+  ClientAuthType authType = ClientAuthType::RequestedNoMatch;
+
+  if (certAndScheme.hasValue()) {
+    std::tie(cert, scheme) = *certAndScheme;
+    authType = ClientAuthType::Sent;
+  }
 
   MutateState mutateState([scheme = std::move(scheme),
                            cert = std::move(cert),
@@ -1957,7 +1971,7 @@ static MutateState handleCertMsg(
 Actions EventHandler<
     ClientTypes,
     StateEnum::ExpectingCertificate,
-    Event::CompressedCertificate>::handle(const State& state, Param param) {
+    Event::CompressedCertificate>::handle(const State& state, Param& param) {
   if (state.context()->getSupportedCertDecompressionAlgorithms().empty()) {
     throw FizzException(
         "compressed certificate received unexpectedly",
@@ -1996,7 +2010,7 @@ Actions EventHandler<
 
 Actions
 EventHandler<ClientTypes, StateEnum::ExpectingCertificate, Event::Certificate>::
-    handle(const State& state, Param param) {
+    handle(const State& state, Param& param) {
   auto certMsg = std::move(*param.asCertificateMsg());
 
   state.handshakeContext()->appendToTranscript(*certMsg.originalEncoding);
@@ -2009,7 +2023,7 @@ EventHandler<ClientTypes, StateEnum::ExpectingCertificate, Event::Certificate>::
 Actions EventHandler<
     ClientTypes,
     StateEnum::ExpectingCertificateVerify,
-    Event::CertificateVerify>::handle(const State& state, Param param) {
+    Event::CertificateVerify>::handle(const State& state, Param& param) {
   auto certVerify = std::move(*param.asCertificateVerify());
 
   if (std::find(
@@ -2068,7 +2082,7 @@ Actions EventHandler<
 
 Actions
 EventHandler<ClientTypes, StateEnum::ExpectingFinished, Event::Finished>::
-    handle(const State& state, Param param) {
+    handle(const State& state, Param& param) {
   auto finished = std::move(*param.asFinished());
 
   if (state.readRecordLayer()->hasUnparsedHandshakeData()) {
@@ -2259,7 +2273,7 @@ static uint32_t getMaxEarlyDataSize(const NewSessionTicket& nst) {
 
 Actions
 EventHandler<ClientTypes, StateEnum::Established, Event::NewSessionTicket>::
-    handle(const State& state, Param param) {
+    handle(const State& state, Param& param) {
   auto nst = std::move(*param.asNewSessionTicket());
 
   auto derivedResumptionSecret = state.keyScheduler()->getResumptionSecret(
@@ -2293,7 +2307,7 @@ EventHandler<ClientTypes, StateEnum::Established, Event::NewSessionTicket>::
 Actions
 EventHandler<ClientTypes, StateEnum::Established, Event::AppData>::handle(
     const State&,
-    Param param) {
+    Param& param) {
   auto& appData = *param.asAppData();
 
   return actions(DeliverAppData{std::move(appData.data)});
@@ -2302,7 +2316,7 @@ EventHandler<ClientTypes, StateEnum::Established, Event::AppData>::handle(
 Actions
 EventHandler<ClientTypes, StateEnum::Established, Event::AppWrite>::handle(
     const State& state,
-    Param param) {
+    Param& param) {
   auto& appWrite = *param.asAppWrite();
 
   WriteToSocket write;
@@ -2316,7 +2330,7 @@ EventHandler<ClientTypes, StateEnum::Established, Event::AppWrite>::handle(
 
 Actions
 EventHandler<ClientTypes, StateEnum::Established, Event::KeyUpdateInitiation>::
-    handle(const State& state, Param param) {
+    handle(const State& state, Param& param) {
   if (state.readRecordLayer()->hasUnparsedHandshakeData()) {
     throw FizzException(
         "data after key_update", AlertDescription::unexpected_message);
@@ -2354,7 +2368,7 @@ EventHandler<ClientTypes, StateEnum::Established, Event::KeyUpdateInitiation>::
 Actions
 EventHandler<ClientTypes, StateEnum::Established, Event::KeyUpdate>::handle(
     const State& state,
-    Param param) {
+    Param& param) {
   auto& keyUpdate = *param.asKeyUpdate();
 
   if (state.readRecordLayer()->hasUnparsedHandshakeData()) {
@@ -2425,7 +2439,8 @@ EventHandler<ClientTypes, StateEnum::Established, Event::KeyUpdate>::handle(
 // action to invoke depends on how the higher layer will react to rejected
 // early data, we give the write back in a special action for the higher layer
 // to handle.
-static Actions ignoreEarlyAppWrite(const State& state, EarlyAppWrite write) {
+static Actions ignoreEarlyAppWrite(const State& state, Param& param) {
+  auto& write = *param.asEarlyAppWrite();
   if (*state.earlyDataType() != EarlyDataType::Rejected) {
     throw FizzException("ignoring valid early write", folly::none);
   }
@@ -2435,7 +2450,8 @@ static Actions ignoreEarlyAppWrite(const State& state, EarlyAppWrite write) {
   return actions(std::move(failedWrite));
 }
 
-static Actions handleEarlyAppWrite(const State& state, EarlyAppWrite appWrite) {
+static Actions handleEarlyAppWrite(const State& state, Param& param) {
+  auto& appWrite = *param.asEarlyAppWrite();
   if (state.context()->getOmitEarlyRecordLayer()) {
     throw FizzException("early app writes disabled", folly::none);
   }
@@ -2444,7 +2460,7 @@ static Actions handleEarlyAppWrite(const State& state, EarlyAppWrite appWrite) {
     case EarlyDataType::NotAttempted:
       throw FizzException("invalid early write", folly::none);
     case EarlyDataType::Rejected:
-      return ignoreEarlyAppWrite(state, std::move(appWrite));
+      return ignoreEarlyAppWrite(state, param);
     case EarlyDataType::Attempted:
     case EarlyDataType::Accepted: {
       WriteToSocket write;
@@ -2476,43 +2492,43 @@ static Actions handleEarlyAppWrite(const State& state, EarlyAppWrite appWrite) {
 Actions EventHandler<
     ClientTypes,
     StateEnum::ExpectingServerHello,
-    Event::EarlyAppWrite>::handle(const State& state, Param param) {
-  return handleEarlyAppWrite(state, std::move(*param.asEarlyAppWrite()));
+    Event::EarlyAppWrite>::handle(const State& state, Param& param) {
+  return handleEarlyAppWrite(state, param);
 }
 
 Actions EventHandler<
     ClientTypes,
     StateEnum::ExpectingEncryptedExtensions,
-    Event::EarlyAppWrite>::handle(const State& state, Param param) {
-  return handleEarlyAppWrite(state, std::move(*param.asEarlyAppWrite()));
+    Event::EarlyAppWrite>::handle(const State& state, Param& param) {
+  return handleEarlyAppWrite(state, param);
 }
 
 Actions EventHandler<
     ClientTypes,
     StateEnum::ExpectingCertificate,
-    Event::EarlyAppWrite>::handle(const State& state, Param param) {
-  return ignoreEarlyAppWrite(state, std::move(*param.asEarlyAppWrite()));
+    Event::EarlyAppWrite>::handle(const State& state, Param& param) {
+  return ignoreEarlyAppWrite(state, param);
 }
 
 Actions EventHandler<
     ClientTypes,
     StateEnum::ExpectingCertificateVerify,
-    Event::EarlyAppWrite>::handle(const State& state, Param param) {
-  return ignoreEarlyAppWrite(state, std::move(*param.asEarlyAppWrite()));
+    Event::EarlyAppWrite>::handle(const State& state, Param& param) {
+  return ignoreEarlyAppWrite(state, param);
 }
 
 Actions
 EventHandler<ClientTypes, StateEnum::ExpectingFinished, Event::EarlyAppWrite>::
-    handle(const State& state, Param param) {
-  return handleEarlyAppWrite(state, std::move(*param.asEarlyAppWrite()));
+    handle(const State& state, Param& param) {
+  return handleEarlyAppWrite(state, param);
 }
 
 Actions
 EventHandler<ClientTypes, StateEnum::Established, Event::EarlyAppWrite>::handle(
     const State& state,
-    Param param) {
-  auto appWrite = std::move(*param.asEarlyAppWrite());
+    Param& param) {
   if (*state.earlyDataType() == EarlyDataType::Accepted) {
+    auto appWrite = std::move(*param.asEarlyAppWrite());
     // It's possible that we had queued early writes before full handshake
     // success. It's fine to write them on the normal record layer as long as
     // the early data was accepted, otherwise we need to ignore them to preserve
@@ -2524,14 +2540,14 @@ EventHandler<ClientTypes, StateEnum::Established, Event::EarlyAppWrite>::handle(
     write.flags = appWrite.flags;
     return actions(std::move(write));
   } else {
-    return ignoreEarlyAppWrite(state, std::move(appWrite));
+    return ignoreEarlyAppWrite(state, param);
   }
 }
 
 Actions
 EventHandler<ClientTypes, StateEnum::Established, Event::CloseNotify>::handle(
     const State& state,
-    Param param) {
+    Param& param) {
   ensureNoUnparsedHandshakeData(state, Event::CloseNotify);
   auto& closenotify = *param.asCloseNotify();
   auto eod = EndOfData(std::move(closenotify.ignoredPostCloseData));
@@ -2553,7 +2569,7 @@ EventHandler<ClientTypes, StateEnum::Established, Event::CloseNotify>::handle(
 
 Actions
 EventHandler<ClientTypes, StateEnum::ExpectingCloseNotify, Event::CloseNotify>::
-    handle(const State& state, Param param) {
+    handle(const State& state, Param& param) {
   ensureNoUnparsedHandshakeData(state, Event::CloseNotify);
   auto& closenotify = *param.asCloseNotify();
   auto eod = EndOfData(std::move(closenotify.ignoredPostCloseData));

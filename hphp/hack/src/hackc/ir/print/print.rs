@@ -33,7 +33,7 @@ use crate::util::FmtSep;
 use crate::FmtEscapedString;
 
 pub(crate) struct FuncContext {
-    pub(crate) cur_loc_id: LocId,
+    pub(crate) cur_loc: SrcLoc,
     pub(crate) live_instrs: InstrIdSet,
     pub(crate) verbose: bool,
 }
@@ -297,7 +297,7 @@ fn print_call_async(
 }
 
 fn print_class(w: &mut dyn Write, class: &Class) -> Result {
-    print_top_level_loc(w, Some(&class.src_loc))?;
+    print_top_level_loc(w, Some(&SrcLoc::from_span(&class.span)))?;
     writeln!(
         w,
         "class {} {} {{",
@@ -305,11 +305,11 @@ fn print_class(w: &mut dyn Write, class: &Class) -> Result {
         FmtAttr(class.flags, AttrContext::Class)
     )?;
 
-    if let Some(doc_comment) = class.doc_comment.as_ref() {
+    if let Maybe::Just(doc_comment) = class.doc_comment.as_ref() {
         writeln!(w, "  doc_comment {}", FmtQuotedStr(doc_comment.as_ref()))?;
     }
 
-    if let Some(base) = class.base {
+    if let Maybe::Just(base) = class.base {
         writeln!(w, "  extends {}", FmtIdentifierId(base.as_bytes_id()))?;
     }
 
@@ -321,7 +321,7 @@ fn print_class(w: &mut dyn Write, class: &Class) -> Result {
         )?;
     }
 
-    if let Some(et) = class.enum_type.as_ref() {
+    if let Maybe::Just(et) = class.enum_type.as_ref() {
         writeln!(w, "  enum_type {}", FmtTypeInfo(et))?;
     }
 
@@ -505,7 +505,7 @@ pub(crate) fn print_func_body(
     f_pre_block: Option<&dyn Fn(&mut dyn Write, BlockId) -> Result>,
     f_pre_instr: Option<&dyn Fn(&mut dyn Write, InstrId) -> Result>,
 ) -> Result {
-    if let Some(doc_comment) = func.doc_comment.as_ref() {
+    if let Maybe::Just(doc_comment) = func.doc_comment.as_ref() {
         writeln!(w, "  .doc {}", FmtQuotedStr(doc_comment.as_ref()))?;
     }
     if func.num_iters != 0 {
@@ -518,7 +518,7 @@ pub(crate) fn print_func_body(
         writeln!(w, "  .is_memoize_wrapper_lsb")?;
     }
 
-    for cid in func.imms.keys() {
+    for cid in func.repr.imms.keys() {
         writeln!(
             w,
             "  .const {} = {}",
@@ -527,7 +527,7 @@ pub(crate) fn print_func_body(
         )?;
     }
 
-    for (id, func::ExFrame { parent, catch_bid }) in &func.ex_frames {
+    for (id, func::ExFrame { parent, catch_bid }) in &func.repr.ex_frames {
         write!(
             w,
             "  .ex_frame {}: catch={}",
@@ -545,12 +545,12 @@ pub(crate) fn print_func_body(
     let live_instrs = crate::util::compute_live_instrs(func, verbose);
 
     let mut ctx = FuncContext {
-        cur_loc_id: func.loc_id,
+        cur_loc: SrcLoc::from_span(&func.span),
         live_instrs,
         verbose,
     };
-    for bid in func.blocks.keys() {
-        let block = &func.blocks[bid];
+    for bid in func.repr.blocks.keys() {
+        let block = &func.repr.blocks[bid];
         write!(w, "{}", FmtBid(func, bid, false))?;
         if !block.params.is_empty() {
             write!(
@@ -581,7 +581,7 @@ pub(crate) fn print_func_body(
             if let Some(f_pre_instr) = f_pre_instr.as_ref() {
                 f_pre_instr(w, iid)?;
             }
-            let instr = func.instr(iid);
+            let instr = func.repr.instr(iid);
             if crate::print::print_instr(w, &mut ctx, func, iid, instr)? {
                 writeln!(w)?;
             }
@@ -617,21 +617,24 @@ fn print_top_level_span(w: &mut dyn Write, span: Option<&Span>) -> Result {
 }
 
 fn print_function(w: &mut dyn Write, f: &Function, verbose: bool) -> Result {
-    print_top_level_loc(w, f.func.get_loc(f.func.loc_id))?;
+    print_top_level_loc(w, Some(&SrcLoc::from_span(&f.body.span)))?;
+    let ret_type = match &f.body.return_type {
+        Maybe::Just(t) => format!(" {}", FmtTypeInfo(t)),
+        Maybe::Nothing => String::new(),
+    };
     writeln!(
         w,
-        "function {name}{tparams}{params}{shadowed_tparams}: {ret_type} {attr} {{",
+        "function {name}{tparams}{params}{shadowed_tparams}:{ret_type} {attr} {{",
         name = FmtIdentifierId(f.name.as_bytes_id()),
-        tparams = FmtTParams(&f.func.upper_bounds),
-        shadowed_tparams = FmtShadowedTParams(&f.func.shadowed_tparams),
-        params = FmtFuncParams(&f.func),
-        ret_type = FmtTypeInfo(&f.func.return_type),
-        attr = FmtAttr(f.func.attrs, AttrContext::Function),
+        tparams = FmtTParams(&f.body.upper_bounds),
+        shadowed_tparams = FmtShadowedTParams(&f.body.shadowed_tparams),
+        params = FmtFuncParams(&f.body),
+        attr = FmtAttr(f.body.attrs, AttrContext::Function),
     )?;
     print_function_flags(w, f.flags)?;
-    print_attributes(w, &f.func.attributes)?;
-    print_coeffects(w, &f.func.coeffects)?;
-    print_func_body(w, &f.func, verbose, None, None)?;
+    print_attributes(w, &f.body.attributes)?;
+    print_coeffects(w, &f.body.coeffects)?;
+    print_func_body(w, &f.body, verbose, None, None)?;
     writeln!(w, "}}")?;
     writeln!(w)
 }
@@ -877,13 +880,8 @@ fn print_hhbc(w: &mut dyn Write, ctx: &FuncContext, func: &Func, hhbc: &Hhbc) ->
             )?;
         }
         Hhbc::CreateCont(_) => write!(w, "create_cont")?,
-        Hhbc::CreateSpecialImplicitContext(vids, _) => {
-            write!(
-                w,
-                "create_special_implicit_context {}, {}",
-                FmtVid(func, vids[0], verbose),
-                FmtVid(func, vids[1], verbose)
-            )?;
+        Hhbc::GetInaccessibleImplicitContext(_) => {
+            write!(w, "get_inaccessible_implicit_context",)?;
         }
         Hhbc::EnumClassLabelName(vid, _) => {
             write!(w, "enum_class_label_name {}", FmtVid(func, vid, verbose))?;
@@ -932,11 +930,12 @@ fn print_hhbc(w: &mut dyn Write, ctx: &FuncContext, func: &Func, hhbc: &Hhbc) ->
                 FmtInitPropOp(op)
             )?;
         }
-        Hhbc::InstanceOfD(vid, clsid, _) => write!(
+        Hhbc::InstanceOfD(vid, clsid, nullable, _) => write!(
             w,
-            "instance_of_d {}, {}",
+            "instance_of_d {}, {}, {}",
             FmtVid(func, vid, ctx.verbose),
-            FmtIdentifierId(clsid.as_bytes_id())
+            FmtIdentifierId(clsid.as_bytes_id(),),
+            if nullable { "1" } else { "0" }
         )?,
         Hhbc::IsLateBoundCls(vid, _) => {
             write!(w, "is_late_bound_cls {}", FmtVid(func, vid, ctx.verbose))?;
@@ -966,8 +965,9 @@ fn print_hhbc(w: &mut dyn Write, ctx: &FuncContext, func: &Func, hhbc: &Hhbc) ->
                 FmtVid(func, prop, verbose)
             )?;
         }
+        Hhbc::IterBase(vid, _) => write!(w, "iter_base {}", FmtVid(func, vid, ctx.verbose))?,
         Hhbc::IterFree(iter_id, _loc) => {
-            write!(w, "iterator ^{} free", iter_id.idx)?;
+            write!(w, "iterator ^{} free", iter_id)?;
         }
         Hhbc::LateBoundCls(_) => {
             write!(w, "late_bound_cls")?;
@@ -1231,9 +1231,6 @@ fn print_hhbc(w: &mut dyn Write, ctx: &FuncContext, func: &Func, hhbc: &Hhbc) ->
         Hhbc::UnsetL(lid, _) => {
             write!(w, "unset {}", FmtLid(lid))?;
         }
-        Hhbc::VerifyImplicitContextState(_) => {
-            write!(w, "verify_implicit_context_state")?;
-        }
         Hhbc::VerifyOutType(vid, lid, _) => {
             write!(
                 w,
@@ -1439,9 +1436,9 @@ pub(crate) fn print_ir_to_bc(
 }
 
 fn print_inner_loc(w: &mut dyn Write, ctx: &mut FuncContext, func: &Func, loc_id: LocId) -> Result {
-    if ctx.cur_loc_id != loc_id {
-        ctx.cur_loc_id = loc_id;
-        if let Some(loc) = func.get_loc(loc_id) {
+    if let Some(loc) = func.repr.get_loc(loc_id) {
+        if ctx.cur_loc != *loc {
+            ctx.cur_loc = *loc;
             write!(w, "<srcloc {}> ", FmtLoc(loc))?;
         }
     }
@@ -1449,11 +1446,11 @@ fn print_inner_loc(w: &mut dyn Write, ctx: &mut FuncContext, func: &Func, loc_id
 }
 
 fn print_loc(w: &mut dyn Write, ctx: &mut FuncContext, func: &Func, loc_id: LocId) -> Result {
-    if ctx.cur_loc_id != loc_id {
-        if let Some(loc) = func.get_loc(loc_id) {
+    if let Some(loc) = func.repr.get_loc(loc_id) {
+        if ctx.cur_loc != *loc {
+            ctx.cur_loc = *loc;
             writeln!(w, "  .srcloc {}", FmtLoc(loc))?;
         }
-        ctx.cur_loc_id = loc_id;
     }
     Ok(())
 }
@@ -1728,23 +1725,26 @@ fn print_member_key(
 }
 
 fn print_method(w: &mut dyn Write, clsid: ClassName, method: &Method, verbose: bool) -> Result {
-    print_top_level_loc(w, method.func.get_loc(method.func.loc_id))?;
+    print_top_level_loc(w, Some(&SrcLoc::from_span(&method.body.span)))?;
+    let ret_type = match &method.body.return_type {
+        Maybe::Just(t) => format!(" {}", FmtTypeInfo(t)),
+        Maybe::Nothing => String::new(),
+    };
     writeln!(
         w,
-        "method {clsid}::{method}{tparams}{params}{shadowed_tparams}: {ret_type} {attr} {vis} {{",
+        "method {clsid}::{method}{tparams}{params}{shadowed_tparams}:{ret_type} {attr} {vis} {{",
         clsid = FmtIdentifierId(clsid.as_bytes_id()),
         method = FmtIdentifierId(method.name.as_bytes_id()),
-        tparams = FmtTParams(&method.func.upper_bounds),
-        shadowed_tparams = FmtShadowedTParams(&method.func.shadowed_tparams),
-        params = FmtFuncParams(&method.func),
-        ret_type = FmtTypeInfo(&method.func.return_type),
+        tparams = FmtTParams(&method.body.upper_bounds),
+        shadowed_tparams = FmtShadowedTParams(&method.body.shadowed_tparams),
+        params = FmtFuncParams(&method.body),
         vis = FmtVisibility(method.visibility),
-        attr = FmtAttr(method.func.attrs, AttrContext::Method),
+        attr = FmtAttr(method.body.attrs, AttrContext::Method),
     )?;
     print_method_flags(w, method.flags)?;
-    print_attributes(w, &method.func.attributes)?;
-    print_coeffects(w, &method.func.coeffects)?;
-    print_func_body(w, &method.func, verbose, None, None)?;
+    print_attributes(w, &method.body.attributes)?;
+    print_coeffects(w, &method.body.coeffects)?;
+    print_func_body(w, &method.body, verbose, None, None)?;
     writeln!(w, "}}")?;
     writeln!(w)
 }
@@ -1922,22 +1922,29 @@ fn print_terminator(
             };
             write!(w, "fatal {}, {}", op, FmtVid(func, *vid, verbose))?
         }
-        Terminator::IterInit(args, vid) => {
+        Terminator::IterInit(args) => {
+            write!(w, "iterator ^{} init", args.iter_id)?;
+            if args.flags.contains(IterArgsFlags::BaseConst) {
+                write!(w, " base_const")?;
+            }
             write!(
                 w,
-                "iterator ^{} init from {} jmp to {} else {} with {}",
-                args.iter_id.idx,
-                FmtVid(func, *vid, verbose),
+                " from {} jmp to {} else {} with {}",
+                FmtLid(args.base_lid()),
                 FmtBid(func, args.targets[0], verbose),
                 FmtBid(func, args.targets[1], verbose),
                 FmtOptKeyValue(args.key_lid(), args.value_lid())
             )?;
         }
         Terminator::IterNext(args) => {
+            write!(w, "iterator ^{} next", args.iter_id)?;
+            if args.flags.contains(IterArgsFlags::BaseConst) {
+                write!(w, " base_const")?;
+            }
             write!(
                 w,
-                "iterator ^{} next jmp to {} else {} with {}",
-                args.iter_id.idx,
+                " from {} jmp to {} else {} with {}",
+                FmtLid(args.base_lid()),
                 FmtBid(func, args.targets[0], verbose),
                 FmtBid(func, args.targets[1], verbose),
                 FmtOptKeyValue(args.key_lid(), args.value_lid())
@@ -2140,7 +2147,7 @@ pub fn print_unit(w: &mut dyn Write, unit: &Unit, verbose: bool) -> Result {
         writeln!(w)?;
     }
 
-    if let Some(module_use) = unit.module_use.as_ref() {
+    if let Maybe::Just(module_use) = unit.module_use.as_ref() {
         writeln!(
             w,
             "module_use {}\n",
@@ -2173,7 +2180,7 @@ pub fn print_unit(w: &mut dyn Write, unit: &Unit, verbose: bool) -> Result {
         }
     }
 
-    print_fatal(w, unit.fatal.as_ref())?;
+    print_fatal(w, unit.fatal.as_ref().into())?;
 
     print_symbol_refs(w, &unit.symbol_refs)?;
 

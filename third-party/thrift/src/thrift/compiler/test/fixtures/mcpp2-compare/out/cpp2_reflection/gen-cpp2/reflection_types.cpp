@@ -45,7 +45,7 @@ std::string_view ReflectionStruct::__fbthrift_get_class_name() {
 
 
 ReflectionStruct::ReflectionStruct(apache::thrift::FragileConstructor, ::std::int32_t fieldA__arg) :
-    __fbthrift_field_fieldA(std::move(fieldA__arg)) {
+    __fbthrift_field_fieldA(std::move(fieldA__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -92,11 +92,11 @@ template uint32_t ReflectionStruct::serializedSize<>(apache::thrift::SimpleJSONP
 template uint32_t ReflectionStruct::serializedSizeZC<>(apache::thrift::SimpleJSONProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace cpp2 { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}} // cpp2
+}} // namespace cpp2
 namespace apache::thrift::detail::annotation {
 }

@@ -4,7 +4,6 @@ use anyhow::bail;
 use anyhow::Context;
 use anyhow::Result;
 use hash::HashMap;
-use hhbc::AdataId;
 use hhbc::Instruct;
 use hhbc::Label;
 use hhbc::Local;
@@ -12,7 +11,6 @@ use hhbc::Opcode;
 use hhbc::Pseudo;
 use hhbc::SrcLoc;
 use hhbc::StringId;
-use hhbc::TypedValue;
 use hhbc_gen::OpcodeData;
 use newtype::IdVec;
 
@@ -45,12 +43,10 @@ use crate::work_queue::WorkQueue;
 ///
 /// Finally we compare the two sequences to make sure that they're equal or we
 /// return an Err (see `Sequence::compare()`).
-pub(crate) fn compare_bodies<'a>(
+pub(crate) fn compare_bodies(
     path: &CodePath<'_>,
     body_a: &hhbc::Body,
-    a_adata: &'a HashMap<AdataId, &'a TypedValue>,
     body_b: &hhbc::Body,
-    b_adata: &'a HashMap<AdataId, &'a TypedValue>,
 ) -> Result<()> {
     let mut work_queue = WorkQueue::default();
 
@@ -58,10 +54,10 @@ pub(crate) fn compare_bodies<'a>(
     let b = Body::new(body_b);
 
     let mut value_builder = ValueBuilder::new();
-    work_queue.init_from_bodies(&mut value_builder, &a, a_adata, &b, b_adata);
+    work_queue.init_from_bodies(&mut value_builder, &a, &b);
 
     // If we loop more than this number of times it's almost certainly a bug.
-    let mut infinite_loop = std::cmp::max(body_a.body_instrs.len(), body_b.body_instrs.len()) * 5;
+    let mut infinite_loop = std::cmp::max(body_a.repr.instrs.len(), body_b.repr.instrs.len()) * 5;
 
     while let Some((a, b)) = work_queue.pop() {
         let seq_a = a.collect(&mut value_builder).context("collecting a")?;
@@ -124,15 +120,15 @@ impl<'a> Body<'a> {
     }
 
     pub(crate) fn local_name(&self, local: Local) -> Option<StringId> {
-        let mut n = local.as_usize();
-        let p = self.hhbc_body.params.len();
+        let mut n = local.index();
+        let p = self.hhbc_body.repr.params.len();
         if n < p {
-            return Some(self.hhbc_body.params[n].param.name);
+            return Some(self.hhbc_body.repr.params[n].param.name);
         }
         n -= p;
-        let v = self.hhbc_body.decl_vars.len();
+        let v = self.hhbc_body.repr.decl_vars.len();
         if n < v {
-            return Some(self.hhbc_body.decl_vars[n]);
+            return Some(self.hhbc_body.repr.decl_vars[n]);
         }
         None
     }
@@ -141,7 +137,7 @@ impl<'a> Body<'a> {
         hhbc_body: &'a hhbc::Body,
     ) -> (HashMap<Label, InstrPtr>, IdVec<InstrPtr, Rc<SrcLoc>>) {
         let mut label_to_ip = HashMap::default();
-        let mut ip_to_loc = Vec::with_capacity(hhbc_body.body_instrs.len());
+        let mut ip_to_loc = Vec::with_capacity(hhbc_body.repr.instrs.len());
         let mut cur_loc = Rc::new(SrcLoc::default());
         for (ip, instr) in body_instrs(hhbc_body) {
             match instr {
@@ -189,7 +185,7 @@ impl<'a> Body<'a> {
 fn body_instrs<'a>(
     hhbc_body: &'a hhbc::Body,
 ) -> impl DoubleEndedIterator<Item = (InstrPtr, &'a Instruct)> {
-    hhbc_body.body_instrs.iter().enumerate().map(|(i, instr)| {
+    hhbc_body.repr.instrs.iter().enumerate().map(|(i, instr)| {
         let ip = InstrPtr::from_usize(i);
         (ip, instr)
     })

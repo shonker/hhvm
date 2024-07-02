@@ -61,7 +61,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::cpp2::Raiser>::co_doBla
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::Raiser>::async_tm_doBland(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) {
+void apache::thrift::ServiceHandler<::cpp2::Raiser>::async_tm_doBland(apache::thrift::HandlerCallbackPtr<void> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -171,7 +171,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::cpp2::Raiser>::co_doRai
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::Raiser>::async_tm_doRaise(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) {
+void apache::thrift::ServiceHandler<::cpp2::Raiser>::async_tm_doRaise(apache::thrift::HandlerCallbackPtr<void> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -282,7 +282,7 @@ folly::coro::Task<std::unique_ptr<::std::string>> apache::thrift::ServiceHandler
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::Raiser>::async_tm_get200(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::string>>> callback) {
+void apache::thrift::ServiceHandler<::cpp2::Raiser>::async_tm_get200(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::string>> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -340,7 +340,7 @@ determineInvocationType:
       {
         ::std::string _return;
         sync_get200(_return);
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -394,7 +394,7 @@ folly::coro::Task<std::unique_ptr<::std::string>> apache::thrift::ServiceHandler
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::Raiser>::async_tm_get500(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::string>>> callback) {
+void apache::thrift::ServiceHandler<::cpp2::Raiser>::async_tm_get500(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::string>> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -452,7 +452,7 @@ determineInvocationType:
       {
         ::std::string _return;
         sync_get500(_return);
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -473,17 +473,17 @@ determineInvocationType:
 
 namespace cpp2 {
 
-void RaiserSvNull::doBland() {
+void RaiserSvNull::doBland() { 
   return;
 }
 
-void RaiserSvNull::doRaise() {
+void RaiserSvNull::doRaise() { 
   return;
 }
 
-void RaiserSvNull::get200(::std::string& /*_return*/) {}
+void RaiserSvNull::get200(::std::string& /*_return*/) {  }
 
-void RaiserSvNull::get500(::std::string& /*_return*/) {}
+void RaiserSvNull::get500(::std::string& /*_return*/) {  }
 
 
 const char* RaiserAsyncProcessor::getServiceName() {
@@ -537,28 +537,28 @@ apache::thrift::ServiceRequestInfoMap const& RaiserServiceInfoHolder::requestInf
 apache::thrift::ServiceRequestInfoMap RaiserServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"doBland",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "Raiser.doBland",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"doRaise",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "Raiser.doRaise",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"get200",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "Raiser.get200",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"get500",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "Raiser.get500",
      std::nullopt,
@@ -568,4 +568,4 @@ apache::thrift::ServiceRequestInfoMap RaiserServiceInfoHolder::staticRequestInfo
 
   return requestInfoMap;
 }
-} // cpp2
+} // namespace cpp2

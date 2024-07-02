@@ -60,7 +60,7 @@ folly::coro::Task<::facebook::thrift::test::MyI32_4873> apache::thrift::ServiceH
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::facebook::thrift::test::Service>::async_tm_func(std::unique_ptr<apache::thrift::HandlerCallback<::facebook::thrift::test::MyI32_4873>> callback, std::unique_ptr<::facebook::thrift::test::StringWithAdapter_7208> p_arg1, std::unique_ptr<::std::string> p_arg2, std::unique_ptr<::facebook::thrift::test::Foo> p_arg3) {
+void apache::thrift::ServiceHandler<::facebook::thrift::test::Service>::async_tm_func(apache::thrift::HandlerCallbackPtr<::facebook::thrift::test::MyI32_4873> callback, std::unique_ptr<::facebook::thrift::test::StringWithAdapter_7208> p_arg1, std::unique_ptr<::std::string> p_arg2, std::unique_ptr<::facebook::thrift::test::Foo> p_arg3) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -135,9 +135,9 @@ determineInvocationType:
 }
 
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
-::facebook::thrift::test::MyI32_4873 ServiceSvNull::func(std::unique_ptr<::facebook::thrift::test::StringWithAdapter_7208> /*arg1*/, std::unique_ptr<::std::string> /*arg2*/, std::unique_ptr<::facebook::thrift::test::Foo> /*arg3*/) {
+::facebook::thrift::test::MyI32_4873 ServiceSvNull::func(std::unique_ptr<::facebook::thrift::test::StringWithAdapter_7208> /*arg1*/, std::unique_ptr<::std::string> /*arg2*/, std::unique_ptr<::facebook::thrift::test::Foo> /*arg3*/) { 
   return 0;
 }
 
@@ -178,7 +178,7 @@ apache::thrift::ServiceRequestInfoMap const& ServiceServiceInfoHolder::requestIn
 apache::thrift::ServiceRequestInfoMap ServiceServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"func",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "Service.func",
      std::nullopt,
@@ -188,4 +188,4 @@ apache::thrift::ServiceRequestInfoMap ServiceServiceInfoHolder::staticRequestInf
 
   return requestInfoMap;
 }
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test

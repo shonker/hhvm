@@ -79,7 +79,7 @@ enum class MyEnum {
 
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace std {
 template<> struct hash<::cpp2::MyEnum> :
@@ -120,7 +120,7 @@ namespace cpp2 {
 class MyStruct;
 class MyDataItem;
 class MyUnion;
-} // cpp2
+} // namespace cpp2
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -179,6 +179,8 @@ class MyDataItem final  {
  public:
   using __fbthrift_cpp2_type = MyDataItem;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -285,6 +287,8 @@ class MyStruct final  {
  public:
   using __fbthrift_cpp2_type = MyStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -756,6 +760,8 @@ class MyUnion final  {
   using __fbthrift_cpp2_type = MyUnion;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1055,7 +1061,7 @@ unsigned long MyUnion::read(Protocol_* iprot) {
 }
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache { namespace thrift {
 

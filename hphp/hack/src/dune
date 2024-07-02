@@ -12,11 +12,13 @@
    (:include dune_config/ld-opts.sexp)))
  (libraries
   camlp-streams
+  classish_positions_cli_lib
   client_get_definition
   client_highlight_refs
   code_actions_cli_lib
   count_imprecise_types
   custom_error_types
+  decl_fold_options
   decl_parser_options
   default_injector_config
   dep_hash_to_symbol
@@ -166,6 +168,7 @@
   (:standard
    (:include dune_config/ld-opts.sexp)))
  (libraries
+  decl_fold_options
   decl_parser_options
   decl_provider
   default_injector_config

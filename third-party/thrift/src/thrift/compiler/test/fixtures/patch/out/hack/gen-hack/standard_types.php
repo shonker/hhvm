@@ -86,7 +86,7 @@ enum apache_thrift_type_standard_TypeUriEnum: int {
 /**
  * The "uri" of a Thrift type.
  *
- * Original thrift struct:-
+ * Original thrift union:-
  * TypeUri
  */
 <<\ThriftTypeInfo(shape('uri' => 'facebook.com/thrift/type/TypeUri'))>>
@@ -420,7 +420,7 @@ enum apache_thrift_type_standard_TypeNameEnum: int {
 /**
  * Uniquely identifies a Thrift type.
  *
- * Original thrift struct:-
+ * Original thrift union:-
  * TypeName
  */
 <<\ThriftTypeInfo(shape('uri' => 'facebook.com/thrift/type/TypeName'))>>
@@ -1503,11 +1503,11 @@ class apache_thrift_type_standard_TypeName implements \IThriftSyncStruct, \IThri
       Shapes::idx($shape, 'doubleType'),
       Shapes::idx($shape, 'stringType'),
       Shapes::idx($shape, 'binaryType'),
-      Shapes::idx($shape, 'enumType') === null ? null : (apache_thrift_type_standard_TypeUri::__fromShape($shape['enumType'])),
-      Shapes::idx($shape, 'typedefType') === null ? null : (apache_thrift_type_standard_TypeUri::__fromShape($shape['typedefType'])),
-      Shapes::idx($shape, 'structType') === null ? null : (apache_thrift_type_standard_TypeUri::__fromShape($shape['structType'])),
-      Shapes::idx($shape, 'unionType') === null ? null : (apache_thrift_type_standard_TypeUri::__fromShape($shape['unionType'])),
-      Shapes::idx($shape, 'exceptionType') === null ? null : (apache_thrift_type_standard_TypeUri::__fromShape($shape['exceptionType'])),
+      Shapes::idx($shape, 'enumType') |> $$ === null ? null : (apache_thrift_type_standard_TypeUri::__fromShape($$)),
+      Shapes::idx($shape, 'typedefType') |> $$ === null ? null : (apache_thrift_type_standard_TypeUri::__fromShape($$)),
+      Shapes::idx($shape, 'structType') |> $$ === null ? null : (apache_thrift_type_standard_TypeUri::__fromShape($$)),
+      Shapes::idx($shape, 'unionType') |> $$ === null ? null : (apache_thrift_type_standard_TypeUri::__fromShape($$)),
+      Shapes::idx($shape, 'exceptionType') |> $$ === null ? null : (apache_thrift_type_standard_TypeUri::__fromShape($$)),
       Shapes::idx($shape, 'listType'),
       Shapes::idx($shape, 'setType'),
       Shapes::idx($shape, 'mapType'),

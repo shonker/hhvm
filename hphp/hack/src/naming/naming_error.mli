@@ -99,6 +99,7 @@ type t =
       pos: Pos.t;
       id: string option;
     }
+  | Invalid_type_access_in_where of Pos.t
   | Duplicate_user_attribute of {
       pos: Pos.t;
       attr_name: string;
@@ -292,5 +293,6 @@ type t =
       def_pos: Pos.t;
     }
   | Toplevel_statement of Pos.t
+  | Attribute_outside_allowed_files of Pos.t
 
 val to_user_error : t -> (Pos.t, Pos_or_decl.t) User_error.t

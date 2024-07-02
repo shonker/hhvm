@@ -12,6 +12,8 @@ use env::emitter::Emitter;
 use env::Env;
 use error::Error;
 use error::Result;
+use hhbc::Attr;
+use hhbc::Attribute;
 use hhbc::Body;
 use hhbc::Coeffects;
 use hhbc::FCallArgs;
@@ -159,48 +161,36 @@ fn make_memoize_wrapper_method<'a, 'd>(
         Flags::SHOULD_EMIT_IMPLICIT_CONTEXT,
         hhbc::is_keyed_by_ic_memoize(attributes.iter()),
     );
-    arg_flags.set(
-        Flags::SHOULD_MAKE_IC_INACCESSIBLE,
-        hhbc::is_make_ic_inaccessible_memoize(attributes.iter()),
-    );
-    arg_flags.set(
-        Flags::SHOULD_SOFT_MAKE_IC_INACCESSIBLE,
-        hhbc::is_soft_make_ic_inaccessible_memoize(attributes.iter()),
-    );
     let mut args = Args {
         info,
         method,
         scope: &scope,
-        deprecation_info: hhbc::deprecation_info(&attributes),
+        emit_deprecation_info: true,
         params: &method.params,
         ret,
         method_id: &name,
         flags: arg_flags,
     };
     let span = Span::from_pos(&method.span);
-    let body = emit_memoize_wrapper_body(emitter, env, &mut args, span)?;
+    let mut body = emit_memoize_wrapper_body(emitter, env, &mut args, span, attributes, coeffects)?;
     let mut flags = MethodFlags::empty();
     flags.set(MethodFlags::IS_ASYNC, is_async);
 
-    let has_variadic = emit_param::has_variadic(&body.params);
-    let attrs = get_attrs_for_method(
+    let has_variadic = emit_param::has_variadic(&body.repr.params);
+    body.attrs = get_attrs_for_method(
         emitter,
         method,
-        &attributes,
+        &body.attributes,
         &method.visibility,
         class,
         false,
         has_variadic,
     );
-
     Ok(Method {
-        attributes: attributes.into(),
         visibility: Visibility::from(method.visibility),
         name,
         body,
-        coeffects,
         flags,
-        attrs,
     })
 }
 
@@ -209,6 +199,8 @@ fn emit_memoize_wrapper_body<'a, 'd>(
     env: &mut Env<'a>,
     args: &mut Args<'_, 'a>,
     span: Span,
+    attributes: Vec<Attribute>,
+    coeffects: Coeffects,
 ) -> Result<Body> {
     let mut tparams: Vec<&str> = args
         .scope
@@ -216,27 +208,40 @@ fn emit_memoize_wrapper_body<'a, 'd>(
         .iter()
         .map(|tp| tp.name.1.as_str())
         .collect();
-    let return_type_info = emit_body::emit_return_type_info(
-        &tparams[..],
-        args.flags.contains(Flags::IS_ASYNC),
-        args.ret,
-    )?;
+    let return_type =
+        emit_body::emit_return_type(&tparams[..], args.flags.contains(Flags::IS_ASYNC), args.ret)?;
     let hhas_params = emit_param::from_asts(emitter, &mut tparams, true, args.scope, args.params)?;
     args.flags.set(Flags::WITH_LSB, is_memoize_lsb(args.method));
     args.flags.set(Flags::IS_STATIC, args.method.static_);
-    emit(emitter, env, hhas_params, return_type_info, span, args)
+    emit(
+        emitter,
+        env,
+        hhas_params,
+        return_type,
+        span,
+        attributes,
+        coeffects,
+        args,
+    )
 }
 
 fn emit<'a, 'd>(
     emitter: &mut Emitter<'d>,
     env: &mut Env<'a>,
     hhas_params: Vec<(Param, Option<(Label, ast::Expr)>)>,
-    return_type_info: TypeInfo,
+    return_type: TypeInfo,
     span: Span,
+    attributes: Vec<Attribute>,
+    coeffects: Coeffects,
     args: &Args<'_, 'a>,
 ) -> Result<Body> {
     let pos = &args.method.span;
-    let (instrs, decl_vars) = make_memoize_method_code(emitter, env, pos, &hhas_params, args)?;
+    let depr_info = match args.emit_deprecation_info {
+        true => hhbc::deprecation_info(&attributes),
+        false => None,
+    };
+    let (instrs, decl_vars) =
+        make_memoize_method_code(emitter, env, pos, &hhas_params, args, depr_info, &coeffects)?;
     let instrs = emit_pos_then(pos, instrs);
     make_wrapper(
         emitter,
@@ -244,8 +249,10 @@ fn emit<'a, 'd>(
         instrs,
         hhas_params,
         decl_vars,
-        return_type_info,
+        return_type,
         span,
+        attributes,
+        coeffects,
         args,
     )
 }
@@ -256,14 +263,24 @@ fn make_memoize_method_code<'a, 'd>(
     pos: &Pos,
     hhas_params: &[(Param, Option<(Label, ast::Expr)>)],
     args: &Args<'_, 'a>,
+    deprecation_info: Option<&[TypedValue]>,
+    coeffects: &Coeffects,
 ) -> Result<(InstrSeq, Vec<StringId>)> {
     if args.params.is_empty()
         && !args.flags.contains(Flags::IS_REIFIED)
         && !args.flags.contains(Flags::SHOULD_EMIT_IMPLICIT_CONTEXT)
     {
-        make_memoize_method_no_params_code(emitter, args)
+        make_memoize_method_no_params_code(emitter, args, deprecation_info, coeffects)
     } else {
-        make_memoize_method_with_params_code(emitter, env, pos, hhas_params, args)
+        make_memoize_method_with_params_code(
+            emitter,
+            env,
+            pos,
+            hhas_params,
+            args,
+            deprecation_info,
+            coeffects,
+        )
     }
 }
 
@@ -274,6 +291,8 @@ fn make_memoize_method_with_params_code<'a, 'd>(
     pos: &Pos,
     hhas_params: &[(Param, Option<(Label, ast::Expr)>)],
     args: &Args<'_, 'a>,
+    deprecation_info: Option<&[TypedValue]>,
+    coeffects: &Coeffects,
 ) -> Result<(InstrSeq, Vec<StringId>)> {
     let param_count = hhas_params.len();
     let notfound = emitter.label_gen_mut().next_regular();
@@ -298,7 +317,7 @@ fn make_memoize_method_with_params_code<'a, 'd>(
             .chain(decl_vars.iter().copied()),
     );
     let deprecation_body =
-        emit_body::emit_deprecation_info(args.scope, args.deprecation_info, emitter.systemlib())?;
+        emit_body::emit_deprecation_info(args.scope, deprecation_info, emitter.systemlib())?;
     let (begin_label, default_value_setters) =
         // Default value setters belong in the wrapper method not in the original method
         emit_param::emit_param_default_value_setter(emitter, env, pos, hhas_params)?;
@@ -347,13 +366,10 @@ fn make_memoize_method_with_params_code<'a, 'd>(
         len: key_count.try_into().unwrap(),
     };
     let ic_stash_local = Local::new((key_count) as usize + first_unnamed_idx);
-    let should_make_ic_inaccessible = if args.flags.contains(Flags::SHOULD_MAKE_IC_INACCESSIBLE)
-        || args.flags.contains(Flags::SHOULD_SOFT_MAKE_IC_INACCESSIBLE)
-    {
-        Some(args.flags.contains(Flags::SHOULD_SOFT_MAKE_IC_INACCESSIBLE))
-    } else {
-        None
-    };
+    // This fn either has IC unoptimizable static coeffects, or has any dynamic coeffects
+    let has_ic_unoptimizable_coeffects: bool = coeffects.has_ic_unoptimizable_coeffects();
+    let should_make_ic_inaccessible: bool =
+        !should_emit_implicit_context && has_ic_unoptimizable_coeffects;
     let instrs = InstrSeq::gather(vec![
         begin_label,
         emit_body::emit_method_prolog(emitter, env, pos, hhas_params, args.params, &[])?,
@@ -363,7 +379,6 @@ fn make_memoize_method_with_params_code<'a, 'd>(
         } else {
             instr::check_this()
         },
-        instr::verify_implicit_context_state(),
         emit_memoize_helpers::param_code_sets(hhas_params.len(), Local::new(first_unnamed_idx)),
         reified_memokeym,
         ic_memokey,
@@ -420,12 +435,14 @@ fn make_memoize_method_with_params_code<'a, 'd>(
 fn make_memoize_method_no_params_code<'a, 'd>(
     emitter: &mut Emitter<'d>,
     args: &Args<'_, 'a>,
+    deprecation_info: Option<&[TypedValue]>,
+    coeffects: &Coeffects,
 ) -> Result<(InstrSeq, Vec<StringId>)> {
     let notfound = emitter.label_gen_mut().next_regular();
     let suspended_get = emitter.label_gen_mut().next_regular();
     let eager_set = emitter.label_gen_mut().next_regular();
     let deprecation_body =
-        emit_body::emit_deprecation_info(args.scope, args.deprecation_info, emitter.systemlib())?;
+        emit_body::emit_deprecation_info(args.scope, deprecation_info, emitter.systemlib())?;
 
     let fcall_args = FCallArgs::new(
         FCallArgsFlags::default(),
@@ -441,13 +458,8 @@ fn make_memoize_method_no_params_code<'a, 'd>(
         None,
     );
     let ic_stash_local = Local::new(0);
-    let should_make_ic_inaccessible = if args.flags.contains(Flags::SHOULD_MAKE_IC_INACCESSIBLE)
-        || args.flags.contains(Flags::SHOULD_SOFT_MAKE_IC_INACCESSIBLE)
-    {
-        Some(args.flags.contains(Flags::SHOULD_SOFT_MAKE_IC_INACCESSIBLE))
-    } else {
-        None
-    };
+    // we are in a no parameter function that sets no zoned IC either, default to what coeffects suggest
+    let should_make_ic_inaccessible: bool = coeffects.has_ic_unoptimizable_coeffects();
     let instrs = InstrSeq::gather(vec![
         deprecation_body,
         if args.method.static_ {
@@ -455,7 +467,6 @@ fn make_memoize_method_no_params_code<'a, 'd>(
         } else {
             instr::check_this()
         },
-        instr::verify_implicit_context_state(),
         if args.flags.contains(Flags::IS_ASYNC) {
             InstrSeq::gather(vec![
                 instr::memo_get_eager(notfound, suspended_get, LocalRange::EMPTY),
@@ -513,8 +524,10 @@ fn make_wrapper<'a, 'd>(
     instrs: InstrSeq,
     params: Vec<(Param, Option<(Label, ast::Expr)>)>,
     decl_vars: Vec<StringId>,
-    return_type_info: TypeInfo,
+    return_type: TypeInfo,
     span: Span,
+    attributes: Vec<Attribute>,
+    coeffects: Coeffects,
     args: &Args<'_, 'a>,
 ) -> Result<Body> {
     emit_body::make_body(
@@ -525,8 +538,11 @@ fn make_wrapper<'a, 'd>(
         args.flags.contains(Flags::WITH_LSB),
         vec![], /* upper_bounds */
         vec![], /* shadowed_tparams */
+        attributes,
+        Attr::AttrNone,
+        coeffects,
         params,
-        Some(return_type_info),
+        Some(return_type),
         None,
         Some(env),
         span,
@@ -547,7 +563,7 @@ struct Args<'r, 'ast> {
     pub info: &'r MemoizeInfo,
     pub method: &'r ast::Method_,
     pub scope: &'r Scope<'ast>,
-    pub deprecation_info: Option<&'r [TypedValue]>,
+    pub emit_deprecation_info: bool,
     pub params: &'r [ast::FunParam],
     pub ret: Option<&'r ast::Hint>,
     pub method_id: &'r hhbc::MethodName,

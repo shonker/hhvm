@@ -31,8 +31,10 @@
 #include <thrift/lib/cpp2/server/Cpp2ConnContext.h>
 #include <thrift/lib/cpp2/server/Cpp2Worker.h>
 #include <thrift/lib/cpp2/server/LoggingEvent.h>
+#include <thrift/lib/cpp2/server/Overload.h>
 #include <thrift/lib/cpp2/server/RequestsRegistry.h>
 #include <thrift/lib/cpp2/server/ThriftServer.h>
+#include <thrift/lib/cpp2/server/metrics/MetricCollector.h>
 #include <thrift/lib/cpp2/transport/core/RequestStateMachine.h>
 #include <thrift/lib/cpp2/transport/rocket/Types.h>
 #include <thrift/lib/thrift/gen-cpp2/RpcMetadata_types.h>
@@ -96,7 +98,11 @@ class Cpp2Connection : public HeaderServerChannel::Callback,
     this_ = conn;
     if (tinfo) {
       if (auto* observer = worker_->getServer()->getObserver()) {
-        observer->connAccepted(*tinfo);
+        observer->connAccepted(
+            *tinfo,
+            server::TServerObserver::ConnectionInfo(
+                reinterpret_cast<uint64_t>(transport_.get()),
+                context_.getSecurityProtocol()));
         connectionAdded_ = true;
       }
     }
@@ -158,14 +164,32 @@ class Cpp2Connection : public HeaderServerChannel::Callback,
     friend class QueueTimeout;
     friend class TaskTimeout;
 
+    using ServiceInterceptorsStorage =
+        apache::thrift::detail::ServiceInterceptorRequestStorageContext;
+    using ColocatedConstructionParams =
+        RequestsRegistry::ColocatedData<ServiceInterceptorsStorage>;
+
     template <typename... Args>
     static auto colocateWithDebugStub(
-        RequestsRegistry::DebugStubColocator& /* alloc */, Args&...) {
-      return [](auto&& /* make */) { return folly::unit; };
+        RequestsRegistry::DebugStubColocator& alloc,
+        server::ServerConfigs& server,
+        Args&...) {
+      auto numServiceInterceptors = server.getServiceInterceptors().size();
+      using RequestStorage =
+          apache::thrift::detail::ServiceInterceptorOnRequestStorage;
+      return [numServiceInterceptors,
+              onRequest = alloc.array<RequestStorage>(numServiceInterceptors)](
+                 auto make) mutable {
+        return ServiceInterceptorsStorage{
+            numServiceInterceptors,
+            make(std::move(onRequest), [] { return RequestStorage(); }),
+        };
+      };
     }
 
     Cpp2Request(
-        RequestsRegistry::ColocatedData<folly::Unit> colocationParams,
+        ColocatedConstructionParams colocationParams,
+        apache::thrift::ThriftServer& server,
         std::unique_ptr<HeaderServerChannel::HeaderRequest> req,
         std::shared_ptr<folly::RequestContext> rctx,
         std::shared_ptr<Cpp2Connection> con,
@@ -281,6 +305,9 @@ class Cpp2Connection : public HeaderServerChannel::Callback,
       TApplicationException::TApplicationExceptionType reason,
       const std::string& errorCode,
       const char* comment);
+  void killRequestServerOverloaded(
+      std::unique_ptr<HeaderServerChannel::HeaderRequest> req,
+      OverloadResult&& overloadResult);
   void disconnect(const char* comment) noexcept;
 
   void setServerHeaders(transport::THeader::StringToStringMap& writeHeaders);
@@ -291,6 +318,9 @@ class Cpp2Connection : public HeaderServerChannel::Callback,
   std::shared_ptr<Cpp2Connection> this_;
 
   bool connectionAdded_{false};
+
+ private:
+  const MetricCollector& metricCollector_;
 };
 
 } // namespace thrift

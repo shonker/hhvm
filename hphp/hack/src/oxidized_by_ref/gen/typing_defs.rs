@@ -3,7 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the "hack" directory of this source tree.
 //
-// @generated SignedSource<<2e1de6a2c79566a1def75d6587b8e227>>
+// @generated SignedSource<<fa1b7ed438bfa620621c027b82650bfc>>
 //
 // To regenerate this file, run:
 //   hphp/hack/src/oxidized_regen.sh
@@ -189,6 +189,8 @@ pub struct FunElt<'a> {
     pub deprecated: Option<&'a str>,
     #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
     pub module: Option<ast_defs::Id<'a>>,
+    #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
+    pub package_override: Option<&'a str>,
     /// Top-level functions have limited visibilities
     pub internal: bool,
     #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
@@ -484,7 +486,7 @@ pub struct TypeconstType<'a> {
     /// [Pos_or_decl.none].
     ///
     /// To manage the difference between legacy and shallow decl, use
-    /// [Typing_classes_heap.Api.get_typeconst_enforceability] rather than
+    /// [Folded_class.get_typeconst_enforceability] rather than
     /// accessing this field directly.
     #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
     pub enforceable: (&'a pos_or_decl::PosOrDecl<'a>, bool),
@@ -563,6 +565,8 @@ pub struct TypedefType<'a> {
     pub internal: bool,
     #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
     pub docs_url: Option<&'a str>,
+    #[serde(deserialize_with = "arena_deserializer::arena", borrow)]
+    pub package_override: Option<&'a str>,
 }
 impl<'a> TrivialDrop for TypedefType<'a> {}
 arena_deserializer::impl_deserialize_in_arena!(TypedefType<'arena>);

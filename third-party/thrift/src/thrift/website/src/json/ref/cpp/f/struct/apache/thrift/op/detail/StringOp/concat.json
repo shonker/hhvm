@@ -36,7 +36,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp2/op/detail/ValueOp.h",
         "line": "189",
-        "column": "1",
+        "column": "26",
         "bodyfile": "fbcode/thrift/lib/cpp2/op/detail/ValueOp.h",
         "bodystart": "189",
         "bodyend": "194"
@@ -61,5 +61,11 @@
   "brief_html": "",
   "groupname_html": "",
   "href": "/ref/cpp/f/struct/apache/thrift/op/detail/StringOp/concat",
-  "refid": "/ref/cpp/f/struct/apache/thrift/op/detail/StringOp/concat"
+  "refid": "/ref/cpp/f/struct/apache/thrift/op/detail/StringOp/concat",
+  "parent_links": [
+    {
+      "text_html": "StringOp",
+      "href": "/ref/cpp/struct/apache/thrift/op/detail/StringOp"
+    }
+  ]
 }

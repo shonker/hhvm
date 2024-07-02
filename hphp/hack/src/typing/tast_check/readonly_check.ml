@@ -8,7 +8,7 @@
  *)
 open Hh_prelude
 open Aast
-module Cls = Decl_provider.Class
+module Cls = Folded_class
 module SN = Naming_special_names
 module MakeType = Typing_make_type
 module Reason = Typing_reason
@@ -195,7 +195,12 @@ let is_value_collection_ty env ty =
   let ty = Typing_utils.strip_dynamic env ty in
   let hackarray = MakeType.any_array Reason.none mixed mixed in
   (* Subtype against an empty open shape (shape(...)) *)
-  let shape = MakeType.open_shape Reason.none Typing_defs.TShapeMap.empty in
+  let shape =
+    MakeType.open_shape
+      Reason.none
+      ~kind:(MakeType.mixed Reason.none)
+      Typing_defs.TShapeMap.empty
+  in
   Typing_utils.is_sub_type env ty hackarray
   || Typing_utils.is_sub_type env ty shape
 
@@ -467,15 +472,15 @@ let call
       let reason = get_reason caller_ty in
       let f_pos = Reason.to_pos (get_reason caller_ty) in
       let suggestion =
-        match reason with
         (* If we got this function from a typehint, we suggest marking the function (readonly function) *)
-        | Typing_reason.Rhint _ ->
+        if Reason.Predicates.is_hint reason then
           let fty = Typing_defs_core.set_ft_readonly_this fty true in
           let suggested_fty = mk (reason, Tfun fty) in
           let suggested_fty_str = Tast_env.print_ty env suggested_fty in
           "annotate this typehint as a " ^ suggested_fty_str
         (* Otherwise, it's likely from a Rwitness, but we suggest declaring it as readonly *)
-        | _ -> "declaring this as a `readonly` function"
+        else
+          "declaring this as a `readonly` function"
       in
       Typing_error_utils.add_typing_error
         ~env:(Tast_env.tast_env_as_typing_env env)

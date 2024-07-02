@@ -145,6 +145,8 @@ pub(crate) enum Hhbc {
     Fatal,
     #[decl(fn hhbc_get_cls_rg_prop(*HackMixed) -> *HackMixed)]
     GetClsRGProp,
+    #[decl(fn hhbc_get_inaccessible_implicit_context() -> *HackMixed)]
+    GetInaccessibleImplicitContext,
     #[decl(fn hhbc_get_memo_key_l(*HackMixed) -> *HackMixed)]
     GetMemoKeyL,
     #[decl(fn hhbc_has_reified_parent(*HackMixed) -> *HackMixed)]
@@ -187,6 +189,8 @@ pub(crate) enum Hhbc {
     IsTypeStructC,
     #[decl(fn hhbc_is_type_vec(*HackMixed) -> *HackMixed)]
     IsTypeVec,
+    #[decl(fn hhbc_iter_base(*HackMixed) -> *HackMixed)]
+    IterBase,
     #[decl(fn hhbc_iter_free(it: *Iterator) -> void)]
     IterFree,
     #[decl(fn hhbc_iter_init(it: **Iterator, key: **HackMixed, var: **HackMixed, container: *HackMixed) -> *HackBool)]
@@ -231,6 +235,8 @@ pub(crate) enum Hhbc {
     Print,
     #[decl(fn hhbc_record_reified_generic(*HackMixed) -> *HackMixed)]
     RecordReifiedGeneric,
+    #[decl(fn hhbc_set_implicit_context_by_value(*HackMixed) -> *HackMixed)]
+    SetImplicitContextByValue,
     #[decl(fn hhbc_shl(*HackMixed, *HackMixed) -> *HackMixed)]
     Shl,
     #[decl(fn hhbc_shr(*HackMixed, *HackMixed) -> *HackMixed)]

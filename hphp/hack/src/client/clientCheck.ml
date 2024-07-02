@@ -15,9 +15,6 @@ open Ocaml_overrides
 module SyntaxTree =
   Full_fidelity_syntax_tree.WithSyntax (Full_fidelity_positioned_syntax)
 
-(** This is initialized at the start of [main] *)
-let ref_local_config : ServerLocalConfig.t option ref = ref None
-
 module SaveStateResultPrinter = ClientResultPrinter.Make (struct
   type t = SaveStateServiceTypes.save_state_result
 
@@ -26,7 +23,7 @@ module SaveStateResultPrinter = ClientResultPrinter.Make (struct
       "Dependency table edges added: %d"
       t.SaveStateServiceTypes.dep_table_edges_added
 
-  let to_json t =
+  let to_json (t : SaveStateServiceTypes.save_state_result) =
     Hh_json.JSON_Object (ServerError.get_save_state_result_props_json t)
 end)
 
@@ -100,7 +97,7 @@ let parse_position_string ~(split_on : string) arg =
     Printf.eprintf "Invalid position\n";
     raise Exit_status.(Exit_with Input_error)
 
-let connect ?(use_priority_pipe = false) args =
+let connect ?(use_priority_pipe = false) args : ClientConnect.conn Lwt.t =
   let {
     root;
     from;
@@ -121,6 +118,7 @@ let connect ?(use_priority_pipe = false) args =
     allow_non_opt_build;
     custom_hhi_path;
     custom_telemetry_data;
+    preexisting_warnings;
     error_format = _;
     gen_saved_ignore_type_errors = _;
     paths = _;
@@ -133,13 +131,11 @@ let connect ?(use_priority_pipe = false) args =
   } =
     args
   in
-  let local_config = Option.value_exn !ref_local_config in
   ClientConnect.(
     connect
       {
         root;
         from;
-        local_config;
         autostart;
         force_dormant_start;
         deadline;
@@ -162,6 +158,7 @@ let connect ?(use_priority_pipe = false) args =
         custom_hhi_path;
         custom_telemetry_data;
         allow_non_opt_build;
+        preexisting_warnings;
       })
 
 (* This is a function, because server closes the connection after each command,
@@ -230,10 +227,15 @@ let parse_positions positions =
         raise Exit_status.(Exit_with Input_error))
 
 (* Filters and prints errors when a path is not a realpath *)
-let filter_real_paths paths =
+let filter_real_paths ~allow_directories paths =
   List.filter_map paths ~f:(fun fn ->
       match Sys_utils.realpath fn with
-      | Some path -> Some path
+      | Some path ->
+        if (not allow_directories) && Disk.is_directory fn then begin
+          prerr_endlinef "Path is a directory, only files are allowed: '%s'" fn;
+          None
+        end else
+          Some path
       | None ->
         prerr_endlinef "Could not find file '%s'" fn;
         None)
@@ -710,7 +712,7 @@ let main_internal
              ~value:status.ServerCommandTypes.Server_status.last_recheck_stats
       in
       Lwt.return (exit_status, telemetry)
-  | MODE_STATUS_SINGLE { filenames; show_tast } ->
+  | MODE_STATUS_SINGLE { filenames; show_tast; preexisting_warnings } ->
     let file_input filename =
       match filename with
       | "-" ->
@@ -726,6 +728,7 @@ let main_internal
              file_names = file_inputs;
              max_errors = args.max_errors;
              return_expanded_tast = show_tast;
+             preexisting_warnings;
            })
     in
     (match tasts with
@@ -771,7 +774,7 @@ let main_internal
       Lwt.return (Exit_status.No_error, telemetry)
     end
   | MODE_LINT ->
-    let fnl = filter_real_paths args.paths in
+    let fnl = filter_real_paths ~allow_directories:false args.paths in
     begin
       match args.paths with
       | [] ->
@@ -925,7 +928,7 @@ let main_internal
         raise Exit_status.(Exit_with Input_error)
     end
   | MODE_FILE_LEVEL_DEPENDENCIES ->
-    let paths = filter_real_paths args.paths in
+    let paths = filter_real_paths ~allow_directories:true args.paths in
     let%lwt (responses, telemetry) =
       rpc args @@ ServerCommandTypes.FILE_DEPENDENTS paths
     in
@@ -959,11 +962,8 @@ let main
     (args : client_check_env)
     (local_config : ServerLocalConfig.t)
     ~(init_proc_stack : string list option) : 'a =
-  ref_local_config := Some local_config;
-  (* That's a hack, just to avoid having to pass local_config into loads of callsites
-     in this module. *)
-  let mode_s = ClientEnv.Variants_of_client_mode.to_name args.mode in
-  HackEventLogger.client_set_mode mode_s;
+  HackEventLogger.client_set_mode
+    (ClientEnv.Variants_of_client_mode.to_name args.mode);
 
   HackEventLogger.client_check_start ();
   ClientSpinner.start_heartbeat_telemetry ();

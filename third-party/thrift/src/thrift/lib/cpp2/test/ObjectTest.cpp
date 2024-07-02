@@ -108,6 +108,14 @@ TEST(ObjectTest, TypeEnforced) {
   EXPECT_TRUE(value.get_boolValue());
 }
 
+TEST(ObjectTest, Empty) {
+  Value value;
+  value.emplace_object();
+  value.as_object().members().reset();
+  serializeValue<CompactProtocolWriter>(value);
+  serializeObject<CompactProtocolWriter>(value.as_object());
+}
+
 TEST(ObjectTest, Bool) {
   Value value = asValueStruct<type::bool_t>(20);
   ASSERT_EQ(value.getType(), Value::Type::boolValue);
@@ -314,6 +322,10 @@ TEST(ObjectTest, DirectlyAdaptedStruct) {
   const Object& object = *value.objectValue_ref();
   EXPECT_EQ(object.members_ref()->size(), 1);
   EXPECT_EQ(object.members_ref()->at(1), asValueStruct<type::i64_t>(42));
+
+  apache::thrift::test::basic::DirectlyAdaptedStruct s2;
+  detail::ProtocolValueToThriftValue<Tag>{}(value, s2);
+  EXPECT_EQ(s, s2);
 }
 
 TEST(ObjectTest, parseObject) {
@@ -405,8 +417,7 @@ void testParseObject() {
   for (const auto& val : data::ValueGenerator<Tag>::getKeyValues()) {
     SCOPED_TRACE(val.name);
     testsetValue.field_1_ref() = val.value;
-    auto valueStruct = asValueStruct<type::struct_c>(testsetValue);
-    const Object& object = valueStruct.get_objectValue();
+    auto object = asObject(testsetValue);
 
     auto iobuf = serialize<Protocol, T>(testsetValue);
     auto objFromParseObject = parseObject<protocol_reader_t<Protocol>>(*iobuf);
@@ -430,8 +441,7 @@ void testWithMask(bool testSerialize) {
   for (const auto& val : data::ValueGenerator<Tag>::getKeyValues()) {
     SCOPED_TRACE(val.name);
     testsetValue.field_1_ref() = val.value;
-    auto valueStruct = asValueStruct<type::struct_c>(testsetValue);
-    const Object& object = valueStruct.get_objectValue();
+    auto object = asObject(testsetValue);
 
     auto reserialize = [&](MaskedDecodeResult& result) {
       auto reserialized = serializeObject<protocol_writer_t<Protocol>>(
@@ -724,10 +734,8 @@ TEST(Value, IsIntrinsicDefaultTrue) {
       asValueStruct<type::map<type::i32_t, type::string_t>>({})));
   testset::struct_with<type::map<type::string_t, type::i32_t>> s;
   s.field_1_ref() = std::map<std::string, int>{};
-  Value objectValue = asValueStruct<type::struct_c>(s);
-  EXPECT_TRUE(isIntrinsicDefault(objectValue));
-  EXPECT_TRUE(isIntrinsicDefault(objectValue.as_object()));
-  EXPECT_TRUE(isIntrinsicDefault(Value{}));
+  Object obj = asObject(s);
+  EXPECT_TRUE(isIntrinsicDefault(obj));
 }
 
 TEST(Value, IsIntrinsicDefaultFalse) {
@@ -749,9 +757,7 @@ TEST(Value, IsIntrinsicDefaultFalse) {
           {{1, "foo"}, {2, "bar"}})));
   testset::struct_with<type::map<type::string_t, type::i32_t>> s;
   s.field_1_ref() = std::map<std::string, int>{{"foo", 1}, {"bar", 2}};
-  Value objectValue = asValueStruct<type::struct_c>(s);
-  EXPECT_FALSE(isIntrinsicDefault(objectValue));
-  EXPECT_FALSE(isIntrinsicDefault(objectValue.as_object()));
+  EXPECT_FALSE(isIntrinsicDefault(asObject(s)));
 }
 
 template <typename ProtocolReader, typename Tag>
@@ -768,7 +774,7 @@ void testParseObjectWithMask(bool testSerialize) {
   // obj{1: 3,
   //     2: {1: "foo"}
   //     3: {5: {1: "foo"},
-  //         6: true}3}
+  //         6: true}}
   foo[FieldId{1}].emplace_string("foo");
   bar[FieldId{5}].emplace_object(foo);
   bar[FieldId{6}].emplace_bool(true);
@@ -780,7 +786,7 @@ void testParseObjectWithMask(bool testSerialize) {
   Mask mask;
   auto& includes = mask.includes_ref().emplace();
   includes[2] = allMask();
-  includes[3].excludes_ref().emplace()[5] = allMask();
+  includes[3].includes_ref().emplace()[6] = allMask();
 
   // expected{2: {1: "foo"}
   //          3: {6: true}}
@@ -1452,12 +1458,14 @@ void testSerializeValue(
   reader1.setInput(&buf1);
   reader2.setInput(&buf2);
 
-  type::native_type<Tag> t1, t2;
+  type::native_type<Tag> t1, t2, t3;
   op::decode<Tag>(reader1, t1);
   op::decode<Tag>(reader2, t2);
+  detail::ProtocolValueToThriftValue<Tag>{}(asValueStruct<Tag>(t), t3);
 
   EXPECT_EQ(t, t1);
   EXPECT_EQ(t, t2);
+  EXPECT_EQ(t, t3);
 
   EXPECT_TRUE(!deterministic || folly::IOBufEqualTo{}(buf1, buf2));
 }
@@ -1487,6 +1495,44 @@ TEST(ObjectTest, SerializeValueSize) {
 
   // Result is not deterministic since field id can be out of order
   testSerializeValue<type::struct_t<Bar>>(bar, false);
+}
+
+TEST(ObjectTest, Adapter) {
+  using test::basic::AdaptTestStruct;
+  AdaptTestStruct s;
+  s.timeout() = std::chrono::seconds(1);
+  s.data()->value = 10;
+  s.indirectionString()->val = "20";
+  s.double_wrapped_integer()->value.value = 30;
+  s.custom()->val = 40;
+  using Tag = type::struct_t<AdaptTestStruct>;
+  EXPECT_EQ(fromObjectStruct<Tag>(asValueStruct<Tag>(s).as_object()), s);
+}
+
+TEST(ObjectTest, ToThriftStructTypeMismatch) {
+  using facebook::thrift::lib::test::Bar;
+  using Tag = type::struct_t<Bar>;
+
+  Bar bar;
+  bar.field_3() = {"foo", "bar", "baz"};
+  bar.field_4()->field_1() = 42;
+  bar.field_4()->field_2() = "Everything";
+
+  {
+    auto obj = asValueStruct<Tag>(bar).as_object();
+    obj[FieldId{10}].as_list()[2].emplace_i32();
+    auto bar2 = fromObjectStruct<Tag>(obj);
+    EXPECT_TRUE(bar2.field_3()->empty());
+    EXPECT_EQ(bar2.field_4(), bar.field_4());
+  }
+  {
+    auto obj = asValueStruct<Tag>(bar).as_object();
+    obj[FieldId{20}].as_object()[FieldId{2}].emplace_i32();
+    auto bar2 = fromObjectStruct<Tag>(obj);
+    EXPECT_EQ(bar2.field_3(), bar.field_3());
+    EXPECT_EQ(bar2.field_4()->field_1(), 42);
+    EXPECT_EQ(bar2.field_4()->field_2(), "");
+  }
 }
 
 } // namespace

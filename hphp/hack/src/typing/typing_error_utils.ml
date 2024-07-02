@@ -713,58 +713,6 @@ end = struct
         [],
         User_error_flags.empty )
 
-    let enum_class_label_unknown
-        pos label_name enum_name decl_pos most_similar ty_pos =
-      let enum_name = Markdown_lite.md_codify (Render.strip_ns enum_name) in
-
-      let claim =
-        lazy
-          ( pos,
-            Printf.sprintf
-              "Enum class %s does not contain a label named %s."
-              enum_name
-              (Markdown_lite.md_codify label_name) )
-      in
-
-      let decl_reason =
-        [(decl_pos, Printf.sprintf "%s is defined here" enum_name)]
-      in
-      let (similar_reason, quickfixes) =
-        match most_similar with
-        | Some (similar_name, similar_pos) ->
-          ( [
-              ( similar_pos,
-                Printf.sprintf
-                  "Did you mean %s?"
-                  (Markdown_lite.md_codify similar_name) );
-            ],
-            [
-              Quickfix.make_eager_default_hint_style
-                ~title:("Change to " ^ Markdown_lite.md_codify similar_name)
-                ~new_text:similar_name
-                pos;
-            ] )
-        | None -> ([], [])
-      in
-      let ty_reason =
-        match ty_pos with
-        | Some ty_pos ->
-          [
-            ( ty_pos,
-              Printf.sprintf
-                "This is why I expected an enum class label from %s."
-                enum_name );
-          ]
-        | None -> []
-      in
-
-      let reason = lazy (decl_reason @ similar_reason @ ty_reason) in
-      ( Error_code.EnumClassLabelUnknown,
-        claim,
-        reason,
-        quickfixes,
-        User_error_flags.empty )
-
     let enum_class_label_as_expr pos =
       let claim =
         lazy
@@ -853,15 +801,6 @@ end = struct
           expected_pos
           actual
           pos
-      | Enum_class_label_unknown
-          { pos; label_name; enum_name; decl_pos; most_similar; ty_pos } ->
-        enum_class_label_unknown
-          pos
-          label_name
-          enum_name
-          decl_pos
-          most_similar
-          ty_pos
       | Enum_class_label_as_expr pos -> enum_class_label_as_expr pos
       | Enum_class_label_member_mismatch { pos; label; expected_ty_msg_opt } ->
         enum_class_label_member_mismatch pos label expected_ty_msg_opt
@@ -1566,6 +1505,107 @@ end = struct
           true (* Soft *)
   end
 
+  module Eval_package = struct
+    let get_package_str p_opt =
+      match p_opt with
+      | Some s -> Printf.sprintf "package `%s`" s
+      | None -> "the default package"
+
+    let cross_pkg_access
+        (pos : Pos.t)
+        (decl_pos : Pos_or_decl.t)
+        (package_pos : Pos.t)
+        (current_package_opt : string option)
+        (target_package_opt : string option)
+        (current_filename : Relative_path.t)
+        (target_filename : Relative_path.t)
+        (soft : bool) =
+      let current_filename = Relative_path.suffix current_filename in
+      let target_filename = Relative_path.suffix target_filename in
+      let current_package = get_package_str current_package_opt in
+      let target_package = get_package_str target_package_opt in
+      let relationship =
+        if soft then
+          "only soft includes"
+        else
+          "does not include"
+      in
+      let claim =
+        lazy
+          ( pos,
+            Printf.sprintf
+              "Cannot access a public element which belongs to %s from %s"
+              target_package
+              current_package )
+      and reason =
+        lazy
+          [
+            ( decl_pos,
+              Printf.sprintf
+                "This is from %s, which belongs to %s"
+                target_filename
+                target_package );
+            ( Pos_or_decl.of_raw_pos package_pos,
+              Printf.sprintf
+                "But %s is in %s, and %s %s %s"
+                current_filename
+                current_package
+                current_package
+                relationship
+                target_package );
+          ]
+      in
+      let error_code =
+        if soft then
+          Error_code.InvalidCrossPackageSoft
+        else
+          Error_code.InvalidCrossPackage
+      in
+      (error_code, claim, reason, [], User_error_flags.empty)
+
+    let to_error t ~env:_ =
+      let open Typing_error.Primary.Package in
+      match t with
+      | Cross_pkg_access
+          {
+            pos;
+            decl_pos;
+            package_pos;
+            current_package_opt;
+            target_package_opt;
+            current_filename;
+            target_filename;
+          } ->
+        cross_pkg_access
+          pos
+          decl_pos
+          package_pos
+          current_package_opt
+          target_package_opt
+          current_filename
+          target_filename
+          false (* Soft *)
+      | Soft_included_access
+          {
+            pos;
+            decl_pos;
+            package_pos;
+            current_package_opt;
+            target_package_opt;
+            current_filename;
+            target_filename;
+          } ->
+        cross_pkg_access
+          pos
+          decl_pos
+          package_pos
+          current_package_opt
+          target_package_opt
+          current_filename
+          target_filename
+          true (* Soft *)
+  end
+
   module Eval_xhp = struct
     let xhp_required pos why_xhp ty_reason_msg =
       let claim = lazy (pos, "An XHP instance was expected") in
@@ -1598,6 +1638,21 @@ end = struct
         [],
         User_error_flags.empty )
 
+    let attribute_value pos attr_name valid_values =
+      ( Error_code.InvalidXhpAttributeValue,
+        lazy
+          ( pos,
+            let valid_values =
+              List.map valid_values ~f:Markdown_lite.md_codify
+            in
+            Printf.sprintf
+              "Invalid value for %s, expected one of %s."
+              (Markdown_lite.md_codify attr_name)
+              (String.concat ~sep:", " valid_values) ),
+        lazy [],
+        [],
+        User_error_flags.empty )
+
     let to_error t ~env:_ =
       let open Typing_error.Primary.Xhp in
       match t with
@@ -1607,6 +1662,8 @@ end = struct
         illegal_xhp_child pos ty_reason_msg
       | Missing_xhp_required_attr { pos; attr; ty_reason_msg } ->
         missing_xhp_required_attr pos attr ty_reason_msg
+      | Attribute_value { pos; attr_name; valid_values } ->
+        attribute_value pos attr_name valid_values
   end
 
   module Eval_casetype = struct
@@ -3081,11 +3138,18 @@ end = struct
       [],
       User_error_flags.empty )
 
-  let redundant_covariant pos msg suggest =
+  let redundant_generic pos variance msg suggest =
+    let variance_msg =
+      match variance with
+      | `Co -> "covariant (output)"
+      | `Contra -> "contravariant (input)"
+    in
     ( Error_code.RedundantGeneric,
       lazy
         ( pos,
-          "This generic parameter is redundant because it only appears in a covariant (output) position"
+          Printf.sprintf
+            "This generic parameter is redundant because it only appears in a %s position"
+            variance_msg
           ^ msg
           ^ ". Consider replacing uses of generic parameter with "
           ^ Markdown_lite.md_codify suggest
@@ -3920,6 +3984,16 @@ end = struct
           "You cannot access this method with `meth_caller` (even from the same class hierarchy)"
         ),
       lazy [(def_pos, "It is declared as `protected` here")],
+      [],
+      User_error_flags.empty )
+
+  let internal_meth_caller use_pos def_pos =
+    ( Error_code.InternalMethCaller,
+      lazy
+        ( use_pos,
+          "You cannot access this method with `meth_caller` (even from the same module)"
+        ),
+      lazy [(def_pos, "It is declared as `internal` here")],
       [],
       User_error_flags.empty )
 
@@ -4804,6 +4878,29 @@ end = struct
       [],
       User_error_flags.empty )
 
+  let class_pointer_to_string pos cid_str =
+    let cid_str = Utils.strip_ns cid_str in
+    let nameof = "nameof " ^ cid_str in
+    let nameof_md = Markdown_lite.md_codify nameof in
+    let quickfixes =
+      [
+        Quickfix.make_eager_default_hint_style
+          ~title:("Change to " ^ nameof_md)
+          ~new_text:nameof
+          pos;
+      ]
+    in
+    ( Error_code.ClassPointerToString,
+      lazy
+        ( pos,
+          "Using `"
+          ^ cid_str
+          ^ "::class` in this position will trigger an implicit runtime conversion to string, please use "
+          ^ nameof_md ),
+      lazy [],
+      quickfixes,
+      User_error_flags.empty )
+
   let to_error t ~env =
     let open Typing_error.Primary in
     match t with
@@ -4811,6 +4908,7 @@ end = struct
     | Enum err -> Eval_enum.to_error err ~env
     | Expr_tree err -> Eval_expr_tree.to_error err ~env
     | Modules err -> Eval_modules.to_error err ~env
+    | Package err -> Eval_package.to_error err ~env
     | Readonly err -> Eval_readonly.to_error err ~env
     | Shape err -> Eval_shape.to_error err ~env
     | Wellformedness err -> Eval_wellformedness.to_error err ~env
@@ -5060,8 +5158,8 @@ end = struct
     | Unserializable_type { pos; message } -> unserializable_type pos message
     | Invalid_arraykey_constraint { pos; ty_name } ->
       invalid_arraykey_constraint pos @@ Lazy.force ty_name
-    | Redundant_covariant { pos; msg; suggest } ->
-      redundant_covariant pos msg suggest
+    | Redundant_generic { pos; variance; msg; suggest } ->
+      redundant_generic pos variance msg suggest
     | Meth_caller_trait { pos; trait_name } -> meth_caller_trait pos trait_name
     | Duplicate_interface { pos; name; others } ->
       duplicate_interface pos name others
@@ -5256,6 +5354,8 @@ end = struct
     | Private_meth_caller { pos; decl_pos } -> private_meth_caller pos decl_pos
     | Protected_meth_caller { pos; decl_pos } ->
       protected_meth_caller pos decl_pos
+    | Internal_meth_caller { pos; decl_pos } ->
+      internal_meth_caller pos decl_pos
     | Array_cast pos -> array_cast pos
     | String_cast { pos; ty_name } -> string_cast pos @@ Lazy.force ty_name
     | Static_outside_class pos -> static_outside_class pos
@@ -5375,6 +5475,8 @@ end = struct
         pos
         (Lazy.force expr_ty)
         (List.map unsupported_tys ~f:Lazy.force)
+    | Class_pointer_to_string { pos; cls_name } ->
+      class_pointer_to_string pos cls_name
 end
 
 module rec Eval_error : sig
@@ -5442,7 +5544,7 @@ end = struct
     aux ~k:Fn.id t
 
   let make_error (code, claim, reasons, quickfixes, flags) ~custom_msgs =
-    User_error.make
+    User_error.make_err
       (Error_code.to_enum code)
       (Lazy.force claim)
       (Lazy.force reasons)
@@ -5544,26 +5646,6 @@ end = struct
         ]
     in
     (Error_code.TypeArityMismatch, reasons, User_error_flags.empty)
-
-  (* In typing_coercion.ml we sometimes check t1 <: t2 by adding dynamic
-     to check t1 < t|dynamic. In that case, we use the Rdynamic_coercion
-     reason so that we can detect it here and not print the dynamic if there
-     is a type error. *)
-  let detect_attempting_dynamic_coercion_reason r ty =
-    let open Typing_defs_core in
-    match r with
-    | Typing_reason.Rdynamic_coercion r ->
-      (match ty with
-      | LoclType lty ->
-        (match get_node lty with
-        | Tunion [t1; t2] ->
-          (match (get_node t1, get_node t2) with
-          | (Tdynamic, _) -> (r, LoclType t2)
-          | (_, Tdynamic) -> (r, LoclType t1)
-          | _ -> (r, ty))
-        | _ -> (r, ty))
-      | _ -> (r, ty))
-    | _ -> (r, ty)
 
   let describe_coeffect env ty =
     lazy
@@ -5677,7 +5759,9 @@ end = struct
       | (_, Ttype_switch _) ->
         Markdown_lite.md_codify
           (Typing_print.with_blank_tyvars (fun () ->
-               Typing_print.full_strip_ns_i env (ConstraintType ty))))
+               Typing_print.full_strip_ns_i env (ConstraintType ty)))
+      | (_, Thas_const { name; ty = _ }) ->
+        Printf.sprintf "a class with a constant `%s`" name)
 
   let describe_ty_sub ~is_coeffect env ety =
     let ty_descr = describe_ty ~is_coeffect env ety in
@@ -5703,9 +5787,6 @@ end = struct
     lazy
       (let r_super = Typing_defs.reason ty_sup in
        let r_sub = Typing_defs.reason ty_sub in
-       let (r_super, ty_sup) =
-         detect_attempting_dynamic_coercion_reason r_super ty_sup
-       in
        let ty_super_descr = describe_ty_super ~is_coeffect env ty_sup in
        let ty_sub_descr = describe_ty_sub ~is_coeffect env ty_sub in
        let (ty_super_descr, ty_sub_descr) =
@@ -5716,10 +5797,25 @@ end = struct
            (ty_super_descr, ty_sub_descr)
        in
        let left =
-         Typing_reason.to_string ("Expected " ^ ty_super_descr) r_super
+         Typing_reason.to_string
+           ("Expected " ^ ty_super_descr)
+           (Typing_reason.rev r_super)
        in
        let right = Typing_reason.to_string ("But got " ^ ty_sub_descr) r_sub in
-       left @ right)
+       let reasons = left @ right in
+       let flow =
+         Option.value_map
+           ~default:[]
+           ~f:(function
+             | GlobalOptions.Extended complexity ->
+               Typing_reason.(explain (flow (r_sub, r_super)) ~complexity)
+             | GlobalOptions.Debug
+             | GlobalOptions.Yolo ->
+               Typing_reason.(debug (flow (r_sub, r_super))))
+           (TypecheckerOptions.tco_extended_reasons
+              Typing_env_types.(env.genv.tcopt))
+       in
+       reasons @ flow)
 
   let subtyping_error is_coeffect stripped_existential ~ty_sub ~ty_sup env =
     ( Error_code.UnifyError,
@@ -5820,13 +5916,23 @@ end = struct
     in
     (Error_code.ConcreteConstInterfaceOverride, reasons, User_error_flags.empty)
 
-  let missing_field pos name decl_pos =
+  let missing_field pos name decl_pos reason_sub reason_super env =
     let reasons =
       lazy
-        [
-          (pos, "The field " ^ Markdown_lite.md_codify name ^ " is missing");
-          (decl_pos, "The field " ^ Markdown_lite.md_codify name ^ " is defined");
-        ]
+        ((pos, "The field " ^ Markdown_lite.md_codify name ^ " is missing")
+        :: ( decl_pos,
+             "The field " ^ Markdown_lite.md_codify name ^ " is defined" )
+        :: Option.value_map
+             ~default:[]
+             ~f:(function
+               | GlobalOptions.Extended complexity ->
+                 Typing_reason.(
+                   explain (flow (reason_sub, reason_super)) ~complexity)
+               | GlobalOptions.Debug
+               | GlobalOptions.Yolo ->
+                 Typing_reason.(debug (flow (reason_sub, reason_super))))
+             (TypecheckerOptions.tco_extended_reasons
+                Typing_env_types.(env.genv.tcopt)))
     in
     (Error_code.MissingField, reasons, User_error_flags.empty)
 
@@ -5952,18 +6058,29 @@ end = struct
     in
     (Error_code.AcceptDisposableInvariant, reasons, User_error_flags.empty)
 
-  let required_field_is_optional pos name decl_pos def_pos =
+  let required_field_is_optional
+      pos name decl_pos def_pos reason_sub reason_super env =
     let reasons =
       lazy
-        [
-          (pos, "The field " ^ Markdown_lite.md_codify name ^ " is **optional**");
-          ( decl_pos,
-            "The field "
-            ^ Markdown_lite.md_codify name
-            ^ " is defined as **required**" );
-          (def_pos, Markdown_lite.md_codify name ^ " is defined here");
-        ]
+        ((pos, "The field " ^ Markdown_lite.md_codify name ^ " is **optional**")
+        :: ( decl_pos,
+             "The field "
+             ^ Markdown_lite.md_codify name
+             ^ " is defined as **required**" )
+        :: (def_pos, Markdown_lite.md_codify name ^ " is defined here")
+        :: Option.value_map
+             ~default:[]
+             ~f:(function
+               | GlobalOptions.Extended complexity ->
+                 Typing_reason.(
+                   explain (flow (reason_sub, reason_super)) ~complexity)
+               | GlobalOptions.Debug
+               | GlobalOptions.Yolo ->
+                 Typing_reason.(debug (flow (reason_sub, reason_super))))
+             (TypecheckerOptions.tco_extended_reasons
+                Typing_env_types.(env.genv.tcopt)))
     in
+
     (Error_code.RequiredFieldIsOptional, reasons, User_error_flags.empty)
 
   let return_disposable_mismatch pos_sub is_marked_return_disposable pos_super =
@@ -6420,6 +6537,26 @@ end = struct
       lazy [(pos, "This " ^ kind ^ " refinement constraint is violated")],
       User_error_flags.empty )
 
+  let label_unknown enum_name decl_pos most_similar =
+    let reasons =
+      lazy
+        begin
+          let enum_name = Markdown_lite.md_codify (Render.strip_ns enum_name) in
+          (decl_pos, Printf.sprintf "%s is defined here" enum_name)
+          ::
+          (match most_similar with
+          | Some (similar_name, similar_pos) ->
+            [
+              ( similar_pos,
+                Printf.sprintf
+                  "Did you mean %s?"
+                  (Markdown_lite.md_codify similar_name) );
+            ]
+          | None -> [])
+        end
+    in
+    (Error_code.EnumClassLabelUnknown, reasons, User_error_flags.empty)
+
   let eval t ~env ~current_span =
     let open Typing_error.Secondary in
     match t with
@@ -6471,8 +6608,9 @@ end = struct
            origin
            parent_origin
            is_abstract)
-    | Missing_field { pos; name; decl_pos } ->
-      Eval_result.single (missing_field pos name decl_pos)
+    | Missing_field { pos; name; decl_pos; reason_sub; reason_super } ->
+      Eval_result.single
+        (missing_field pos name decl_pos reason_sub reason_super env)
     | Shape_fields_unknown { pos; decl_pos } ->
       Eval_result.single (shape_fields_unknown pos decl_pos)
     | Abstract_tconst_not_allowed { pos; decl_pos; tconst_name } ->
@@ -6495,8 +6633,17 @@ end = struct
     | Missing_constructor pos -> Eval_result.single (missing_constructor pos)
     | Accept_disposable_invariant { pos; decl_pos } ->
       Eval_result.single (accept_disposable_invariant pos decl_pos)
-    | Required_field_is_optional { pos; name; decl_pos; def_pos } ->
-      Eval_result.single (required_field_is_optional pos name decl_pos def_pos)
+    | Required_field_is_optional
+        { pos; name; decl_pos; def_pos; reason_sub; reason_super } ->
+      Eval_result.single
+        (required_field_is_optional
+           pos
+           name
+           decl_pos
+           def_pos
+           reason_sub
+           reason_super
+           env)
     | Return_disposable_mismatch
         { pos_sub; is_marked_return_disposable; pos_super } ->
       Eval_result.single
@@ -6626,6 +6773,8 @@ end = struct
       Eval_result.single (inexact_tconst_access pos id)
     | Violated_refinement_constraint { cstr } ->
       Eval_result.single (violated_refinement_constraint cstr)
+    | Unknown_label { enum_name; decl_pos; most_similar } ->
+      Eval_result.single (label_unknown enum_name decl_pos most_similar)
 end
 
 and Eval_callback : sig
@@ -6940,7 +7089,7 @@ end = struct
 
   let apply ?code ?claim ?reasons ?flags ?quickfixes t ~env ~current_span =
     let f (code, claim, reasons, quickfixes, flags) =
-      User_error.make
+      User_error.make_err
         (Error_code.to_enum code)
         (Lazy.force claim)
         (Lazy.force reasons)
@@ -6968,6 +7117,10 @@ let apply_callback_to_errors errors on_error ~env =
   let on_error
       User_error.
         {
+          severity =
+            (* Applying a callback will always result in severity `Err`.
+               We don't use this mechanism for warnings anyway. *)
+            _;
           code;
           claim;
           reasons;
@@ -7011,6 +7164,7 @@ let claim_as_reason : Pos.t Message.t -> Pos_or_decl.t Message.t =
 let ambiguous_inheritance pos class_ origin error on_error ~env =
   let User_error.
         {
+          severity = _;
           code;
           claim;
           reasons;

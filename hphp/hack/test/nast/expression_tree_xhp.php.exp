@@ -2,7 +2,7 @@
     { fd_namespace =
       { Namespace_env.ns_ns_uses = <opaque>; ns_class_uses = <opaque>; 
         ns_fun_uses = <opaque>; ns_const_uses = <opaque>; ns_name = None; 
-        ns_is_codegen = false; ns_disable_xhp_element_mangling = false };
+        ns_mode = Namespace_env.ForTypecheck; ns_disable_xhp_element_mangling = false };
       fd_file_attributes = []; fd_mode = Mstrict; fd_name = ([3:10-13], "\\foo");
       fd_fun =
       { f_span = [3:1-5:2]; f_readonly_this = None; f_annotation = (); 
@@ -18,8 +18,7 @@
                      rhs =
                      ((), [4:8-59],
                       (ExpressionTree
-                         { et_class = ([4:8-18], "\\ExampleDsl"); et_splices = []; 
-                           et_function_pointers = [];
+                         { et_class = ([4:8-18], "\\ExampleDsl");
                            et_runtime_expr =
                            ((), [4:8-18],
                             (Call
@@ -93,10 +92,9 @@
                                           f_ret = ((), None);
                                           f_params =
                                           [{ param_annotation = (); param_type_hint = ((), (Some ([4:8-18], (Happly (([4:8-18], "\\ExampleDsl"), []))))); 
-                                             param_is_variadic = false; 
                                              param_pos = [4:8-18]; param_name = "$0v"; 
-                                             param_expr = None; param_readonly = None; 
-                                             param_callconv = Pnormal; 
+                                             param_info = Param_required; 
+                                             param_readonly = None; param_callconv = Pnormal; 
                                              param_user_attributes = []; 
                                              param_visibility = None }
                                             ];
@@ -120,7 +118,7 @@
                                                                     ((SFlit_str ([4:19-58], "end_line")), ((), [4:19-58], (Int "4")));
                                                                     ((SFlit_str ([4:19-58], "start_column")), ((), [4:19-58], (Int "18")));
                                                                     ((SFlit_str ([4:19-58], "end_column")), ((), [4:19-58], (Int "57")))])));
-                                                               (Pnormal, ((), [4:19-58], (Class_const (((), [4:20-27], (CI ([4:20-27], "\\:foo:bar"))), ([4:20-27], "class")))));
+                                                               (Pnormal, ((), [4:19-58], (Nameof ((), [4:20-27], (CI ([4:20-27], "\\:foo:bar"))))));
                                                                (Pnormal,
                                                                 ((), [4:19-58],
                                                                  (KeyValCollection ((
@@ -163,7 +161,7 @@
                                                                     ((SFlit_str ([4:34-41], "end_line")), ((), [4:34-41], (Int "4")));
                                                                     ((SFlit_str ([4:34-41], "start_column")), ((), [4:34-41], (Int "33")));
                                                                     ((SFlit_str ([4:34-41], "end_column")), ((), [4:34-41], (Int "40")))])));
-                                                                    (Pnormal, ((), [4:34-41], (Class_const (((), [4:35-38], (CI ([4:35-38], "\\:baz"))), ([4:35-38], "class")))));
+                                                                    (Pnormal, ((), [4:34-41], (Nameof ((), [4:35-38], (CI ([4:35-38], "\\:baz"))))));
                                                                     (Pnormal, ((), [4:34-41], (KeyValCollection (([4:34-41], Dict), None, []))));
                                                                     (Pnormal, ((), [Pos.none], (ValCollection (([Pos.none], Vec), None, []))))]; 
                                                                     unpacked_arg = None }));
@@ -192,12 +190,12 @@
                                           f_external = false; f_doc_comment = None },
                                         []))))
                                    ];
-                                 unpacked_arg = None }));
-                           et_dollardollar_pos = None }))
+                                 unpacked_arg = None }))
+                           }))
                      }))))
             ]
           };
-        f_fun_kind = FSync; f_user_attributes = []; f_external = false; 
-        f_doc_comment = None };
+        f_fun_kind = FSync; f_user_attributes = [{ ua_name = ([3:10-13], "__SupportDynamicType"); ua_params = [] }]; 
+        f_external = false; f_doc_comment = None };
       fd_internal = false; fd_module = None; fd_tparams = []; fd_where_constraints = [] })
   ]

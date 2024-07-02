@@ -15,6 +15,7 @@ use hhbc::FCallArgs;
 use hhbc::FCallArgsFlags;
 use hhbc::IsTypeOp;
 use hhbc::IterArgs;
+use hhbc::IterArgsFlags;
 use hhbc::Label;
 use hhbc::Local;
 use hhbc::MOpMode;
@@ -285,7 +286,7 @@ fn emit_call<'a, 'd>(
     {
         let ft = hhbc::FunctionName::from_ast_name(&sid.1);
         let fname = ft.as_str();
-        if fname.eq_ignore_ascii_case("unset") {
+        if fname == "unset" {
             Ok(InstrSeq::gather(
                 args.iter()
                     .map(|ex| {
@@ -967,9 +968,9 @@ fn emit_foreach<'a, 'd>(
     })
 }
 
-/// Determine whether or not an LIter can be used rather than a traditional
-/// Iter, and return the Local to be iterated. Generally LIter is only safe when
-/// the iterated value is:
+/// Determine whether or not an Iter over an existing local can be used rather
+/// than an Iter over an unnamed one, and return the Local to be iterated.
+/// Generally this is only safe when the iterated value is:
 ///  - Stored in a local, $L
 ///  - Not modified, -or- only modified by writing to $L[$k] when iterated by
 ///    key $k
@@ -1179,17 +1180,60 @@ fn emit_foreach_<'a, 'd>(
     block: &[ast::Stmt],
 ) -> Result<InstrSeq> {
     let liter_local = check_l_iter(e, env, pos, collection, iterator, block)?;
-    let collection_instrs = if liter_local.is_none() {
-        emit_expr::emit_expr(e, env, collection)?
+    if let Some(loc) = liter_local {
+        // TODO: infer whether the base is const
+        let flags = IterArgsFlags::None;
+        let liter_label = e.label_gen_mut().next_regular();
+        let done_label = e.label_gen_mut().next_regular();
+        Ok(InstrSeq::gather(vec![
+            instr::c_get_quiet_l(loc),
+            instr::is_type_c(IsTypeOp::ArrLike),
+            instr::jmp_nz(liter_label),
+            emit_foreach_non_local(e, env, pos, collection, iterator, block)?,
+            instr::jmp(done_label),
+            instr::label(liter_label),
+            emit_pos(&collection.1),
+            emit_foreach_local(e, env, pos, iterator, block, loc, flags)?,
+            instr::label(done_label),
+        ]))
     } else {
-        instr::empty()
-    };
+        emit_foreach_non_local(e, env, pos, collection, iterator, block)
+    }
+}
+
+fn emit_foreach_non_local<'a, 'd>(
+    e: &mut Emitter<'d>,
+    env: &mut Env<'a>,
+    pos: &Pos,
+    collection: &ast::Expr,
+    iterator: &ast::AsExpr,
+    block: &[ast::Stmt],
+) -> Result<InstrSeq> {
+    Ok(InstrSeq::gather(vec![
+        emit_expr::emit_expr(e, env, collection)?,
+        emit_pos(&collection.1),
+        instr::iter_base(),
+        scope::with_unnamed_local(e, |e, local| {
+            let before = instr::pop_l(local);
+            let flags = IterArgsFlags::BaseConst;
+            let inner = emit_foreach_local(e, env, pos, iterator, block, local, flags)?;
+            let after = instr::unset_l(local);
+            Ok((before, inner, after))
+        })?,
+    ]))
+}
+
+fn emit_foreach_local<'a, 'd>(
+    e: &mut Emitter<'d>,
+    env: &mut Env<'a>,
+    pos: &Pos,
+    iterator: &ast::AsExpr,
+    block: &[ast::Stmt],
+    local: Local,
+    flags: IterArgsFlags,
+) -> Result<InstrSeq> {
     scope::with_unnamed_locals_and_iterators(e, |e| {
-        let iter_id = if let Some(loc) = liter_local {
-            e.iterator_mut().gen_liter(loc)
-        } else {
-            e.iterator_mut().gen_iter()
-        };
+        let iter_id = e.iterator_mut().gen_iter();
         let loop_break_label = e.label_gen_mut().next_regular();
         let loop_continue_label = e.label_gen_mut().next_regular();
         let loop_head_label = e.label_gen_mut().next_regular();
@@ -1198,6 +1242,7 @@ fn emit_foreach_<'a, 'd>(
             iter_id,
             key_id: key_id.unwrap_or(Local::INVALID),
             val_id,
+            flags,
         };
         let body = env.do_in_loop_body(
             e,
@@ -1207,29 +1252,14 @@ fn emit_foreach_<'a, 'd>(
             block,
             emit_block,
         )?;
-        let iter_init = if let Some(loc) = liter_local {
-            InstrSeq::gather(vec![
-                emit_pos(&collection.1),
-                instr::l_iter_init(iter_args.clone(), loc, loop_break_label),
-            ])
-        } else {
-            InstrSeq::gather(vec![
-                collection_instrs,
-                emit_pos(&collection.1),
-                instr::iter_init(iter_args.clone(), loop_break_label),
-            ])
-        };
+        let iter_init = instr::iter_init(iter_args.clone(), local, loop_break_label);
         let iterate = InstrSeq::gather(vec![
             instr::label(loop_head_label),
             preamble,
             body,
             instr::label(loop_continue_label),
             emit_pos(pos),
-            if let Some(loc) = liter_local {
-                instr::l_iter_next(iter_args, loc, loop_head_label)
-            } else {
-                instr::iter_next(iter_args, loop_head_label)
-            },
+            instr::iter_next(iter_args, local, loop_head_label),
         ]);
         let iter_done = instr::label(loop_break_label);
         Ok((iter_init, iterate, iter_done))

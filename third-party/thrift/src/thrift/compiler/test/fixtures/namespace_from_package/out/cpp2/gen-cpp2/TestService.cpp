@@ -60,7 +60,7 @@ folly::coro::Task<::std::int64_t> apache::thrift::ServiceHandler<::test::namespa
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test::namespace_from_package::module::TestService>::async_tm_init(std::unique_ptr<apache::thrift::HandlerCallback<::std::int64_t>> callback, ::std::int64_t p_int1) {
+void apache::thrift::ServiceHandler<::test::namespace_from_package::module::TestService>::async_tm_init(apache::thrift::HandlerCallbackPtr<::std::int64_t> callback, ::std::int64_t p_int1) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -135,9 +135,9 @@ determineInvocationType:
 }
 
 
-namespace test { namespace namespace_from_package { namespace module {
+namespace test::namespace_from_package::module {
 
-::std::int64_t TestServiceSvNull::init(::std::int64_t /*int1*/) {
+::std::int64_t TestServiceSvNull::init(::std::int64_t /*int1*/) { 
   return 0;
 }
 
@@ -178,7 +178,7 @@ apache::thrift::ServiceRequestInfoMap const& TestServiceServiceInfoHolder::reque
 apache::thrift::ServiceRequestInfoMap TestServiceServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"init",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "TestService.init",
      std::nullopt,
@@ -188,4 +188,4 @@ apache::thrift::ServiceRequestInfoMap TestServiceServiceInfoHolder::staticReques
 
   return requestInfoMap;
 }
-}}} // test::namespace_from_package::module
+} // namespace test::namespace_from_package::module

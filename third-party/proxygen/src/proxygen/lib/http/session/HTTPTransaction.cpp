@@ -109,7 +109,9 @@ HTTPTransaction::HTTPTransaction(
       isDelegated_(false),
       idleTimeout_(defaultIdleTimeout),
       timer_(timer),
-      setIngressTimeoutAfterEom_(setIngressTimeoutAfterEom) {
+      setIngressTimeoutAfterEom_(setIngressTimeoutAfterEom),
+      txnObserverAccessor_(this),
+      txnObserverContainer_(&txnObserverAccessor_) {
   if (assocStreamId_) {
     if (isUpstream()) {
       egressState_ = HTTPTransactionEgressSM::State::SendingDone;
@@ -782,7 +784,16 @@ void HTTPTransaction::onIngressTimeout() {
     if (windowUpdateTimeout) {
       HTTPException ex(
           HTTPException::Direction::INGRESS_AND_EGRESS,
-          folly::to<std::string>("ingress timeout, streamID=", id_));
+          folly::to<std::string>(
+              "ingress timeout, streamID=",
+              id_,
+              ", timeout=",
+              idleTimeout_.has_value()
+                  ? std::chrono::duration_cast<std::chrono::milliseconds>(
+                        idleTimeout_.value())
+                        .count()
+                  : -1,
+              "ms"));
       ex.setProxygenError(kErrorWriteTimeout);
       // This is a protocol error
       ex.setCodecStatusCode(ErrorCode::PROTOCOL_ERROR);
@@ -790,7 +801,16 @@ void HTTPTransaction::onIngressTimeout() {
     } else {
       HTTPException ex(
           HTTPException::Direction::INGRESS,
-          folly::to<std::string>("ingress timeout, streamID=", id_));
+          folly::to<std::string>(
+              "ingress timeout, streamID=",
+              id_,
+              ", timeout=",
+              idleTimeout_.has_value()
+                  ? std::chrono::duration_cast<std::chrono::milliseconds>(
+                        idleTimeout_.value())
+                        .count()
+                  : -1,
+              "ms"));
       ex.setProxygenError(kErrorTimeout);
       onError(ex);
     }
@@ -856,6 +876,21 @@ void HTTPTransaction::onEgressHeaderFirstByte() {
   if (transportCallback_) {
     transportCallback_->firstHeaderByteFlushed();
   }
+
+  if (txnObserverContainer_.hasObserversForEvent<
+          HTTPTransactionObserverInterface::Events::TxnBytes>()) {
+    const auto e =
+        HTTPTransactionObserverInterface::TxnBytesEvent::Builder()
+            .setTimestamp(proxygen::SteadyClock::now())
+            .setType(HTTPTransactionObserverInterface::TxnBytesEvent::Type::
+                         FIRST_HEADER_BYTE_WRITE)
+            .build();
+    txnObserverContainer_.invokeInterfaceMethod<
+        HTTPTransactionObserverInterface::Events::TxnBytes>(
+        [&e](auto observer, auto observed) {
+          observer->onBytesEvent(observed, e);
+        });
+  }
 }
 
 void HTTPTransaction::onEgressBodyFirstByte() {
@@ -863,12 +898,40 @@ void HTTPTransaction::onEgressBodyFirstByte() {
   if (transportCallback_) {
     transportCallback_->firstByteFlushed();
   }
+
+  if (txnObserverContainer_.hasObserversForEvent<
+          HTTPTransactionObserverInterface::Events::TxnBytes>()) {
+    const auto e = HTTPTransactionObserverInterface::TxnBytesEvent::Builder()
+                       .setTimestamp(proxygen::SteadyClock::now())
+                       .setType(HTTPTransactionObserverInterface::
+                                    TxnBytesEvent::Type::FIRST_BODY_BYTE_WRITE)
+                       .build();
+    txnObserverContainer_.invokeInterfaceMethod<
+        HTTPTransactionObserverInterface::Events::TxnBytes>(
+        [&e](auto observer, auto observed) {
+          observer->onBytesEvent(observed, e);
+        });
+  }
 }
 
 void HTTPTransaction::onEgressBodyLastByte() {
   DestructorGuard g(this);
   if (transportCallback_) {
     transportCallback_->lastByteFlushed();
+  }
+
+  if (txnObserverContainer_.hasObserversForEvent<
+          HTTPTransactionObserverInterface::Events::TxnBytes>()) {
+    const auto e = HTTPTransactionObserverInterface::TxnBytesEvent::Builder()
+                       .setTimestamp(proxygen::SteadyClock::now())
+                       .setType(HTTPTransactionObserverInterface::
+                                    TxnBytesEvent::Type::LAST_BODY_BYTE_WRITE)
+                       .build();
+    txnObserverContainer_.invokeInterfaceMethod<
+        HTTPTransactionObserverInterface::Events::TxnBytes>(
+        [&e](auto observer, auto observed) {
+          observer->onBytesEvent(observed, e);
+        });
   }
 }
 
@@ -883,6 +946,20 @@ void HTTPTransaction::onEgressLastByteAck(std::chrono::milliseconds latency) {
   DestructorGuard g(this);
   if (transportCallback_) {
     transportCallback_->lastByteAcked(latency);
+  }
+
+  if (txnObserverContainer_.hasObserversForEvent<
+          HTTPTransactionObserverInterface::Events::TxnBytes>()) {
+    const auto e = HTTPTransactionObserverInterface::TxnBytesEvent::Builder()
+                       .setTimestamp(proxygen::SteadyClock::now())
+                       .setType(HTTPTransactionObserverInterface::
+                                    TxnBytesEvent::Type::LAST_BODY_BYTE_ACK)
+                       .build();
+    txnObserverContainer_.invokeInterfaceMethod<
+        HTTPTransactionObserverInterface::Events::TxnBytes>(
+        [&e](auto observer, auto observed) {
+          observer->onBytesEvent(observed, e);
+        });
   }
 }
 
@@ -930,6 +1007,21 @@ void HTTPTransaction::onEgressTrackedByteEventAck(const ByteEvent& event) {
   DestructorGuard g(this);
   if (transportCallback_) {
     transportCallback_->trackedByteEventAck(event);
+  }
+
+  if (ByteEvent::FIRST_BYTE == event.eventType_ &&
+      txnObserverContainer_.hasObserversForEvent<
+          HTTPTransactionObserverInterface::Events::TxnBytes>()) {
+    const auto e = HTTPTransactionObserverInterface::TxnBytesEvent::Builder()
+                       .setTimestamp(proxygen::SteadyClock::now())
+                       .setType(HTTPTransactionObserverInterface::
+                                    TxnBytesEvent::Type::FIRST_BODY_BYTE_ACK)
+                       .build();
+    txnObserverContainer_.invokeInterfaceMethod<
+        HTTPTransactionObserverInterface::Events::TxnBytes>(
+        [&e](auto observer, auto observed) {
+          observer->onBytesEvent(observed, e);
+        });
   }
 }
 
@@ -1407,10 +1499,9 @@ void HTTPTransaction::sendEOM() {
               << "ingressState=" << ingressState_ << ", "
               << "egressPaused=" << egressPaused_ << ", "
               << "ingressPaused=" << ingressPaused_ << ", "
-              << "aborted=" << aborted_ << ", "
-              << "enqueued=" << isEnqueued() << ", "
-              << "chainLength=" << deferredEgressBody_.chainLength() << ", "
-              << "bufferMetaLen=" << deferredBufferMeta_.length << "]"
+              << "aborted=" << aborted_ << ", " << "enqueued=" << isEnqueued()
+              << ", " << "chainLength=" << deferredEgressBody_.chainLength()
+              << ", " << "bufferMetaLen=" << deferredBufferMeta_.length << "]"
               << " on " << *this;
     }
   } else {
@@ -1969,9 +2060,9 @@ HTTPTransaction::TxnStreamWriteHandle::writeStreamData(
   if (*fcState == Transport::FCState::UNBLOCKED) {
     return folly::makeSemiFuture(folly::unit);
   } else {
-    auto contract = folly::makePromiseContract<folly::Unit>();
-    writePromise_.emplace(std::move(contract.first));
-    return std::move(contract.second);
+    auto [promise, future] = folly::makePromiseContract<folly::Unit>();
+    writePromise_.emplace(std::move(promise));
+    return std::move(future);
   }
 }
 
@@ -2070,9 +2161,10 @@ HTTPTransaction::TxnStreamReadHandle::readStreamData() {
     txn_.wtIngressStreams_.erase(getID());
     return folly::makeSemiFuture<WebTransport::StreamData>(std::move(ex));
   } else if (buf_.empty() && !eof_) {
-    auto contract = folly::makePromiseContract<WebTransport::StreamData>();
-    readPromise_.emplace(std::move(contract.first));
-    return std::move(contract.second);
+    auto [promise, future] =
+        folly::makePromiseContract<WebTransport::StreamData>();
+    readPromise_.emplace(std::move(promise));
+    return std::move(future);
   } else {
     auto bufLen = buf_.chainLength();
     WebTransport::StreamData streamData({buf_.move(), eof_});

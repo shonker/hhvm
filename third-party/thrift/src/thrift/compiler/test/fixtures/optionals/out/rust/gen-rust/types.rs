@@ -5,8 +5,6 @@
 #![recursion_limit = "100000000"]
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, unused_crate_dependencies, clippy::redundant_closure, clippy::type_complexity)]
 
-pub mod errors;
-
 #[allow(unused_imports)]
 pub(crate) use crate as types;
 
@@ -213,10 +211,17 @@ impl ::fbthrift::GetTType for self::Color {
     const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
 }
 
+impl ::fbthrift::GetTypeNameType for self::Color {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::Color
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("Color");
         p.write_field_begin("red", ::fbthrift::TType::Double, 1);
@@ -240,6 +245,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::Color
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("alpha", ::fbthrift::TType::Double, 4),
@@ -343,10 +349,17 @@ impl ::fbthrift::GetTType for self::Vehicle {
     const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
 }
 
+impl ::fbthrift::GetTypeNameType for self::Vehicle {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::Vehicle
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("Vehicle");
         p.write_field_begin("color", ::fbthrift::TType::Struct, 1);
@@ -381,6 +394,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::Vehicle
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("color", ::fbthrift::TType::Struct, 1),
@@ -500,10 +514,17 @@ impl ::fbthrift::GetTType for self::Person {
     const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
 }
 
+impl ::fbthrift::GetTypeNameType for self::Person {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::Person
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("Person");
         p.write_field_begin("id", ::fbthrift::TType::I64, 1);
@@ -561,6 +582,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::Person
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("address", ::fbthrift::TType::String, 4),

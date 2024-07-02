@@ -11,6 +11,41 @@
 open Hh_prelude
 open Typing_defs
 
+(** We keep track of the skeleton in two parts: a prefix and a suffix.
+
+The cursor is intended to be moved in-between the prefix and suffix after
+inserting the skeleton. *)
+type t = {
+  prefix: string;
+  suffix: string option;
+}
+
+let to_string { prefix; suffix } =
+  match suffix with
+  | None -> prefix
+  | Some suffix -> prefix ^ suffix
+
+let add_suffix s t =
+  let suffix = Option.value ~default:"" t.suffix ^ s in
+  { t with suffix = Some suffix }
+
+let strip_suffix s t =
+  let suffix =
+    Option.map t.suffix ~f:(fun suffix ->
+        if String.is_suffix ~suffix:s suffix then
+          String.sub suffix ~pos:0 ~len:(String.length suffix - String.length s)
+        else
+          suffix)
+  in
+  { t with suffix }
+
+let add_prefix s t =
+  let prefix = s ^ t.prefix in
+  { t with prefix }
+
+let cursor_after_insert pos { prefix; suffix = _ } =
+  Pos.advance_string prefix pos |> Pos.shrink_to_end
+
 (* Given a type declaration, return user-denotable syntax that
    represents it. This is lossy: we use mixed if there's no better
    syntax. *)
@@ -154,8 +189,9 @@ let of_implicit_params (impl_params : decl_ty fun_implicit_params) : string =
       Printf.sprintf "[%s]" (String.concat ~sep:", " contexts)
     | _ -> "")
 
-let of_method (name : string) (meth : class_elt) ~is_static ~is_override :
-    string =
+let of_method
+    (name : string) (meth : class_elt) ~is_static ~is_override ~open_braces : t
+    =
   (* TODO: when we start supporting NoAutoDynamic, revisit this *)
   let (_, ty_) = deref (strip_supportdyn (Lazy.force meth.ce_type)) in
   let (params, return_ty, async_modifier, capabilities) =
@@ -171,19 +207,35 @@ let of_method (name : string) (meth : class_elt) ~is_static ~is_override :
     | _ -> ("", "mixed", "", "")
   in
 
-  Printf.sprintf
-    "\n%s  %s %s%sfunction %s(%s)%s: %s {}\n"
-    (if is_override then
-      "  <<__Override>>\n"
+  let prefix =
+    Printf.sprintf
+      "\n%s  %s %s%sfunction %s(%s)%s: %s {"
+      (if is_override then
+        "  <<__Override>>\n"
+      else
+        "")
+      (Typing_defs.string_of_visibility meth.ce_visibility)
+      (if is_static then
+        "static "
+      else
+        "")
+      async_modifier
+      name
+      params
+      capabilities
+      return_ty
+  in
+  let prefix =
+    if open_braces then
+      prefix ^ "\n    "
     else
-      "")
-    (Typing_defs.string_of_visibility meth.ce_visibility)
-    (if is_static then
-      "static "
+      prefix
+  in
+  let suffix = "}\n" in
+  let suffix =
+    if open_braces then
+      "\n  " ^ suffix
     else
-      "")
-    async_modifier
-    name
-    params
-    capabilities
-    return_ty
+      suffix
+  in
+  { prefix; suffix = Some suffix }

@@ -21,7 +21,6 @@ import python_module_root.my.namespacing.extend.test.extend.thrift_metadata
 _fbthrift_all_enums = [
 ]
 
-
 _fbthrift_all_structs = [
 ]
 
@@ -29,10 +28,11 @@ _fbthrift_all_structs = [
 
 class _fbthrift_ExtendTestService_check_args(metaclass=_fbthrift_python_types.StructMeta):
     _fbthrift_SPEC = (
-        (
+        _fbthrift_python_types.FieldInfo(
             1,  # id
             _fbthrift_python_types.FieldQualifier.Unqualified, # qualifier
             "struct1",  # name
+            "struct1",  # python name (from @python.Name annotation)
             lambda: _fbthrift_python_types.StructTypeInfo(python_module_root.my.namespacing.test.hsmodule.thrift_types.HsFoo),  # typeinfo
             None,  # default value
             None,  # adapter info
@@ -43,10 +43,11 @@ class _fbthrift_ExtendTestService_check_args(metaclass=_fbthrift_python_types.St
 
 class _fbthrift_ExtendTestService_check_result(metaclass=_fbthrift_python_types.StructMeta):
     _fbthrift_SPEC = (
-        (
+        _fbthrift_python_types.FieldInfo(
             0,  # id
             _fbthrift_python_types.FieldQualifier.Optional, # qualifier
             "success",  # name
+            "success", # name
             _fbthrift_python_types.typeinfo_bool,  # typeinfo
             None,  # default value
             None,  # adapter info

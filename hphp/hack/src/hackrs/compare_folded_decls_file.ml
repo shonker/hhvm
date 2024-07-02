@@ -15,46 +15,31 @@ let popt
     ~disable_xhp_element_mangling
     ~keep_user_attributes
     ~interpret_soft_types_as_like_types
-    ~everything_sdt
-    ~enable_strict_const_semantics =
-  let po = ParserOptions.default in
-  let po =
-    ParserOptions.with_disable_xhp_element_mangling
-      po
-      disable_xhp_element_mangling
-  in
-  let po = ParserOptions.with_keep_user_attributes po keep_user_attributes in
-  let po = ParserOptions.with_auto_namespace_map po auto_namespace_map in
-  let po =
-    ParserOptions.with_enable_xhp_class_modifier po enable_xhp_class_modifier
-  in
-  let po =
-    ParserOptions.with_interpret_soft_types_as_like_types
-      po
-      interpret_soft_types_as_like_types
-  in
-  let po = ParserOptions.with_everything_sdt po everything_sdt in
-  let po =
+    ~everything_sdt =
+  ParserOptions.
     {
-      po with
-      GlobalOptions.tco_enable_strict_const_semantics =
-        enable_strict_const_semantics;
+      default with
+      disable_xhp_element_mangling;
+      keep_user_attributes;
+      auto_namespace_map;
+      enable_xhp_class_modifier;
+      interpret_soft_types_as_like_types;
+      everything_sdt;
     }
-  in
-  po
 
-let init ~enable_strict_const_semantics popt : Provider_context.t =
+let init ~enable_strict_const_semantics tcopt : Provider_context.t =
   let (_handle : SharedMem.handle) =
     SharedMem.init ~num_workers:0 SharedMem.default_config
   in
   let tcopt =
-    {
-      popt with
-      GlobalOptions.tco_higher_kinded_types = true;
-      GlobalOptions.tco_enable_strict_const_semantics =
-        enable_strict_const_semantics;
-    }
+    GlobalOptions.
+      {
+        tcopt with
+        tco_higher_kinded_types = true;
+        tco_enable_strict_const_semantics = enable_strict_const_semantics;
+      }
   in
+  let popt = tcopt.GlobalOptions.po in
   let ctx =
     Provider_context.empty_for_tool
       ~popt
@@ -215,10 +200,6 @@ let () =
       ( "--interpret-soft-types-as-like-types",
         Arg.Set interpret_soft_types_as_like_types,
         "Interpret <<__Soft>> type hints as like types" );
-      ( "--everything-sdt",
-        Arg.Set everything_sdt,
-        " Treat all classes, functions, and traits as though they are annotated with <<__SupportDynamicType>>, unless they are annotated with <<__NoAutoDynamic>>"
-      );
       ( "--enable-strict-const-semantics",
         Arg.Int (fun x -> enable_strict_const_semantics := x),
         " Raise an error when a concrete constants is overridden or multiply defined"
@@ -280,7 +261,6 @@ let () =
       ignored_flag "--require-extends-implements-ancestors";
       ignored_flag "--strict-value-equality";
       ignored_flag "--enable-sealed-subclasses";
-      ignored_flag "--enable-sound-dynamic-type";
       ignored_arg "--explicit-consistent-constructors";
       ignored_arg "--require-types-class-consts";
       ignored_flag "--skip-tast-checks";
@@ -313,13 +293,20 @@ let () =
         ~keep_user_attributes
         ~interpret_soft_types_as_like_types
         ~everything_sdt
-        ~enable_strict_const_semantics
     in
     let tco_experimental_features =
       TypecheckerOptions.experimental_from_flags
         ~disallow_static_memoized:!disallow_static_memoized
     in
-    let popt = { popt with GlobalOptions.tco_experimental_features } in
+    let tcopt =
+      GlobalOptions.
+        {
+          default with
+          po = popt;
+          tco_experimental_features;
+          tco_enable_strict_const_semantics = enable_strict_const_semantics;
+        }
+    in
     (* Temporarily set the root to the location of the test file so that
        Multifile will strip the dirname prefix. *)
     Relative_path.(set_path_prefix Root (Path.dirname file));
@@ -342,7 +329,7 @@ let () =
           Disk.write_file ~file:filename ~contents;
           (Relative_path.(create Root filename), contents))
     in
-    let ctx = init ~enable_strict_const_semantics popt in
+    let ctx = init ~enable_strict_const_semantics tcopt in
     let iter_files f =
       let multifile = List.length files > 1 in
       List.fold files ~init:true ~f:(fun matched (filename, contents) ->
@@ -368,7 +355,8 @@ let () =
         match
           Decl_folded_class_rupro.fold_classes_in_files
             ~root:(Path.to_string tmpdir)
-            popt
+            (DeclFoldOptions.from_global_options tcopt)
+            (DeclParserOptions.from_parser_options popt)
             files
         with
         | Ok rupro_decls -> rupro_decls

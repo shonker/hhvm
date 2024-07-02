@@ -33,9 +33,9 @@ APACHE_THRIFT_DEFINE_ACCESSOR(strField);
 
 // END declare_enums
 // BEGIN forward_declare
-namespace some { namespace ns {
+namespace some::ns {
 class IncludedA;
-}} // some::ns
+} // namespace some::ns
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -45,7 +45,7 @@ namespace apache::thrift::detail::qualifier {
 
 // BEGIN hash_and_equal_to
 // END hash_and_equal_to
-namespace some { namespace ns {
+namespace some::ns {
 using ::apache::thrift::detail::operator!=;
 using ::apache::thrift::detail::operator>;
 using ::apache::thrift::detail::operator<=;
@@ -98,6 +98,8 @@ class IncludedA final  {
  public:
   using __fbthrift_cpp2_type = IncludedA;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -261,4 +263,4 @@ unsigned long IncludedA::read(Protocol_* iprot) {
 }
 
 
-}} // some::ns
+} // namespace some::ns

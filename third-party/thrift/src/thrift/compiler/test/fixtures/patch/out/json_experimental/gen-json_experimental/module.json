@@ -680,6 +680,30 @@
       "MyDataPatch" : {
         "name" : "MyDataPatch",
         "structured_annotations": {
+          "hack.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/hack.thrift"
+},
+        "value" : {"name": "MyDataPatchStructInternalDoNotUse"}
+      },
+          "python.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/python.thrift"
+},
+        "value" : {"name": "MyDataPatchStructInternalDoNotUse"}
+      },
+          "rust.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/rust.thrift"
+},
+        "value" : {"name": "MyDataPatchStructInternalDoNotUse"}
+      },
           "cpp.Adapter" : {
         "type" : {
   "type" : "struct",
@@ -856,9 +880,63 @@
         "is_union" : false,
         "lineno" : 24
       },
+      "MyDataSafePatch" : {
+        "name" : "MyDataSafePatch",
+        "structured_annotations": {
+          "cpp.Frozen2Exclude" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Frozen2Exclude",
+  "path" : "thrift/annotation/cpp.thrift"
+},
+        "value" : {}
+      }
+        },
+        "fields" : {
+          "version" : {
+            "name" : "version",
+            "key" : 1,
+            "lineno" : 24,
+            "type" : "i32"
+                  },
+          "data" : {
+            "name" : "data",
+            "key" : 2,
+            "lineno" : 24,
+            "type" : "binary"
+                  }
+        },
+        "is_exception" : false,
+        "is_union" : false,
+        "lineno" : 24
+      },
       "MyDataWithCustomDefaultPatch" : {
         "name" : "MyDataWithCustomDefaultPatch",
         "structured_annotations": {
+          "hack.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/hack.thrift"
+},
+        "value" : {"name": "MyDataWithCustomDefaultPatchStructInternalDoNotUse"}
+      },
+          "python.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/python.thrift"
+},
+        "value" : {"name": "MyDataWithCustomDefaultPatchStructInternalDoNotUse"}
+      },
+          "rust.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/rust.thrift"
+},
+        "value" : {"name": "MyDataWithCustomDefaultPatchStructInternalDoNotUse"}
+      },
           "cpp.Adapter" : {
         "type" : {
   "type" : "struct",
@@ -1035,6 +1113,36 @@
         "is_union" : false,
         "lineno" : 24
       },
+      "MyDataWithCustomDefaultSafePatch" : {
+        "name" : "MyDataWithCustomDefaultSafePatch",
+        "structured_annotations": {
+          "cpp.Frozen2Exclude" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Frozen2Exclude",
+  "path" : "thrift/annotation/cpp.thrift"
+},
+        "value" : {}
+      }
+        },
+        "fields" : {
+          "version" : {
+            "name" : "version",
+            "key" : 1,
+            "lineno" : 24,
+            "type" : "i32"
+                  },
+          "data" : {
+            "name" : "data",
+            "key" : 2,
+            "lineno" : 24,
+            "type" : "binary"
+                  }
+        },
+        "is_exception" : false,
+        "is_union" : false,
+        "lineno" : 24
+      },
       "InnerUnionPatch" : {
         "name" : "InnerUnionPatch",
         "structured_annotations": {
@@ -1157,6 +1265,36 @@
           }
                 }
           }
+        },
+        "is_exception" : false,
+        "is_union" : false,
+        "lineno" : 24
+      },
+      "InnerUnionSafePatch" : {
+        "name" : "InnerUnionSafePatch",
+        "structured_annotations": {
+          "cpp.Frozen2Exclude" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Frozen2Exclude",
+  "path" : "thrift/annotation/cpp.thrift"
+},
+        "value" : {}
+      }
+        },
+        "fields" : {
+          "version" : {
+            "name" : "version",
+            "key" : 1,
+            "lineno" : 24,
+            "type" : "i32"
+                  },
+          "data" : {
+            "name" : "data",
+            "key" : 2,
+            "lineno" : 24,
+            "type" : "binary"
+                  }
         },
         "is_exception" : false,
         "is_union" : false,
@@ -1330,9 +1468,63 @@
         "is_union" : false,
         "lineno" : 24
       },
+      "MyUnionSafePatch" : {
+        "name" : "MyUnionSafePatch",
+        "structured_annotations": {
+          "cpp.Frozen2Exclude" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Frozen2Exclude",
+  "path" : "thrift/annotation/cpp.thrift"
+},
+        "value" : {}
+      }
+        },
+        "fields" : {
+          "version" : {
+            "name" : "version",
+            "key" : 1,
+            "lineno" : 24,
+            "type" : "i32"
+                  },
+          "data" : {
+            "name" : "data",
+            "key" : 2,
+            "lineno" : 24,
+            "type" : "binary"
+                  }
+        },
+        "is_exception" : false,
+        "is_union" : false,
+        "lineno" : 24
+      },
       "MyStructPatch" : {
         "name" : "MyStructPatch",
         "structured_annotations": {
+          "hack.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/hack.thrift"
+},
+        "value" : {"name": "MyStructPatchStructInternalDoNotUse"}
+      },
+          "python.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/python.thrift"
+},
+        "value" : {"name": "MyStructPatchStructInternalDoNotUse"}
+      },
+          "rust.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/rust.thrift"
+},
+        "value" : {"name": "MyStructPatchStructInternalDoNotUse"}
+      },
           "cpp.Adapter" : {
         "type" : {
   "type" : "struct",
@@ -1766,7 +1958,7 @@
         },
         "is_exception" : false,
         "is_union" : false,
-        "lineno" : 24
+        "lineno" : 25
       },
       "MyStructField30Patch" : {
         "name" : "MyStructField30Patch",
@@ -1875,7 +2067,7 @@
         },
         "is_exception" : false,
         "is_union" : false,
-        "lineno" : 24
+        "lineno" : 25
       },
       "MyStructField30Patch1" : {
         "name" : "MyStructField30Patch1",
@@ -1974,7 +2166,7 @@
         },
         "is_exception" : false,
         "is_union" : false,
-        "lineno" : 24
+        "lineno" : 25
       },
       "MyStructFieldPatch" : {
         "name" : "MyStructFieldPatch",
@@ -2671,7 +2863,7 @@
         },
         "is_exception" : false,
         "is_union" : false,
-        "lineno" : 24
+        "lineno" : 25
       },
       "MyStructEnsureStruct" : {
         "name" : "MyStructEnsureStruct",
@@ -3051,9 +3243,63 @@
         "is_union" : false,
         "lineno" : 25
       },
+      "MyStructSafePatch" : {
+        "name" : "MyStructSafePatch",
+        "structured_annotations": {
+          "cpp.Frozen2Exclude" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Frozen2Exclude",
+  "path" : "thrift/annotation/cpp.thrift"
+},
+        "value" : {}
+      }
+        },
+        "fields" : {
+          "version" : {
+            "name" : "version",
+            "key" : 1,
+            "lineno" : 24,
+            "type" : "i32"
+                  },
+          "data" : {
+            "name" : "data",
+            "key" : 2,
+            "lineno" : 24,
+            "type" : "binary"
+                  }
+        },
+        "is_exception" : false,
+        "is_union" : false,
+        "lineno" : 25
+      },
       "LateDefStructPatch" : {
         "name" : "LateDefStructPatch",
         "structured_annotations": {
+          "hack.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/hack.thrift"
+},
+        "value" : {"name": "LateDefStructPatchStructInternalDoNotUse"}
+      },
+          "python.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/python.thrift"
+},
+        "value" : {"name": "LateDefStructPatchStructInternalDoNotUse"}
+      },
+          "rust.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/rust.thrift"
+},
+        "value" : {"name": "LateDefStructPatchStructInternalDoNotUse"}
+      },
           "cpp.Adapter" : {
         "type" : {
   "type" : "struct",
@@ -3170,9 +3416,63 @@
         "is_union" : false,
         "lineno" : 25
       },
+      "LateDefStructSafePatch" : {
+        "name" : "LateDefStructSafePatch",
+        "structured_annotations": {
+          "cpp.Frozen2Exclude" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Frozen2Exclude",
+  "path" : "thrift/annotation/cpp.thrift"
+},
+        "value" : {}
+      }
+        },
+        "fields" : {
+          "version" : {
+            "name" : "version",
+            "key" : 1,
+            "lineno" : 24,
+            "type" : "i32"
+                  },
+          "data" : {
+            "name" : "data",
+            "key" : 2,
+            "lineno" : 24,
+            "type" : "binary"
+                  }
+        },
+        "is_exception" : false,
+        "is_union" : false,
+        "lineno" : 25
+      },
       "RecursivePatch" : {
         "name" : "RecursivePatch",
         "structured_annotations": {
+          "hack.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/hack.thrift"
+},
+        "value" : {"name": "RecursivePatchStructInternalDoNotUse"}
+      },
+          "python.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/python.thrift"
+},
+        "value" : {"name": "RecursivePatchStructInternalDoNotUse"}
+      },
+          "rust.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/rust.thrift"
+},
+        "value" : {"name": "RecursivePatchStructInternalDoNotUse"}
+      },
           "cpp.Adapter" : {
         "type" : {
   "type" : "struct",
@@ -3367,9 +3667,63 @@
         "is_union" : false,
         "lineno" : 25
       },
+      "RecursiveSafePatch" : {
+        "name" : "RecursiveSafePatch",
+        "structured_annotations": {
+          "cpp.Frozen2Exclude" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Frozen2Exclude",
+  "path" : "thrift/annotation/cpp.thrift"
+},
+        "value" : {}
+      }
+        },
+        "fields" : {
+          "version" : {
+            "name" : "version",
+            "key" : 1,
+            "lineno" : 24,
+            "type" : "i32"
+                  },
+          "data" : {
+            "name" : "data",
+            "key" : 2,
+            "lineno" : 24,
+            "type" : "binary"
+                  }
+        },
+        "is_exception" : false,
+        "is_union" : false,
+        "lineno" : 25
+      },
       "BarPatch" : {
         "name" : "BarPatch",
         "structured_annotations": {
+          "hack.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/hack.thrift"
+},
+        "value" : {"name": "BarPatchStructInternalDoNotUse"}
+      },
+          "python.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/python.thrift"
+},
+        "value" : {"name": "BarPatchStructInternalDoNotUse"}
+      },
+          "rust.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/rust.thrift"
+},
+        "value" : {"name": "BarPatchStructInternalDoNotUse"}
+      },
           "cpp.Adapter" : {
         "type" : {
   "type" : "struct",
@@ -3531,9 +3885,63 @@
         "is_union" : false,
         "lineno" : 25
       },
+      "BarSafePatch" : {
+        "name" : "BarSafePatch",
+        "structured_annotations": {
+          "cpp.Frozen2Exclude" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Frozen2Exclude",
+  "path" : "thrift/annotation/cpp.thrift"
+},
+        "value" : {}
+      }
+        },
+        "fields" : {
+          "version" : {
+            "name" : "version",
+            "key" : 1,
+            "lineno" : 24,
+            "type" : "i32"
+                  },
+          "data" : {
+            "name" : "data",
+            "key" : 2,
+            "lineno" : 24,
+            "type" : "binary"
+                  }
+        },
+        "is_exception" : false,
+        "is_union" : false,
+        "lineno" : 25
+      },
       "LoopPatch" : {
         "name" : "LoopPatch",
         "structured_annotations": {
+          "hack.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/hack.thrift"
+},
+        "value" : {"name": "LoopPatchStructInternalDoNotUse"}
+      },
+          "python.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/python.thrift"
+},
+        "value" : {"name": "LoopPatchStructInternalDoNotUse"}
+      },
+          "rust.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/rust.thrift"
+},
+        "value" : {"name": "LoopPatchStructInternalDoNotUse"}
+      },
           "cpp.Adapter" : {
         "type" : {
   "type" : "struct",
@@ -3578,9 +3986,63 @@
         "is_union" : false,
         "lineno" : 25
       },
+      "LoopSafePatch" : {
+        "name" : "LoopSafePatch",
+        "structured_annotations": {
+          "cpp.Frozen2Exclude" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Frozen2Exclude",
+  "path" : "thrift/annotation/cpp.thrift"
+},
+        "value" : {}
+      }
+        },
+        "fields" : {
+          "version" : {
+            "name" : "version",
+            "key" : 1,
+            "lineno" : 24,
+            "type" : "i32"
+                  },
+          "data" : {
+            "name" : "data",
+            "key" : 2,
+            "lineno" : 24,
+            "type" : "binary"
+                  }
+        },
+        "is_exception" : false,
+        "is_union" : false,
+        "lineno" : 25
+      },
       "RefFieldsPatch" : {
         "name" : "RefFieldsPatch",
         "structured_annotations": {
+          "hack.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/hack.thrift"
+},
+        "value" : {"name": "RefFieldsPatchStructInternalDoNotUse"}
+      },
+          "python.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/python.thrift"
+},
+        "value" : {"name": "RefFieldsPatchStructInternalDoNotUse"}
+      },
+          "rust.Name" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Name",
+  "path" : "thrift/annotation/rust.thrift"
+},
+        "value" : {"name": "RefFieldsPatchStructInternalDoNotUse"}
+      },
           "cpp.Adapter" : {
         "type" : {
   "type" : "struct",
@@ -3993,6 +4455,36 @@
   "type" : "list",
   "inner_type" : "i32"
 }
+                  }
+        },
+        "is_exception" : false,
+        "is_union" : false,
+        "lineno" : 25
+      },
+      "RefFieldsSafePatch" : {
+        "name" : "RefFieldsSafePatch",
+        "structured_annotations": {
+          "cpp.Frozen2Exclude" : {
+        "type" : {
+  "type" : "struct",
+  "name" : "Frozen2Exclude",
+  "path" : "thrift/annotation/cpp.thrift"
+},
+        "value" : {}
+      }
+        },
+        "fields" : {
+          "version" : {
+            "name" : "version",
+            "key" : 1,
+            "lineno" : 24,
+            "type" : "i32"
+                  },
+          "data" : {
+            "name" : "data",
+            "key" : 2,
+            "lineno" : 24,
+            "type" : "binary"
                   }
         },
         "is_exception" : false,

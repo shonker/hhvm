@@ -141,6 +141,7 @@ public:
       switch (m_kind) {
         case Kind::AccessorKind:
           m_u.accessor.~ConstAccessor();
+          [[fallthrough]];
         case Kind::Empty:
         case Kind::Ptr:
           m_kind = Kind::SmartPtr;
@@ -159,6 +160,7 @@ public:
       switch (m_kind) {
         case Kind::SmartPtr:
           m_u.smart_ptr.~EntryPtr();
+          [[fallthrough]];
         case Kind::Empty:
         case Kind::Ptr:
           m_kind = Kind::AccessorKind;
@@ -478,7 +480,7 @@ void PCRECache::clearStatic() {
   if (!lock) return;
 
   auto newExpire = time(nullptr) + Cfg::PCRE::ExpireInterval;
-  m_expire.store(newExpire, std::memory_order_relaxed);
+  m_expire.store(newExpire, std::memory_order_release);
 
   auto tmpMap = CreateStatic();
   tmpMap = m_staticCache.exchange(tmpMap, std::memory_order_acq_rel);
@@ -637,7 +639,7 @@ static void init_local_extra(pcre_extra* local, pcre_extra* shared) {
 static const char* const*
 get_subpat_names(const pcre_cache_entry* pce) {
   assertx(!pce->literal_data);
-  char **subpat_names = pce->subpat_names.load(std::memory_order_relaxed);
+  char **subpat_names = pce->subpat_names.load(std::memory_order_acquire);
   if (subpat_names) return subpat_names;
 
   /*

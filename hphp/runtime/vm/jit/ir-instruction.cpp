@@ -411,6 +411,12 @@ Type bespokePosReturn(const IRInstruction* inst, bool isKey) {
   return resultType;
 }
 
+Type ptrIterReturn(const IRInstruction* inst, bool isKey) {
+  assertx(inst->src(0)->type() <= TArrLike);
+  auto const ty = inst->typeParam();
+  return arrLikePosType(inst->src(0)->type(), TInt, isKey, inst->ctx()) & ty;
+}
+
 Type vecElemReturn(const IRInstruction* inst) {
   assertx(inst->is(LdVecElem));
   assertx(inst->src(0)->isA(TVec));
@@ -498,7 +504,7 @@ Type newColReturn(const IRInstruction* inst) {
   assertx(inst->is(NewCol, NewPair, NewColFromArray));
   auto getColClassType = [&](CollectionType ct) -> Type {
     auto name = collections::typeToString(ct);
-    auto cls = Class::lookupUniqueInContext(name, inst->ctx(), nullptr);
+    auto cls = Class::lookupKnown(name, inst->ctx());
     if (cls == nullptr) return TObj;
     return Type::ExactObj(cls);
   };
@@ -737,36 +743,6 @@ Type structDictTypeBoundCheckReturn(const IRInstruction* inst) {
   return inst->src(0)->type() & type;
 }
 
-Type specialICReturn(const IRInstruction* inst) {
-  assertx(inst->is(CreateSpecialImplicitContext));
-
-  auto const type = inst->src(0)->type();
-  auto const memoKey = inst->src(1)->type();
-  auto const func = inst->src(2)->type();
-
-  if (!type.hasConstVal(TInt)) return TObj|TInitNull;
-
-  switch (static_cast<ImplicitContext::State>(type.intVal())) {
-    case ImplicitContext::State::Value:
-      return TObj|TInitNull;
-    case ImplicitContext::State::SoftInaccessible: {
-      auto const sampleRate = [&] () -> uint32_t {
-        if (!memoKey.maybe(TInitNull)) return 1;
-        if (!func.hasConstVal(TFunc)) return 0;
-        auto const f = func.funcVal();
-        assertx(f->isMemoizeWrapper() || f->isMemoizeWrapperLSB());
-        assertx(f->isSoftMakeICInaccessibleMemoize());
-        return f->softMakeICInaccessibleSampleRate();
-      }();
-      return sampleRate == 1 ? TObj : (TObj | TInitNull);
-    }
-    case ImplicitContext::State::Inaccessible:
-    case ImplicitContext::State::SoftSet:
-      return TObj;
-  }
-  always_assert(false);
-}
-
 // Is this instruction an array cast that always modifies the type of the
 // input array? Such casts are guaranteed to return vanilla arrays.
 bool isNontrivialArrayCast(const IRInstruction* inst) {
@@ -832,6 +808,8 @@ Type outputType(const IRInstruction* inst, int /*dstId*/) {
 #define DBespokeElemUninit    return bespokeElemReturn(inst, false);
 #define DBespokePosKey        return bespokePosReturn(inst, true);
 #define DBespokePosVal        return bespokePosReturn(inst, false);
+#define DPtrIterKey     return ptrIterReturn(inst, true);
+#define DPtrIterVal     return ptrIterReturn(inst, false);
 #define DVecElem        return vecElemReturn(inst);
 #define DDictElem       return dictElemReturn(inst);
 #define DKeysetElem     return keysetElemReturn(inst);
@@ -864,7 +842,6 @@ Type outputType(const IRInstruction* inst, int /*dstId*/) {
 #define DElemLvalPos    return elemLvalPos(inst);
 #define DCOW            return cowReturn(inst);
 #define DStructTypeBound return structDictTypeBoundCheckReturn(inst);
-#define DSpecialIC      return specialICReturn(inst);
 
 #define O(name, dstinfo, srcinfo, flags) case name: dstinfo not_reached();
 
@@ -887,6 +864,8 @@ Type outputType(const IRInstruction* inst, int /*dstId*/) {
 #undef DBespokeElemUninit
 #undef DBespokePosKey
 #undef DBespokePosVal
+#undef DPtrIterKey
+#undef DPtrIterVal
 #undef DVecElem
 #undef DDictElem
 #undef DKeysetElem
@@ -915,7 +894,6 @@ Type outputType(const IRInstruction* inst, int /*dstId*/) {
 #undef DElemLvalPos
 #undef DCOW
 #undef DStructTypeBound
-#undef DSpecialIC
 
 }
 

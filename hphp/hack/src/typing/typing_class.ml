@@ -21,7 +21,7 @@ module Subst = Decl_subst
 module EnvFromDef = Typing_env_from_def
 module TUtils = Typing_utils
 module TCO = TypecheckerOptions
-module Cls = Decl_provider.Class
+module Cls = Folded_class
 module SN = Naming_special_names
 module Profile = Typing_toplevel_profile
 
@@ -35,7 +35,7 @@ let method_dynamically_callable env cls m params_decl_ty return =
    * to call it from a dynamic context (eg. under dyn..dyn->dyn assumptions).
    * The code below must be kept in sync with with the method_def checks.
    *)
-  let make_dynamic pos = MakeType.dynamic (Reason.Rsupport_dynamic_type pos) in
+  let make_dynamic pos = MakeType.dynamic (Reason.support_dynamic_type pos) in
   let dynamic_return_ty = make_dynamic (get_pos ret_locl_ty) in
   let dynamic_return_info =
     Typing_env_return_info.{ return with return_type = dynamic_return_ty }
@@ -59,7 +59,7 @@ let method_dynamically_callable env cls m params_decl_ty return =
       let this_local = Env.get_local env this in
       let this_ty =
         MakeType.intersection
-          (Reason.Rsupport_dynamic_type Pos_or_decl.none)
+          (Reason.support_dynamic_type Pos_or_decl.none)
           [this_local.Typing_local_types.ty; make_dynamic Pos_or_decl.none]
       in
       Env.set_local
@@ -113,7 +113,7 @@ let method_return ~supportdyn env cls m ret_decl_ty =
   let default_ty =
     match ret_decl_ty with
     | None when String.equal (snd m.m_name) SN.Members.__construct ->
-      Some (MakeType.void (Reason.Rwitness (fst m.m_name)))
+      Some (MakeType.void (Reason.witness (fst m.m_name)))
     | _ -> None
   in
   let ety_env =
@@ -967,33 +967,41 @@ let typeconst_def
   (* Check constraints and report cycles through the definition *)
   let (env, ty_err_opt) =
     match c_tconst_kind with
-    | TCAbstract
-        { c_atc_as_constraint; c_atc_super_constraint; c_atc_default = Some ty }
+    | TCAbstract { c_atc_as_constraint; c_atc_super_constraint; c_atc_default }
       ->
-      let ((env, ty_err_opt1), ty) =
-        Phase.localize_hint_no_subst
-          ~ignore_errors:false
-          ~report_cycle:(pos, name)
-          env
-          ty
+      let (env, ty_default_opt) =
+        match c_atc_default with
+        | Some ty ->
+          let ((env, ty_err_opt1), ty) =
+            Phase.localize_hint_no_subst
+              ~ignore_errors:false
+              ~report_cycle:(pos, name)
+              env
+              ty
+          in
+          Option.iter ~f:(Typing_error_utils.add_typing_error ~env) ty_err_opt1;
+          (env, Some ty)
+        | None -> (env, None)
       in
-      Option.iter ~f:(Typing_error_utils.add_typing_error ~env) ty_err_opt1;
       let (env, ty_err_opt2) =
         match c_atc_as_constraint with
         | Some as_ ->
           let ((env, ty_err_opt1), as_) =
             Phase.localize_hint_no_subst ~ignore_errors:false env as_
           in
-          let (env, ty_err_opt2) =
-            Type.sub_type
-              pos
-              Reason.URtypeconst_cstr
-              env
-              ty
-              as_
-              Typing_error.Callback.unify_error
-          in
-          (env, Option.merge ~f:Typing_error.both ty_err_opt1 ty_err_opt2)
+          (match ty_default_opt with
+          | Some ty ->
+            let (env, ty_err_opt2) =
+              Type.sub_type
+                pos
+                Reason.URtypeconst_cstr
+                env
+                ty
+                as_
+                Typing_error.Callback.unify_error
+            in
+            (env, Option.merge ~f:Typing_error.both ty_err_opt1 ty_err_opt2)
+          | None -> (env, ty_err_opt1))
         | None -> (env, None)
       in
       let (env, ty_err_opt3) =
@@ -1002,33 +1010,34 @@ let typeconst_def
           let ((env, te1), super) =
             Phase.localize_hint_no_subst ~ignore_errors:false env super
           in
-          let (env, te2) =
-            Type.sub_type
-              pos
-              Reason.URtypeconst_cstr
-              env
-              super
-              ty
-              Typing_error.Callback.unify_error
-          in
-          (env, Option.merge ~f:Typing_error.both te1 te2)
+          (match ty_default_opt with
+          | Some ty ->
+            let (env, te2) =
+              Type.sub_type
+                pos
+                Reason.URtypeconst_cstr
+                env
+                super
+                ty
+                Typing_error.Callback.unify_error
+            in
+            (env, Option.merge ~f:Typing_error.both te1 te2)
+          | None -> (env, te1))
         | None -> (env, None)
       in
       let ty_err_opt =
-        Typing_error.multiple_opt
-        @@ List.filter_map ~f:Fn.id [ty_err_opt1; ty_err_opt2; ty_err_opt3]
+        Option.merge ~f:Typing_error.both ty_err_opt2 ty_err_opt3
       in
       (env, ty_err_opt)
     | TCConcrete { c_tc_type = ty } ->
-      let (env, _ty) =
+      let ((env, ty_err_opt), _ty) =
         Phase.localize_hint_no_subst
           ~ignore_errors:false
           ~report_cycle:(pos, name)
           env
           ty
       in
-      env
-    | _ -> (env, None)
+      (env, ty_err_opt)
   in
   Option.iter ty_err_opt ~f:(Typing_error_utils.add_typing_error ~env);
   (* TODO(T88552052): should this check be happening for defaults
@@ -1138,9 +1147,12 @@ let class_const_def ~in_enum_class c cls env cc =
     let env = check env ty' in
     (env, te, ty')
   in
+  let check_class env p e ty =
+    Typing_class_pointers.check_string_coercion_point env ~flag:"const" p e ty
+  in
   let ((env, ty_err_opt), kind, ty) =
     match k with
-    | CCConcrete ((_, e_pos, _) as e) when in_enum_class ->
+    | CCConcrete ((_, e_pos, e_expr) as e) when in_enum_class ->
       let (env, cap, unsafe_cap) =
         (* Enum class constant initializers are restricted to be `write_props` *)
         let make_hint pos s = (pos, Aast.Happly ((pos, s), [])) in
@@ -1156,8 +1168,9 @@ let class_const_def ~in_enum_class c cls env cc =
       in
       let (te, ty') =
         match deref hint_ty with
-        | (r, Tnewtype (memberof, [enum_name; _], _))
+        | (r, Tnewtype (memberof, [enum_name; _], def_ty))
           when String.equal memberof SN.Classes.cMemberOf ->
+          check_class env e_pos e_expr def_ty;
           let lift r ty = mk (r, Tnewtype (memberof, [enum_name; ty], ty)) in
           let (te_ty, p, te) = te in
           let te = (lift (get_reason te_ty) te_ty, p, te) in
@@ -1173,10 +1186,12 @@ let class_const_def ~in_enum_class c cls env cc =
        * about checking the value and simply pass it through *)
       let (env, te, _ty) = Typing.expr env e in
       ((env, None), CCConcrete te, hint_ty)
-    | CCConcrete e ->
+    | CCConcrete ((_, e_pos, e_expr) as e) ->
+      check_class env e_pos e_expr hint_ty;
       let (env, te, ty') = type_and_check env e in
       (env, Aast.CCConcrete te, ty')
-    | CCAbstract (Some default) ->
+    | CCAbstract (Some ((_, e_pos, e_expr) as default)) ->
+      check_class env e_pos e_expr hint_ty;
       let (env, tdefault, ty') = type_and_check env default in
       (env, CCAbstract (Some tdefault), ty')
     | CCAbstract None -> ((env, None), CCAbstract None, hint_ty)
@@ -1418,7 +1433,7 @@ let check_generic_class_with_SupportDynamicType env c tc parents =
     && check_support_dynamic_type
   then (
     let dynamic_ty =
-      MakeType.supportdyn_mixed (Reason.Rdynamic_coercion (Reason.Rwitness pc))
+      MakeType.supportdyn_mixed (Reason.dynamic_coercion (Reason.witness pc))
     in
     let (env, ty_errs) =
       List.fold parents ~init:(env, []) ~f:(fun (env, ty_errs) (_, parent_ty) ->
@@ -1958,6 +1973,11 @@ let setup_env_for_class_def_check ctx c =
   let env = EnvFromDef.class_env ~origin:Decl_counters.TopLevel ctx c in
   let env = Env.set_current_module env c.c_module in
   let env = Env.set_internal env c.c_internal in
+  let env =
+    Env.set_current_package_override_from_file_attributes
+      env
+      c.c_file_attributes
+  in
   env
 
 let class_def ctx (c : _ class_) =

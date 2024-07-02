@@ -30,6 +30,7 @@ from testing.thrift_types import (
     ValueOrError,
 )
 from thrift.python.exceptions import (
+    ApplicationError,
     ApplicationErrorType,
     Error,
     TransportError,
@@ -46,6 +47,44 @@ class ExceptionTests(unittest.TestCase):
     def test_cython_enum_scope(self) -> None:
         self.assertEqual(ApplicationErrorType(6), ApplicationErrorType.INTERNAL_ERROR)
 
+    def test_invalid_error_type(self) -> None:
+        with self.assertRaises(TypeError):
+            ApplicationError("msg", "legit error message")  # pyre-ignore
+        self.assertEqual(
+            TransportError(
+                type=0,  # pyre-ignore
+                message="transport error",
+                errno=5,
+                options=1,
+            ).type,
+            TransportErrorType.UNKNOWN,
+        )
+        with self.assertRaises(TypeError):
+            TransportError(
+                type="oops",  # pyre-ignore
+                message="transport error",
+                errno=5,
+                options=1,
+            )
+        with self.assertRaises(TypeError):
+            TransportError(
+                type=100,  # pyre-ignore
+                message="transport error",
+                errno=5,
+                options=1,
+            )
+
+        # allow this for backwards-compatibility reasons
+        self.assertEqual(
+            TransportError(
+                type=None,  # pyre-ignore
+                message="transport error",
+                errno=5,
+                options=1,
+            ).type,
+            TransportErrorType.UNKNOWN,
+        )
+
     def test_exception_message_annotation(self) -> None:
         x = UnusedError(message="something broke")
         self.assertEqual(x.message, str(x))
@@ -54,6 +93,14 @@ class ExceptionTests(unittest.TestCase):
         z = UnfriendlyError(errortext="WAT!", code=22)
         self.assertNotEqual(z.errortext, str(z))
         self.assertNotEqual(str(y), str(z))
+
+    def test_application_error_fmt(self) -> None:
+        self.assertEqual(
+            f"{ApplicationErrorType.UNKNOWN}", "ApplicationErrorType.UNKNOWN"
+        )
+        err = ApplicationError(ApplicationErrorType.UNKNOWN, "oops")
+        self.assertIsInstance(err.type, ApplicationErrorType)
+        self.assertEqual(f"{err.type}", "ApplicationErrorType.UNKNOWN")
 
     def test_creation(self) -> None:
         msg = "something broke"

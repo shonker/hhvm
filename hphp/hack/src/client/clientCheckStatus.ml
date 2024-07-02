@@ -20,6 +20,9 @@ let print_error_contextual e =
 let print_error_highlighted e =
   Printf.printf "%s" (Highlighted_error_formatter.to_string e)
 
+let print_error_extended e =
+  Printf.printf "%s" (Extended_error_formatter.to_string e)
+
 let print_error ~(error_format : Errors.format) (e : Errors.finalized_error) :
     unit =
   match error_format with
@@ -27,6 +30,7 @@ let print_error ~(error_format : Errors.format) (e : Errors.finalized_error) :
   | Errors.Plain -> print_error_plain e
   | Errors.Context -> print_error_contextual e
   | Errors.Highlighted -> print_error_highlighted e
+  | Errors.Extended -> print_error_extended e
 
 let is_stale_msg liveness =
   match liveness with
@@ -51,6 +55,7 @@ let go status output_json from error_format max_errors =
       stdout
       ~stale_msg
       ~output_json
+      ~error_format
       ~error_list
       ~save_state_result:None
       ~recheck_stats:last_recheck_stats

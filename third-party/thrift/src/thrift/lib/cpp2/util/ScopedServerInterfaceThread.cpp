@@ -19,7 +19,6 @@
 #include <folly/SocketAddress.h>
 
 #include <thrift/lib/cpp2/async/PooledRequestChannel.h>
-#include <thrift/lib/cpp2/server/BaseThriftServer.h>
 #include <thrift/lib/cpp2/server/ThriftServer.h>
 
 using namespace std;
@@ -44,7 +43,7 @@ ScopedServerInterfaceThread::ScopedServerInterfaceThread(
   auto tf = make_shared<PosixThreadFactory>(PosixThreadFactory::ATTACHED);
   ts->setThreadFactory(std::move(tf));
   ts->setThreadManagerType(
-      apache::thrift::BaseThriftServer::ThreadManagerType::SIMPLE);
+      apache::thrift::ThriftServer::ThreadManagerType::SIMPLE);
 
   // The default behavior is to keep N recent requests per IO worker in
   // memory. In unit-tests, this defers memory reclamation and potentially
@@ -72,12 +71,12 @@ ScopedServerInterfaceThread::ScopedServerInterfaceThread(
           std::move(apf), "::1", 0, std::move(configCb)) {}
 
 ScopedServerInterfaceThread::ScopedServerInterfaceThread(
-    shared_ptr<BaseThriftServer> bts) {
+    shared_ptr<ThriftServer> bts) {
   ts_ = bts;
   sst_.start(ts_);
 }
 
-BaseThriftServer& ScopedServerInterfaceThread::getThriftServer() const {
+ThriftServer& ScopedServerInterfaceThread::getThriftServer() const {
   return *ts_;
 }
 
@@ -92,7 +91,8 @@ uint16_t ScopedServerInterfaceThread::getPort() const {
 RequestChannel::Ptr ScopedServerInterfaceThread::newChannel(
     folly::Executor* callbackExecutor,
     MakeChannelFunc makeChannel,
-    size_t numThreads) const {
+    size_t numThreads,
+    protocol::PROTOCOL_TYPES prot) const {
   return PooledRequestChannel::newChannel(
       callbackExecutor,
       [makeChannel = std::move(makeChannel),
@@ -100,7 +100,8 @@ RequestChannel::Ptr ScopedServerInterfaceThread::newChannel(
         return makeChannel(folly::AsyncSocket::UniquePtr(
             new folly::AsyncSocket(&eb, address)));
       },
-      numThreads);
+      numThreads,
+      prot);
 }
 
 namespace {
@@ -117,10 +118,19 @@ std::shared_ptr<RequestChannel>
 ScopedServerInterfaceThread::makeTestClientChannel(
     std::shared_ptr<AsyncProcessorFactory> apf,
     ScopedServerInterfaceThread::FaultInjectionFunc injectFault,
-    ScopedServerInterfaceThread::StreamFaultInjectionFunc streamInjectFault) {
+    ScopedServerInterfaceThread::StreamFaultInjectionFunc streamInjectFault,
+    protocol::PROTOCOL_TYPES prot) {
   auto runner = std::make_shared<TestClientRunner>(std::move(apf));
+  auto makeChannel = [prot](folly::AsyncSocket::UniquePtr socket) {
+    auto channel = RocketClientChannel::newChannel(std::move(socket));
+    channel->setProtocolId(prot);
+    return channel;
+  };
   auto innerChannel = runner->runner.newChannel(
-      folly::getGlobalCPUExecutor().get(), RocketClientChannel::newChannel);
+      folly::getGlobalCPUExecutor().get(),
+      makeChannel,
+      folly::hardware_concurrency(),
+      prot);
   if (injectFault || streamInjectFault) {
     runner->channel.reset(new apache::thrift::detail::FaultInjectionChannel(
         std::move(innerChannel),

@@ -62,7 +62,7 @@ folly::coro::Task<std::unique_ptr<::apache::thrift::fixtures::types::SomeMap>> a
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::apache::thrift::fixtures::types::SomeService>::async_tm_bounce_map(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::apache::thrift::fixtures::types::SomeMap>>> callback, std::unique_ptr<::apache::thrift::fixtures::types::SomeMap> p_m) {
+void apache::thrift::ServiceHandler<::apache::thrift::fixtures::types::SomeService>::async_tm_bounce_map(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::apache::thrift::fixtures::types::SomeMap>> callback, std::unique_ptr<::apache::thrift::fixtures::types::SomeMap> p_m) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -120,7 +120,7 @@ determineInvocationType:
       {
         ::apache::thrift::fixtures::types::SomeMap _return;
         sync_bounce_map(_return, std::move(p_m));
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -174,7 +174,7 @@ folly::coro::Task<std::unique_ptr<::std::map<::apache::thrift::fixtures::types::
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::apache::thrift::fixtures::types::SomeService>::async_tm_binary_keyed_map(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::map<::apache::thrift::fixtures::types::TBinary, ::std::int64_t>>>> callback, std::unique_ptr<::std::vector<::std::int64_t>> p_r) {
+void apache::thrift::ServiceHandler<::apache::thrift::fixtures::types::SomeService>::async_tm_binary_keyed_map(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::map<::apache::thrift::fixtures::types::TBinary, ::std::int64_t>>> callback, std::unique_ptr<::std::vector<::std::int64_t>> p_r) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -232,7 +232,7 @@ determineInvocationType:
       {
         ::std::map<::apache::thrift::fixtures::types::TBinary, ::std::int64_t> _return;
         sync_binary_keyed_map(_return, std::move(p_r));
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -251,11 +251,11 @@ determineInvocationType:
 }
 
 
-namespace apache { namespace thrift { namespace fixtures { namespace types {
+namespace apache::thrift::fixtures::types {
 
-void SomeServiceSvNull::bounce_map(::apache::thrift::fixtures::types::SomeMap& /*_return*/, std::unique_ptr<::apache::thrift::fixtures::types::SomeMap> /*m*/) {}
+void SomeServiceSvNull::bounce_map(::apache::thrift::fixtures::types::SomeMap& /*_return*/, std::unique_ptr<::apache::thrift::fixtures::types::SomeMap> /*m*/) {  }
 
-void SomeServiceSvNull::binary_keyed_map(::std::map<::apache::thrift::fixtures::types::TBinary, ::std::int64_t>& /*_return*/, std::unique_ptr<::std::vector<::std::int64_t>> /*r*/) {}
+void SomeServiceSvNull::binary_keyed_map(::std::map<::apache::thrift::fixtures::types::TBinary, ::std::int64_t>& /*_return*/, std::unique_ptr<::std::vector<::std::int64_t>> /*r*/) {  }
 
 
 const char* SomeServiceAsyncProcessor::getServiceName() {
@@ -299,14 +299,14 @@ apache::thrift::ServiceRequestInfoMap const& SomeServiceServiceInfoHolder::reque
 apache::thrift::ServiceRequestInfoMap SomeServiceServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"bounce_map",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "SomeService.bounce_map",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"binary_keyed_map",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "SomeService.binary_keyed_map",
      std::nullopt,
@@ -316,4 +316,4 @@ apache::thrift::ServiceRequestInfoMap SomeServiceServiceInfoHolder::staticReques
 
   return requestInfoMap;
 }
-}}}} // apache::thrift::fixtures::types
+} // namespace apache::thrift::fixtures::types

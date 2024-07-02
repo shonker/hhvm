@@ -7,7 +7,6 @@ use anyhow::anyhow;
 use anyhow::bail;
 use anyhow::Result;
 use hash::HashMap;
-use hhbc::AdataId;
 use hhbc::BytesId;
 use hhbc::ClassName;
 use hhbc::Dummy;
@@ -55,15 +54,10 @@ pub(crate) struct State<'a> {
     pub(crate) iterators: IterIdMap<IterState>,
     pub(crate) locals: HashMap<Local, Value>,
     pub(crate) stack: Vec<Value>,
-    adata: &'a HashMap<AdataId, &'a TypedValue>,
 }
 
 impl<'a> State<'a> {
-    pub(crate) fn new(
-        body: &'a Body<'a>,
-        debug_name: &'static str,
-        adata: &'a HashMap<AdataId, &'a TypedValue>,
-    ) -> Self {
+    pub(crate) fn new(body: &'a Body<'a>, debug_name: &'static str) -> Self {
         Self {
             body,
             debug_name,
@@ -71,7 +65,6 @@ impl<'a> State<'a> {
             iterators: Default::default(),
             locals: Default::default(),
             stack: Default::default(),
-            adata,
         }
     }
 
@@ -235,7 +228,6 @@ impl<'a> State<'a> {
             iterators: self.iterators.clone(),
             locals: self.locals.clone(),
             stack: self.stack.clone(),
-            adata: self.adata,
         }
     }
 
@@ -247,7 +239,6 @@ impl<'a> State<'a> {
             iterators: self.iterators.clone(),
             locals: self.locals.clone(),
             stack: vec![],
-            adata: self.adata,
         }
     }
 
@@ -397,20 +388,16 @@ impl<'a> State<'a> {
                 self.locals.remove(&local);
             }
 
-            Instruct::Opcode(Opcode::LIterFree(..)) => todo!(),
-            Instruct::Opcode(Opcode::LIterInit(..)) => todo!(),
-            Instruct::Opcode(Opcode::LIterNext(..)) => todo!(),
-
             Instruct::Opcode(Opcode::MemoGetEager(targets, _, range)) => {
                 self.step_memo_get_eager(builder, targets, range)?;
             }
 
-            Instruct::Opcode(Opcode::IterInit(ref iter_args, target)) => {
-                self.step_iter_init(builder, iter_args, target);
+            Instruct::Opcode(Opcode::IterInit(ref iter_args, local, target)) => {
+                self.step_iter_init(builder, iter_args, local, target)
             }
             Instruct::Opcode(Opcode::IterFree(iter_id)) => self.step_iter_free(iter_id),
-            Instruct::Opcode(Opcode::IterNext(ref iter_args, target)) => {
-                self.step_iter_next(builder, iter_args, target)
+            Instruct::Opcode(Opcode::IterNext(ref iter_args, local, target)) => {
+                self.step_iter_next(builder, iter_args, local, target)
             }
 
             Instruct::Opcode(Opcode::Switch(bounded, base, ref targets)) => {
@@ -521,7 +508,7 @@ impl<'a> State<'a> {
     }
 
     fn next_ip(&self, ip: InstrPtr) -> InstrPtr {
-        ip.next(self.body.hhbc_body.body_instrs.len())
+        ip.next(self.body.hhbc_body.repr.instrs.len())
     }
 
     fn step_base(
@@ -670,7 +657,7 @@ impl<'a> State<'a> {
     fn step_constant(
         &mut self,
         builder: &mut InstrSeqBuilder<'a, '_>,
-        opcode: &Opcode,
+        opcode: &'a Opcode,
     ) -> Result<()> {
         let clean_instr = NodeInstr::Opcode(clean_opcode(opcode));
         debug_assert_eq!(opcode.num_inputs(), 0);
@@ -689,9 +676,9 @@ impl<'a> State<'a> {
 
         // For a constant the outputs are based entirely on the input instr.
         let output = match opcode {
-            Opcode::Dict(id) | Opcode::Keyset(id) | Opcode::Vec(id) => {
-                // But for an array-based constant we want to use the array data as an input.
-                builder.compute_value(&clean_instr, 0, &[Input::ConstantArray(self.adata[id])])
+            Opcode::Dict(a) | Opcode::Keyset(a) | Opcode::Vec(a) => {
+                // For an array constant we want to use the array data as an input
+                builder.compute_value(&clean_instr, 0, &[Input::ConstantArray(a)])
             }
             _ => builder.compute_constant(&clean_instr),
         };
@@ -941,10 +928,11 @@ impl<'a> State<'a> {
         &mut self,
         builder: &mut InstrSeqBuilder<'a, '_>,
         iter_args: &IterArgs,
+        base_local: Local,
         target: Label,
     ) {
         // IterArgs { iter_id: IterId, key_id: Local, val_id: Local }
-        let base = self.stack_pop();
+        let base = self.local_get(&base_local);
         let inputs = vec![self.reffy(base)];
 
         self.fork_and_adjust(builder, &[target], |_, _, _| {
@@ -952,7 +940,11 @@ impl<'a> State<'a> {
             // registered our iterator - so we don't have to clear it.
         });
 
-        let instr = NodeInstr::Opcode(Opcode::IterInit(IterArgs::default(), Label::INVALID));
+        let instr = NodeInstr::Opcode(Opcode::IterInit(
+            IterArgs::default(),
+            Local::INVALID,
+            Label::INVALID,
+        ));
         let key_value = builder.compute_value(&instr, 0, &inputs);
         let value_value = builder.compute_value(&instr, 1, &inputs);
         self.seq_push(builder, instr, inputs);
@@ -974,28 +966,32 @@ impl<'a> State<'a> {
         &mut self,
         builder: &mut InstrSeqBuilder<'a, '_>,
         iter_args: &IterArgs,
+        base_local: Local,
         target: Label,
     ) {
-        if let Some(iterator) = self.iterators.get(&iter_args.iter_id) {
-            let inputs = vec![self.reffy(iterator.base)];
+        let base = self.local_get(&base_local);
+        let inputs = vec![self.reffy(base)];
 
-            let instr = NodeInstr::Opcode(Opcode::IterNext(IterArgs::default(), Label::INVALID));
+        let instr = NodeInstr::Opcode(Opcode::IterNext(
+            IterArgs::default(),
+            Local::INVALID,
+            Label::INVALID,
+        ));
 
-            self.fork_and_adjust(builder, &[target], |fork, builder, _| {
-                if iter_args.key_id != Local::INVALID {
-                    let key_value = builder.compute_value(&instr, 0, &inputs);
-                    fork.local_set(&iter_args.key_id, key_value);
-                }
+        self.fork_and_adjust(builder, &[target], |fork, builder, _| {
+            if iter_args.key_id != Local::INVALID {
+                let key_value = builder.compute_value(&instr, 0, &inputs);
+                fork.local_set(&iter_args.key_id, key_value);
+            }
 
-                let value_value = builder.compute_value(&instr, 1, &inputs);
-                fork.local_set(&iter_args.val_id, value_value);
-            });
+            let value_value = builder.compute_value(&instr, 1, &inputs);
+            fork.local_set(&iter_args.val_id, value_value);
+        });
 
-            self.seq_push(builder, instr, inputs);
+        self.seq_push(builder, instr, inputs);
 
-            // Implicit IterFree...
-            self.iterators.remove(&iter_args.iter_id);
-        }
+        // Implicit IterFree...
+        self.iterators.remove(&iter_args.iter_id);
     }
 
     fn step_memo_get_eager(
@@ -1148,7 +1144,7 @@ impl<'a> State<'a> {
     pub(crate) fn instr_at(&self, ip: InstrPtr) -> Option<&'a Instruct> {
         ip.into_option().and_then(|ip| {
             let idx = ip.as_usize();
-            self.body.hhbc_body.body_instrs.get(idx)
+            self.body.hhbc_body.repr.instrs.get(idx)
         })
     }
 
@@ -1197,9 +1193,9 @@ impl<'a> State<'a> {
     }
 
     fn is_decl_var(&self, local: &Local) -> bool {
-        let idx = local.idx as usize;
-        let params_len = self.body.hhbc_body.params.len();
-        let decl_vars_len = self.body.hhbc_body.decl_vars.len();
+        let idx = local.index();
+        let params_len = self.body.hhbc_body.repr.params.len();
+        let decl_vars_len = self.body.hhbc_body.repr.decl_vars.len();
         params_len <= idx && idx < params_len + decl_vars_len
     }
 }
@@ -1267,7 +1263,7 @@ fn is_checkpoint_instr(instr: &NodeInstr) -> bool {
         NodeInstr::Opcode(
             Opcode::ClsCnsD(_, _)
             | Opcode::CnsE(_)
-            | Opcode::CreateSpecialImplicitContext
+            | Opcode::GetInaccessibleImplicitContext
             | Opcode::Dict(..)
             | Opcode::Dir
             | Opcode::Double(..)
@@ -1327,8 +1323,7 @@ fn is_checkpoint_instr(instr: &NodeInstr) -> bool {
 
         // Verify Instructions
         NodeInstr::Opcode(
-            Opcode::VerifyImplicitContextState
-            | Opcode::VerifyOutType(..)
+            Opcode::VerifyOutType(..)
             | Opcode::VerifyParamType(..)
             | Opcode::VerifyParamTypeTS(..)
             | Opcode::VerifyRetNonNullC
@@ -1430,14 +1425,12 @@ fn is_checkpoint_instr(instr: &NodeInstr) -> bool {
             | Opcode::Incl
             | Opcode::InclOnce
             | Opcode::InitProp(..)
+            | Opcode::IterBase
+            | Opcode::JmpNZ(..)
+            | Opcode::JmpZ(..)
             | Opcode::IterFree(..)
             | Opcode::IterInit(..)
             | Opcode::IterNext(..)
-            | Opcode::JmpNZ(..)
-            | Opcode::JmpZ(..)
-            | Opcode::LIterFree(..)
-            | Opcode::LIterInit(..)
-            | Opcode::LIterNext(..)
             | Opcode::LockObj
             | Opcode::Lte
             | Opcode::MemoGet(..)
@@ -1494,6 +1487,7 @@ fn is_checkpoint_instr(instr: &NodeInstr) -> bool {
             | Opcode::Shl
             | Opcode::Shr
             | Opcode::Silence(..)
+            | Opcode::StaticAnalysisError
             | Opcode::Sub
             | Opcode::Switch(..)
             | Opcode::Throw
@@ -1590,7 +1584,7 @@ fn clean_opcode(opcode: &Opcode) -> Opcode {
         | Opcode::ContRaise
         | Opcode::ContValid
         | Opcode::CreateCont
-        | Opcode::CreateSpecialImplicitContext
+        | Opcode::GetInaccessibleImplicitContext
         | Opcode::DblAsBits
         | Opcode::Dir
         | Opcode::Div
@@ -1613,6 +1607,7 @@ fn clean_opcode(opcode: &Opcode) -> Opcode {
         | Opcode::IsLateBoundCls
         | Opcode::IssetG
         | Opcode::IssetS
+        | Opcode::IterBase
         | Opcode::LateBoundCls
         | Opcode::LazyClassFromClass
         | Opcode::LockObj
@@ -1650,6 +1645,7 @@ fn clean_opcode(opcode: &Opcode) -> Opcode {
         | Opcode::SetImplicitContextByValue
         | Opcode::Shl
         | Opcode::Shr
+        | Opcode::StaticAnalysisError
         | Opcode::Sub
         | Opcode::This
         | Opcode::Throw
@@ -1657,7 +1653,6 @@ fn clean_opcode(opcode: &Opcode) -> Opcode {
         | Opcode::True
         | Opcode::UGetCUNop
         | Opcode::UnsetG
-        | Opcode::VerifyImplicitContextState
         | Opcode::VerifyRetNonNullC
         | Opcode::VerifyRetTypeC
         | Opcode::VerifyRetTypeTS
@@ -1702,7 +1697,6 @@ fn clean_opcode(opcode: &Opcode) -> Opcode {
         | Opcode::IsTypeC(_)
         | Opcode::IsTypeStructC(_, _)
         | Opcode::ThrowAsTypeStructException(_)
-        | Opcode::IterFree(_)
         | Opcode::LazyClass(_)
         | Opcode::NewCol(_)
         | Opcode::NewDictArray(_)
@@ -1727,9 +1721,9 @@ fn clean_opcode(opcode: &Opcode) -> Opcode {
         | Opcode::VerifyParamType(_)
         | Opcode::VerifyParamTypeTS(_) => opcode.clone(),
 
-        Opcode::Dict(_) => Opcode::Dict(AdataId::INVALID),
-        Opcode::Keyset(_) => Opcode::Keyset(AdataId::INVALID),
-        Opcode::Vec(_) => Opcode::Vec(AdataId::INVALID),
+        Opcode::Dict(_) => Opcode::Dict(TypedValue::Uninit),
+        Opcode::Keyset(_) => Opcode::Keyset(TypedValue::Uninit),
+        Opcode::Vec(_) => Opcode::Vec(TypedValue::Uninit),
 
         Opcode::MemoGetEager(_, dummy, _) => {
             Opcode::MemoGetEager([Label::INVALID, Label::INVALID], dummy, LocalRange::EMPTY)
@@ -1774,11 +1768,9 @@ fn clean_opcode(opcode: &Opcode) -> Opcode {
         | Opcode::FCallObjMethodD(_, _, _, _)
         | Opcode::IncDecL(_, _)
         | Opcode::InitProp(_, _)
-        | Opcode::IterInit(_, _)
-        | Opcode::IterNext(_, _)
-        | Opcode::LIterFree(_, _)
-        | Opcode::LIterInit(_, _, _)
-        | Opcode::LIterNext(_, _, _)
+        | Opcode::IterFree(_)
+        | Opcode::IterInit(_, _, _)
+        | Opcode::IterNext(_, _, _)
         | Opcode::ResolveClsMethodD(_, _)
         | Opcode::ResolveClsMethodS(_, _)
         | Opcode::ResolveRClsMethodD(_, _)

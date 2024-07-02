@@ -24,7 +24,6 @@
 #include <wangle/ssl/SSLUtil.h>
 #include <wangle/ssl/TLSTicketKeySeeds.h>
 
-#include <boost/optional.hpp>
 #include <fcntl.h>
 #include <folly/Random.h>
 #include <folly/SocketAddress.h>
@@ -58,7 +57,7 @@ class CustomConfig {
 struct ServerSocketConfig {
   ServerSocketConfig() {
     // generate a single random current seed
-    uint8_t seed[32];
+    uint8_t seed[32] = {0};
     folly::Random::secureRandom(seed, sizeof(seed));
     initialTicketSeeds.currentSeeds.push_back(
         SSLUtil::hexlify(std::string((char*)seed, sizeof(seed))));
@@ -102,17 +101,6 @@ struct ServerSocketConfig {
       }
     }
     return false;
-  }
-
-  /**
-   * This should only be called from the evb thread.
-   */
-  void updateSSLContextConfigs(std::vector<SSLContextConfig> newConfigs) const {
-    sslContextConfigs = newConfigs;
-  }
-
-  void updateSNIConfigs(std::vector<SNIConfig> newConfigs) const {
-    sniConfigs = newConfigs;
   }
 
   /**
@@ -174,12 +162,12 @@ struct ServerSocketConfig {
   /**
    * The configs for all the SSL_CTX for use by this Acceptor.
    */
-  mutable std::vector<SSLContextConfig> sslContextConfigs;
+  std::vector<SSLContextConfig> sslContextConfigs;
 
   /**
    * The configs for all the SNIs served by this Acceptor.
    */
-  mutable std::vector<SNIConfig> sniConfigs;
+  std::vector<SNIConfig> sniConfigs;
 
   /**
    * Determines if the Acceptor does strict checking when loading the SSL

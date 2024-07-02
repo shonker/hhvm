@@ -37,6 +37,7 @@ namespace protocol {
 namespace detail {
 
 struct ApplyPatch {
+ public:
   // Applies 'patch' to 'value' in-place.
   void operator()(const Object& patch, Value& value) const;
   void operator()(const Object& patch, bool& value) const;
@@ -52,6 +53,7 @@ struct ApplyPatch {
   void operator()(
       const Object& patch, folly::F14FastMap<Value, Value>& value) const;
   void operator()(const Object& patch, Object& value) const;
+  void operator()(Object&& patch, Object& value) const;
 };
 
 } // namespace detail
@@ -65,7 +67,17 @@ struct ApplyPatch {
  */
 inline constexpr detail::ApplyPatch applyPatch{};
 
-struct ExtractedMasks {
+/**
+ * Extracted Thrift Masks from Thrift Patch. Read Thrift Mask contains fields or
+ * map elements that are need to be known to apply Thrift Patch to the target
+ * value. Write Thrift Mask contains fields or map elements that are affected by
+ * Thrift Patch. Read Thrift Mask is always subset of Write Thrift Mask. Read
+ * and write Thrift Masks are useful to gain better insight on the given Thrift
+ * Patch. For example, it is used in `protocol::applyPatchToSerializedData` to
+ * avoid full deserialization when applying Thrift Patch to serialized data in a
+ * binary blob.
+ */
+struct ExtractedMasksFromPatch {
   Mask read; // read mask from patch
   Mask write; // write mask from patch
 };
@@ -75,16 +87,16 @@ struct ExtractedMasks {
 /// patches. For map, it uses the address of Value key as the key for the
 /// integer map mask. Note that Mask contains pointer to `protocol::Value` in
 /// patch, so caller needs to make sure Patch has longer lifetime than the mask.
-ExtractedMasks extractMaskViewFromPatch(const protocol::Object& patch);
+ExtractedMasksFromPatch extractMaskViewFromPatch(const protocol::Object& patch);
 
 // Extracting mask from a temporary patch is dangerous and should be disallowed.
-ExtractedMasks extractMaskViewFromPatch(Object&& patch) = delete;
+ExtractedMasksFromPatch extractMaskViewFromPatch(Object&& patch) = delete;
 
 /// Constructs read and write Thrift Mask that only contain fields that are
 /// modified by the Patch. It will construct nested Mask for map and object
 /// patches. For map, it only supports integer or string key. If the type of key
 /// map is not integer or string, it throws.
-ExtractedMasks extractMaskFromPatch(const protocol::Object& patch);
+ExtractedMasksFromPatch extractMaskFromPatch(const protocol::Object& patch);
 
 template <type::StandardProtocol Protocol>
 std::unique_ptr<folly::IOBuf> applyPatchToSerializedData(

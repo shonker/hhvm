@@ -189,6 +189,9 @@ struct HashTable : HashTableCommon {
   static constexpr ptrdiff_t usedOff() {
     return offsetof(ArrayType, m_used);
   }
+  static constexpr ptrdiff_t usedSize() {
+    return sizeof(m_used);
+  }
   static constexpr ptrdiff_t scaleOff() {
     return offsetof(ArrayType, m_scale);
   }
@@ -314,6 +317,7 @@ struct HashTable : HashTableCommon {
   // Iteration
   /////////////////////////////////////////////////////////////////////////////
   ssize_t getIterBeginNotEmpty() const;
+  uint32_t iterLimit() const { return m_used; }
 
   static ssize_t IterBegin(const ArrayData*);
   static ssize_t IterLast(const ArrayData*);

@@ -28,7 +28,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "157",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "165",
         "bodyend": "168"
@@ -56,5 +56,11 @@
   "brief_html": "<p>Write a set header. </p>",
   "groupname_html": "",
   "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeSetBegin",
-  "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeSetBegin"
+  "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeSetBegin",
+  "parent_links": [
+    {
+      "text_html": "TCompactProtocolT",
+      "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+    }
+  ]
 }

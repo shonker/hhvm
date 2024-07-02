@@ -61,7 +61,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::cpp2::MyLeaf>::co_do_le
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::MyLeaf>::async_tm_do_leaf(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) {
+void apache::thrift::ServiceHandler<::cpp2::MyLeaf>::async_tm_do_leaf(apache::thrift::HandlerCallbackPtr<void> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -139,7 +139,7 @@ determineInvocationType:
 
 namespace cpp2 {
 
-void MyLeafSvNull::do_leaf() {
+void MyLeafSvNull::do_leaf() { 
   return;
 }
 
@@ -180,7 +180,7 @@ apache::thrift::ServiceRequestInfoMap const& MyLeafServiceInfoHolder::requestInf
 apache::thrift::ServiceRequestInfoMap MyLeafServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"do_leaf",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "MyLeaf.do_leaf",
      std::nullopt,
@@ -192,4 +192,4 @@ apache::thrift::ServiceRequestInfoMap MyLeafServiceInfoHolder::staticRequestInfo
 
   return requestInfoMap;
 }
-} // cpp2
+} // namespace cpp2

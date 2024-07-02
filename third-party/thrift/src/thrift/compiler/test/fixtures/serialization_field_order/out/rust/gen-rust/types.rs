@@ -5,8 +5,6 @@
 #![recursion_limit = "100000000"]
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, unused_crate_dependencies, clippy::redundant_closure, clippy::type_complexity)]
 
-pub mod errors;
-
 #[allow(unused_imports)]
 pub(crate) use crate as types;
 
@@ -69,10 +67,17 @@ impl ::fbthrift::GetTType for self::Foo {
     const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
 }
 
+impl ::fbthrift::GetTypeNameType for self::Foo {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::Foo
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("Foo");
         p.write_field_begin("field1", ::fbthrift::TType::I32, 3);
@@ -93,6 +98,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::Foo
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("field1", ::fbthrift::TType::I32, 3),
@@ -195,10 +201,17 @@ impl ::fbthrift::GetTType for self::Foo2 {
     const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
 }
 
+impl ::fbthrift::GetTypeNameType for self::Foo2 {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::Foo2
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("Foo2");
         p.write_field_begin("field1", ::fbthrift::TType::I32, 3);
@@ -219,6 +232,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::Foo2
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("field1", ::fbthrift::TType::I32, 3),

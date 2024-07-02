@@ -26,7 +26,7 @@ std::optional<std::reference_wrapper<apache::thrift::ServiceRequestInfoMap const
 ::some::valid::ns::ReturnServiceServiceInfoHolder apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::__fbthrift_serviceInfoHolder;
 
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_eb_noReturn(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_eb_noReturn(apache::thrift::HandlerCallbackPtr<void> callback) {
   callback->exception(apache::thrift::detail::si::create_app_exn_unimplemented("noReturn"));
 }
 
@@ -64,7 +64,7 @@ folly::coro::Task<bool> apache::thrift::ServiceHandler<::some::valid::ns::Return
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_boolReturn(std::unique_ptr<apache::thrift::HandlerCallback<bool>> callback) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_boolReturn(apache::thrift::HandlerCallbackPtr<bool> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -172,7 +172,7 @@ folly::coro::Task<::std::int16_t> apache::thrift::ServiceHandler<::some::valid::
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_i16Return(std::unique_ptr<apache::thrift::HandlerCallback<::std::int16_t>> callback) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_i16Return(apache::thrift::HandlerCallbackPtr<::std::int16_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -280,7 +280,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::some::valid::
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_i32Return(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_i32Return(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -388,7 +388,7 @@ folly::coro::Task<::std::int64_t> apache::thrift::ServiceHandler<::some::valid::
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_i64Return(std::unique_ptr<apache::thrift::HandlerCallback<::std::int64_t>> callback) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_i64Return(apache::thrift::HandlerCallbackPtr<::std::int64_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -496,7 +496,7 @@ folly::coro::Task<float> apache::thrift::ServiceHandler<::some::valid::ns::Retur
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_floatReturn(std::unique_ptr<apache::thrift::HandlerCallback<float>> callback) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_floatReturn(apache::thrift::HandlerCallbackPtr<float> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -604,7 +604,7 @@ folly::coro::Task<double> apache::thrift::ServiceHandler<::some::valid::ns::Retu
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_doubleReturn(std::unique_ptr<apache::thrift::HandlerCallback<double>> callback) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_doubleReturn(apache::thrift::HandlerCallbackPtr<double> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -678,7 +678,7 @@ determineInvocationType:
   }
 }
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_eb_stringReturn(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::string>>> callback) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_eb_stringReturn(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::string>> callback) {
   callback->exception(apache::thrift::detail::si::create_app_exn_unimplemented("stringReturn"));
 }
 
@@ -718,7 +718,7 @@ folly::coro::Task<std::unique_ptr<::std::string>> apache::thrift::ServiceHandler
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_binaryReturn(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::string>>> callback) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_binaryReturn(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::string>> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -776,7 +776,7 @@ determineInvocationType:
       {
         ::std::string _return;
         sync_binaryReturn(_return);
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -830,7 +830,7 @@ folly::coro::Task<std::unique_ptr<::std::map<::std::string, ::std::int64_t>>> ap
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_mapReturn(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::map<::std::string, ::std::int64_t>>>> callback) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_mapReturn(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::map<::std::string, ::std::int64_t>>> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -888,7 +888,7 @@ determineInvocationType:
       {
         ::std::map<::std::string, ::std::int64_t> _return;
         sync_mapReturn(_return);
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -940,7 +940,7 @@ folly::coro::Task<::some::valid::ns::simpleTypeDef> apache::thrift::ServiceHandl
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_simpleTypedefReturn(std::unique_ptr<apache::thrift::HandlerCallback<::some::valid::ns::simpleTypeDef>> callback) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_simpleTypedefReturn(apache::thrift::HandlerCallbackPtr<::some::valid::ns::simpleTypeDef> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -1050,7 +1050,7 @@ folly::coro::Task<std::unique_ptr<::some::valid::ns::complexStructTypeDef>> apac
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_complexTypedefReturn(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::some::valid::ns::complexStructTypeDef>>> callback) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_complexTypedefReturn(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::some::valid::ns::complexStructTypeDef>> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -1108,7 +1108,7 @@ determineInvocationType:
       {
         ::some::valid::ns::complexStructTypeDef _return;
         sync_complexTypedefReturn(_return);
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -1162,7 +1162,7 @@ folly::coro::Task<std::unique_ptr<::std::vector<::some::valid::ns::mostComplexTy
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_list_mostComplexTypedefReturn(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::vector<::some::valid::ns::mostComplexTypeDef>>>> callback) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_list_mostComplexTypedefReturn(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::vector<::some::valid::ns::mostComplexTypeDef>>> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -1220,7 +1220,7 @@ determineInvocationType:
       {
         ::std::vector<::some::valid::ns::mostComplexTypeDef> _return;
         sync_list_mostComplexTypedefReturn(_return);
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -1238,11 +1238,11 @@ determineInvocationType:
   }
 }
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_eb_enumReturn(std::unique_ptr<apache::thrift::HandlerCallback<::some::valid::ns::MyEnumA>> callback) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_eb_enumReturn(apache::thrift::HandlerCallbackPtr<::some::valid::ns::MyEnumA> callback) {
   callback->exception(apache::thrift::detail::si::create_app_exn_unimplemented("enumReturn"));
 }
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_eb_list_EnumReturn(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::vector<::some::valid::ns::MyEnumA>>>> callback) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_eb_list_EnumReturn(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::vector<::some::valid::ns::MyEnumA>>> callback) {
   callback->exception(apache::thrift::detail::si::create_app_exn_unimplemented("list_EnumReturn"));
 }
 
@@ -1282,7 +1282,7 @@ folly::coro::Task<std::unique_ptr<::some::valid::ns::MyStruct>> apache::thrift::
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_structReturn(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::some::valid::ns::MyStruct>>> callback) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_structReturn(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::some::valid::ns::MyStruct>> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -1340,7 +1340,7 @@ determineInvocationType:
       {
         ::some::valid::ns::MyStruct _return;
         sync_structReturn(_return);
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -1394,7 +1394,7 @@ folly::coro::Task<std::unique_ptr<::std::set<::some::valid::ns::MyStruct>>> apac
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_set_StructReturn(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::set<::some::valid::ns::MyStruct>>>> callback) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_set_StructReturn(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::set<::some::valid::ns::MyStruct>>> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -1452,7 +1452,7 @@ determineInvocationType:
       {
         ::std::set<::some::valid::ns::MyStruct> _return;
         sync_set_StructReturn(_return);
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -1470,7 +1470,7 @@ determineInvocationType:
   }
 }
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_eb_unionReturn(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::some::valid::ns::ComplexUnion>>> callback) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_eb_unionReturn(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::some::valid::ns::ComplexUnion>> callback) {
   callback->exception(apache::thrift::detail::si::create_app_exn_unimplemented("unionReturn"));
 }
 
@@ -1510,7 +1510,7 @@ folly::coro::Task<std::unique_ptr<::std::vector<::some::valid::ns::ComplexUnion>
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_list_UnionReturn(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::vector<::some::valid::ns::ComplexUnion>>>> callback) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_list_UnionReturn(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::vector<::some::valid::ns::ComplexUnion>>> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -1568,7 +1568,7 @@ determineInvocationType:
       {
         ::std::vector<::some::valid::ns::ComplexUnion> _return;
         sync_list_UnionReturn(_return);
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -1586,7 +1586,7 @@ determineInvocationType:
   }
 }
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_eb_readDataEb(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::some::valid::ns::IOBuf>>> callback, ::std::int64_t /*size*/) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_eb_readDataEb(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::some::valid::ns::IOBuf>> callback, ::std::int64_t /*size*/) {
   callback->exception(apache::thrift::detail::si::create_app_exn_unimplemented("readDataEb"));
 }
 
@@ -1626,7 +1626,7 @@ folly::coro::Task<std::unique_ptr<::some::valid::ns::IOBufPtr>> apache::thrift::
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_readData(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::some::valid::ns::IOBufPtr>>> callback, ::std::int64_t p_size) {
+void apache::thrift::ServiceHandler<::some::valid::ns::ReturnService>::async_tm_readData(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::some::valid::ns::IOBufPtr>> callback, ::std::int64_t p_size) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -1684,7 +1684,7 @@ determineInvocationType:
       {
         ::some::valid::ns::IOBufPtr _return;
         sync_readData(_return, p_size);
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -1703,51 +1703,51 @@ determineInvocationType:
 }
 
 
-namespace some { namespace valid { namespace ns {
+namespace some::valid::ns {
 
-bool ReturnServiceSvNull::boolReturn() {
+bool ReturnServiceSvNull::boolReturn() { 
   return 0;
 }
 
-::std::int16_t ReturnServiceSvNull::i16Return() {
+::std::int16_t ReturnServiceSvNull::i16Return() { 
   return 0;
 }
 
-::std::int32_t ReturnServiceSvNull::i32Return() {
+::std::int32_t ReturnServiceSvNull::i32Return() { 
   return 0;
 }
 
-::std::int64_t ReturnServiceSvNull::i64Return() {
+::std::int64_t ReturnServiceSvNull::i64Return() { 
   return 0;
 }
 
-float ReturnServiceSvNull::floatReturn() {
+float ReturnServiceSvNull::floatReturn() { 
   return 0;
 }
 
-double ReturnServiceSvNull::doubleReturn() {
+double ReturnServiceSvNull::doubleReturn() { 
   return 0;
 }
 
-void ReturnServiceSvNull::binaryReturn(::std::string& /*_return*/) {}
+void ReturnServiceSvNull::binaryReturn(::std::string& /*_return*/) {  }
 
-void ReturnServiceSvNull::mapReturn(::std::map<::std::string, ::std::int64_t>& /*_return*/) {}
+void ReturnServiceSvNull::mapReturn(::std::map<::std::string, ::std::int64_t>& /*_return*/) {  }
 
-::some::valid::ns::simpleTypeDef ReturnServiceSvNull::simpleTypedefReturn() {
+::some::valid::ns::simpleTypeDef ReturnServiceSvNull::simpleTypedefReturn() { 
   return 0;
 }
 
-void ReturnServiceSvNull::complexTypedefReturn(::some::valid::ns::complexStructTypeDef& /*_return*/) {}
+void ReturnServiceSvNull::complexTypedefReturn(::some::valid::ns::complexStructTypeDef& /*_return*/) {  }
 
-void ReturnServiceSvNull::list_mostComplexTypedefReturn(::std::vector<::some::valid::ns::mostComplexTypeDef>& /*_return*/) {}
+void ReturnServiceSvNull::list_mostComplexTypedefReturn(::std::vector<::some::valid::ns::mostComplexTypeDef>& /*_return*/) {  }
 
-void ReturnServiceSvNull::structReturn(::some::valid::ns::MyStruct& /*_return*/) {}
+void ReturnServiceSvNull::structReturn(::some::valid::ns::MyStruct& /*_return*/) {  }
 
-void ReturnServiceSvNull::set_StructReturn(::std::set<::some::valid::ns::MyStruct>& /*_return*/) {}
+void ReturnServiceSvNull::set_StructReturn(::std::set<::some::valid::ns::MyStruct>& /*_return*/) {  }
 
-void ReturnServiceSvNull::list_UnionReturn(::std::vector<::some::valid::ns::ComplexUnion>& /*_return*/) {}
+void ReturnServiceSvNull::list_UnionReturn(::std::vector<::some::valid::ns::ComplexUnion>& /*_return*/) {  }
 
-void ReturnServiceSvNull::readData(::some::valid::ns::IOBufPtr& /*_return*/, ::std::int64_t /*size*/) {}
+void ReturnServiceSvNull::readData(::some::valid::ns::IOBufPtr& /*_return*/, ::std::int64_t /*size*/) {  }
 
 
 const char* ReturnServiceAsyncProcessor::getServiceName() {
@@ -1886,147 +1886,147 @@ apache::thrift::ServiceRequestInfoMap const& ReturnServiceServiceInfoHolder::req
 apache::thrift::ServiceRequestInfoMap ReturnServiceServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"noReturn",
-    {true,
+    { true,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.noReturn",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"boolReturn",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.boolReturn",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"i16Return",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.i16Return",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"i32Return",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.i32Return",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"i64Return",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.i64Return",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"floatReturn",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.floatReturn",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"doubleReturn",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.doubleReturn",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"stringReturn",
-    {true,
+    { true,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.stringReturn",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"binaryReturn",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.binaryReturn",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"mapReturn",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.mapReturn",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"simpleTypedefReturn",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.simpleTypedefReturn",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"complexTypedefReturn",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.complexTypedefReturn",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"list_mostComplexTypedefReturn",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.list_mostComplexTypedefReturn",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"enumReturn",
-    {true,
+    { true,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.enumReturn",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"list_EnumReturn",
-    {true,
+    { true,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.list_EnumReturn",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"structReturn",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.structReturn",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"set_StructReturn",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.set_StructReturn",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"unionReturn",
-    {true,
+    { true,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.unionReturn",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"list_UnionReturn",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.list_UnionReturn",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"readDataEb",
-    {true,
+    { true,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.readDataEb",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"readData",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "ReturnService.readData",
      std::nullopt,
@@ -2036,4 +2036,4 @@ apache::thrift::ServiceRequestInfoMap ReturnServiceServiceInfoHolder::staticRequ
 
   return requestInfoMap;
 }
-}}} // some::valid::ns
+} // namespace some::valid::ns

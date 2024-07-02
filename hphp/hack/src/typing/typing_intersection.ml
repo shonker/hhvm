@@ -25,20 +25,27 @@ Otherwise approximate up or down according to
 return nothing. *)
 let negate_type env r ty ~approx =
   let (env, ty) = Env.expand_type env ty in
+  let approximated =
+    if Utils.equal_approx approx Utils.ApproxUp then
+      MkType.mixed r
+    else
+      MkType.nothing r
+  in
   let neg_ty =
     match get_node ty with
     | Tprim Aast.Tnull -> MkType.nonnull r
-    | Tprim tp -> MkType.neg r (Neg_prim tp)
-    | Tneg (Neg_prim tp) -> MkType.prim_type r tp
+    | Tprim _ -> begin
+      match Typing_refinement.TyPredicate.of_ty env ty with
+      | Some (_env, predicate) -> MkType.neg r (Neg_predicate predicate)
+      | None -> approximated (* void, noreturn *)
+    end
+    | Tneg (Neg_predicate predicate) ->
+      Typing_refinement.TyPredicate.to_ty r predicate
     | Tneg (Neg_class (_, c)) when Utils.class_has_no_params env c ->
       MkType.class_type r c []
     | Tnonnull -> MkType.null r
     | Tclass (c, Nonexact _, _) -> MkType.neg r (Neg_class c)
-    | _ ->
-      if Utils.equal_approx approx Utils.ApproxUp then
-        MkType.mixed r
-      else
-        MkType.nothing r
+    | _ -> approximated
   in
   (env, neg_ty)
 
@@ -266,35 +273,36 @@ let rec intersect env ~r ty1 ty2 =
             | ((_, Tprim Aast.Tnum), (_, Tprim Aast.Tarraykey))
             | ((_, Tprim Aast.Tarraykey), (_, Tprim Aast.Tnum)) ->
               (env, MkType.int r)
-            | ( (_, Tneg (Neg_prim (Aast.Tint | Aast.Tarraykey))),
-                (_, Tprim Aast.Tnum) )
-            | ( (_, Tprim Aast.Tnum),
-                (_, Tneg (Neg_prim (Aast.Tint | Aast.Tarraykey))) ) ->
-              (env, MkType.float r)
-            | ((_, Tneg (Neg_prim Aast.Tfloat)), (_, Tprim Aast.Tnum))
-            | ((_, Tprim Aast.Tnum), (_, Tneg (Neg_prim Aast.Tfloat))) ->
-              (env, MkType.int r)
-            | ((_, Tneg (Neg_prim Aast.Tstring)), ty_ak)
-            | (ty_ak, (_, Tneg (Neg_prim Aast.Tstring))) ->
-              if
-                (* Ocaml warns about ambiguous or-pattern variables under guard if this is in a when clause*)
-                Utils.is_sub_type_for_union
-                  env
-                  (mk ty_ak)
-                  (MkType.arraykey Reason.Rnone)
-              then
-                intersect env ~r (mk ty_ak) (MkType.int r)
-              else
-                make_intersection env r [ty1; ty2]
-            | ((_, Tneg (Neg_prim (Aast.Tint | Aast.Tnum))), ty_ak)
-            | (ty_ak, (_, Tneg (Neg_prim (Aast.Tint | Aast.Tnum)))) ->
-              if
-                Utils.is_sub_type_for_union
-                  env
-                  (mk ty_ak)
-                  (MkType.arraykey Reason.Rnone)
-              then
-                intersect env ~r (mk ty_ak) (MkType.string r)
+            | ((neg_reason, Tneg (Neg_predicate predicate)), ty)
+            | (ty, (neg_reason, Tneg (Neg_predicate predicate))) ->
+              let partition =
+                Typing_refinement.partition_ty env (mk ty) predicate
+              in
+              if List.is_empty partition.Typing_refinement.span then
+                if List.is_empty partition.Typing_refinement.left then
+                  (* This is logically the same result as the else case handling
+                     would produce but may be simpler *)
+                  (env, mk ty)
+                else
+                  let (env, intersections) =
+                    List.fold_left
+                      partition.Typing_refinement.right
+                      ~init:(env, [])
+                      ~f:(fun (env, acc) tys ->
+                        (* recursion here should be safe since, while the type
+                           may not be structurally smaller, it should be
+                           logically smaller and we shouldn't repeat !predicate
+                        *)
+                        let (env, intersection) =
+                          intersect_list env neg_reason tys
+                        in
+                        (env, intersection :: acc))
+                  in
+                  let (env, right_ty) =
+                    Utils.simplify_unions env
+                    @@ MkType.union neg_reason intersections
+                  in
+                  (env, right_ty)
               else
                 make_intersection env r [ty1; ty2]
             | _ -> make_intersection env r [ty1; ty2]

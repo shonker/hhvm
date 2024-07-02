@@ -51,6 +51,7 @@ type hack =
   | GlobalNamespaceAlias
   | IndexerInputsHash
   | TypeInfo
+  | HackToThrift
 [@@deriving ord]
 
 type src = FileLines [@@deriving ord]
@@ -110,6 +111,7 @@ let hack_to_string = function
   | GlobalNamespaceAlias -> "GlobalNamespaceAlias"
   | IndexerInputsHash -> "IndexerInputsHash"
   | TypeInfo -> "TypeInfo"
+  | HackToThrift -> "HackToThrift"
 
 (* List of all predicates, in the order in which they should appear in the JSON.
    This guarantee that facts are introduced before they are referenced. *)
@@ -155,6 +157,7 @@ let ordered_all =
     Hack FileCall;
     Hack GlobalNamespaceAlias;
     Hack IndexerInputsHash;
+    Hack HackToThrift;
     Src FileLines;
   ]
 
@@ -196,6 +199,12 @@ let container_decl_qname container_type name =
 
 let container_ref container_type id =
   Declaration.Container (container_decl container_type id)
+
+let classish_to_predicate = function
+  | Ast_defs.Cinterface -> (InterfaceContainer, Hack InterfaceDeclaration)
+  | Ast_defs.Ctrait -> (TraitContainer, Hack TraitDeclaration)
+  | Ast_defs.Cclass _ -> (ClassContainer, Hack ClassDeclaration)
+  | _ -> raise (Failure "Unexpected enum class")
 
 let get_parent_kind = function
   | Ast_defs.Cenum_class _ ->
@@ -246,6 +255,7 @@ module Fact_acc = struct
     factIds: Fact_id.t JsonPredicateMap.t;
     mutable ownership_unit: ownership_unit;
     mutable xrefs: Xrefs.pos_map option;
+    mutable generated_from: string option;
     ownership: bool;
   }
 
@@ -314,10 +324,15 @@ module Fact_acc = struct
       factIds = JsonPredicateMap.empty;
       ownership_unit = None;
       ownership;
+      generated_from = None;
       xrefs = None;
     }
 
   let set_ownership_unit t ou = t.ownership_unit <- ou
+
+  let set_generated_from t from = t.generated_from <- from
+
+  let get_generated_from t = t.generated_from
 
   let owned_facts_to_json ~ownership (predicate, owned_facts) =
     let fact_object ~ou facts =

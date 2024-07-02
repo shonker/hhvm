@@ -24,7 +24,7 @@ void HandshakeContextImpl<Hash>::appendToTranscript(const Buf& data) {
 
 template <typename Hash>
 Buf HandshakeContextImpl<Hash>::getHandshakeContext() const {
-  Hash copied(hashState_);
+  openssl::Hasher<Hash> copied(hashState_);
   auto out = folly::IOBuf::create(Hash::HashLen);
   out->append(Hash::HashLen);
   folly::MutableByteRange outRange(out->writableData(), out->length());
@@ -37,13 +37,19 @@ Buf HandshakeContextImpl<Hash>::getFinishedData(
     folly::ByteRange baseKey) const {
   auto context = getHandshakeContext();
   auto finishedKey =
-      KeyDerivationImpl::create<Hash>(hkdfLabelPrefix_)
+      KeyDerivationImpl(
+          hkdfLabelPrefix_,
+          Hash::HashLen,
+          &openssl::Hasher<Hash>::hash,
+          &openssl::Hasher<Hash>::hmac,
+          HkdfImpl(Hash::HashLen, &openssl::Hasher<Hash>::hmac),
+          Hash::BlankHash)
           .expandLabel(
               baseKey, "finished", folly::IOBuf::create(0), Hash::HashLen);
   auto data = folly::IOBuf::create(Hash::HashLen);
   data->append(Hash::HashLen);
   auto outRange = folly::MutableByteRange(data->writableData(), data->length());
-  Hash::hmac(finishedKey->coalesce(), *context, outRange);
+  openssl::Hasher<Hash>::hmac(finishedKey->coalesce(), *context, outRange);
   return data;
 }
 } // namespace fizz

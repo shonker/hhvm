@@ -16,9 +16,11 @@ use ascii::AsciiString;
 use hash::HashMap;
 use hash::HashSet;
 use ir::BlockId;
+use ir::EnforceableType;
 use ir::FloatBits;
 use ir::LocalId;
 use ir::SrcLoc;
+use ir::Typedef;
 use itertools::Itertools;
 use newtype::newtype_int;
 use strum::EnumProperty;
@@ -28,10 +30,13 @@ use crate::mangle::FieldName;
 use crate::mangle::FunctionName;
 use crate::mangle::GlobalName;
 use crate::mangle::Intrinsic;
+use crate::mangle::Mangle;
 use crate::mangle::TypeName;
 use crate::mangle::VarName;
+use crate::types::convert_ty;
 
 pub(crate) const INDENT: &str = "  ";
+pub(crate) const NOTNULL: &str = ".notnull";
 pub(crate) const VARIADIC: &str = ".variadic";
 pub(crate) const TYPEVAR: &str = ".typevar";
 
@@ -73,6 +78,26 @@ impl<'a> TextualFile<'a> {
 impl TextualFile<'_> {
     pub(crate) fn debug_separator(&mut self) -> Result {
         writeln!(self.w)?;
+        Ok(())
+    }
+
+    pub(crate) fn declare_alias(&mut self, typedef: Typedef) -> Result {
+        write!(self.w, "type {} equals ", typedef.name.as_str().mangle())?;
+        // This is pretty hacky - just grabbing something printable from wherever I can find it
+        // In the general case we have a list of types (for case types) but
+        // Infer won't initially know what to do with more than one type
+        let mut sep = "";
+        for ti in typedef.type_info_union {
+            let et = EnforceableType::from_type_info(&ti);
+            match convert_ty(&et).try_deref() {
+                None => (),
+                Some(ty) => {
+                    write!(self.w, "{sep}{}", ty.display())?;
+                    sep = ", ";
+                }
+            }
+        }
+        write!(self.w, "\n")?;
         Ok(())
     }
 
@@ -625,6 +650,21 @@ impl SpecialTy {
     fn user_type(&self) -> TypeName {
         TypeName::UnmangledRef(self.get_str("UserType").unwrap())
     }
+
+    fn nullable(&self) -> ThreeValuedBool {
+        match self {
+            SpecialTy::Mixed => ThreeValuedBool::Yes,
+            SpecialTy::Arraykey
+            | SpecialTy::Bool
+            | SpecialTy::Dict
+            | SpecialTy::Float
+            | SpecialTy::Int
+            | SpecialTy::Keyset
+            | SpecialTy::Num
+            | SpecialTy::String
+            | SpecialTy::Vec => ThreeValuedBool::No,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Hash, Eq, PartialEq)]
@@ -641,6 +681,12 @@ pub(crate) enum Ty {
     Unknown,
     Void,
     VoidPtr,
+}
+
+pub(crate) enum ThreeValuedBool {
+    Yes,
+    No,
+    DontKnow,
 }
 
 impl Ty {
@@ -686,6 +732,15 @@ impl Ty {
 
     pub(crate) fn unknown() -> Ty {
         Ty::Unknown
+    }
+
+    pub(crate) fn nullable(&self) -> ThreeValuedBool {
+        match self {
+            Ty::Ptr(_) | Ty::Type(_) => ThreeValuedBool::DontKnow,
+            Ty::VoidPtr | Ty::Unknown | Ty::Void | Ty::Ellipsis => ThreeValuedBool::Yes,
+            Ty::Special(special) | Ty::SpecialPtr(special) => special.nullable(),
+            Ty::Float | Ty::Int | Ty::Noreturn | Ty::String => ThreeValuedBool::No,
+        }
     }
 }
 
@@ -780,8 +835,8 @@ pub(crate) enum Expr {
     Field(Box<Expr>, Ty, FieldName),
     /// a[b]
     Index(Box<Expr>, Box<Expr>),
-    /// __sil_instanceof(expr, \<ty\>)
-    InstanceOf(Box<Expr>, Ty),
+    /// __sil_instanceof(expr, \<ty\>, nullable)
+    InstanceOf(Box<Expr>, Ty, bool),
     Sid(Sid),
     Var(VarName),
 }
@@ -1393,10 +1448,15 @@ trait ExprWriter {
                 self.write_expr(offset)?;
                 self.internal_get_writer().write_all(b"]")?;
             }
-            Expr::InstanceOf(ref expr, ref ty) => {
+            Expr::InstanceOf(ref expr, ref ty, ref nullable) => {
                 write!(self.internal_get_writer(), "__sil_instanceof(")?;
                 self.write_expr(expr)?;
-                write!(self.internal_get_writer(), ", <{}>)", ty.display())?;
+                write!(
+                    self.internal_get_writer(),
+                    ", <{}>, {})",
+                    ty.display(),
+                    if *nullable { "1" } else { "0" }
+                )?;
             }
             Expr::Sid(sid) => write!(self.internal_get_writer(), "{}", FmtSid(sid))?,
             Expr::Var(ref var) => {
@@ -1545,7 +1605,8 @@ impl FieldAttribute {
                     } => {
                         let mut i = parameters.iter();
                         let param = i.next().unwrap();
-                        write!(f, "= \"{param}\"")?;
+                        let escaped_param = str::replace(param, r#"""#, r#"\""#);
+                        write!(f, "= \"{escaped_param}\"")?;
                         for param in i {
                             write!(f, ", \"{param}\"")?;
                         }

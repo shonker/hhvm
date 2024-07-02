@@ -170,7 +170,7 @@ enum class Company {
 
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace std {
 template<> struct hash<::cpp2::EmptyEnum> :
@@ -262,7 +262,7 @@ class struct3;
 class struct4;
 class union1;
 class union2;
-} // cpp2
+} // namespace cpp2
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -335,6 +335,8 @@ class Internship final  {
  public:
   using __fbthrift_cpp2_type = Internship;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -717,6 +719,8 @@ class Range final  {
   using __fbthrift_cpp2_type = Range;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -918,6 +922,8 @@ class struct1 final  {
  public:
   using __fbthrift_cpp2_type = struct1;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -1131,6 +1137,8 @@ class struct2 final  {
  public:
   using __fbthrift_cpp2_type = struct2;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -1445,6 +1453,8 @@ class struct3 final  {
   using __fbthrift_cpp2_type = struct3;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1706,6 +1716,8 @@ class struct4 final  {
  public:
   using __fbthrift_cpp2_type = struct4;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -1973,6 +1985,8 @@ class union1 final  {
   using __fbthrift_cpp2_type = union1;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -2229,6 +2243,8 @@ class union2 final  {
   using __fbthrift_cpp2_type = union2;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -2587,7 +2603,7 @@ unsigned long union2::read(Protocol_* iprot) {
 }
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache { namespace thrift {
 

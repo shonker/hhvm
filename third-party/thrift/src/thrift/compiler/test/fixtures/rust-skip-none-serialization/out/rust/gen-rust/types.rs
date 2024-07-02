@@ -9,8 +9,6 @@ extern crate serde;
 
 pub mod services;
 
-pub mod errors;
-
 #[allow(unused_imports)]
 pub(crate) use crate as types;
 
@@ -64,10 +62,17 @@ impl ::fbthrift::GetTType for self::MyStruct {
     const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
 }
 
+impl ::fbthrift::GetTypeNameType for self::MyStruct {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::MyStruct
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("MyStruct");
         p.write_field_begin("MyIntField", ::fbthrift::TType::I64, 1);
@@ -90,6 +95,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::MyStruct
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("MyDataField", ::fbthrift::TType::String, 3),

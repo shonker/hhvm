@@ -67,6 +67,7 @@ pub fn parse(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 const DEBUG: bool = false;
 
 #[derive(Debug)]
+#[allow(dead_code)] // field `0` is never read
 struct ParseError(Span, String);
 
 impl fmt::Display for ParseError {
@@ -658,6 +659,7 @@ trait MyTokenTree {
     fn is_literal(&self) -> bool;
     fn is_punct(&self, expected: char) -> bool;
     fn literal_string(&self) -> Result<String>;
+    #[allow(dead_code)]
     fn with_span(&self, span: Span) -> TokenTree;
 }
 
@@ -707,6 +709,7 @@ impl MyTokenTree for TokenTree {
 }
 
 // Used to extend TokenIter with some useful methods.
+#[allow(dead_code)]
 trait MyTokenIter {
     fn expect_peek(&mut self) -> Result<&TokenTree>;
     fn expect_tt(&mut self) -> Result<TokenTree>;

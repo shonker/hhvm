@@ -29,9 +29,11 @@
 #include <folly/Conv.h>
 #include <folly/Traits.h>
 #include <folly/Utility.h>
+#include <folly/container/Reserve.h>
 #include <folly/container/View.h>
 #include <folly/functional/Invoke.h>
 #include <folly/io/IOBuf.h>
+#include <folly/memory/UninitializedMemoryHacks.h>
 
 #include <thrift/lib/cpp/protocol/TProtocolException.h>
 #include <thrift/lib/cpp/protocol/TType.h>
@@ -90,27 +92,35 @@ namespace detail {
 namespace pm {
 
 template <typename C, typename... A>
-using detect_reserve = decltype(FOLLY_DECLVAL(C).reserve(FOLLY_DECLVAL(A)...));
-
-template <typename Container, typename Size>
-auto reserve_if_possible(Container* t, Size size) {
-  if constexpr (folly::is_detected_v<detect_reserve, Container&, Size>) {
-    t->reserve(size);
-    return std::true_type{};
-  } else {
-    return std::false_type{};
-  }
-}
+using detect_resize = decltype(FOLLY_DECLVAL(C).resize(FOLLY_DECLVAL(A)...));
+template <typename C, typename... A>
+using detect_resize_without_initialization =
+    decltype(folly::resizeWithoutInitialization(
+        FOLLY_DECLVAL(C&), FOLLY_DECLVAL(A)...));
 
 template <typename Container>
 typename Container::reference emplace_back_default(Container& c) {
-  return c.emplace_back(detail::default_set_element(c));
+  constexpr auto pass_alloc =
+      alloc_should_propagate<Container, typename Container::value_type>;
+  if constexpr (pass_alloc) {
+    return c.emplace_back(typename Container::value_type(c.get_allocator()));
+  } else {
+    return c.emplace_back();
+  }
 }
 
 template <typename Container, typename Map>
 typename Container::reference emplace_back_default_map(Container& c, Map& m) {
-  return c.emplace_back(
-      detail::default_map_key(m), detail::default_map_value(m));
+  constexpr auto pass_alloc =
+      alloc_should_propagate<Map, typename Map::key_type> ||
+      alloc_should_propagate<Map, typename Map::mapped_type>;
+  if constexpr (pass_alloc) {
+    return c.emplace_back(
+        typename Map::key_type(m.get_allocator()),
+        typename Map::mapped_type(m.get_allocator()));
+  } else {
+    return c.emplace_back();
+  }
 }
 
 template <typename Map, typename KeyDeserializer, typename MappedDeserializer>
@@ -178,7 +188,7 @@ deserialize_known_length_map(
 
   bool sorted = true;
   typename Map::container_type tmp(map.get_allocator());
-  reserve_if_possible(&tmp, map_size);
+  folly::reserve_if_available(tmp, map_size);
   {
     decltype(auto) elem0 = emplace_back_default_map(tmp, map);
     kr(elem0.first);
@@ -204,7 +214,7 @@ deserialize_known_length_map(
     std::uint32_t map_size,
     const KeyDeserializer& kr,
     const MappedDeserializer& mr) {
-  reserve_if_possible(&map, map_size);
+  folly::reserve_if_available(map, map_size);
 
   for (auto i = map_size; i--;) {
     typename Map::key_type key = detail::default_map_key(map);
@@ -224,7 +234,7 @@ deserialize_known_length_map(
     std::uint32_t map_size,
     const KeyDeserializer& kr,
     const MappedDeserializer& mr) {
-  reserve_if_possible(&map, map_size);
+  folly::reserve_if_available(map, map_size);
 
   for (auto i = map_size; i--;) {
     deserialize_key_val_into_map(map, kr, mr);
@@ -241,7 +251,7 @@ deserialize_known_length_set(
 
   bool sorted = true;
   typename Set::container_type tmp(set.get_allocator());
-  reserve_if_possible(&tmp, set_size);
+  folly::reserve_if_available(tmp, set_size);
   {
     auto& elem0 = emplace_back_default(tmp);
     vr(elem0);
@@ -262,7 +272,7 @@ typename std::enable_if<
     set_emplace_hint_is_invocable_v<Set>>::type
 deserialize_known_length_set(
     Set& set, std::uint32_t set_size, const ValDeserializer& vr) {
-  reserve_if_possible(&set, set_size);
+  folly::reserve_if_available(set, set_size);
 
   for (auto i = set_size; i--;) {
     typename Set::value_type value = detail::default_set_element(set);
@@ -277,7 +287,7 @@ typename std::enable_if<
     !set_emplace_hint_is_invocable_v<Set>>::type
 deserialize_known_length_set(
     Set& set, std::uint32_t set_size, const ValDeserializer& vr) {
-  reserve_if_possible(&set, set_size);
+  folly::reserve_if_available(set, set_size);
 
   for (auto i = set_size; i--;) {
     typename Set::value_type value = detail::default_set_element(set);
@@ -292,6 +302,41 @@ inline uint32_t checked_container_size(size_t size) {
     TProtocolException::throwExceededSizeLimit(size, limit);
   }
   return static_cast<uint32_t>(size);
+}
+
+template <typename Protocol>
+using map_value_begin_t =
+    decltype(std::declval<Protocol>().writeMapValueBegin(true));
+
+template <typename Protocol>
+using map_value_end_t =
+    decltype(std::declval<Protocol>().writeMapValueEnd(true));
+
+template <typename Protocol>
+static constexpr bool map_value_api_v =
+    folly::is_detected_v<map_value_begin_t, Protocol> &&
+    folly::is_detected_v<map_value_end_t, Protocol>;
+
+template <typename Protocol>
+std::size_t writeMapValueBegin(Protocol& protocol, bool fromOpEncode = false) {
+  const auto writeMapValueBeginFunc =
+      std::get<map_value_api_v<Protocol&>>(std::make_pair(
+          [](auto&) { return 0u; },
+          [fromOpEncode](auto& protocolWithMapValueApi) {
+            return protocolWithMapValueApi.writeMapValueBegin(fromOpEncode);
+          }));
+  return writeMapValueBeginFunc(protocol);
+}
+
+template <typename Protocol>
+std::size_t writeMapValueEnd(Protocol& protocol, bool fromOpEncode = false) {
+  const auto writeMapValueEndFunc =
+      std::get<map_value_api_v<Protocol&>>(std::make_pair(
+          [](auto&) { return 0u; },
+          [fromOpEncode](auto& protocolWithMapValueApi) {
+            return protocolWithMapValueApi.writeMapValueEnd(fromOpEncode);
+          }));
+  return writeMapValueEndFunc(protocol);
 }
 
 /*
@@ -538,9 +583,46 @@ struct protocol_methods<type_class::list<ElemClass>, Type> {
           protocol::TProtocolException::throwTruncatedData();
         }
 
-        reserve_if_possible(&out, list_size);
-        while (list_size--) {
-          read_one(protocol, out);
+#ifndef _MSC_VER
+        constexpr auto should_resize_without_initialization = std::is_trivial_v<
+                                                                  elem_type> &&
+            folly::is_detected_v<detect_resize_without_initialization,
+                                 Type,
+                                 decltype(list_size)>;
+#else
+        // For MSVC, vector layout is not fixed, so resizeWithoutInitialization
+        // is not supported yet
+        constexpr auto should_resize_without_initialization = false;
+#endif
+        constexpr auto should_resize = std::is_trivial_v<elem_type> &&
+            folly::is_detected_v<detect_resize, Type, decltype(list_size)>;
+
+        // For performance, do special treatments for trivial value list. Try to
+        // resizeWithoutInitialization first, then resize.
+        if constexpr (should_resize_without_initialization) {
+          folly::resizeWithoutInitialization(out, list_size);
+          auto outIt = out.begin();
+          const auto outEnd = out.end();
+          try {
+            for (; outIt != outEnd; ++outIt) {
+              elem_methods::read(protocol, *outIt);
+            }
+          } catch (...) {
+            // For behaviour parity, initialize the leftover elements when
+            // exceptions happen
+            std::fill(outIt, outEnd, elem_type());
+            throw;
+          }
+        } else if constexpr (should_resize) {
+          out.resize(list_size);
+          for (auto&& elem : out) {
+            elem_methods::read(protocol, elem);
+          }
+        } else {
+          folly::reserve_if_available(out, list_size);
+          while (list_size--) {
+            read_one(protocol, out);
+          }
         }
       }
     }
@@ -806,41 +888,6 @@ struct protocol_methods<type_class::map<KeyClass, MappedClass>, Type> {
     }
     xfer += protocol.serializedSizeMapEnd();
     return xfer;
-  }
-
- private:
-  template <typename Protocol>
-  using map_value_begin_t =
-      decltype(std::declval<Protocol>().writeMapValueBegin());
-
-  template <typename Protocol>
-  using map_value_end_t = decltype(std::declval<Protocol>().writeMapValueEnd());
-
-  template <typename Protocol>
-  static constexpr bool map_value_api_v =
-      folly::is_detected_v<map_value_begin_t, Protocol>&&
-          folly::is_detected_v<map_value_end_t, Protocol>;
-
-  template <typename Protocol>
-  static std::size_t writeMapValueBegin(Protocol& protocol) {
-    const auto writeMapValueBeginFunc =
-        std::get<map_value_api_v<Protocol&>>(std::make_pair(
-            [](auto&) { return 0u; },
-            [](auto& protocolWithMapValueApi) {
-              return protocolWithMapValueApi.writeMapValueBegin();
-            }));
-    return writeMapValueBeginFunc(protocol);
-  }
-
-  template <typename Protocol>
-  static std::size_t writeMapValueEnd(Protocol& protocol) {
-    const auto writeMapValueEndFunc =
-        std::get<map_value_api_v<Protocol&>>(std::make_pair(
-            [](auto&) { return 0u; },
-            [](auto& protocolWithMapValueApi) {
-              return protocolWithMapValueApi.writeMapValueEnd();
-            }));
-    return writeMapValueEndFunc(protocol);
   }
 };
 

@@ -49,6 +49,8 @@ struct Index;
 struct AnalysisIndex;
 struct PublicSPropMutations;
 struct FuncAnalysisResult;
+struct ClassAnalysis;
+struct UnitAnalysis;
 struct Context;
 struct ContextHash;
 struct CallContext;
@@ -297,6 +299,7 @@ struct ConstIndex {
 };
 
 std::string show(const ConstIndex&);
+std::string show(const ConstIndex&, const IIndex&);
 
 //////////////////////////////////////////////////////////////////////
 
@@ -313,6 +316,26 @@ using ResolvedConstants =
   CompactVector<std::pair<ConstIndex::Idx, ClsConstInfo>>;
 
 //////////////////////////////////////////////////////////////////////
+
+struct ResolvedClsTypeConst {
+  SArray resolved;
+  bool contextInsensitive;
+  ConstIndex from;
+};
+
+using ResolvedClsTypeConsts = CompactVector<ResolvedClsTypeConst>;
+
+//////////////////////////////////////////////////////////////////////
+
+struct ResolvedTypeAlias {
+  size_t idx;
+  SArray resolved;
+};
+
+using ResolvedTypeAliases = CompactVector<ResolvedTypeAlias>;
+
+//////////////////////////////////////////////////////////////////////
+
 /*
  * Represents a method, without requiring an explicit pointer to a
  * php::Func (so can be used across remote workers).
@@ -592,8 +615,27 @@ struct Class {
    */
   const php::Class* cls() const;
 
+  /*
+   * Returns true if this class has it's full child class information.
+   */
   bool hasCompleteChildren() const;
+  /*
+   * A class is complete if it has full child class information, or if
+   * it's a "conservative" class (a class which has too many child
+   * classes to track completely).
+   */
   bool isComplete() const;
+
+  /*
+   * Classes that come out of the BlobEncoder start out as
+   * "serialized". This means it just wraps a string. Almost nothing
+   * can be done on a serialized class, except call unserialize on
+   * it. Unserialize will produce the "real" class, recording
+   * dependencies as necessary. If unserialize returns std::nullopt
+   * then the class definitely doesn't exist.
+   */
+  bool isSerialized() const;
+  Optional<Class> unserialize(const IIndex&) const;
 
   /*
    * Invoke the given function on every possible subclass of this
@@ -661,8 +703,8 @@ struct Class {
    * something like CompactTaggedPtr. It is not, however, guaranteed
    * to be aligned (lower bits may be set).
    */
-  uintptr_t toOpaque() const { return (uintptr_t)opaque.p; }
-  static Class fromOpaque(uintptr_t o) { return Class{Opaque{(void*)o}}; }
+  uintptr_t toOpaque() const { return opaque.toOpaque(); }
+  static Class fromOpaque(uintptr_t o) { return Class{E::fromOpaque(o)}; }
 
   size_t hash() const { return toOpaque(); }
 
@@ -689,6 +731,11 @@ struct Class {
   void serde(BlobEncoder&) const;
   static Class makeForSerde(BlobDecoder&);
 
+  void makeConservativeForTest();
+#ifndef NDEBUG
+  bool isMissingDebug() const;
+#endif
+
 private:
   ClassGraph graph() const;
   ClassInfo* cinfo() const;
@@ -702,11 +749,11 @@ private:
   friend struct ::HPHP::HHBBC::Index;
   friend struct ::HPHP::HHBBC::AnalysisIndex;
 
-  struct Opaque { void* p; };
-  Opaque opaque;
+  using E = Either<void*, const StringData*>;
+  E opaque;
 
   explicit Class(ClassGraph);
-  explicit Class(Opaque o): opaque{o} {}
+  explicit Class(E o): opaque{o} {}
 };
 
 /*
@@ -788,6 +835,11 @@ struct Func {
    * Returns whether the function is marked as readonly
    */
   TriBool lookupReadonlyThis() const;
+
+  /*
+   * Returns the wrapped HHVM builtin iff this is a trivial HHVM builtin wrapper
+   */
+  Optional<SString> triviallyWrappedFunc() const;
 
   /*
    * Coeffects
@@ -943,12 +995,11 @@ struct Index {
       R<php::Class> cls;
       LSString name;
       std::vector<SString> dependencies;
-      LSString closureContext;
+      // If this class is a closure declared in a top-level func, this
+      // is the name of that func.
+      LSString closureFunc;
+      std::vector<SString> closures;
       LSString unit;
-      bool isClosure;
-      // Whether this closure was declared inside a class or func
-      // (which determines the meaning of closureContext).
-      bool closureDeclInFunc;
       bool has86init;
       // If this class is an enum, the type-mapping representing it's
       // base type.
@@ -1079,6 +1130,12 @@ struct Index {
    * "dynamic" constants.
    */
   const FSStringSet& constant_init_funcs() const;
+
+  /*
+   * The names of all units which have type-aliases defined within
+   * them.
+   */
+  const SStringSet& units_with_type_aliases() const;
 
   /*
    * Access the php::Program this Index is analyzing.
@@ -1254,6 +1311,20 @@ struct Index {
     const Type& cls,
     const Type& name,
     const ClsTypeConstLookupResolver& resolver = {}) const;
+
+  /*
+   * Lookup metadata about the constant given by the ConstIndex (with
+   * the given name). The php::Class is used to provide the context.
+   */
+  ClsTypeConstLookupResult
+  lookup_class_type_constant(const php::Class&, SString, ConstIndex) const;
+
+  /*
+   * Retrive all type constants on the given class, whether declared
+   * on the class or inherited.
+   */
+  std::vector<std::pair<SString, HHBBC::ConstIndex>>
+  lookup_flattened_class_type_constants(const php::Class&) const;
 
   /*
    * Lookup what the best known Type for a constant would be, using a
@@ -1585,6 +1656,8 @@ struct IIndex {
   IIndex& operator=(const IIndex&) = delete;
   IIndex& operator=(IIndex&&) = delete;
 
+  virtual bool frozen() const = 0;
+
   virtual const php::Unit* lookup_func_unit(const php::Func&) const = 0;
 
   virtual const php::Unit* lookup_class_unit(const php::Class&) const = 0;
@@ -1592,6 +1665,8 @@ struct IIndex {
   virtual const php::Class* lookup_const_class(const php::Const&) const = 0;
 
   virtual const php::Class* lookup_closure_context(const php::Class&) const = 0;
+
+  virtual const php::Class* lookup_class(SString) const = 0;
 
   virtual const CompactVector<const php::Class*>*
   lookup_closures(const php::Class*) const = 0;
@@ -1624,10 +1699,19 @@ struct IIndex {
   lookup_class_constant(Context, const Type& cls, const Type& name) const = 0;
 
   virtual ClsTypeConstLookupResult lookup_class_type_constant(
-      const Type& cls,
-      const Type& name,
-      const Index::ClsTypeConstLookupResolver& resolver = {}
+    const Type& cls,
+    const Type& name,
+    const Index::ClsTypeConstLookupResolver& resolver = {}
   ) const = 0;
+
+  virtual ClsTypeConstLookupResult lookup_class_type_constant(
+    const php::Class&,
+    SString,
+    ConstIndex
+  ) const = 0;
+
+  virtual std::vector<std::pair<SString, ConstIndex>>
+  lookup_flattened_class_type_constants(const php::Class&) const = 0;
 
   virtual Type lookup_constant(Context, SString) const = 0;
 
@@ -1684,7 +1768,10 @@ private:
   virtual void push_context(const Context&) const = 0;
   virtual void pop_context() const = 0;
 
+  virtual bool set_in_type_cns(bool) const = 0;
+
   friend struct ContextPusher;
+  friend struct InTypeCns;
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -1696,7 +1783,21 @@ struct ContextPusher {
     index.push_context(ctx);
   }
   ~ContextPusher() { index.pop_context(); }
+private:
   const IIndex& index;
+};
+
+//////////////////////////////////////////////////////////////////////
+
+// RAII class to mark that we're resolving a class' type-constants.
+struct InTypeCns {
+  explicit InTypeCns(const IIndex& index, bool b = true)
+    : index{index}
+    , was{index.set_in_type_cns(b)} {}
+  ~InTypeCns() { index.set_in_type_cns(was); }
+private:
+  const IIndex& index;
+  bool was;
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -1704,6 +1805,8 @@ struct ContextPusher {
 struct IndexAdaptor : public IIndex {
   explicit IndexAdaptor(const Index& index)
    : index{const_cast<Index&>(index)} {}
+
+  bool frozen() const override { return index.frozen(); }
 
   const php::Unit* lookup_func_unit(const php::Func& f) const override {
     return index.lookup_func_unit(f);
@@ -1716,6 +1819,9 @@ struct IndexAdaptor : public IIndex {
   }
   const php::Class* lookup_closure_context(const php::Class& c) const override {
     return index.lookup_closure_context(c);
+  }
+  const php::Class* lookup_class(SString c) const override {
+    return index.lookup_class(c);
   }
   const CompactVector<const php::Class*>*
   lookup_closures(const php::Class* c) const override {
@@ -1768,6 +1874,16 @@ struct IndexAdaptor : public IIndex {
     const Index::ClsTypeConstLookupResolver& r = {}
   ) const override {
     return index.lookup_class_type_constant(c, n, r);
+  }
+  ClsTypeConstLookupResult
+  lookup_class_type_constant(const php::Class& ctx,
+                             SString n,
+                             ConstIndex idx) const override {
+    return index.lookup_class_type_constant(ctx, n, idx);
+  }
+  std::vector<std::pair<SString, ConstIndex>>
+  lookup_flattened_class_type_constants(const php::Class& cls) const override {
+    return index.lookup_flattened_class_type_constants(cls);
   }
   Type lookup_constant(Context c, SString s) const override {
     return index.lookup_constant(c, s);
@@ -1841,6 +1957,8 @@ private:
   void push_context(const Context&) const override {}
   void pop_context() const override {}
 
+  bool set_in_type_cns(bool) const override { return false; }
+
   Index& index;
 };
 
@@ -1893,19 +2011,32 @@ struct AnalysisDeps {
   struct Class { SString name; };
   struct Func { SString name; };
   struct Constant { SString name; };
-  struct TypeAlias { SString name; };
+  // Dependency on an unspecified class constant (name is the class).
+  struct AnyClassConstant { SString name; };
 
-  bool add(Class);
+  bool add(Class, bool inTypeCns = false);
 
-  bool add(ConstIndex);
+  bool add(ConstIndex, bool inTypeCns = false);
   bool add(Constant);
-  bool add(TypeAlias);
+  bool add(AnyClassConstant, bool inTypeCns = false);
 
   Type add(const php::Func&, Type);
   Type add(MethRef, Type);
   Type add(Func, Type);
 
-  // Combine two sets of dependencies into one.
+  bool empty() const {
+    return
+      funcs.empty() &&
+      methods.empty() &&
+      classes.empty() &&
+      clsConstants.empty() &&
+      constants.empty() &&
+      anyClsConstants.empty() &&
+      typeCnsClasses.empty() &&
+      typeCnsClsConstants.empty() &&
+      typeCnsAnyClsConstants.empty();
+  }
+
   AnalysisDeps& operator|=(const AnalysisDeps&);
 
   template <typename SerDe> void serde(SerDe& sd) {
@@ -1913,8 +2044,11 @@ struct AnalysisDeps {
       (methods, std::less<>{})
       (classes, string_data_lt_type{})
       (clsConstants, std::less<>{})
+      (anyClsConstants, string_data_lt_type{})
       (constants, string_data_lt{})
-      (typeAliases, string_data_lt_type{})
+      (typeCnsClasses, string_data_lt_type{})
+      (typeCnsClsConstants, std::less<>{})
+      (typeCnsAnyClsConstants, string_data_lt_type{})
       ;
   }
 
@@ -1924,11 +2058,18 @@ private:
 
   TSStringSet classes;
   hphp_fast_set<ConstIndex, ConstIndex::Hasher> clsConstants;
+  TSStringSet anyClsConstants;
   SStringSet constants;
-  TSStringSet typeAliases;
+
+  TSStringSet typeCnsClasses;
+  hphp_fast_set<ConstIndex, ConstIndex::Hasher> typeCnsClsConstants;
+  TSStringSet typeCnsAnyClsConstants;
 
   static Type merge(Type&, Type);
 
+  friend std::string show(const AnalysisDeps&);
+
+  friend struct AnalysisIndex;
   friend struct AnalysisScheduler;
 };
 
@@ -1976,18 +2117,36 @@ std::string show(AnalysisDeps::Type);
 // re-analyzed.
 struct AnalysisChangeSet {
   using Type = AnalysisDeps::Type;
+  using Class = AnalysisDeps::Class;
 
   void changed(ConstIndex);
   void changed(const php::Constant&);
   void changed(const php::Func&, Type);
 
+  void fixed(ConstIndex);
+  void fixed(const php::Class&);
+  void fixed(const php::Unit&);
+
+  void typeCnsName(const php::Class&, Class);
+  void typeCnsName(const php::Unit&, Class);
+
   void remove(const php::Func& f) { funcs.erase(f.name); }
+
+  void filter(const TSStringSet&,
+              const FSStringSet&,
+              const SStringSet&,
+              const SStringSet&);
 
   template <typename SerDe> void serde(SerDe& sd) {
     sd(funcs, string_data_lt_func{})
       (methods, std::less<>{})
       (constants, string_data_lt{})
       (clsConstants, std::less<>{})
+      (fixedClsConstants, std::less<>{})
+      (allClsConstantsFixed, string_data_lt_type{})
+      (unitsFixed, string_data_lt{})
+      (clsTypeCnsNames, string_data_lt_type{}, string_data_lt_type{})
+      (unitTypeCnsNames, string_data_lt{}, string_data_lt_type{})
       ;
   }
 private:
@@ -1995,6 +2154,12 @@ private:
   hphp_fast_map<MethRef, Type, MethRef::Hash> methods;
   SStringSet constants;
   hphp_fast_set<ConstIndex, ConstIndex::Hasher> clsConstants;
+  hphp_fast_set<ConstIndex, ConstIndex::Hasher> fixedClsConstants;
+  TSStringSet allClsConstantsFixed;
+  SStringSet unitsFixed;
+
+  TSStringToOneT<TSStringSet> clsTypeCnsNames;
+  TSStringToOneT<TSStringSet> unitTypeCnsNames;
 
   friend struct AnalysisScheduler;
 };
@@ -2005,6 +2170,12 @@ private:
 // exposing implementation details. These are produced from
 // AnalysisScheduler::schedule().
 struct AnalysisInput {
+  AnalysisInput() = default;
+  AnalysisInput(const AnalysisInput&) = delete;
+  AnalysisInput(AnalysisInput&&) = default;
+  AnalysisInput& operator=(const AnalysisInput&) = delete;
+  AnalysisInput& operator=(AnalysisInput&&) = default;
+
   std::vector<SString> classNames() const;
   std::vector<SString> funcNames() const;
   std::vector<SString> unitNames() const;
@@ -2017,16 +2188,89 @@ struct AnalysisInput {
   }
   SString key() const { return m_key; }
 
+  // Efficient set of buckets.
+  struct BucketSet {
+    BucketSet() = default;
+
+    bool isSubset(const BucketSet&) const;
+    bool contains(size_t) const;
+    bool empty() const;
+    size_t hash() const;
+    bool operator==(const BucketSet& o) const { return buckets == o.buckets; }
+
+    void add(size_t);
+    void clear();
+
+    static const BucketSet* intern(BucketSet);
+    static void clearIntern();
+
+    BucketSet& operator|=(const BucketSet&);
+
+    std::string toString() const;
+
+    template <typename SerDe> void serde(SerDe& sd) { sd(buckets); }
+  private:
+    folly::sorted_vector_set<uint32_t> buckets;
+  };
+
+  // The "presence" of an item in buckets. This is used for permission
+  // checks on the worker. An item can only use information about
+  // another item if the second item is present in every bucket the
+  // first item is in. This can be done cheaply using a subset check.
+  struct BucketPresence {
+    const BucketSet* present;
+    const BucketSet* withBC;
+    const BucketSet* process;
+    void serde(BlobEncoder&);
+    void serde(BlobDecoder&);
+    static void serdeStart();
+    static void serdeEnd();
+  };
+
   struct Meta {
+    Meta() = default;
+    Meta(const Meta&) = delete;
+    Meta(Meta&&) = default;
+    Meta& operator=(const Meta&) = delete;
+    Meta& operator=(Meta&&) = default;
+
     TSStringSet badClasses;
     FSStringSet badFuncs;
     SStringSet badConstants;
-    TSStringSet badTypeAliases;
+    TSStringToOneT<AnalysisDeps> classDeps;
+    FSStringToOneT<AnalysisDeps> funcDeps;
+    SStringToOneT<AnalysisDeps> unitDeps;
+
+    using BucketVec = std::vector<std::pair<SString, BucketPresence>>;
+    BucketVec classBuckets;
+    BucketVec funcBuckets;
+    BucketVec unitBuckets;
+    BucketVec badConstantBuckets;
+
+    TSStringSet processDepCls;
+    FSStringSet processDepFunc;
+    SStringSet processDepUnit;
+
+    uint32_t bucketIdx;
+
     template <typename SerDe> void serde(SerDe& sd) {
+      ScopedStringDataIndexer _;
+      BucketPresence::serdeStart();
+      SCOPE_EXIT { BucketPresence::serdeEnd(); };
       sd(badClasses, string_data_lt_type{})
         (badFuncs, string_data_lt_func{})
         (badConstants, string_data_lt{})
-        (badTypeAliases, string_data_lt_type{})
+        (classDeps, string_data_lt_type{})
+        (funcDeps, string_data_lt_func{})
+        (unitDeps, string_data_lt{})
+        (classBuckets)
+        (funcBuckets)
+        (unitBuckets)
+        (badConstantBuckets)
+        (processDepCls, string_data_lt_type{})
+        (processDepFunc, string_data_lt_func{})
+        (processDepUnit, string_data_lt{})
+        (bucketIdx)
         ;
     }
   };
@@ -2047,29 +2291,44 @@ struct AnalysisInput {
     UniquePtrRefVec<php::Unit>,
     extern_worker::Ref<Meta>
   >;
-  Tuple toTuple(extern_worker::Ref<Meta>) const;
+  Tuple toTuple(extern_worker::Ref<Meta>);
 private:
   SString m_key{nullptr};
+  const Index::IndexData* index{nullptr};
 
-  TSStringToOneT<UniquePtrRef<php::Class>> classes;
-  FSStringToOneT<UniquePtrRef<php::Func>> funcs;
-  SStringToOneT<UniquePtrRef<php::Unit>> units;
+  enum class Kind : uint8_t {
+    None     = 0,
+    Rep      = (1 << 0),
+    Bytecode = (1 << 1),
+    Info     = (1 << 2),
+    Dep      = (1 << 3),
+    MInfo    = (1 << 4)
+  };
+  TSStringToOneT<Kind> classes;
+  FSStringToOneT<Kind> funcs;
+  SStringToOneT<Kind> units;
 
-  TSStringToOneT<UniquePtrRef<php::ClassBytecode>> classBC;
-  FSStringToOneT<UniquePtrRef<php::FuncBytecode>> funcBC;
-
-  TSStringToOneT<extern_worker::Ref<AnalysisIndexCInfo>> cinfos;
-  FSStringToOneT<extern_worker::Ref<AnalysisIndexFInfo>> finfos;
-  TSStringToOneT<extern_worker::Ref<AnalysisIndexMInfo>> minfos;
-
-  TSStringToOneT<UniquePtrRef<php::Class>> depClasses;
-  FSStringToOneT<UniquePtrRef<php::Func>> depFuncs;
-  SStringToOneT<UniquePtrRef<php::Unit>> depUnits;
+  friend Kind operator|(Kind k1, Kind k2) {
+    return Kind((uint8_t)k1 | (uint8_t)k2);
+  }
+  friend Kind& operator|=(Kind& k1, Kind k2) {
+    return (k1 = Kind((uint8_t)k1 | (uint8_t)k2));
+  }
+  friend Kind operator&(Kind k1, Kind k2) {
+    return Kind((uint8_t)k1 & (uint8_t)k2);
+  }
+  friend bool any(Kind);
 
   Meta meta;
 
   friend struct AnalysisScheduler;
 };
+
+inline bool any(AnalysisInput::Kind k) {
+  return k != AnalysisInput::Kind::None;
+}
+
+std::string show(const AnalysisInput::BucketPresence&);
 
 //////////////////////////////////////////////////////////////////////
 
@@ -2080,14 +2339,18 @@ struct AnalysisOutput {
   struct Meta {
     std::vector<AnalysisDeps> funcDeps;
     std::vector<AnalysisDeps> classDeps;
+    std::vector<AnalysisDeps> unitDeps;
     AnalysisChangeSet changed;
     FSStringSet removedFuncs;
+    TSStringToOneT<TSStringSet> cnsBases;
     template <typename SerDe> void serde(SerDe& sd) {
       ScopedStringDataIndexer _;
       sd(funcDeps)
         (classDeps)
+        (unitDeps)
         (changed)
         (removedFuncs, string_data_lt_func{})
+        (cnsBases, string_data_lt_type{}, string_data_lt_type{})
         ;
     }
   };
@@ -2120,6 +2383,7 @@ struct AnalysisOutput {
 // user doesn't need to know any implementation details.
 struct AnalysisScheduler {
   explicit AnalysisScheduler(Index&);
+  ~AnalysisScheduler();
 
   // Register a class or function with the given name to be
   // tracked. If a class or function isn't tracked, it won't be
@@ -2127,6 +2391,7 @@ struct AnalysisScheduler {
   // dependency).
   void registerClass(SString);
   void registerFunc(SString);
+  void registerUnit(SString);
 
   // Record the output of an analysis job. This can be called in a
   // multi-threaded context.
@@ -2138,72 +2403,179 @@ struct AnalysisScheduler {
 
   // Schedule the work that needs to run into buckets of (roughly) the
   // given size.
-  std::vector<AnalysisInput> schedule(size_t bucketSize);
+  std::vector<AnalysisInput> schedule(size_t bucketSize,
+                                      size_t maxBucketSize);
 
-  size_t workItems() const {
-    return classesToSchedule.size() + funcsToSchedule.size();
-  }
+  size_t workItems() const { return totalWorkItems; }
 
 private:
-  // A change group represents all the entities in a given analysis
-  // job. The idea is that if a dependency is in the same job as you,
-  // even if it changed, you don't need to be rescheduled (because you
-  // would have picked up the change locally).
-  struct ChangeGroup {
-    TSStringSet classes;
-    FSStringSet funcs;
-    SStringSet units;
+  using Type = AnalysisDeps::Type;
+
+  // Represents a func, class, or unit. The most basic unit of
+  // scheduling.
+  struct DepState {
+    enum Kind {
+      Func,
+      Class,
+      Unit
+    };
+
+    DepState(SString name, Kind kind) : name{name}, kind{kind} {}
+    SString name;
+    Kind kind;
+    AnalysisDeps deps;
+    // If toSchedule is true, then the func/class/unit has changed
+    // information.
+    bool toSchedule{true};
   };
 
-  using Type = AnalysisDeps::Type;
+  // These wrap a DepState, but also include information about what
+  // changed (which varies according to the type).
+  struct FuncState {
+    explicit FuncState(SString name) : depState{name, DepState::Func} {}
+    DepState depState;
+    Type changed{};
+  };
+  struct ClassState {
+    explicit ClassState(SString name) : depState{name, DepState::Class} {}
+    DepState depState;
+    CompactVector<Type> methodChanges;
+    boost::dynamic_bitset<> cnsChanges;
+    boost::dynamic_bitset<> cnsFixed;
+    TSStringSet typeCnsNames;
+    bool allCnsFixed{false};
+  };
+  struct UnitState {
+    explicit UnitState(SString name) : depState{name, DepState::Unit} {}
+    DepState depState;
+    TSStringSet typeCnsNames;
+    bool fixed{false};
+  };
+
+  // TraceState contains all the state necessary for the scheduling
+  // algorithm. A TraceState can represent multiple DepStates. For
+  // scheduling purposes we might want certain items always be
+  // processed together. This can be accomplished by giving them all
+  // the same TraceState.
+  struct TraceState {
+    TSStringSet trace;
+    TSStringSet deps;
+    TinyVector<const DepState*> depStates;
+    bool eligible{false};
+    CopyableAtomic<bool> leaf{true};
+    CopyableAtomic<bool> covered{false};
+    AnalysisInput::BucketPresence buckets;
+    size_t idx{0};
+  };
 
   void removeFuncs();
   void findToSchedule();
   void resetChanges();
 
-  void recordChanges(const AnalysisChangeSet&, const ChangeGroup&);
-  void updateDepState(AnalysisOutput&, const FSStringSet&, ChangeGroup);
+  void recordChanges(const AnalysisOutput&);
+  void updateDepState(AnalysisOutput&);
 
   void addClassToInput(SString, AnalysisInput&) const;
   void addFuncToInput(SString, AnalysisInput&) const;
   void addUnitToInput(SString, AnalysisInput&) const;
-  void addDepsToInput(AnalysisInput&) const;
   void addDepConstantToInput(SString, SString, AnalysisInput&) const;
-  void addDepTypeAliasToInput(SString, SString, AnalysisInput&) const;
   void addDepUnitToInput(SString, SString, AnalysisInput&) const;
-  void addDepClassToInput(SString, SString, bool, AnalysisInput&) const;
+  void addDepClassToInput(SString, SString, bool, AnalysisInput&,
+                          bool = false) const;
   void addDepFuncToInput(SString, SString, Type, AnalysisInput&) const;
+  void addTraceDepToInput(const DepState&, AnalysisInput&) const;
+  void addDepsToInput(const DepState&, AnalysisInput&) const;
+  void addAllDepsToInput(AnalysisInput&) const;
+  void addDepsMeta(const DepState&, AnalysisInput&) const;
+
+  template <typename F>
+  void onTransitiveDep(SString, const DepState&, const F&) const;
+  void addAllDeps(TSStringSet&, const DepState&) const;
+  void addDepsForTypeCns(TraceState&);
+
+  const TraceState* lookupTrace(DepState::Kind, SString) const;
+
+  const TraceState* traceForClass(SString) const;
+  const TraceState* traceForFunc(SString) const;
+  const TraceState* traceForUnit(SString) const;
+  const TraceState* traceForConstant(SString) const;
+  const TraceState* traceForTypeAlias(SString) const;
+  const TraceState* traceForClassOrTypeAlias(SString) const;
+  const TraceState* traceForDepState(const DepState&) const;
+
+  Either<const ClassState*, const UnitState*>
+  stateForClassOrTypeAlias(SString) const;
+
+  enum class Presence {
+    None,
+    Dep,
+    DepWithBytecode,
+    Full
+  };
+  Presence presenceOf(const AnalysisInput::BucketPresence&,
+                      const AnalysisInput::BucketPresence&) const;
+  Presence presenceOfClass(const TraceState&, SString) const;
+  Presence presenceOfClassOrTypeAlias(const TraceState&, SString) const;
+  Presence presenceOfFunc(const TraceState&, SString) const;
+  Presence presenceOfConstant(const TraceState&, SString) const;
+
+  struct Bucket;
+
+  void tracePass1();
+  void tracePass2();
+  void tracePass3();
+  std::vector<SString> tracePass4();
+  std::vector<Bucket> tracePass5(size_t, size_t, std::vector<SString>);
+
+  struct InputsAndUntracked {
+    std::vector<AnalysisInput> inputs;
+    std::vector<SString> untrackedFuncs;
+    std::vector<SString> untrackedClasses;
+    std::vector<SString> untrackedUnits;
+    std::vector<SString> badConstants;
+  };
+  InputsAndUntracked tracePass6(const std::vector<Bucket>&);
+  void tracePass7(InputsAndUntracked&);
+  void tracePass8(std::vector<Bucket>, std::vector<AnalysisInput>&);
+  void tracePass9(const std::vector<AnalysisInput>&);
+
+  void scheduleTraces(size_t);
+
+  void maybeDumpTraces() const;
 
   Index& index;
 
+  size_t round{0};
+
   std::vector<SString> classNames;
   std::vector<SString> funcNames;
+  std::vector<SString> unitNames;
+  std::vector<SString> traceNames;
 
-  struct DepState {
-    Optional<AnalysisDeps> deps;
-    Optional<AnalysisDeps> newDeps;
-    std::shared_ptr<ChangeGroup> group;
-  };
-
-  struct FuncState {
-    DepState depState;
-    Type changed{};
-  };
-  struct ClassState {
-    DepState depState;
-    CompactVector<Type> methodChanges;
-    boost::dynamic_bitset<> cnsChanges;
-  };
-
-  FSStringToOneT<FuncState> funcState;
-  TSStringToOneT<ClassState> classState;
+  // Keep the address of the states (and therefore their contained
+  // DepStates) the same, so we can keep pointers to them.
+  FSStringToOneNodeT<FuncState> funcState;
+  TSStringToOneNodeT<ClassState> classState;
+  SStringToOneNodeT<UnitState> unitState;
   SStringToOneNodeT<std::atomic<bool>> cnsChanged;
 
-  FSStringSet funcsToSchedule;
-  TSStringSet classesToSchedule;
+  TSStringToOneT<TraceState> traceState;
+
+  struct Untracked {
+    using B = AnalysisInput::BucketPresence;
+    FSStringToOneT<B> funcs;
+    TSStringToOneT<B> classes;
+    SStringToOneT<B> units;
+    SStringToOneT<B> badConstants;
+  };
+  Untracked untracked;
+
+  CopyableAtomic<size_t> totalWorkItems;
 
   FSStringSet funcsToRemove;
-  std::mutex funcsToRemoveLock;
+
+  // Keep AnalysisScheduler moveable
+  std::unique_ptr<std::mutex> lock;
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -2214,12 +2586,12 @@ private:
 // within the same job. This speeds up convergence by avoiding another
 // whole roundtrip through the scheduler.
 struct AnalysisWorklist {
-  FuncOrCls next();
+  FuncClsUnit next();
 
-  void schedule(FuncOrCls);
+  void schedule(FuncClsUnit);
 private:
-  hphp_fast_set<FuncOrCls, FuncOrClsHasher> in;
-  std::deque<FuncOrCls> list;
+  hphp_fast_set<FuncClsUnit, FuncClsUnitHasher> in;
+  std::deque<FuncClsUnit> list;
 };
 
 //////////////////////////////////////////////////////////////////////
@@ -2228,6 +2600,12 @@ private:
 struct AnalysisIndex {
   template<typename T> using V = std::vector<T>;
   template<typename T> using VU = V<std::unique_ptr<T>>;
+
+  enum class Mode {
+    Constants,
+    Full,
+    Final
+  };
 
   AnalysisIndex(AnalysisWorklist&,
                 VU<php::Class>,
@@ -2241,7 +2619,8 @@ struct AnalysisIndex {
                 VU<php::Class>,
                 VU<php::Func>,
                 VU<php::Unit>,
-                AnalysisInput::Meta);
+                AnalysisInput::Meta,
+                Mode);
   ~AnalysisIndex();
 
   // Must be called in the worker's init() and fini() functions.
@@ -2249,19 +2628,22 @@ struct AnalysisIndex {
   static void stop();
 
   void freeze();
+  bool frozen() const;
 
   const php::Unit& lookup_func_unit(const php::Func&) const;
 
   const php::Unit& lookup_class_unit(const php::Class&) const;
 
+  const php::Unit& lookup_unit(SString) const;
+
   const php::Class* lookup_const_class(const php::Const&) const;
 
   const php::Class& lookup_closure_context(const php::Class&) const;
 
+  const php::Class* lookup_class(SString) const;
+
   Optional<res::Class> resolve_class(SString) const;
   Optional<res::Class> resolve_class(const php::Class&) const;
-
-  res::Class builtin_class(SString) const;
 
   Type lookup_constant(SString) const;
 
@@ -2276,6 +2658,12 @@ struct AnalysisIndex {
     const Type& cls,
     const Type& name,
     const Index::ClsTypeConstLookupResolver& resolver = {}) const;
+
+  ClsTypeConstLookupResult
+  lookup_class_type_constant(const php::Class&, SString, ConstIndex) const;
+
+  std::vector<std::pair<SString, ConstIndex>>
+  lookup_flattened_class_type_constants(const php::Class&) const;
 
   PropState lookup_private_props(const php::Class&) const;
   PropState lookup_private_statics(const php::Class&) const;
@@ -2316,7 +2704,9 @@ struct AnalysisIndex {
   void refine_class_constants(const FuncAnalysisResult&);
   void refine_return_info(const FuncAnalysisResult&);
   void update_prop_initial_values(const FuncAnalysisResult&);
+  void update_type_consts(const ClassAnalysis&);
   void update_bytecode(FuncAnalysisResult&);
+  void update_type_aliases(const UnitAnalysis&);
 
   using Output = extern_worker::Multi<
     extern_worker::Variadic<std::unique_ptr<php::Class>>,
@@ -2335,8 +2725,20 @@ struct AnalysisIndex {
 private:
   std::unique_ptr<IndexData> const m_data;
 
+  void initialize_worklist(const AnalysisInput::Meta&,
+                           std::vector<SString>,
+                           std::vector<SString>,
+                           std::vector<SString>);
+
   void push_context(const Context&);
   void pop_context();
+
+  bool set_in_type_cns(bool);
+
+  template <typename P, typename G>
+  res::Func rfunc_from_dcls(const DCls&, SString, const P&, const G&) const;
+
+  Type unserialize_type(Type) const;
 
   friend struct AnalysisIndexAdaptor;
 };
@@ -2347,10 +2749,13 @@ struct AnalysisIndexAdaptor : public IIndex {
   explicit AnalysisIndexAdaptor(const AnalysisIndex& index)
     : index{const_cast<AnalysisIndex&>(index)} {}
 
+  bool frozen() const override;
+
   const php::Unit* lookup_func_unit(const php::Func&) const override;
   const php::Unit* lookup_class_unit(const php::Class&) const override;
   const php::Class* lookup_const_class(const php::Const&) const override;
   const php::Class* lookup_closure_context(const php::Class&) const override;
+  const php::Class* lookup_class(SString) const override;
 
   const CompactVector<const php::Class*>*
   lookup_closures(const php::Class*) const override;
@@ -2383,6 +2788,14 @@ struct AnalysisIndexAdaptor : public IIndex {
     const Type&,
     const Type&,
     const Index::ClsTypeConstLookupResolver& r = {}) const override;
+
+  ClsTypeConstLookupResult
+  lookup_class_type_constant(const php::Class&,
+                             SString,
+                             ConstIndex) const override;
+
+  std::vector<std::pair<SString, ConstIndex>>
+  lookup_flattened_class_type_constants(const php::Class&) const override;
 
   Type lookup_constant(Context, SString) const override;
   bool func_depends_on_arg(const php::Func*, size_t) const override;
@@ -2429,6 +2842,8 @@ struct AnalysisIndexAdaptor : public IIndex {
 private:
   void push_context(const Context&) const override;
   void pop_context() const override;
+
+  bool set_in_type_cns(bool) const override;
 
   AnalysisIndex& index;
 };

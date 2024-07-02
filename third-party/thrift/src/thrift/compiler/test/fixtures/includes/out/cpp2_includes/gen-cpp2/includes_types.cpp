@@ -46,7 +46,7 @@ std::string_view Included::__fbthrift_get_class_name() {
 
 Included::Included(apache::thrift::FragileConstructor, ::std::int64_t MyIntField__arg, ::cpp2::Foo MyTransitiveField__arg) :
     __fbthrift_field_MyIntField(std::move(MyIntField__arg)),
-    __fbthrift_field_MyTransitiveField(std::move(MyTransitiveField__arg)) {
+    __fbthrift_field_MyTransitiveField(std::move(MyTransitiveField__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
 }
@@ -106,11 +106,11 @@ static_assert(
         ::cpp2::Foo>,
     "inconsistent use of json option");
 
-} // cpp2
+} // namespace cpp2
 
 namespace cpp2 { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}} // cpp2
+}} // namespace cpp2
 namespace apache::thrift::detail::annotation {
 }

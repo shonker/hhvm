@@ -30,42 +30,20 @@ struct ImplicitContext {
 // Members
 ////////////////////////////////////////////////////////////////////////////
 
-enum class State : uint8_t {
-  Value,
-  Inaccessible,
-  SoftInaccessible,
-  SoftSet,
-};
-
-// Current state of IC
-State m_state;
-
-// Combination of the instance keys
-StringData* m_memokey;
-
 // HashMap of TypedValues and their instance keys
 req::fast_map<const StringData*, std::pair<TypedValue, TypedValue>,
               string_data_hash, string_data_same> m_map;
-
-// Blame of when an event happened resulting in state transition
-req::vector<const StringData*> m_blameFromSoftInaccessible;
-req::vector<const StringData*> m_blameFromSoftSet;
 
 ////////////////////////////////////////////////////////////////////////////
 // Statics
 ////////////////////////////////////////////////////////////////////////////
 
 static rds::Link<ObjectData*, rds::Mode::Normal> activeCtx;
-
-static std::string stateToString(State);
-
-static bool isStateSoft(State);
+static rds::Link<ObjectData*, rds::Mode::Normal> emptyCtx;
 
 static Variant getBlameVectors();
 
-static constexpr ptrdiff_t memoKeyOffset() {
-  return offsetof(ImplicitContext, m_memokey);
-}
+static void setActive(Object&&);
 
 ////////////////////////////////////////////////////////////////////////////
 // RAII wrappers
@@ -75,13 +53,8 @@ static constexpr ptrdiff_t memoKeyOffset() {
  * RAII wrapper for saving implicit context
  */
 struct Saver {
-  Saver() {
-    m_context = *ImplicitContext::activeCtx;
-    *ImplicitContext::activeCtx = nullptr;
-  }
-  ~Saver() {
-    *ImplicitContext::activeCtx = m_context;
-  }
+  Saver();
+  ~Saver();
 
 private:
   ObjectData* m_context;

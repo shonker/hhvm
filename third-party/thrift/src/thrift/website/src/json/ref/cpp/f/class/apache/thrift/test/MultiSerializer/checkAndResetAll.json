@@ -17,8 +17,8 @@
       "name_html": "checkAndResetAll",
       "location": {
         "file": "fbcode/thrift/lib/cpp2/op/Testing.h",
-        "line": "260",
-        "column": "1",
+        "line": "259",
+        "column": "8",
         "bodyfile": "fbcode/thrift/lib/cpp2/op/Testing.cpp",
         "bodystart": "137",
         "bodyend": "141"
@@ -43,5 +43,11 @@
   "brief_html": "",
   "groupname_html": "",
   "href": "/ref/cpp/f/class/apache/thrift/test/MultiSerializer/checkAndResetAll",
-  "refid": "/ref/cpp/f/class/apache/thrift/test/MultiSerializer/checkAndResetAll"
+  "refid": "/ref/cpp/f/class/apache/thrift/test/MultiSerializer/checkAndResetAll",
+  "parent_links": [
+    {
+      "text_html": "MultiSerializer",
+      "href": "/ref/cpp/class/apache/thrift/test/MultiSerializer"
+    }
+  ]
 }

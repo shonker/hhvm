@@ -689,7 +689,7 @@ std::pair<Type, Effects> elemHelper(ISS& env, MOpMode mode, Type key) {
       mode != MOpMode::Warn &&
       key.subtypeOf(BArrKey) &&
       (!base.couldBe(BCls | BLazyCls) ||
-       RO::EvalRaiseClassConversionNoticeSampleRate == 0);
+       Cfg::Eval::RaiseClassConversionNoticeSampleRate == 0);
     effects = unionEffects(
       effects,
       isNoThrow ? Effects::None : Effects::Throws
@@ -2275,7 +2275,7 @@ void in(ISS& env, const bc::QueryM& op) {
       if (last->op == Op::BaseC) {
         if (auto const prev = last_op(env, 1)) {
           if (prev->op == Op::FCallFuncD &&
-              prev->FCallFuncD.str2->fsame(s_type_structure.get()) &&
+              prev->FCallFuncD.str2 == s_type_structure.get() &&
               prev->FCallFuncD.fca.numArgs() == 2) {
             auto const params = prev->FCallFuncD.fca.numArgs();
             rewind(env, op); // querym

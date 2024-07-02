@@ -23,7 +23,6 @@ use anyhow::Result;
 use bstr::ByteSlice;
 use bytecode_printer::Context;
 use decl_provider::DeclProvider;
-use emit_unit::emit_unit;
 use env::emitter::Emitter;
 use error::Error;
 use error::ErrorKind;
@@ -36,6 +35,7 @@ use options::ParserOptions;
 use oxidized::ast;
 use oxidized::decl_parser_options::DeclParserOptions;
 use oxidized::namespace_env::Env as NamespaceEnv;
+use oxidized::namespace_env::Mode;
 use oxidized::naming_error::NamingError;
 use oxidized::naming_phase_error::ExperimentalFeature;
 use oxidized::naming_phase_error::NamingPhaseError;
@@ -99,7 +99,7 @@ impl NativeEnv {
         Options {
             hhvm: Hhvm {
                 parser_options: ParserOptions {
-                    po_disable_legacy_soft_typehints: false,
+                    disable_legacy_soft_typehints: false,
                     ..self.hhvm.parser_options.clone()
                 },
                 ..self.hhvm.clone()
@@ -115,9 +115,9 @@ impl NativeEnv {
         let lang_flags = &self.hhvm.parser_options;
         DeclParserOptions {
             auto_namespace_map,
-            disable_xhp_element_mangling: lang_flags.po_disable_xhp_element_mangling,
+            disable_xhp_element_mangling: lang_flags.disable_xhp_element_mangling,
             interpret_soft_types_as_like_types: true,
-            enable_xhp_class_modifier: lang_flags.po_enable_xhp_class_modifier,
+            enable_xhp_class_modifier: lang_flags.enable_xhp_class_modifier,
             php5_compat_mode: true,
             hhvm_compat_mode: true,
             keep_user_attributes: true,
@@ -205,7 +205,7 @@ pub fn from_text<'d>(
 
     if native_env.flags.enable_ir {
         let bc_to_ir_t = Instant::now();
-        let ir = bc_to_ir::bc_to_ir(&unit);
+        let ir = bc_to_ir::bc_to_ir(unit);
         profile.bc_to_ir_t = bc_to_ir_t.elapsed();
 
         let ir_to_bc_t = Instant::now();
@@ -220,19 +220,18 @@ pub fn from_text<'d>(
 fn rewrite_and_emit<'p, 'd>(
     emitter: &mut Emitter<'d>,
     namespace_env: Arc<NamespaceEnv>,
-    ast: &'p mut ast::Program,
+    mut ast: ast::Program,
     profile: &'p mut Profile,
-    invalid_utf8_offset: Option<usize>,
 ) -> Result<Unit, Error> {
     // First rewrite and modify `ast` in place.
     stack_limit::reset();
-    let result = rewrite_program::rewrite_program(emitter, ast, Arc::clone(&namespace_env));
+    let result = rewrite_program::rewrite_program(emitter, &mut ast, Arc::clone(&namespace_env));
     profile.rewrite_peak = stack_limit::peak() as u64;
     stack_limit::reset();
     let unit = match result {
         Ok(()) => {
             // Rewrite ok, now emit.
-            emit_unit_from_ast(emitter, namespace_env, ast, invalid_utf8_offset)
+            emit_unit::emit_unit(emitter, namespace_env, ast)
         }
         Err(e) => match e.into_kind() {
             ErrorKind::IncludeTimeFatalException(fatal_op, pos, msg) => {
@@ -274,11 +273,11 @@ pub fn unit_from_text_with_opts<'d>(
 pub fn unit_to_string(
     native_env: &NativeEnv,
     writer: &mut dyn std::io::Write,
-    program: &Unit,
+    unit: &Unit,
     profile: &mut Profile,
 ) -> Result<()> {
     if native_env.flags.dump_ir {
-        let ir = bc_to_ir::bc_to_ir(program);
+        let ir = bc_to_ir::bc_to_ir(unit.clone());
         struct FmtFromIo<'a>(&'a mut dyn std::io::Write);
         impl fmt::Write for FmtFromIo<'_> {
             fn write_str(&mut self, s: &str) -> fmt::Result {
@@ -294,31 +293,22 @@ pub fn unit_to_string(
     } else {
         let print_result;
         (print_result, profile.printing_t) = profile_rust::time(|| {
-            bytecode_printer::print_unit(&Context::new(Some(&native_env.filepath)), writer, program)
+            bytecode_printer::print_unit(&Context::new(Some(&native_env.filepath)), writer, unit)
         });
         print_result?;
     }
     Ok(())
 }
 
-fn emit_unit_from_ast<'d>(
-    emitter: &mut Emitter<'d>,
-    namespace: Arc<NamespaceEnv>,
-    ast: &mut ast::Program,
-    invalid_utf8_offset: Option<usize>,
-) -> Result<Unit, Error> {
-    emit_unit(emitter, namespace, ast, invalid_utf8_offset)
-}
-
 fn create_namespace_env(emitter: &Emitter<'_>) -> NamespaceEnv {
     NamespaceEnv::empty(
         emitter.options().hhvm.aliased_namespaces_cloned().collect(),
-        true, /* is_codegen */
+        Mode::ForCodegen,
         emitter
             .options()
             .hhvm
             .parser_options
-            .po_disable_xhp_element_mangling,
+            .disable_xhp_element_mangling,
     )
 }
 
@@ -334,11 +324,6 @@ fn emit_unit_from_text<'d>(
 
     let namespace_env = Arc::new(create_namespace_env(emitter));
     let path = source_text.file_path_rc();
-
-    let invalid_utf8_offset = match std::str::from_utf8(source_text.text()) {
-        Ok(_) => None,
-        Err(e) => Some(e.valid_up_to()),
-    };
 
     let parse_result = parse_file(
         emitter.options(),
@@ -361,13 +346,7 @@ fn emit_unit_from_text<'d>(
             ) {
                 Ok(()) => profile_rust::time(move || {
                     (
-                        rewrite_and_emit(
-                            emitter,
-                            namespace_env,
-                            &mut ast,
-                            profile,
-                            invalid_utf8_offset,
-                        ),
+                        rewrite_and_emit(emitter, namespace_env, ast, profile),
                         profile,
                     )
                 }),
@@ -485,6 +464,7 @@ fn emit_fatal_naming_error(err: &NamingError) -> Result<Unit, Error> {
         NamingError::HKTAliasWithImplicitConstraints { .. } => todo!(),
         NamingError::ExplicitConsistentConstructor { .. } => todo!(),
         NamingError::ModuleDeclarationOutsideAllowedFiles(_) => todo!(),
+        NamingError::AttributeOutsideAllowedFiles(_) => todo!(),
         NamingError::InternalModuleLevelTrait(_) => todo!(),
         NamingError::DynamicMethodAccess(_) => todo!(),
         NamingError::DeprecatedUse { .. } => todo!(),
@@ -513,6 +493,7 @@ fn emit_fatal_naming_error(err: &NamingError) -> Result<Unit, Error> {
             )
         }
         NamingError::ToplevelStatement(_) => todo!(),
+        NamingError::InvalidTypeAccessInWhere(_) => todo!(),
     }
 }
 
@@ -585,7 +566,7 @@ fn emit_fatal_nast_check_error(err: &NastCheckError) -> Result<Unit, Error> {
         NastCheckError::ReadBeforeWrite { .. } => todo!(),
         NastCheckError::LateinitWithDefault(_) => todo!(),
         NastCheckError::MissingAssign(_) => todo!(),
-        NastCheckError::ModuleOutsideAllowedDirs { .. } => todo!(),
+        NastCheckError::CloneReturnType(_) => todo!(),
     }
 }
 
@@ -631,9 +612,9 @@ fn create_emitter<'d>(
 
 fn create_parser_options(opts: &Options, type_directed: bool) -> ParserOptions {
     ParserOptions {
-        po_codegen: true,
-        po_disallow_silence: false,
-        tco_no_parser_readonly_check: type_directed,
+        codegen: true,
+        disallow_silence: false,
+        no_parser_readonly_check: type_directed,
         ..opts.hhvm.parser_options.clone()
     }
 }
@@ -653,7 +634,7 @@ fn parse_file(
     profile: &mut Profile,
 ) -> Result<ast::Program, ParseError> {
     let aast_env = AastEnv {
-        codegen: true,
+        mode: namespace_env.mode,
         php5_compat_mode: !opts.hhbc.uvs,
         is_systemlib,
         for_debugger_eval,

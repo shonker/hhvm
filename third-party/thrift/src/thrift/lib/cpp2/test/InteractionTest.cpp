@@ -77,13 +77,12 @@ struct SemiCalculatorHandler : apache::thrift::ServiceHandler<Calculator> {
       : apache::thrift::ServiceHandler<Calculator>::AdditionFastIf {
     int acc_{0};
     void async_eb_accumulatePrimitive(
-        std::unique_ptr<HandlerCallback<void>> cb, int32_t a) override {
+        HandlerCallbackPtr<void> cb, int32_t a) override {
       cb->getEventBase()->checkIsInEventBaseThread();
       acc_ += a;
       cb->exception(std::runtime_error("Not Implemented Yet"));
     }
-    void async_eb_getPrimitive(
-        std::unique_ptr<HandlerCallback<int32_t>> cb) override {
+    void async_eb_getPrimitive(HandlerCallbackPtr<int32_t> cb) override {
       cb->getEventBase()->checkIsInEventBaseThread();
       cb->result(acc_);
     }
@@ -95,8 +94,7 @@ struct SemiCalculatorHandler : apache::thrift::ServiceHandler<Calculator> {
   }
 
   void async_eb_veryFastAddition(
-      std::unique_ptr<HandlerCallback<TileAndResponse<AdditionFastIf, void>>>
-          cb) override {
+      HandlerCallbackPtr<TileAndResponse<AdditionFastIf, void>> cb) override {
     cb->getEventBase()->checkIsInEventBaseThread();
     cb->result({std::make_unique<FastAdditionHandler>()});
   }
@@ -356,12 +354,11 @@ TEST(InteractionTest, OnTermination) {
       }
 
       void async_eb_accumulatePrimitive(
-          std::unique_ptr<HandlerCallback<void>> cb, int32_t) override {
+          HandlerCallbackPtr<void> cb, int32_t) override {
         cb->done();
       }
 
-      void async_eb_getPrimitive(
-          std::unique_ptr<HandlerCallback<int32_t>> cb) override {
+      void async_eb_getPrimitive(HandlerCallbackPtr<int32_t> cb) override {
         folly::coro::toSemiFuture(std::ref(handler.terminated))
             .toUnsafeFuture()
             .thenValue([cb = std::move(cb)](auto&&) { cb->result(42); });
@@ -1201,12 +1198,11 @@ TEST(InteractionCodegenTest, BasicEB) {
         : apache::thrift::ServiceHandler<Calculator>::AdditionFastIf {
       int acc_{0};
       void async_eb_accumulatePrimitive(
-          std::unique_ptr<HandlerCallback<void>> cb, int32_t a) override {
+          HandlerCallbackPtr<void> cb, int32_t a) override {
         acc_ += a;
         cb->exception(std::runtime_error("Not Implemented Yet"));
       }
-      void async_eb_getPrimitive(
-          std::unique_ptr<HandlerCallback<int32_t>> cb) override {
+      void async_eb_getPrimitive(HandlerCallbackPtr<int32_t> cb) override {
         cb->result(acc_);
       }
     };
@@ -1358,8 +1354,7 @@ TEST(InteractionCodegenTest, FactoryHandlerCallback) {
   THRIFT_FLAG_SET_MOCK(enable_resource_pools_for_interaction, true);
   struct HandlerResult : apache::thrift::ServiceHandler<Calculator> {
     void async_tm_newAddition(
-        std::unique_ptr<
-            apache::thrift::HandlerCallback<TileAndResponse<AdditionIf, void>>>
+        apache::thrift::HandlerCallbackPtr<TileAndResponse<AdditionIf, void>>
             cb) override {
       auto handler =
           std::make_unique<SemiCalculatorHandler::SemiAdditionHandler>();
@@ -1367,8 +1362,7 @@ TEST(InteractionCodegenTest, FactoryHandlerCallback) {
     }
 
     void async_tm_initializedAddition(
-        std::unique_ptr<apache::thrift::HandlerCallback<
-            TileAndResponse<AdditionIf, int>>> cb,
+        apache::thrift::HandlerCallbackPtr<TileAndResponse<AdditionIf, int>> cb,
         int x) override {
       auto handler =
           std::make_unique<SemiCalculatorHandler::SemiAdditionHandler>();
@@ -1377,8 +1371,8 @@ TEST(InteractionCodegenTest, FactoryHandlerCallback) {
     }
 
     void async_tm_stringifiedAddition(
-        std::unique_ptr<apache::thrift::HandlerCallback<
-            TileAndResponse<AdditionIf, std::unique_ptr<std::string>>>> cb,
+        apache::thrift::HandlerCallbackPtr<
+            TileAndResponse<AdditionIf, std::unique_ptr<std::string>>> cb,
         int x) override {
       auto handler =
           std::make_unique<SemiCalculatorHandler::SemiAdditionHandler>();
@@ -1390,8 +1384,7 @@ TEST(InteractionCodegenTest, FactoryHandlerCallback) {
 
   struct HandlerComplete : apache::thrift::ServiceHandler<Calculator> {
     void async_tm_newAddition(
-        std::unique_ptr<
-            apache::thrift::HandlerCallback<TileAndResponse<AdditionIf, void>>>
+        apache::thrift::HandlerCallbackPtr<TileAndResponse<AdditionIf, void>>
             cb) override {
       auto handler =
           std::make_unique<SemiCalculatorHandler::SemiAdditionHandler>();
@@ -1400,8 +1393,7 @@ TEST(InteractionCodegenTest, FactoryHandlerCallback) {
     }
 
     void async_tm_initializedAddition(
-        std::unique_ptr<apache::thrift::HandlerCallback<
-            TileAndResponse<AdditionIf, int>>> cb,
+        apache::thrift::HandlerCallbackPtr<TileAndResponse<AdditionIf, int>> cb,
         int x) override {
       auto handler =
           std::make_unique<SemiCalculatorHandler::SemiAdditionHandler>();
@@ -1411,8 +1403,8 @@ TEST(InteractionCodegenTest, FactoryHandlerCallback) {
     }
 
     void async_tm_stringifiedAddition(
-        std::unique_ptr<apache::thrift::HandlerCallback<
-            TileAndResponse<AdditionIf, std::unique_ptr<std::string>>>> cb,
+        apache::thrift::HandlerCallbackPtr<
+            TileAndResponse<AdditionIf, std::unique_ptr<std::string>>> cb,
         int x) override {
       auto handler =
           std::make_unique<SemiCalculatorHandler::SemiAdditionHandler>();
@@ -1426,15 +1418,13 @@ TEST(InteractionCodegenTest, FactoryHandlerCallback) {
 
   struct HandlerException : apache::thrift::ServiceHandler<Calculator> {
     void async_tm_newAddition(
-        std::unique_ptr<
-            apache::thrift::HandlerCallback<TileAndResponse<AdditionIf, void>>>
+        apache::thrift::HandlerCallbackPtr<TileAndResponse<AdditionIf, void>>
             cb) override {
       cb->exception(std::runtime_error("foo"));
     }
 
     void async_tm_initializedAddition(
-        std::unique_ptr<apache::thrift::HandlerCallback<
-            TileAndResponse<AdditionIf, int>>> cb,
+        apache::thrift::HandlerCallbackPtr<TileAndResponse<AdditionIf, int>> cb,
         int) override {
       cb->exception(std::runtime_error("foo"));
     }
@@ -1442,15 +1432,13 @@ TEST(InteractionCodegenTest, FactoryHandlerCallback) {
 
   struct HandlerDrop : apache::thrift::ServiceHandler<Calculator> {
     void async_tm_newAddition(
-        std::unique_ptr<
-            apache::thrift::HandlerCallback<TileAndResponse<AdditionIf, void>>>
+        apache::thrift::HandlerCallbackPtr<TileAndResponse<AdditionIf, void>>
             cb) override {
       (void)cb; // oops!
     }
 
     void async_tm_initializedAddition(
-        std::unique_ptr<apache::thrift::HandlerCallback<
-            TileAndResponse<AdditionIf, int>>> cb,
+        apache::thrift::HandlerCallbackPtr<TileAndResponse<AdditionIf, int>> cb,
         int) override {
       (void)cb; // oops!
     }

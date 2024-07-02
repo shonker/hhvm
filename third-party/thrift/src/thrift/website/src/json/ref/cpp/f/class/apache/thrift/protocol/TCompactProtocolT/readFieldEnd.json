@@ -18,7 +18,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "250",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "bodystart": "250",
         "bodyend": "250"
@@ -43,5 +43,11 @@
   "brief_html": "",
   "groupname_html": "",
   "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readFieldEnd",
-  "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readFieldEnd"
+  "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/readFieldEnd",
+  "parent_links": [
+    {
+      "text_html": "TCompactProtocolT",
+      "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+    }
+  ]
 }

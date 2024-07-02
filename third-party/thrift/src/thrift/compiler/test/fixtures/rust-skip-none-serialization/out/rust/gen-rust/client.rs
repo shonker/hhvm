@@ -6,27 +6,14 @@
 #![recursion_limit = "100000000"]
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, unused_crate_dependencies, unused_imports, clippy::all)]
 
-pub mod mock;
 
 #[doc(inline)]
 pub use :: as types;
 
-pub mod errors {
-    #[doc(inline)]
-    pub use ::::errors::my_service;
-    #[doc(inline)]
-    #[allow(ambiguous_glob_reexports)]
-    pub use ::::errors::my_service::*;
-}
+pub mod errors;
 
 pub(crate) use crate as client;
 pub(crate) use ::::services;
-
-// Used by Thrift-generated code to implement service inheritance.
-#[doc(hidden)]
-#[deprecated]
-pub mod dependencies {
-}
 
 
 /// Client definitions for `MyService`.
@@ -90,13 +77,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::my_service::PingExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::my_service::PingReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::my_service::PingError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -136,13 +123,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::my_service::GetRandomDataExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::my_service::GetRandomDataReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::my_service::GetRandomDataError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -184,13 +171,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::my_service::HasDataByIdExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::my_service::HasDataByIdReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::my_service::HasDataByIdError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -232,13 +219,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::my_service::GetDataByIdExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::my_service::GetDataByIdReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::my_service::GetDataByIdError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -282,13 +269,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::my_service::PutDataByIdExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::my_service::PutDataByIdReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::my_service::PutDataByIdError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -332,13 +319,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::my_service::LobDataByIdExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::my_service::LobDataByIdReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::my_service::LobDataByIdError::ApplicationException(aexn))
+                }
             };
             res
         }

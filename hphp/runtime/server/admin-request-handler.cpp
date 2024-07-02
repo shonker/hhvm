@@ -165,7 +165,8 @@ static void malloc_write_cb(void *cbopaque, const char *s) {
 void WarnIfNotOK(Transport* transport) {
   auto code = static_cast<Transport::StatusCode>(transport->getResponseCode());
   if (code != Transport::StatusCode::OK) {
-    Logger::Warning("Non-OK response from admin server: %d %s",
+    Logger::Warning("Non-OK response from admin server for command %s: %d %s",
+                    transport->getCommand().c_str(),
                     static_cast<int>(code),
                     transport->getResponseInfo().c_str());
   }
@@ -838,7 +839,7 @@ void AdminRequestHandler::handleRequest(Transport *transport) {
         transport->sendString("Invalid load factor spec: " + factorStr, 400);
         break;
       }
-      HttpServer::LoadFactor.store(factor, std::memory_order_relaxed);
+      HttpServer::LoadFactor.store(factor, std::memory_order_release);
       transport->sendString(folly::sformat("Load factor updated to {}\n",
                                            factor));
       Logger::Info("Load factor updated to %lf", factor);
@@ -848,7 +849,7 @@ void AdminRequestHandler::handleRequest(Transport *transport) {
       auto const discountStr = transport->getParam("set");
       if (discountStr.empty()) {
         transport->sendString(folly::to<string>(
-          HttpServer::QueueDiscount.load(std::memory_order_relaxed)));
+          HttpServer::QueueDiscount.load(std::memory_order_acquire)));
         break;
       }
       int queue_discount = 0;
@@ -859,7 +860,7 @@ void AdminRequestHandler::handleRequest(Transport *transport) {
         break;
       }
       HttpServer::QueueDiscount.store(queue_discount,
-        std::memory_order_relaxed);
+        std::memory_order_release);
       transport->sendString(folly::sformat("Queue Discount updated to {}\n",
         queue_discount));
       Logger::Info("Queue Discount updated to %d", queue_discount);

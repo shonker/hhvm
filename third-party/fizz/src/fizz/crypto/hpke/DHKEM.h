@@ -2,8 +2,8 @@
 
 #pragma once
 
-#include <fizz/crypto/ECCurve.h>
-#include <fizz/crypto/exchange/OpenSSLKeyExchange.h>
+#include <fizz/backend/openssl/OpenSSL.h>
+#include <fizz/crypto/exchange/KeyExchange.h>
 #include <fizz/crypto/hpke/Hkdf.h>
 #include <fizz/crypto/hpke/Types.h>
 #include <fizz/record/Types.h>

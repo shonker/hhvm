@@ -15,8 +15,11 @@ use error::Error;
 use error::Result;
 use ffi::Maybe::*;
 use hash::HashSet;
+use hhbc::Attr;
+use hhbc::Attribute;
 use hhbc::Body;
 use hhbc::ClassName;
+use hhbc::Coeffects;
 use hhbc::FCallArgs;
 use hhbc::FCallArgsFlags;
 use hhbc::IsTypeOp;
@@ -59,7 +62,7 @@ pub struct Args<'a> {
     pub ast_params: &'a [ast::FunParam],
     pub ret: Option<&'a ast::Hint>,
     pub pos: &'a Pos,
-    pub deprecation_info: Option<&'a [TypedValue]>,
+    pub emit_deprecation_info: bool,
     pub doc_comment: Option<DocComment>,
     pub default_dropthrough: Option<InstrSeq>,
     pub call_context: Option<StringId>,
@@ -86,6 +89,9 @@ pub fn emit_body<'b, 'd>(
     return_value: InstrSeq,
     scope: Scope<'_>,
     span: Span,
+    attributes: Vec<Attribute>,
+    attrs: Attr,
+    coeffects: Coeffects,
     args: Args<'_>,
 ) -> Result<(Body, bool, bool)> {
     let tparams: Vec<ast::Tparam> = scope.get_tparams().into_iter().cloned().collect();
@@ -95,7 +101,7 @@ pub fn emit_body<'b, 'd>(
     emitter.label_gen_mut().reset();
     emitter.iterator_mut().reset();
 
-    let return_type_info = make_return_type_info(
+    let return_type = make_return_type(
         args.flags.contains(Flags::SKIP_AWAITABLE),
         args.flags.contains(Flags::NATIVE),
         args.ret,
@@ -124,7 +130,7 @@ pub fn emit_body<'b, 'd>(
         emitter,
         return_value,
         &params,
-        &return_type_info,
+        &return_type,
         args.ret,
         args.pos,
         args.default_dropthrough,
@@ -144,14 +150,19 @@ pub fn emit_body<'b, 'd>(
     emitter.init_named_locals(
         (params.iter().map(|(param, _)| param.name)).chain(decl_vars.iter().copied()),
     );
-    let body_instrs = make_body_instrs(
+    let deprecation_info = if args.emit_deprecation_info {
+        hhbc::deprecation_info(&attributes)
+    } else {
+        None
+    };
+    let instrs = make_body_instrs(
         emitter,
         &mut env,
         &params,
         &tparams,
         body,
         is_generator,
-        args.deprecation_info.clone(),
+        deprecation_info,
         args.pos,
         args.ast_params,
         args.flags,
@@ -159,14 +170,17 @@ pub fn emit_body<'b, 'd>(
     Ok((
         make_body(
             emitter,
-            body_instrs,
+            instrs,
             decl_vars,
             false, // is_memoize_wrapper
             false, // is_memoize_wrapper_lsb
             upper_bounds,
             shadowed_tparams,
+            attributes,
+            attrs,
+            coeffects,
             params,
-            Some(return_type_info),
+            Some(return_type),
             args.doc_comment.to_owned(),
             Some(&env),
             span,
@@ -211,11 +225,11 @@ fn make_body_instrs<'a, 'd>(
 
     let header = InstrSeq::gather(vec![begin_label, header_content]);
 
-    let mut body_instrs = InstrSeq::gather(vec![header, stmt_instrs, default_value_setters]);
+    let mut instrs = InstrSeq::gather(vec![header, stmt_instrs, default_value_setters]);
     if flags.contains(Flags::DEBUGGER_MODIFY_PROGRAM) {
-        modify_prog_for_debugger_eval(&mut body_instrs);
+        modify_prog_for_debugger_eval(&mut instrs);
     };
-    Ok(body_instrs)
+    Ok(instrs)
 }
 
 fn make_header_content<'a, 'd>(
@@ -292,7 +306,7 @@ fn make_decl_vars<'a, 'd>(
     Ok(decl_vars.into_iter().map(hhbc::intern).collect())
 }
 
-pub fn emit_return_type_info(
+pub fn emit_return_type(
     tp_names: &[&str],
     skip_awaitable: bool,
     ret: Option<&aast::Hint>,
@@ -309,19 +323,19 @@ pub fn emit_return_type_info(
     }
 }
 
-fn make_return_type_info(
+fn make_return_type(
     skip_awaitable: bool,
     is_native: bool,
     ret: Option<&aast::Hint>,
     tp_names: &[&str],
 ) -> Result<TypeInfo> {
-    let return_type_info = emit_return_type_info(tp_names, skip_awaitable, ret);
+    let return_type = emit_return_type(tp_names, skip_awaitable, ret);
     if is_native {
-        return return_type_info.map(|rti| {
+        return return_type.map(|rti| {
             emit_type_hint::emit_type_constraint_for_native_function(tp_names, ret, rti)
         });
     };
-    return_type_info
+    return_type
 }
 
 pub fn make_env<'a>(
@@ -348,20 +362,23 @@ fn make_params<'a, 'd>(
 
 pub fn make_body<'a, 'd>(
     emitter: &mut Emitter<'d>,
-    mut body_instrs: InstrSeq,
+    mut instrs: InstrSeq,
     decl_vars: Vec<StringId>,
     is_memoize_wrapper: bool,
     is_memoize_wrapper_lsb: bool,
     upper_bounds: Vec<UpperBound>,
     shadowed_tparams: Vec<String>,
+    attributes: Vec<Attribute>,
+    attrs: Attr,
+    coeffects: Coeffects,
     mut params: Vec<(Param, Option<(Label, ast::Expr)>)>,
-    return_type_info: Option<TypeInfo>,
+    return_type: Option<TypeInfo>,
     doc_comment: Option<DocComment>,
     opt_env: Option<&Env<'a>>,
     span: Span,
 ) -> Result<Body> {
     if emitter.options().compiler_flags.relabel {
-        label_rewriter::relabel_function(&mut params, &mut body_instrs);
+        label_rewriter::relabel_function(&mut params, &mut instrs);
     }
     let num_iters = if is_memoize_wrapper {
         0
@@ -403,25 +420,33 @@ pub fn make_body<'a, 'd>(
     // Now that we're done with this function, clear the named_local table.
     emitter.clear_named_locals();
 
-    let body_instrs = opt_body::optimize_body(emitter, body_instrs, params.len(), &decl_vars);
-    let stack_depth = stack_depth::compute_stack_depth(params.as_ref(), body_instrs.as_ref())
+    let instrs = opt_body::optimize_body(emitter, instrs, params.len(), &decl_vars);
+    let stack_depth = stack_depth::compute_stack_depth(params.as_ref(), instrs.as_ref())
         .map_err(error::Error::from_error)?;
 
     Ok(Body {
-        body_instrs: body_instrs.into(),
-        decl_vars: decl_vars.into(),
+        attributes: attributes.into(),
+        attrs,
+        coeffects,
         num_iters,
         is_memoize_wrapper,
         is_memoize_wrapper_lsb,
         upper_bounds: upper_bounds.into(),
-        shadowed_tparams: shadowed_tparams.into_iter().map(hhbc::intern).collect(),
-        params: params.into(),
-        return_type_info: return_type_info.into(),
+        shadowed_tparams: shadowed_tparams
+            .into_iter()
+            .map(|s| ClassName::intern(&s))
+            .collect(),
+        return_type: return_type.into(),
         doc_comment: doc_comment
             .map(|(_, comment)| comment.into_bytes().into())
             .into(),
-        stack_depth,
         span,
+        repr: hhbc::BcRepr {
+            instrs: instrs.into(),
+            decl_vars: decl_vars.into(),
+            params: params.into(),
+            stack_depth,
+        },
     })
 }
 
@@ -495,7 +520,12 @@ pub fn emit_method_prolog<'a, 'd>(
 
     let ast_params = ast_params
         .iter()
-        .filter(|p| !(p.is_variadic && p.name == "..."))
+        .filter(|p| {
+            !(match &p.info {
+                ast::FunParamInfo::ParamVariadic if p.name == "..." => true,
+                _ => false,
+            })
+        })
         .collect::<Vec<_>>();
     if params.len() != ast_params.len() {
         return Err(Error::unrecoverable("length mismatch"));
@@ -597,16 +627,16 @@ fn set_emit_statement_state<'d>(
     emitter: &mut Emitter<'d>,
     default_return_value: InstrSeq,
     params: &[(Param, Option<(Label, ast::Expr)>)],
-    return_type_info: &TypeInfo,
-    return_type: Option<&ast::Hint>,
+    return_type: &TypeInfo,
+    return_type_hint: Option<&ast::Hint>,
     pos: &Pos,
     default_dropthrough: Option<InstrSeq>,
     flags: Flags,
     is_generator: bool,
 ) {
-    let verify_return = match &return_type_info.user_type {
+    let verify_return = match &return_type.user_type {
         Just(s) if s.is_empty() => None,
-        _ if return_type_info.has_type_constraint() && !is_generator => return_type.cloned(),
+        _ if return_type.has_type_constraint() && !is_generator => return_type_hint.cloned(),
         _ => None,
     };
     let default_dropthrough = if default_dropthrough.is_some() {
@@ -743,7 +773,7 @@ pub fn get_tp_names_set(tparams: &[ast::Tparam]) -> HashSet<&str> {
     tparams.iter().map(get_tp_name).collect()
 }
 
-fn modify_prog_for_debugger_eval(_body_instrs: &mut InstrSeq) {
+fn modify_prog_for_debugger_eval(_: &mut InstrSeq) {
     unimplemented!() // SF(2021-03-17): I found it like this.
 }
 

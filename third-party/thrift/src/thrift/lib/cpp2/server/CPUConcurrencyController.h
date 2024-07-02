@@ -21,9 +21,9 @@
 #include <variant>
 
 #include <folly/Synchronized.h>
-#include <folly/experimental/FunctionScheduler.h>
-#include <folly/experimental/observer/Observer.h>
-#include <folly/experimental/observer/SimpleObservable.h>
+#include <folly/executors/FunctionScheduler.h>
+#include <folly/observer/Observer.h>
+#include <folly/observer/SimpleObservable.h>
 #include <thrift/lib/cpp2/PluggableFunction.h>
 #include <thrift/lib/cpp2/server/ServerConfigs.h>
 #include <thrift/lib/cpp2/server/ThriftServerConfig.h>
@@ -54,8 +54,8 @@ class CPUConcurrencyController {
   };
 
   enum class Method : uint8_t {
-    CONCURRENCY_LIMITS,
-    TOKEN_BUCKET,
+    MAX_REQUESTS,
+    MAX_QPS,
   };
 
   struct Config {
@@ -64,7 +64,7 @@ class CPUConcurrencyController {
     // Operating mode
     Mode mode = Mode::DISABLED;
     // CPU concurrency enforcement method
-    Method method = Method::TOKEN_BUCKET;
+    Method method = Method::MAX_QPS;
     // CPU target in the range [0, 100]
     uint8_t cpuTarget = 90;
     // Source of CPU load metrics (container-only, host-only, or
@@ -141,7 +141,7 @@ class CPUConcurrencyController {
   void setEventHandler(std::shared_ptr<EventHandler> eventHandler);
 
   void requestStarted();
-  void requestShed();
+  bool requestShed(std::optional<Method> method = std::nullopt);
 
   int64_t getStableEstimate() const {
     return stableEstimate_.load(std::memory_order_relaxed);
@@ -182,6 +182,7 @@ class CPUConcurrencyController {
 
   folly::Synchronized<std::shared_ptr<const Config>> config_;
   std::atomic<bool> enabled_;
+  std::atomic<Method> method_;
 
   folly::observer::CallbackHandle configSchedulerCallback_;
   folly::observer::SimpleObservable<std::optional<uint32_t>>
@@ -211,12 +212,12 @@ class CPUConcurrencyController {
       std::chrono::steady_clock::now()};
 };
 
-class BaseThriftServer;
+class ThriftServer;
 
 namespace detail {
 THRIFT_PLUGGABLE_FUNC_DECLARE(
     folly::observer::Observer<CPUConcurrencyController::Config>,
     makeCPUConcurrencyControllerConfig,
-    BaseThriftServer*);
+    ThriftServer*);
 } // namespace detail
 } // namespace apache::thrift

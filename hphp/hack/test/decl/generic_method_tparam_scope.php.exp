@@ -28,7 +28,8 @@
                    fp_type = (Rhint ([4:25-27]), (Tgeneric ("Ta", [])));
                    fp_flags =
                    { Typing_defs_flags.FunParam.accept_disposable = false;
-                     inout = false; has_default = false; readonly = false };
+                     inout = false; has_default = false; readonly = false;
+                     ignore_readonly_error = false };
                    fp_def_value = None }
                   ];
                 ft_implicit_params = { capability = (CapDefaults [4:19-20]) };
@@ -63,7 +64,8 @@
                     fp_type = (Rhint ([8:25-27]), (Tgeneric ("Tb", [])));
                     fp_flags =
                     { Typing_defs_flags.FunParam.accept_disposable = false;
-                      inout = false; has_default = false; readonly = false };
+                      inout = false; has_default = false; readonly = false;
+                      ignore_readonly_error = false };
                     fp_def_value = None }
                    ];
                  ft_implicit_params =
@@ -84,5 +86,6 @@
              php_std_lib = false; support_dynamic_type = false };
            sm_attributes = []; sm_sort_text = None }
          ];
-       sc_user_attributes = []; sc_enum_type = None; sc_docs_url = None }))
+       sc_user_attributes = []; sc_enum_type = None; sc_docs_url = None;
+       sc_package_override = None }))
   ]

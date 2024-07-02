@@ -92,6 +92,7 @@ const StaticString s_imports("imports");
 const StaticString s_exports("exports");
 const StaticString s_methods("methods");
 const StaticString s_args("args");
+const StaticString s_raw_val("raw_val");
 const StaticString s_subtypes("subtypes");
 const StaticString s_value("value");
 
@@ -286,6 +287,7 @@ Array populateAttributes(const rust::Vec<hackc::ExtDeclAttribute>& attrs) {
     Array info = Array::CreateDict();
     info.set(s_name, rustToString(attr.name));
     maybeSet(info, attr.args, s_args, populateStringArray);
+    maybeSet(info, attr.raw_val, s_raw_val, rustToString);
     arr.append(info);
   }
   return arr.toArray();
@@ -997,6 +999,13 @@ static Variant HHVM_METHOD(FileDecls, getFileTypedef, const String& name) {
   return decls.empty() ? init_null_variant : populateTypedefs(decls)[0];
 }
 
+static Array HHVM_METHOD(FileDecls, getShapeKeys, const String& name) {
+  auto data = Native::data<FileDecls>(this_);
+  data->validateState();
+  auto const keys = hackc::get_shape_keys(**data->declsHolder, toRustStr(name));
+  return populateStringArray(keys);
+}
+
 static Array HHVM_METHOD(FileDecls, getMethods, const String& kls) {
   auto data = Native::data<FileDecls>(this_);
   data->validateState();
@@ -1203,6 +1212,7 @@ struct DeclExtension final : Extension {
     HHVM_MALIAS(HH\\FileDecls, getFileTypedefs, FileDecls, getFileTypedefs);
     HHVM_MALIAS(HH\\FileDecls, getFileTypedef, FileDecls, getFileTypedef);
     HHVM_MALIAS(HH\\FileDecls, getFile, FileDecls, getFile);
+    HHVM_MALIAS(HH\\FileDecls, getShapeKeys, FileDecls, getShapeKeys);
 
     Native::registerNativeDataInfo<FileDecls>();
   }

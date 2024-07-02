@@ -29,7 +29,6 @@
 #include <folly/ObserverContainer.h>
 #include <folly/Portability.h>
 #include <folly/container/F14Map.h>
-#include <folly/experimental/observer/Observer.h>
 #include <folly/io/IOBuf.h>
 #include <folly/io/SocketOptionMap.h>
 #include <folly/io/async/AsyncSocket.h>
@@ -37,6 +36,7 @@
 #include <folly/io/async/DelayedDestruction.h>
 #include <folly/io/async/EventBase.h>
 #include <folly/net/NetOps.h>
+#include <folly/observer/Observer.h>
 
 #include <wangle/acceptor/ManagedConnection.h>
 
@@ -99,6 +99,8 @@ class RocketServerConnection final
       MessageChannel::SendCallbackPtr cb = nullptr,
       StreamId streamId = StreamId(),
       folly::SocketFds fds = folly::SocketFds{});
+
+  void sendErrorAfterDrain(StreamId streamId, RocketException&& rex);
 
   // does not create callback and returns nullptr if streamId is already in use
   RocketStreamClientCallback* FOLLY_NULLABLE createStreamClientCallback(

@@ -71,7 +71,6 @@ pub fn emit_fatal_unit(op: FatalOp, pos: Pos, msg: impl Into<String>) -> Result<
             loc: pos.into(),
             message: msg.into().into_bytes().into(),
         }),
-        adata: Default::default(),
         functions: Default::default(),
         classes: Default::default(),
         modules: Default::default(),
@@ -82,19 +81,16 @@ pub fn emit_fatal_unit(op: FatalOp, pos: Pos, msg: impl Into<String>) -> Result<
         constants: Default::default(),
         missing_symbols: Default::default(),
         error_symbols: Default::default(),
-        valid_utf8: true,
-        invalid_utf8_offset: 0,
     })
 }
 
 /// This is the entry point from hh_single_compile
-pub fn emit_unit<'a, 'd>(
-    emitter: &mut Emitter<'d>,
+pub fn emit_unit(
+    emitter: &mut Emitter<'_>,
     namespace: Arc<namespace_env::Env>,
-    tast: &'a ast::Program,
-    invalid_utf8_offset: Option<usize>,
+    ast: ast::Program,
 ) -> Result<Unit> {
-    let result = emit_unit_(emitter, namespace, tast, invalid_utf8_offset);
+    let result = emit_unit_(emitter, namespace, ast);
     match result {
         Err(e) => match e.into_kind() {
             ErrorKind::IncludeTimeFatalException(op, pos, msg) => emit_fatal_unit(op, pos, msg),
@@ -153,11 +149,10 @@ where
     }
 }
 
-fn emit_unit_<'a, 'd>(
+fn emit_unit_<'d>(
     emitter: &mut Emitter<'d>,
     namespace: Arc<namespace_env::Env>,
-    prog: &'a ast::Program,
-    invalid_utf8_offset: Option<usize>,
+    prog: ast::Program,
 ) -> Result<Unit> {
     let prog = prog.as_slice();
     let mut functions = emit_functions_from_program(emitter, prog)?;
@@ -170,7 +165,7 @@ fn emit_unit_<'a, 'd>(
     };
     functions.append(&mut const_inits);
     let file_attributes = emit_file_attributes_from_program(emitter, prog)?;
-    let adata = std::mem::take(&mut emitter.adata_state).finish();
+    let _ = std::mem::take(&mut emitter.adata_state); // clear AdataState
     let module_use = emit_module_use_from_program(prog);
     let symbol_refs = emitter.finish_symbol_refs();
     let fatal = Nothing;
@@ -226,15 +221,12 @@ fn emit_unit_<'a, 'd>(
         functions: functions.into(),
         typedefs: typedefs.into(),
         constants: constants.into(),
-        adata: adata.into(),
         file_attributes: file_attributes.into(),
         module_use,
         symbol_refs,
         fatal,
         missing_symbols: missing_syms.into(),
         error_symbols: error_syms.into(),
-        valid_utf8: invalid_utf8_offset.is_none(),
-        invalid_utf8_offset: invalid_utf8_offset.unwrap_or(0),
     })
 }
 

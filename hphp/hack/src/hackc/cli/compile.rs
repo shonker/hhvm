@@ -33,6 +33,7 @@ use hackrs_test_utils::store::make_shallow_decl_store;
 use hhvm_options::HhvmOptions;
 use multifile_rust as multifile;
 use naming_provider::SqliteNamingTable;
+use options::HhbcFlags;
 use options::Hhvm;
 use options::ParserOptions;
 use parking_lot::Mutex;
@@ -148,11 +149,11 @@ pub(crate) fn native_env(filepath: RelativePath, opts: &SingleFileOpts) -> Resul
     let hhvm_options = &opts.hhvm_options;
     let hhvm_config = hhvm_options.to_config()?;
     let parser_options = ParserOptions {
-        po_auto_namespace_map: auto_namespace_map().collect(),
-        po_unwrap_concurrent: opts.unwrap_concurrent,
+        auto_namespace_map: auto_namespace_map().collect(),
+        unwrap_concurrent: opts.unwrap_concurrent,
         ..hhvm_config::parser_options(&hhvm_config)?
     };
-    let hhbc_flags = hhvm_config::hhbc_flags(&hhvm_config)?;
+    let hhbc_flags = HhbcFlags::from_config(&hhvm_config)?;
 
     Ok(NativeEnv {
         filepath,
@@ -424,11 +425,7 @@ fn make_naming_table_powered_shallow_decl_provider<R: Reason>(
     let file_provider: Arc<dyn file_provider::FileProvider> = Arc::new(
         file_provider::DiskProvider::new(Arc::clone(&ctx), Some(hhi_root)),
     );
-    let parser = DeclParser::new(
-        file_provider,
-        DeclParserOptions::default(),
-        false, // deregister_php_stdlib
-    );
+    let parser = DeclParser::new(file_provider, DeclParserOptions::default());
 
     let shallow_decl_store = make_shallow_decl_store::<R>(StoreOpts::Unserialized);
 

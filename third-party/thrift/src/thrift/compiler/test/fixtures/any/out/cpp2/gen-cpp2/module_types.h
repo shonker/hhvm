@@ -38,13 +38,13 @@ APACHE_THRIFT_DEFINE_ACCESSOR(myString);
 
 // END declare_enums
 // BEGIN forward_declare
-namespace facebook { namespace thrift { namespace compiler { namespace test { namespace fixtures { namespace any {
+namespace facebook::thrift::compiler::test::fixtures::any {
 namespace detail {
 class MyStruct;
 } // namespace detail
 class MyUnion;
 class MyException;
-}}}}}} // facebook::thrift::compiler::test::fixtures::any
+} // namespace facebook::thrift::compiler::test::fixtures::any
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -54,7 +54,7 @@ namespace apache::thrift::detail::qualifier {
 
 // BEGIN hash_and_equal_to
 // END hash_and_equal_to
-namespace facebook { namespace thrift { namespace compiler { namespace test { namespace fixtures { namespace any {
+namespace facebook::thrift::compiler::test::fixtures::any {
 using ::apache::thrift::detail::operator!=;
 using ::apache::thrift::detail::operator>;
 using ::apache::thrift::detail::operator<=;
@@ -107,6 +107,8 @@ class MyStruct final  {
  public:
   using __fbthrift_cpp2_type = MyStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -267,6 +269,8 @@ class MyUnion final  {
   using __fbthrift_cpp2_type = MyUnion;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -485,6 +489,8 @@ class FOLLY_EXPORT MyException : public virtual apache::thrift::TException {
   using __fbthrift_cpp2_type = MyException;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -599,7 +605,7 @@ unsigned long MyException::read(Protocol_* iprot) {
 }
 
 
-}}}}}} // facebook::thrift::compiler::test::fixtures::any
+} // namespace facebook::thrift::compiler::test::fixtures::any
 
 namespace apache { namespace thrift {
 

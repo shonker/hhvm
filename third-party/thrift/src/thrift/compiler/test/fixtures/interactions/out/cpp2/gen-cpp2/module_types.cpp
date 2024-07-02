@@ -64,7 +64,7 @@ CustomException& CustomException::operator=([[maybe_unused]] CustomException&& o
 
 
 CustomException::CustomException(apache::thrift::FragileConstructor, ::std::string message__arg) :
-    __fbthrift_field_message(std::move(message__arg)) {
+    __fbthrift_field_message(std::move(message__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -107,11 +107,11 @@ template uint32_t CustomException::serializedSize<>(apache::thrift::CompactProto
 template uint32_t CustomException::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace cpp2 { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}} // cpp2
+}} // namespace cpp2
 namespace apache::thrift::detail::annotation {
 }

@@ -29,6 +29,9 @@
 namespace apache {
 namespace thrift {
 namespace detail {
+namespace test {
+class TestProducerCallback;
+}
 
 class ServerStreamConsumer {
  public:
@@ -67,6 +70,19 @@ class ServerGeneratorStream : public TwoWayBridge<
                                   ServerGeneratorStream>,
                               private StreamServerCallback {
  public:
+  class ProducerCallback {
+   public:
+    // Producer can call stream->publish() to send serialized stream chunks.
+    // Producer needs to wait for messages from client (eg.
+    // credits/cancellation) by calling stream->wait() and then using
+    // stream->getMessages() to get the messages once they are ready.
+    // Producer needs to call stream->serverClose() and destroy the stream
+    // `Ptr` when it is done.
+    virtual void provideStream(Ptr stream) = 0;
+    virtual ~ProducerCallback() = default;
+  };
+  static ServerStreamFactory fromProducerCallback(ProducerCallback* cb);
+
   ~ServerGeneratorStream() override;
 
 #if FOLLY_HAS_COROUTINES
@@ -90,15 +106,17 @@ class ServerGeneratorStream : public TwoWayBridge<
 
   void canceled();
 
- private:
-  ServerGeneratorStream(
-      StreamClientCallback* clientCallback, folly::EventBase* clientEb);
+  void close();
+
+  ServerQueue getMessages();
 
   bool wait(ServerStreamConsumer* consumer);
 
   void publish(folly::Try<StreamPayload>&& payload);
 
-  ServerQueue getMessages();
+ private:
+  ServerGeneratorStream(
+      StreamClientCallback* clientCallback, folly::EventBase* clientEb);
 
   bool onStreamRequestN(uint64_t credits) override;
 
@@ -117,6 +135,8 @@ class ServerGeneratorStream : public TwoWayBridge<
 #if FOLLY_HAS_COROUTINES
   folly::CancellationSource cancelSource_;
 #endif
+
+  friend class test::TestProducerCallback;
 };
 
 } // namespace detail

@@ -61,7 +61,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::test::fixtures::basic::
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test::fixtures::basic::FooService>::async_tm_simple_rpc(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) {
+void apache::thrift::ServiceHandler<::test::fixtures::basic::FooService>::async_tm_simple_rpc(apache::thrift::HandlerCallbackPtr<void> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -137,9 +137,9 @@ determineInvocationType:
 }
 
 
-namespace test { namespace fixtures { namespace basic {
+namespace test::fixtures::basic {
 
-void FooServiceSvNull::simple_rpc() {
+void FooServiceSvNull::simple_rpc() { 
   return;
 }
 
@@ -180,7 +180,7 @@ apache::thrift::ServiceRequestInfoMap const& FooServiceServiceInfoHolder::reques
 apache::thrift::ServiceRequestInfoMap FooServiceServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"simple_rpc",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "FooService.simple_rpc",
      std::nullopt,
@@ -190,4 +190,4 @@ apache::thrift::ServiceRequestInfoMap FooServiceServiceInfoHolder::staticRequest
 
   return requestInfoMap;
 }
-}}} // test::fixtures::basic
+} // namespace test::fixtures::basic

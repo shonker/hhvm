@@ -2,7 +2,7 @@
     { fd_namespace =
       { Namespace_env.ns_ns_uses = <opaque>; ns_class_uses = <opaque>; 
         ns_fun_uses = <opaque>; ns_const_uses = <opaque>; ns_name = None; 
-        ns_is_codegen = false; ns_disable_xhp_element_mangling = false };
+        ns_mode = Namespace_env.ForTypecheck; ns_disable_xhp_element_mangling = false };
       fd_file_attributes = []; fd_mode = Mstrict; fd_name = ([3:10-41], "\\array_access_write_union_vector");
       fd_fun =
       { f_span = [3:1-7:2]; f_readonly_this = None; f_annotation = (); 
@@ -11,9 +11,9 @@
         [{ param_annotation = ((bool | Vector<string>));
            param_type_hint =
            (((bool | Vector<string>)), (Some ([3:42-65], (Hunion [([3:43-47], (Hprim Tbool)); ([3:50-64], (Happly (([3:50-56], "\\HH\\Vector"), [([3:57-63], (Hprim Tstring))])))]))));
-           param_is_variadic = false; param_pos = [3:66-69]; param_name = "$xs"; 
-           param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-           param_user_attributes = []; param_visibility = None }
+           param_pos = [3:66-69]; param_name = "$xs"; param_info = Param_required; 
+           param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+           param_visibility = None }
           ];
         f_ctxs = None; f_unsafe_ctxs = None;
         f_body =
@@ -37,7 +37,7 @@
      { fd_namespace =
        { Namespace_env.ns_ns_uses = <opaque>; ns_class_uses = <opaque>; 
          ns_fun_uses = <opaque>; ns_const_uses = <opaque>; ns_name = None; 
-         ns_is_codegen = false; ns_disable_xhp_element_mangling = false };
+         ns_mode = Namespace_env.ForTypecheck; ns_disable_xhp_element_mangling = false };
        fd_file_attributes = []; fd_mode = Mstrict; fd_name = ([9:10-38], "\\array_access_write_union_vec");
        fd_fun =
        { f_span = [9:1-13:2]; f_readonly_this = None; f_annotation = (); 
@@ -45,9 +45,9 @@
          f_params =
          [{ param_annotation = ((bool | vec<string>));
             param_type_hint = (((bool | vec<string>)), (Some ([9:39-59], (Hunion [([9:40-44], (Hprim Tbool)); ([9:47-58], (Happly (([9:47-50], "\\HH\\vec"), [([9:51-57], (Hprim Tstring))])))]))));
-            param_is_variadic = false; param_pos = [9:60-63]; param_name = "$xs"; 
-            param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-            param_user_attributes = []; param_visibility = None }
+            param_pos = [9:60-63]; param_name = "$xs"; param_info = Param_required; 
+            param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+            param_visibility = None }
            ];
          f_ctxs = None; f_unsafe_ctxs = None;
          f_body =

@@ -3,7 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the "hack" directory of this source tree.
 //
-// @generated SignedSource<<44df18c0d20a095e7c0808b96b40efaf>>
+// @generated SignedSource<<b4a83904b49f4cbd8889495a854579cd>>
 //
 // To regenerate this file, run:
 //   hphp/hack/src/oxidized_regen.sh
@@ -11,6 +11,7 @@
 #![allow(unused_braces)]
 #![allow(unused_imports)]
 #![allow(unused_variables)]
+#![allow(clippy::all)]
 use super::node::Node;
 use super::visitor::Visitor;
 use crate::ast_defs::*;
@@ -222,6 +223,7 @@ impl<'a> Node<'a> for ShallowClass<'a> {
                 user_attributes: ref __binding_28,
                 enum_type: ref __binding_29,
                 docs_url: ref __binding_30,
+                package_override: ref __binding_31,
             } => {
                 {
                     __binding_0.accept(v)
@@ -313,7 +315,10 @@ impl<'a> Node<'a> for ShallowClass<'a> {
                 {
                     __binding_29.accept(v)
                 }
-                { __binding_30.accept(v) }
+                {
+                    __binding_30.accept(v)
+                }
+                { __binding_31.accept(v) }
             }
         }
     }
@@ -417,11 +422,15 @@ impl<'a> Node<'a> for UserAttribute<'a> {
             UserAttribute {
                 name: ref __binding_0,
                 params: ref __binding_1,
+                raw_val: ref __binding_2,
             } => {
                 {
                     __binding_0.accept(v)
                 }
-                { __binding_1.accept(v) }
+                {
+                    __binding_1.accept(v)
+                }
+                { __binding_2.accept(v) }
             }
         }
     }
@@ -569,13 +578,30 @@ impl<'a> Node<'a> for FunType<'a> {
         }
     }
 }
+impl<'a> Node<'a> for TypePredicate<'a> {
+    fn accept(&'a self, v: &mut dyn Visitor<'a>) {
+        v.visit_type_predicate(self)
+    }
+    fn recurse(&'a self, v: &mut dyn Visitor<'a>) {
+        match self {
+            TypePredicate::IsBool => {}
+            TypePredicate::IsInt => {}
+            TypePredicate::IsString => {}
+            TypePredicate::IsArraykey => {}
+            TypePredicate::IsFloat => {}
+            TypePredicate::IsNum => {}
+            TypePredicate::IsResource => {}
+            TypePredicate::IsNull => {}
+            TypePredicate::IsTupleOf(ref __binding_0) => __binding_0.accept(v),
+        }
+    }
+}
 impl<'a> Node<'a> for NegType<'a> {
     fn accept(&'a self, v: &mut dyn Visitor<'a>) {
         v.visit_neg_type(self)
     }
     fn recurse(&'a self, v: &mut dyn Visitor<'a>) {
         match self {
-            NegType::NegPrim(ref __binding_0) => __binding_0.accept(v),
             NegType::NegClass(ref __binding_0) => __binding_0.accept(v),
             NegType::NegPredicate(ref __binding_0) => __binding_0.accept(v),
         }
@@ -645,6 +671,7 @@ impl<'a> Node<'a> for Ty_<'a> {
             Ty_::Tdependent(ref __binding_0) => __binding_0.accept(v),
             Ty_::Tclass(ref __binding_0) => __binding_0.accept(v),
             Ty_::Tneg(ref __binding_0) => __binding_0.accept(v),
+            Ty_::Tlabel(ref __binding_0) => __binding_0.accept(v),
         }
     }
 }
@@ -812,13 +839,14 @@ impl<'a> Node<'a> for FunElt<'a> {
             FunElt {
                 deprecated: ref __binding_0,
                 module: ref __binding_1,
-                internal: ref __binding_2,
-                type_: ref __binding_3,
-                pos: ref __binding_4,
-                php_std_lib: ref __binding_5,
-                support_dynamic_type: ref __binding_6,
-                no_auto_dynamic: ref __binding_7,
-                no_auto_likes: ref __binding_8,
+                package_override: ref __binding_2,
+                internal: ref __binding_3,
+                type_: ref __binding_4,
+                pos: ref __binding_5,
+                php_std_lib: ref __binding_6,
+                support_dynamic_type: ref __binding_7,
+                no_auto_dynamic: ref __binding_8,
+                no_auto_likes: ref __binding_9,
             } => {
                 {
                     __binding_0.accept(v)
@@ -844,7 +872,10 @@ impl<'a> Node<'a> for FunElt<'a> {
                 {
                     __binding_7.accept(v)
                 }
-                { __binding_8.accept(v) }
+                {
+                    __binding_8.accept(v)
+                }
+                { __binding_9.accept(v) }
             }
         }
     }
@@ -968,6 +999,7 @@ impl<'a> Node<'a> for TypedefType<'a> {
                 attributes: ref __binding_8,
                 internal: ref __binding_9,
                 docs_url: ref __binding_10,
+                package_override: ref __binding_11,
             } => {
                 {
                     __binding_0.accept(v)
@@ -999,7 +1031,10 @@ impl<'a> Node<'a> for TypedefType<'a> {
                 {
                     __binding_9.accept(v)
                 }
-                { __binding_10.accept(v) }
+                {
+                    __binding_10.accept(v)
+                }
+                { __binding_11.accept(v) }
             }
         }
     }
@@ -1026,6 +1061,23 @@ impl<'a> Node<'a> for Blame<'a> {
     fn recurse(&'a self, v: &mut dyn Visitor<'a>) {
         match self {
             Blame::Blame(ref __binding_0) => __binding_0.accept(v),
+        }
+    }
+}
+impl<'a> Node<'a> for PrjSymm<'a> {
+    fn accept(&'a self, v: &mut dyn Visitor<'a>) {
+        v.visit_prj_symm(self)
+    }
+    fn recurse(&'a self, v: &mut dyn Visitor<'a>) {
+        match self {
+            PrjSymm::PrjSymmNeg => {}
+            PrjSymm::PrjSymmClass(ref __binding_0) => __binding_0.accept(v),
+            PrjSymm::PrjSymmNewtype(ref __binding_0) => __binding_0.accept(v),
+            PrjSymm::PrjSymmTuple(ref __binding_0) => __binding_0.accept(v),
+            PrjSymm::PrjSymmShape(ref __binding_0) => __binding_0.accept(v),
+            PrjSymm::PrjSymmFnArg(ref __binding_0) => __binding_0.accept(v),
+            PrjSymm::PrjSymmFnRet => {}
+            PrjSymm::PrjSymmAccess => {}
         }
     }
 }
@@ -1083,8 +1135,8 @@ impl<'a> Node<'a> for T_<'a> {
             T_::RnullsafeOp(ref __binding_0) => __binding_0.accept(v),
             T_::RtconstNoCstr(ref __binding_0) => __binding_0.accept(v),
             T_::Rpredicated(ref __binding_0) => __binding_0.accept(v),
-            T_::Ris(ref __binding_0) => __binding_0.accept(v),
-            T_::Ras(ref __binding_0) => __binding_0.accept(v),
+            T_::RisRefinement(ref __binding_0) => __binding_0.accept(v),
+            T_::RasRefinement(ref __binding_0) => __binding_0.accept(v),
             T_::Requal(ref __binding_0) => __binding_0.accept(v),
             T_::RvarrayOrDarrayKey(ref __binding_0) => __binding_0.accept(v),
             T_::RvecOrDictKey(ref __binding_0) => __binding_0.accept(v),
@@ -1093,7 +1145,7 @@ impl<'a> Node<'a> for T_<'a> {
             T_::RdynamicCall(ref __binding_0) => __binding_0.accept(v),
             T_::RdynamicConstruct(ref __binding_0) => __binding_0.accept(v),
             T_::RidxDict(ref __binding_0) => __binding_0.accept(v),
-            T_::RsetElement(ref __binding_0) => __binding_0.accept(v),
+            T_::RidxSetElement(ref __binding_0) => __binding_0.accept(v),
             T_::RmissingOptionalField(ref __binding_0) => __binding_0.accept(v),
             T_::RunsetField(ref __binding_0) => __binding_0.accept(v),
             T_::RcontravariantGeneric(ref __binding_0) => __binding_0.accept(v),
@@ -1133,6 +1185,13 @@ impl<'a> Node<'a> for T_<'a> {
             T_::RpessimisedProp(ref __binding_0) => __binding_0.accept(v),
             T_::RunsafeCast(ref __binding_0) => __binding_0.accept(v),
             T_::Rpattern(ref __binding_0) => __binding_0.accept(v),
+            T_::Rflow(ref __binding_0) => __binding_0.accept(v),
+            T_::Rrev(ref __binding_0) => __binding_0.accept(v),
+            T_::RprjSymm(ref __binding_0) => __binding_0.accept(v),
+            T_::RprjAsymmLeft(ref __binding_0) => __binding_0.accept(v),
+            T_::RprjAsymmRight(ref __binding_0) => __binding_0.accept(v),
+            T_::RmissingField => {}
+            T_::RpessimisedThis(ref __binding_0) => __binding_0.accept(v),
         }
     }
 }
@@ -1286,16 +1345,6 @@ impl<'a> Node<'a> for ClassConstKind {
         }
     }
 }
-impl<'a> Node<'a> for TypePredicate {
-    fn accept(&'a self, v: &mut dyn Visitor<'a>) {
-        v.visit_type_predicate(self)
-    }
-    fn recurse(&'a self, v: &mut dyn Visitor<'a>) {
-        match self {
-            TypePredicate::IsBool => {}
-        }
-    }
-}
 impl<'a> Node<'a> for ArgPosition {
     fn accept(&'a self, v: &mut dyn Visitor<'a>) {
         v.visit_arg_position(self)
@@ -1318,6 +1367,30 @@ impl<'a> Node<'a> for BlameSource {
             BlameSource::BSlambda => {}
             BlameSource::BSassignment => {}
             BlameSource::BSoutOfScope => {}
+        }
+    }
+}
+impl<'a> Node<'a> for FieldKind {
+    fn accept(&'a self, v: &mut dyn Visitor<'a>) {
+        v.visit_field_kind(self)
+    }
+    fn recurse(&'a self, v: &mut dyn Visitor<'a>) {
+        match self {
+            FieldKind::Absent => {}
+            FieldKind::Optional => {}
+            FieldKind::Required => {}
+        }
+    }
+}
+impl<'a> Node<'a> for PrjAsymm {
+    fn accept(&'a self, v: &mut dyn Visitor<'a>) {
+        v.visit_prj_asymm(self)
+    }
+    fn recurse(&'a self, v: &mut dyn Visitor<'a>) {
+        match self {
+            PrjAsymm::PrjAsymmUnion => {}
+            PrjAsymm::PrjAsymmInter => {}
+            PrjAsymm::PrjAsymmNeg => {}
         }
     }
 }

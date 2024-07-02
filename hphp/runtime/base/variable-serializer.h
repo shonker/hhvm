@@ -73,9 +73,11 @@ struct VariableSerializer {
   /**
    * Top level entry function called by native builtins.
    */
-  String serialize(const_variant_ref v, bool ret, bool keepCount = false);
-  String serialize(const Variant& var, bool ret, bool keepCount = false) {
-    return serialize(const_variant_ref{var}, ret, keepCount);
+  String serialize(const_variant_ref v, bool ret,
+                   bool keepCount = false, bool outputHookOnly = false);
+  String serialize(const Variant& var, bool ret,
+                   bool keepCount = false, bool outputHookOnly = false) {
+    return serialize(const_variant_ref{var}, ret, keepCount, outputHookOnly);
   }
   String serializeValue(const Variant& v, bool limit);
 
@@ -111,6 +113,7 @@ struct VariableSerializer {
   void setEmptyDArrayWarn()    { m_edWarn = true; }
   void setVecLikeDArrayWarn()  { m_vdWarn = true; }
   void setDictLikeDArrayWarn() { m_ddWarn = true; }
+  void setSortArrayKeys() { m_sortArrayKeys = true; }
 
   // ignore uninitialized late init props and do not attempt to serialize them
   void setIgnoreLateInit() { m_ignoreLateInit = true; }
@@ -173,6 +176,7 @@ private:
     ArrayKind kind
   );
   void writeArrayFooter(ArrayKind kind);
+  void writeCollectionKVSorted(ObjectData* obj);
   void writeSerializableObject(const String& clsname, const String& serialized);
 
   /**
@@ -293,6 +297,7 @@ private:
   bool m_hasVDWarned{false};     // have we already warned on vec-like darrays?
   bool m_hasDDWarned{false};  // have we already warned on non-vec-like darrays?
   bool m_pure{false};            // should we call the pure callbacks?
+  bool m_sortArrayKeys{false};   // Sort keys of associative arrays
   RefCount m_refCount{OneReference}; // current variable's reference count
   String m_objClass;             // for object serialization
   char m_objCode{0};             // for object serialization

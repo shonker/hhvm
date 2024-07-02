@@ -124,6 +124,7 @@ let derive_default (ty : label) =
       "tast_collector::ByNames";
       "tast_hashes::ByNames";
       "tast_hashes::FileInfo";
+      "user_error_flags::UserErrorFlags";
     ]
     ty
     ~equal:String.equal
@@ -141,6 +142,19 @@ let additional_derives ty : (string option * string) list =
   let result =
     if derive_default ty then
       (None, "Default") :: result
+    else
+      result
+  in
+  let result =
+    let strum = Some "strum" in
+    if String.equal ty "experimental_features::FeatureName" then
+      (strum, "Display")
+      :: (strum, "EnumIter")
+      :: (strum, "EnumString")
+      :: (strum, "IntoStaticStr")
+      :: result
+    else if String.equal ty "experimental_features::FeatureStatus" then
+      (strum, "EnumString") :: result
     else
       result
   in
@@ -466,8 +480,8 @@ let ocaml_attr attrs =
 
 let type_param (ct, _) = Convert_type.core_type ct
 
-let type_params name params =
-  let params = List.map ~f:type_param params in
+let type_params ~safe_ints name params =
+  let params = List.map ~f:(type_param ~safe_ints) params in
   let lifetime =
     match Configuration.mode () with
     | Configuration.ByRef ->
@@ -480,7 +494,7 @@ let type_params name params =
   (lifetime, params)
 
 let record_label_declaration
-    ?(pub = false) ?(prefix = "") (ld : label_declaration) : label =
+    ?(pub = false) ?(prefix = "") ~safe_ints (ld : label_declaration) : label =
   let doc = doc_comment_of_attribute_list ld.pld_attributes in
   let attr = ocaml_attr ld.pld_attributes in
   let pub =
@@ -492,7 +506,7 @@ let record_label_declaration
   let name =
     ld.pld_name.txt |> String.chop_prefix_exn ~prefix |> convert_field_name
   in
-  let ty = Convert_type.core_type ld.pld_type in
+  let ty = Convert_type.core_type ~safe_ints ld.pld_type in
   sprintf
     "%s%s%s%s %s: %s,\n"
     doc
@@ -520,23 +534,23 @@ let record_prefix_attr prefix =
   else
     sprintf "#[rust_to_ocaml(prefix = \"%s\")]\n" prefix
 
-let declare_record_arguments ?(pub = false) ~prefix labels =
+let declare_record_arguments ?(pub = false) ~safe_ints ~prefix labels =
   labels
-  |> map_and_concat ~f:(record_label_declaration ~pub ~prefix)
+  |> map_and_concat ~f:(record_label_declaration ~safe_ints ~pub ~prefix)
   |> sprintf "{\n%s}"
 
-let declare_constructor_arguments ?(box_fields = false) types : Rust_type.t list
-    =
+let declare_constructor_arguments ?(box_fields = false) ~safe_ints types :
+    Rust_type.t list =
   if not box_fields then
     if List.is_empty types then
       []
     else
-      List.map ~f:Convert_type.core_type types
+      List.map ~f:(Convert_type.core_type ~safe_ints) types
   else
     match types with
     | [] -> []
     | [ty] ->
-      let ty = Convert_type.core_type ty in
+      let ty = Convert_type.core_type ~safe_ints ty in
       let ty =
         if unbox_field ty then
           ty
@@ -549,9 +563,10 @@ let declare_constructor_arguments ?(box_fields = false) types : Rust_type.t list
     | _ ->
       (match Configuration.mode () with
       | Configuration.ByRef ->
-        let tys = Convert_type.tuple ~seen_indirection:true types in
+        let tys = Convert_type.tuple ~seen_indirection:true ~safe_ints types in
         [rust_ref (lifetime "a") tys]
-      | Configuration.ByBox -> [rust_type "Box" [] [Convert_type.tuple types]])
+      | Configuration.ByBox ->
+        [rust_type "Box" [] [Convert_type.tuple ~safe_ints types]])
 
 let variant_constructor_value cd =
   (* If we see the [@value 42] attribute, assume it's for ppx_deriving enum,
@@ -577,7 +592,7 @@ let variant_constructor_value cd =
         Some discriminant
       | _ -> None)
 
-let variant_constructor_declaration ?(box_fields = false) cd =
+let variant_constructor_declaration ?(box_fields = false) ~safe_ints cd =
   let doc = doc_comment_of_attribute_list cd.pcd_attributes in
   let attr = ocaml_attr cd.pcd_attributes in
   let name = convert_type_name cd.pcd_name.txt in
@@ -593,7 +608,7 @@ let variant_constructor_declaration ?(box_fields = false) cd =
   in
   match cd.pcd_args with
   | Pcstr_tuple types ->
-    let tys = declare_constructor_arguments ~box_fields types in
+    let tys = declare_constructor_arguments ~box_fields ~safe_ints types in
     sprintf
       "%s%s%s%s%s%s%s%s,\n"
       doc
@@ -619,7 +634,7 @@ let variant_constructor_declaration ?(box_fields = false) cd =
       (record_prefix_attr prefix)
       name_attr
       name
-      (declare_record_arguments labels ~prefix)
+      (declare_record_arguments ~safe_ints labels ~prefix)
       value
 
 let ctor_arg_len (ctor_args : constructor_arguments) : int =
@@ -638,7 +653,7 @@ type enum_kind =
   | Sum_type of { num_variants: int }
   | Not_an_enum
 
-let type_declaration ~mutual_rec name td =
+let type_declaration ~mutual_rec ~safe_ints name td =
   let tparam_list =
     match (td.ptype_params, td.ptype_name.txt) with
     (* HACK: eliminate tparam from `type _ ty_` and phase-parameterized types *)
@@ -654,7 +669,7 @@ let type_declaration ~mutual_rec name td =
       []
     | (tparams, _) -> tparams
   in
-  let (lifetime, tparams) = type_params name tparam_list in
+  let (lifetime, tparams) = type_params ~safe_ints name tparam_list in
   let serde_attr =
     if List.is_empty lifetime || List.is_empty tparams then
       ""
@@ -723,6 +738,15 @@ let type_declaration ~mutual_rec name td =
         "\n#[repr(u8)]"
       | Sum_type { num_variants } when num_variants <= 256 -> "\n#[repr(C, u8)]"
       | _ -> "\n#[repr(C)]"
+    in
+    let additional_attrs =
+      if
+        String.equal name "FeatureName"
+        && String.equal (curr_module_name ()) "experimental_features"
+      then
+        "#[strum(serialize_all = \"snake_case\")]\n" ^ additional_attrs
+      else
+        additional_attrs
     in
     doc ^ derive_attr ^ serde_attr ^ attr ^ additional_attrs ^ repr ^ "\npub"
   in
@@ -816,7 +840,7 @@ let type_declaration ~mutual_rec name td =
         add_ty_reexport id;
         raise (Skip_type_decl ("it is a re-export of " ^ id))
       ) else
-        let ty = Convert_type.core_type ty in
+        let ty = Convert_type.core_type ~safe_ints ty in
         if should_add_rcoc name then
           sprintf
             "%s%spub type %s = std::sync::Arc<%s>;"
@@ -842,7 +866,9 @@ let type_declaration ~mutual_rec name td =
             (deref ty |> rust_type_to_string)
     | _ ->
       if should_use_alias_instead_of_tuple_struct name then
-        let ty = Convert_type.core_type ty |> deref |> rust_type_to_string in
+        let ty =
+          Convert_type.core_type ~safe_ints ty |> deref |> rust_type_to_string
+        in
         sprintf
           "%s%spub type %s = %s;"
           doc
@@ -855,7 +881,7 @@ let type_declaration ~mutual_rec name td =
           | Ptyp_tuple tys ->
             map_and_concat
               ~f:(fun ty ->
-                Convert_type.core_type ty |> fun t ->
+                Convert_type.core_type ~safe_ints ty |> fun t ->
                 sprintf
                   "%s pub %s"
                   (rust_de_field_attr [t] td.ptype_attributes)
@@ -864,7 +890,7 @@ let type_declaration ~mutual_rec name td =
               tys
             |> sprintf "(%s)"
           | _ ->
-            Convert_type.core_type ty
+            Convert_type.core_type ~safe_ints ty
             |> rust_type_to_string
             |> sprintf "(pub %s)"
         in
@@ -906,7 +932,9 @@ let type_declaration ~mutual_rec name td =
         C_like { max_value; num_variants }
     in
     let ctors =
-      map_and_concat ctors ~f:(variant_constructor_declaration ~box_fields)
+      map_and_concat
+        ctors
+        ~f:(variant_constructor_declaration ~safe_ints ~box_fields)
     in
     sprintf
       "%s enum %s {\n%s}%s\n%s"
@@ -918,7 +946,7 @@ let type_declaration ~mutual_rec name td =
   (* Record types. *)
   | (Ptype_record labels, None) ->
     let prefix = find_record_label_prefix labels in
-    let labels = declare_record_arguments labels ~pub:true ~prefix in
+    let labels = declare_record_arguments ~safe_ints labels ~pub:true ~prefix in
     sprintf
       "%s struct %s %s%s\n%s"
       (attrs_and_vis
@@ -956,8 +984,9 @@ let type_declaration ?(mutual_rec = false) td =
       add_decl name (sprintf "pub use %s;" extern_type)
     | None ->
       (try
+         let safe_ints = Configuration.safe_ints ~mod_name ~name in
          with_self name (fun () ->
-             add_decl name (type_declaration ~mutual_rec name td))
+             add_decl name (type_declaration ~mutual_rec ~safe_ints name td))
        with
       | Skip_type_decl reason ->
         log "Not converting type %s::%s: %s" mod_name name reason)

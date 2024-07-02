@@ -8,105 +8,18 @@ async function soft_run_with_async<Tout>(
   (function ()[_]: Awaitable<Tout>) $f,
   string $key,
 )[zoned, ctx $f]: Awaitable<Tout> {
-  $prev = _Private\set_implicit_context_by_value(
-    _Private\create_special_implicit_context(
-      \HH\MEMOIZE_IC_TYPE_SOFT_SET,
-      $key
-    ),
-  );
-  try {
-    $result = $f();
-  } finally {
-    _Private\set_implicit_context_by_value($prev);
-  }
-  // Needs to be awaited here so that context dependency is established
-  // between parent/child functions
-  return await $result;
+  return await $f();
 }
 
 function soft_run_with<Tout>(
   (function ()[_]: Tout) $f,
   string $key,
 )[zoned, ctx $f]: Tout {
-  $prev = _Private\set_implicit_context_by_value(
-    _Private\create_special_implicit_context(
-      \HH\MEMOIZE_IC_TYPE_SOFT_SET,
-      $key
-    ),
-  );
-  try {
-    return $f();
-  } finally {
-    _Private\set_implicit_context_by_value($prev);
-  }
+  return $f();
 }
 
 const string RUN_WITH_SOFT_INACCESSIBLE_KEY_PREFIX = 'nonfunction/';
 
-/**
- * async version of run_with_soft_inaccessible_state
- */
-async function run_with_soft_inaccessible_state_async<Tout>(
-  (function ()[_]: Awaitable<Tout>) $f,
-  string $key,
-)[zoned, ctx $f]: Awaitable<Tout> {
-  $prev = _Private\set_implicit_context_by_value(
-    _Private\create_special_implicit_context(
-      \HH\MEMOIZE_IC_TYPE_SOFT_INACCESSIBLE,
-      RUN_WITH_SOFT_INACCESSIBLE_KEY_PREFIX.$key
-    ),
-  );
-  try {
-    if ($prev is nonnull) {
-      throw new \InvalidOperationException('Cannot call '.__FUNCTION__.' from non-null state.');
-    }
-    $result = $f();
-  } finally {
-    _Private\set_implicit_context_by_value($prev);
-  }
-  // Needs to be awaited here so that context dependency is established
-  // between parent/child functions
-  return await $result;
-}
-
-/**
- * This function runs the given callable under the "soft inaccessible" IC state
- * i.e. as if it were called via a function with
- * `__Memoize(#SoftMakeICInaccessible)`
- *
- * The $key (with a prefix) is used in place of the memoized function name in
- * the IC blame sent to the error handler.
- *
- * This function can only be called from the null state.
- * (this is the only use case we expect and have determined behavior for)
- *
- * The intended use of this function is to migrate code that is currently
- * executed via a backdoor in order to allow it to be executed from an
- * "inaccessible" state.
- *
- * Within the backdoor, you first run the code using this function.
- * After you have addressed all the logs and have determined it safe, you
- * remove both the backdoor and this function and call the callable directly.
- */
-function run_with_soft_inaccessible_state<Tout>(
-  (function ()[_]: Tout) $f,
-  string $key,
-)[zoned, ctx $f]: Tout {
-  $prev = _Private\set_implicit_context_by_value(
-    _Private\create_special_implicit_context(
-      \HH\MEMOIZE_IC_TYPE_SOFT_INACCESSIBLE,
-      RUN_WITH_SOFT_INACCESSIBLE_KEY_PREFIX.$key
-    ),
-  );
-  try {
-    if ($prev is nonnull) {
-      throw new \InvalidOperationException('Cannot call '.__FUNCTION__.' from non-null state.');
-    }
-    return $f();
-  } finally {
-    _Private\set_implicit_context_by_value($prev);
-  }
-}
 
 function embed_implicit_context_state_in_closure<T>(
   (function ()[defaults]: T) $f,
@@ -157,6 +70,15 @@ enum State: string as string {
 <<__Native>>
 function get_state_unsafe()[zoned]: string /* State */;
 
+/**
+ * Returns True if we are in the empty IC state
+ * False otherwise
+ *
+ * Does not affect the state of the IC
+ */
+<<__Native>>
+function is_inaccessible()[zoned]: bool;
+
 } // namespace ImplicitContext
 
 namespace ImplicitContext\_Private {
@@ -171,7 +93,16 @@ final class ImplicitContextData {}
 function get_implicit_context(string $key)[zoned]: mixed;
 
 <<__Native>>
-function get_whole_implicit_context()[zoned]: ?ImplicitContextData;
+function get_whole_implicit_context()[zoned]: ImplicitContextData;
+
+/**
+ * Returns True if the key is present in the IC
+ * False otherwise
+ *
+ * Does not affect the state of the IC
+ */
+<<__Native>>
+function has_key(string $key)[zoned]: bool;
 
 /**
  * Creates implicit context $context keyed by $key.
@@ -183,20 +114,19 @@ function create_implicit_context(
 )[zoned]: ImplicitContextData;
 
 /*
- * Singleton memoization wrapper over create_special_implicit_context for
- * ic inaccessible case
- */
-<<__Memoize>>
-function create_ic_inaccessible_context()[] {
-  return create_special_implicit_context(\HH\MEMOIZE_IC_TYPE_INACCESSIBLE, null);
-}
-
-/*
  * Returns the currently implicit context hash or empty string if
  * no implicit context is set
  */
 <<__Native("NoRecording")>>
-function get_implicit_context_memo_key()[zoned]: string;
+function get_implicit_context_memo_key()[zoned]: int;
+
+/*
+* Returns the constituents of the current implicit context key
+* Only to be used for tests
+*/
+<<__Native("NoRecording")>>
+function get_implicit_context_debug_info()[]: vec<string>;
+
 
 } // namespace ImplicitContext_Private
 
@@ -240,6 +170,10 @@ abstract class ImplicitContext {
     }
   }
 
+  protected static function exists()[zoned]: bool {
+    return ImplicitContext\_Private\has_key(nameof static);
+  }
+
   protected static function get()[zoned]: ?this::T {
     return ImplicitContext\_Private\get_implicit_context(nameof static);
   }
@@ -266,7 +200,9 @@ namespace HH\Coeffects {
   function backdoor<Tout>(
     (function()[defaults]: Tout) $fn
   )[/* 86backdoor */]: Tout {
-    $prev = \HH\ImplicitContext\_Private\set_implicit_context_by_value(null);
+    $prev = \HH\ImplicitContext\_Private\set_implicit_context_by_value(
+      \HH\ImplicitContext\_Private\get_inaccessible_implicit_context(),
+    );
     try {
       return $fn();
     } finally {
@@ -281,7 +217,9 @@ namespace HH\Coeffects {
   async function backdoor_async<Tout>(
     (function()[defaults]: Awaitable<Tout>) $fn
   )[/* 86backdoor */]: Awaitable<Tout> {
-    $prev = \HH\ImplicitContext\_Private\set_implicit_context_by_value(null);
+    $prev = \HH\ImplicitContext\_Private\set_implicit_context_by_value(
+      \HH\ImplicitContext\_Private\get_inaccessible_implicit_context()
+    );
     try {
       $result = $fn();
     } finally {

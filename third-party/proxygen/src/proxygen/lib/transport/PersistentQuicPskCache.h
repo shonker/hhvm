@@ -12,7 +12,7 @@
 
 #include <fizz/client/PskSerializationUtils.h>
 #include <folly/Optional.h>
-#include <folly/dynamic.h>
+#include <folly/json/dynamic.h>
 #include <quic/fizz/client/handshake/QuicPskCache.h>
 #include <wangle/client/persistence/FilePersistentCache.h>
 
@@ -35,7 +35,7 @@ class PersistentQuicPskCache : public quic::QuicPskCache {
   PersistentQuicPskCache(const std::string& filename,
                          wangle::PersistentCacheConfig config,
                          std::unique_ptr<fizz::Factory> factory =
-                             std::make_unique<fizz::OpenSSLFactory>());
+                             std::make_unique<fizz::openssl::OpenSSLFactory>());
 
   void setMaxPskUses(size_t maxUses);
 

@@ -64,7 +64,7 @@ Fields& Fields::operator=([[maybe_unused]] Fields&& other) noexcept {
 
 
 Fields::Fields(apache::thrift::FragileConstructor, ::std::string injected_field__arg) :
-    __fbthrift_field_injected_field(std::move(injected_field__arg)) {
+    __fbthrift_field_injected_field(std::move(injected_field__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -107,7 +107,7 @@ template uint32_t Fields::serializedSize<>(apache::thrift::CompactProtocolWriter
 template uint32_t Fields::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -161,7 +161,7 @@ FieldsInjectedToEmptyStruct& FieldsInjectedToEmptyStruct::operator=([[maybe_unus
 
 
 FieldsInjectedToEmptyStruct::FieldsInjectedToEmptyStruct(apache::thrift::FragileConstructor, ::std::string injected_field__arg) :
-    __fbthrift_field_injected_field(std::move(injected_field__arg)) {
+    __fbthrift_field_injected_field(std::move(injected_field__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -204,7 +204,7 @@ template uint32_t FieldsInjectedToEmptyStruct::serializedSize<>(apache::thrift::
 template uint32_t FieldsInjectedToEmptyStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -261,7 +261,7 @@ FieldsInjectedToStruct& FieldsInjectedToStruct::operator=([[maybe_unused]] Field
 
 FieldsInjectedToStruct::FieldsInjectedToStruct(apache::thrift::FragileConstructor, ::std::string string_field__arg, ::std::string injected_field__arg) :
     __fbthrift_field_string_field(std::move(string_field__arg)),
-    __fbthrift_field_injected_field(std::move(injected_field__arg)) {
+    __fbthrift_field_injected_field(std::move(injected_field__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
 }
@@ -307,7 +307,7 @@ template uint32_t FieldsInjectedToStruct::serializedSize<>(apache::thrift::Compa
 template uint32_t FieldsInjectedToStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -370,7 +370,7 @@ FieldsInjectedWithIncludedStruct::FieldsInjectedWithIncludedStruct(apache::thrif
     __fbthrift_field_string_field(std::move(string_field__arg)),
     __fbthrift_field_injected_field(std::move(injected_field__arg)),
     __fbthrift_field_injected_structured_annotation_field(std::move(injected_structured_annotation_field__arg)),
-    __fbthrift_field_injected_unstructured_annotation_field(std::move(injected_unstructured_annotation_field__arg)) {
+    __fbthrift_field_injected_unstructured_annotation_field(std::move(injected_unstructured_annotation_field__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
 }
@@ -420,11 +420,11 @@ template uint32_t FieldsInjectedWithIncludedStruct::serializedSize<>(apache::thr
 template uint32_t FieldsInjectedWithIncludedStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace cpp2 { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}} // cpp2
+}} // namespace cpp2
 namespace apache::thrift::detail::annotation {
 }

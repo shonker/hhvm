@@ -23,6 +23,8 @@ pub(crate) fn convert_ty(ty: &EnforceableType) -> textual::Ty {
     modifiers -= TypeConstraintFlags::TypeVar;
 
     // All textual boxed types are nullable.
+    // TODO: the above statement is not entirely accurate, be more nuanced and
+    // don't just throw this information away (see also DisplayNullable)
     modifiers -= TypeConstraintFlags::Nullable;
 
     if modifiers.contains(TypeConstraintFlags::TypeConstant) {
@@ -50,7 +52,7 @@ fn convert_base(ty: &BaseType) -> textual::Ty {
         BaseType::Arraykey => textual::Ty::SpecialPtr(textual::SpecialTy::Arraykey),
         BaseType::Bool => textual::Ty::SpecialPtr(textual::SpecialTy::Bool),
         BaseType::Class(cid) => textual::Ty::named_type_ptr(TypeName::Class(*cid)),
-        BaseType::Classname => textual::Ty::named_type_ptr(TypeName::UnmangledRef("Classname")),
+        BaseType::Classname => textual::Ty::named_type_ptr(TypeName::UnmangledRef("HH::classname")),
         BaseType::Dict => textual::Ty::SpecialPtr(textual::SpecialTy::Dict),
         BaseType::Float => textual::Ty::SpecialPtr(textual::SpecialTy::Float),
         BaseType::Int => textual::Ty::SpecialPtr(textual::SpecialTy::Int),

@@ -21,8 +21,8 @@
 
 #include <folly/ScopeGuard.h>
 #include <folly/String.h>
-#include <folly/experimental/NestedCommandLineApp.h>
-#include <folly/experimental/ProgramOptions.h>
+#include <folly/cli/NestedCommandLineApp.h>
+#include <folly/cli/ProgramOptions.h>
 
 namespace po = ::boost::program_options;
 
@@ -66,7 +66,9 @@ class Concatenator {
 void Concatenator::cat(FILE* file) {
   char* lineBuf = nullptr;
   size_t lineBufSize = 0;
-  SCOPE_EXIT { free(lineBuf); };
+  SCOPE_EXIT {
+    free(lineBuf);
+  };
 
   ssize_t n;
   while ((n = getline(&lineBuf, &lineBufSize, file)) >= 0) {

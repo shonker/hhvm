@@ -25,6 +25,7 @@
 #include "hphp/runtime/vm/preclass-emitter.h"
 #include "hphp/runtime/vm/type-alias-emitter.h"
 #include "hphp/runtime/vm/unit-gen-helpers.h"
+#include "hphp/util/configs/eval.h"
 #include "hphp/util/hash-map.h"
 #include "hphp/zend/zend-string.h"
 
@@ -80,7 +81,6 @@ struct TranslationState {
 
   HPHP::RepoAuthType translateRepoAuthType(folly::StringPiece str);
   HPHP::MemberKey translateMemberKey(const hhbc::MemberKey& mkey);
-  ArrayData* getArrayfromAdataId(const AdataId& id);
 
   ///////////////////////////////////////////////////////////////////////////////
 
@@ -94,8 +94,6 @@ struct TranslationState {
   UnitEmitter* ue;
   FuncEmitter* fe{nullptr};
   PreClassEmitter* pce{nullptr};
-  // Map of adata identifiers to their associated static arrays.
-  hphp_fast_map<uint32_t, ArrayData*> adataMap;
 
   // Used for Execption Handler entry.
   jit::stack<Offset> handler;
@@ -130,7 +128,7 @@ struct TranslationState {
 // hhbc::Vector helpers
 
 template <class T>
-folly::Range<const T*> range(Vector<T> const& s) {
+folly::Range<const T*> range(const Vector<T>& s) {
   return folly::range(s.data, s.data + s.len);
 }
 
@@ -257,8 +255,8 @@ HPHP::TypedValue toTypedValue(const hackc::hhbc::TypedValue& tv) {
       case kind::Null:
         return make_tv<KindOfNull>();
       case kind::Vec: {
-        VecInit v(tv.Vec._0.len);
-        auto set = range(tv.Vec._0);
+        VecInit v(tv.Vec._0._0->len);
+        auto set = range(*tv.Vec._0._0);
         for (auto const& elt : set) {
           v.append(toTypedValue(elt));
         }
@@ -267,8 +265,8 @@ HPHP::TypedValue toTypedValue(const hackc::hhbc::TypedValue& tv) {
         return make_tv<KindOfVec>(tv);
       }
       case kind::Dict: {
-        DictInit d(tv.Dict._0.len);
-        auto set = range(tv.Dict._0);
+        DictInit d(tv.Dict._0._0->len);
+        auto set = range(*tv.Dict._0._0);
         for (auto const& elt : set) {
           switch (elt.key.tag) {
             case kind::Int:
@@ -281,7 +279,7 @@ HPHP::TypedValue toTypedValue(const hackc::hhbc::TypedValue& tv) {
             }
             case kind::LazyClass:{
               if (folly::Random::oneIn(
-                    RO::EvalRaiseClassConversionNoticeSampleRate)) {
+                    Cfg::Eval::RaiseClassConversionNoticeSampleRate)) {
                 raise_class_to_string_conversion_notice("dict key");
               }
               auto const s = toStaticString(elt.key.LazyClass._0._0);
@@ -297,8 +295,8 @@ HPHP::TypedValue toTypedValue(const hackc::hhbc::TypedValue& tv) {
         return make_tv<KindOfDict>(tv);
       }
       case kind::Keyset: {
-        KeysetInit k(tv.Keyset._0.len);
-        auto set = range(tv.Keyset._0);
+        KeysetInit k(tv.Keyset._0._0->len);
+        auto set = range(*tv.Keyset._0._0);
         for (auto const& elt : set) {
           k.add(toTypedValue(elt));
         }
@@ -379,7 +377,7 @@ void translateTypedef(TranslationState& ts, const hhbc::Typedef& t) {
     if (tis.size() == 1) {
       return translateTypeInfo(tis[0]).second;
     }
-    if (RO::EvalTreatCaseTypesAsMixed) {
+    if (Cfg::Eval::TreatCaseTypesAsMixed) {
       return TypeConstraint::makeMixed();
     }
 
@@ -529,7 +527,7 @@ void translateProperty(TranslationState& ts, const hhbc::Property& p, const Uppe
 }
 
 void translateClassBody(TranslationState& ts,
-                        const hhbc::Class& c,
+                        const hhbc::ClassImpl<hhbc::BcRepr>& c,
                         const UpperBoundMap& classUbs) {
   auto props = range(c.properties);
   for (auto const& p : props) {
@@ -671,13 +669,6 @@ HPHP::MemberKey TranslationState::translateMemberKey(const hhbc::MemberKey& mkey
   not_reached();
 }
 
-ArrayData* TranslationState::getArrayfromAdataId(const AdataId& id) {
-  auto const it = adataMap.find(id.id);
-  assertx(it != adataMap.end());
-  assertx(it->second->isStatic());
-  return it->second;
-}
-
 void handleIVA(TranslationState& ts, const uint32_t& iva) {
   ts.fe->emitIVA(iva);
 }
@@ -718,8 +709,8 @@ void handleBA(TranslationState& ts, const T& labels) {
 }
 
 void handleITA(TranslationState& ts, const hhbc::IterArgs& ita) {
-    HPHP::IterArgs ia(
-    HPHP::IterArgs::Flags::None,
+  HPHP::IterArgs ia(
+    ita.flags,
     ita.iter_id.idx,
     ita.key_id.idx,
     ita.val_id.idx
@@ -770,8 +761,13 @@ void handleLAR(TranslationState& ts, const hhbc::LocalRange& lar) {
   encodeLocalRange(*ts.fe, lar_);
 }
 
-void handleAA(TranslationState& ts, const AdataId& id) {
-  auto const arr = ts.getArrayfromAdataId(id);
+void handleAA(TranslationState& ts, const hhbc::TypedValue& value) {
+  // hhbc::Unit does not have an adata table. Intern each array value,
+  // and use the id assigned by UnitEmitter:mergeArray().
+  auto tv = toTypedValue(value);
+  assertx(isArrayLikeType(tv.type()));
+  auto arr = tv.val().parr;
+  ArrayData::GetScalarArray(&arr);
   ts.fe->emitInt32(ts.ue->mergeArray(arr));
 }
 
@@ -1080,7 +1076,7 @@ void translateParameter(TranslationState& ts,
 }
 
 void translateFunctionBody(TranslationState& ts,
-                           const hhbc::Body& b,
+                           const hhbc::BodyImpl<hhbc::BcRepr>& b,
                            const UpperBoundMap& ubs,
                            const UpperBoundMap& classUbs,
                            const TParamNameVec& shadowedTParams,
@@ -1089,12 +1085,12 @@ void translateFunctionBody(TranslationState& ts,
   ts.fe->isMemoizeWrapperLSB = b.is_memoize_wrapper_lsb;
   ts.fe->setNumIterators(b.num_iters);
 
-  auto params = range(b.params);
+  auto params = range(b.repr.params);
   for (auto const& p : params) {
     translateParameter(ts, ubs, classUbs, shadowedTParams, hasReifiedGenerics, p);
   }
 
-  auto instrs = range(b.body_instrs);
+  auto instrs = range(b.repr.instrs);
   for (auto const& instr : instrs) {
     translateInstruction(ts, instr);
   }
@@ -1103,7 +1099,7 @@ void translateFunctionBody(TranslationState& ts,
   if (dc) ts.fe->docComment = makeDocComment(dc.value());
 
   // Parsing parameters must come before decl_vars
-  auto decl_vars = range(b.decl_vars);
+  auto decl_vars = range(b.repr.decl_vars);
   for (auto const& dv : decl_vars) {
     auto const dvName = toNamedLocalStaticString(dv);
     ts.fe->allocVarId(dvName);
@@ -1121,7 +1117,7 @@ void translateFunctionBody(TranslationState& ts,
     }
   }
 
-  ts.fe->maxStackCells = b.stack_depth;
+  ts.fe->maxStackCells = b.repr.stack_depth;
 
   // finish function
   while (ts.fe->numLocals() < ts.maxUnnamed) {
@@ -1218,7 +1214,8 @@ if (coeffects.caller) {
   }
 }
 
-void translateFunction(TranslationState& ts, const hhbc::Function& f) {
+void translateFunction(TranslationState& ts,
+    const hhbc::FunctionImpl<hhbc::BcRepr>& f) {
   UpperBoundMap ubs;
   auto upper_bounds = range(f.body.upper_bounds);
   for (auto const& u : upper_bounds) {
@@ -1226,9 +1223,9 @@ void translateFunction(TranslationState& ts, const hhbc::Function& f) {
   }
 
   UserAttributeMap userAttrs;
-  translateUserAttributes(f.attributes, userAttrs);
+  translateUserAttributes(f.body.attributes, userAttrs);
 
-  Attr attrs = f.attrs;
+  Attr attrs = f.body.attrs;
   assertx(IMPLIES(ts.isSystemLib, attrs & AttrBuiltin));
 
   auto const name = toStaticString(f.name._0);
@@ -1241,9 +1238,9 @@ void translateFunction(TranslationState& ts, const hhbc::Function& f) {
   ts.fe->isPairGenerator = (bool)(f.flags & hhbc::FunctionFlags_PAIR_GENERATOR);
   ts.fe->userAttributes = userAttrs;
 
-  translateCoeffects(ts, f.coeffects);
+  translateCoeffects(ts, f.body.coeffects);
 
-  auto retTypeInfo = maybeOrElse(f.body.return_type_info,
+  auto retTypeInfo = maybeOrElse(f.body.return_type,
       [&](hhbc::TypeInfo& ti) {return translateTypeInfo(ti);},
       [&]() {return std::make_pair(nullptr, TypeConstraint{});});
 
@@ -1257,14 +1254,15 @@ void translateFunction(TranslationState& ts, const hhbc::Function& f) {
   checkNative(ts);
 }
 
-void translateShadowedTParams(TParamNameVec& vec, const Vector<StringId>& tpms) {
+void translateShadowedTParams(TParamNameVec& vec, const Vector<ClassName>& tpms) {
   auto tparams = range(tpms);
   for (auto const& t : tparams) {
-    vec.push_back(toStaticString(t));
+    vec.push_back(toStaticString(t._0));
   }
 }
 
-void translateMethod(TranslationState& ts, const hhbc::Method& m, const UpperBoundMap& classUbs) {
+void translateMethod(TranslationState& ts,
+    const hhbc::MethodImpl<hhbc::BcRepr>& m, const UpperBoundMap& classUbs) {
   UpperBoundMap ubs;
   auto upper_bounds = range(m.body.upper_bounds);
   for (auto const& u : upper_bounds) {
@@ -1274,7 +1272,7 @@ void translateMethod(TranslationState& ts, const hhbc::Method& m, const UpperBou
   TParamNameVec shadowedTParams;
   translateShadowedTParams(shadowedTParams, m.body.shadowed_tparams);
 
-  Attr attrs = m.attrs;
+  Attr attrs = m.body.attrs;
   assertx(IMPLIES(ts.isSystemLib, attrs & AttrBuiltin));
   auto const name = toStaticString(m.name._0);
   ts.fe = ts.ue->newMethodEmitter(name, ts.pce);
@@ -1286,12 +1284,12 @@ void translateMethod(TranslationState& ts, const hhbc::Method& m, const UpperBou
   ts.fe->isClosureBody = (bool)(m.flags & hhbc::MethodFlags_IS_CLOSURE_BODY);
 
   UserAttributeMap userAttrs;
-  translateUserAttributes(m.attributes, userAttrs);
+  translateUserAttributes(m.body.attributes, userAttrs);
   ts.fe->userAttributes = userAttrs;
 
-  translateCoeffects(ts, m.coeffects);
+  translateCoeffects(ts, m.body.coeffects);
 
-  auto retTypeInfo = maybeOrElse(m.body.return_type_info,
+  auto retTypeInfo = maybeOrElse(m.body.return_type,
     [&](hhbc::TypeInfo& ti) {return translateTypeInfo(ti);},
     [&]() {return std::make_pair(nullptr, TypeConstraint{});});
 
@@ -1306,7 +1304,8 @@ void translateMethod(TranslationState& ts, const hhbc::Method& m, const UpperBou
   checkNative(ts);
 }
 
-void translateClass(TranslationState& ts, const hhbc::Class& c) {
+void translateClass(TranslationState& ts,
+    const hhbc::ClassImpl<hhbc::BcRepr>& c) {
   UpperBoundMap classUbs;
   auto upper_bounds = range(c.upper_bounds);
   for (auto const& u : upper_bounds) {
@@ -1364,14 +1363,6 @@ void translateClass(TranslationState& ts, const hhbc::Class& c) {
 
   translateEnumType(ts, c.enum_type);
   translateClassBody(ts, c, classUbs);
-}
-
-void translateAdata(TranslationState& ts, const hhbc::Adata& adata) {
-  auto tv = toTypedValue(adata.value);
-  auto arr = tv.m_data.parr;
-  ArrayData::GetScalarArray(&arr);
-  ts.adataMap[adata.id.id] = arr;
-  ts.ue->mergeArray(arr);
 }
 
 void translateConstant(TranslationState& ts, const hhbc::Constant& c) {
@@ -1519,10 +1510,6 @@ void translateSymbolRefs(TranslationState& ts, const hhbc::SymbolRefs& s) {
 
 void translate(TranslationState& ts, const hhbc::Unit& unit) {
   translateModuleUse(ts, maybe(unit.module_use));
-  auto adata = range(unit.adata);
-  for (auto const& d : adata) {
-    translateAdata(ts, d);
-  }
 
   auto funcs = range(unit.functions);
   for (auto const& f : funcs) {

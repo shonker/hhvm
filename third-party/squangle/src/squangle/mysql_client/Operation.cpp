@@ -294,21 +294,14 @@ void Operation::snapshotMysqlErrors() {
     } else {
       mysql_error_ = ::mysql_error(mysql);
     }
-
-    mysql_normalize_error_ = mysql_error_;
   }
 }
 
 void Operation::setAsyncClientError(
     unsigned int mysql_errno,
-    folly::StringPiece msg,
-    folly::StringPiece normalizeMsg) {
-  if (normalizeMsg.empty()) {
-    normalizeMsg = msg;
-  }
+    folly::StringPiece msg) {
   mysql_errno_ = mysql_errno;
   mysql_error_ = msg.toString();
-  mysql_normalize_error_ = normalizeMsg.toString();
 }
 
 void Operation::wait() {
@@ -629,7 +622,7 @@ void ConnectOperation::specializedRunImpl() {
     return;
   }
 
-  mysql_options(conn()->mysql(), MYSQL_OPT_CONNECT_ATTR_RESET, 0);
+  mysql_options(conn()->mysql(), MYSQL_OPT_CONNECT_ATTR_RESET, nullptr);
   for (const auto& [key, value] : attributes_) {
     mysql_options4(
         conn()->mysql(),
@@ -810,11 +803,17 @@ void ConnectOperation::timeoutHandler(
     parts.push_back(threadOverloadMessage(cbDelayUs));
   }
   parts.push_back(fmt::format("(TcpTimeout:{})", (isTcpTimeout ? 1 : 0)));
+  parts.push_back(fmt::format(
+      "(Attempts:{}/{})",
+      (attempts_made_ + 1),
+      conn_options_.getConnectAttempts()));
+  parts.push_back(fmt::format(
+      "(TotalTimeout:{})",
+      std::chrono::duration_cast<std::chrono::milliseconds>(
+          conn_options_.getTotalTimeout())
+          .count()));
 
-  setAsyncClientError(
-      CR_SERVER_LOST,
-      folly::join(" ", parts),
-      fmt::format("Connect timed out{}", stalled ? " (loop stalled)" : ""));
+  setAsyncClientError(CR_SERVER_LOST, folly::join(" ", parts));
   attemptFailed(OperationResult::TimedOut);
 }
 
@@ -1013,7 +1012,7 @@ void FetchOperation::specializedRunImpl() {
     MYSQL* mysql = conn()->mysql();
     rendered_query_ = queries_.renderQuery(mysql);
 
-    mysql_options(mysql, MYSQL_OPT_QUERY_ATTR_RESET, 0);
+    mysql_options(mysql, MYSQL_OPT_QUERY_ATTR_RESET, nullptr);
     for (const auto& [key, value] : attributes_) {
       if (int retErrCode = setQueryAttribute(key, value)) {
         setAsyncClientError(
@@ -1035,8 +1034,7 @@ void FetchOperation::specializedRunImpl() {
   } catch (std::invalid_argument& e) {
     setAsyncClientError(
         static_cast<uint16_t>(SquangleErrno::SQ_INVALID_API_USAGE),
-        std::string("Unable to parse Query: ") + e.what(),
-        "Unable to parse Query");
+        std::string("Unable to parse Query: ") + e.what());
     completeOperation(OperationResult::Failed);
   }
 }
@@ -1484,10 +1482,7 @@ void FetchOperation::specializedTimeoutTriggered() {
     parts.push_back(threadOverloadMessage(cbDelayUs));
   }
 
-  setAsyncClientError(
-      CR_NET_READ_INTERRUPTED,
-      folly::join(" ", parts),
-      fmt::format("Query timed out{}", stalled ? " (loop stalled)" : ""));
+  setAsyncClientError(CR_NET_READ_INTERRUPTED, folly::join(" ", parts));
   completeOperation(OperationResult::TimedOut);
 }
 
@@ -1964,30 +1959,34 @@ folly::StringPiece FetchOperation::toString(FetchAction action) {
 // and this provides a way to log the string version of this enum
 folly::fbstring Operation::connectStageString(connect_stage stage) {
   static const folly::F14FastMap<connect_stage, folly::fbstring>
-      stageToStringMap =
-  { {connect_stage::CONNECT_STAGE_INVALID, "CONNECT_STAGE_INVALID"},
-    {connect_stage::CONNECT_STAGE_NOT_STARTED, "CONNECT_STAGE_NOT_STARTED"},
-    {connect_stage::CONNECT_STAGE_NET_BEGIN_CONNECT,
-     "CONNECT_STAGE_NET_BEGIN_CONNECT"},
+      stageToStringMap = {
+          {connect_stage::CONNECT_STAGE_INVALID, "CONNECT_STAGE_INVALID"},
+          {connect_stage::CONNECT_STAGE_NOT_STARTED,
+           "CONNECT_STAGE_NOT_STARTED"},
+          {connect_stage::CONNECT_STAGE_NET_BEGIN_CONNECT,
+           "CONNECT_STAGE_NET_BEGIN_CONNECT"},
 #if MYSQL_VERSION_ID >= 80020 // csm_wait_connect added in 8.0.20
-    {connect_stage::CONNECT_STAGE_NET_WAIT_CONNECT,
-     "CONNECT_STAGE_NET_WAIT_CONNECT"},
+          {connect_stage::CONNECT_STAGE_NET_WAIT_CONNECT,
+           "CONNECT_STAGE_NET_WAIT_CONNECT"},
 #endif
-    {connect_stage::CONNECT_STAGE_NET_COMPLETE_CONNECT,
-     "CONNECT_STAGE_NET_COMPLETE_CONNECT"},
-    {connect_stage::CONNECT_STAGE_READ_GREETING, "CONNECT_STAGE_READ_GREETING"},
-    {connect_stage::CONNECT_STAGE_PARSE_HANDSHAKE,
-     "CONNECT_STAGE_PARSE_HANDSHAKE"},
-    {connect_stage::CONNECT_STAGE_ESTABLISH_SSL, "CONNECT_STAGE_ESTABLISH_SSL"},
-    {connect_stage::CONNECT_STAGE_AUTHENTICATE, "CONNECT_STAGE_AUTHENTICATE"},
-    {connect_stage::CONNECT_STAGE_PREP_SELECT_DATABASE,
-     "CONNECT_STAGE_PREP_SELECT_DATABASE"},
-    {connect_stage::CONNECT_STAGE_PREP_INIT_COMMANDS,
-     "CONNECT_STAGE_PREP_INIT_COMMANDS"},
-    {connect_stage::CONNECT_STAGE_SEND_ONE_INIT_COMMAND,
-     "CONNECT_STAGE_SEND_ONE_INIT_COMMAND"},
-    {connect_stage::CONNECT_STAGE_COMPLETE, "CONNECT_STAGE_COMPLETE"},
-  };
+          {connect_stage::CONNECT_STAGE_NET_COMPLETE_CONNECT,
+           "CONNECT_STAGE_NET_COMPLETE_CONNECT"},
+          {connect_stage::CONNECT_STAGE_READ_GREETING,
+           "CONNECT_STAGE_READ_GREETING"},
+          {connect_stage::CONNECT_STAGE_PARSE_HANDSHAKE,
+           "CONNECT_STAGE_PARSE_HANDSHAKE"},
+          {connect_stage::CONNECT_STAGE_ESTABLISH_SSL,
+           "CONNECT_STAGE_ESTABLISH_SSL"},
+          {connect_stage::CONNECT_STAGE_AUTHENTICATE,
+           "CONNECT_STAGE_AUTHENTICATE"},
+          {connect_stage::CONNECT_STAGE_PREP_SELECT_DATABASE,
+           "CONNECT_STAGE_PREP_SELECT_DATABASE"},
+          {connect_stage::CONNECT_STAGE_PREP_INIT_COMMANDS,
+           "CONNECT_STAGE_PREP_INIT_COMMANDS"},
+          {connect_stage::CONNECT_STAGE_SEND_ONE_INIT_COMMAND,
+           "CONNECT_STAGE_SEND_ONE_INIT_COMMAND"},
+          {connect_stage::CONNECT_STAGE_COMPLETE, "CONNECT_STAGE_COMPLETE"},
+      };
 
   try {
     return stageToStringMap.at(stage);

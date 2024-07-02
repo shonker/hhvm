@@ -24,7 +24,6 @@
 #include <folly/ScopeGuard.h>
 #include <folly/portability/Sockets.h>
 #include <folly/portability/Unistd.h>
-#include <folly/ssl/Init.h>
 #include <folly/ssl/detail/OpenSSLSession.h>
 
 namespace {
@@ -41,15 +40,10 @@ namespace ssl {
 
 bool OpenSSLUtils::getTLSMasterKey(
     const SSL_SESSION* session, MutableByteRange keyOut) {
-#if FOLLY_OPENSSL_IS_110
   auto size = SSL_SESSION_get_master_key(session, nullptr, 0);
   if (size == keyOut.size()) {
     return SSL_SESSION_get_master_key(session, keyOut.begin(), keyOut.size());
   }
-#else
-  (void)session;
-  (void)keyOut;
-#endif
   return false;
 }
 
@@ -69,15 +63,10 @@ bool OpenSSLUtils::getTLSMasterKey(
 
 bool OpenSSLUtils::getTLSClientRandom(
     const SSL* ssl, MutableByteRange randomOut) {
-#if FOLLY_OPENSSL_IS_110
   auto size = SSL_get_client_random(ssl, nullptr, 0);
   if (size == randomOut.size()) {
     return SSL_get_client_random(ssl, randomOut.begin(), randomOut.size());
   }
-#else
-  (void)ssl;
-  (void)randomOut;
-#endif
   return false;
 }
 
@@ -155,25 +144,25 @@ bool OpenSSLUtils::validatePeerCertNames(
 }
 
 static std::unordered_map<uint16_t, std::string> getOpenSSLCipherNames() {
-  folly::ssl::init();
   std::unordered_map<uint16_t, std::string> ret;
   SSL_CTX* ctx = nullptr;
   SSL* ssl = nullptr;
 
   const SSL_METHOD* meth = TLS_server_method();
-#if OPENSSL_VERSION_NUMBER < 0x10100000L
-  OpenSSL_add_ssl_algorithms();
-#endif
 
   if ((ctx = SSL_CTX_new(meth)) == nullptr) {
     return ret;
   }
-  SCOPE_EXIT { SSL_CTX_free(ctx); };
+  SCOPE_EXIT {
+    SSL_CTX_free(ctx);
+  };
 
   if ((ssl = SSL_new(ctx)) == nullptr) {
     return ret;
   }
-  SCOPE_EXIT { SSL_free(ssl); };
+  SCOPE_EXIT {
+    SSL_free(ssl);
+  };
 
   STACK_OF(SSL_CIPHER)* sk = SSL_get_ciphers(ssl);
   for (int i = 0; i < sk_SSL_CIPHER_num(sk); i++) {
@@ -205,29 +194,15 @@ const std::string& OpenSSLUtils::getCipherName(uint16_t cipherCode) {
 void OpenSSLUtils::setSSLInitialCtx(SSL* ssl, SSL_CTX* ctx) {
   (void)ssl;
   (void)ctx;
-#if !FOLLY_OPENSSL_IS_110 && !defined(OPENSSL_NO_TLSEXT)
-  if (ssl) {
-    if (ctx) {
-      SSL_CTX_up_ref(ctx);
-    }
-    ssl->initial_ctx = ctx;
-  }
-#endif
 }
 
 SSL_CTX* OpenSSLUtils::getSSLInitialCtx(SSL* ssl) {
   (void)ssl;
-#if !FOLLY_OPENSSL_IS_110 && !defined(OPENSSL_NO_TLSEXT)
-  if (ssl) {
-    return ssl->initial_ctx;
-  }
-#endif
   return nullptr;
 }
 
 BioMethodUniquePtr OpenSSLUtils::newSocketBioMethod() {
   BIO_METHOD* newmeth = nullptr;
-#if FOLLY_OPENSSL_IS_110
   if (!(newmeth = BIO_meth_new(BIO_TYPE_SOCKET, "socket_bio_method"))) {
     return nullptr;
   }
@@ -240,12 +215,6 @@ BioMethodUniquePtr OpenSSLUtils::newSocketBioMethod() {
   BIO_meth_set_write(newmeth, BIO_meth_get_write(meth));
   BIO_meth_set_gets(newmeth, BIO_meth_get_gets(meth));
   BIO_meth_set_puts(newmeth, BIO_meth_get_puts(meth));
-#else
-  if (!(newmeth = (BIO_METHOD*)OPENSSL_malloc(sizeof(BIO_METHOD)))) {
-    return nullptr;
-  }
-  memcpy(newmeth, BIO_s_socket(), sizeof(BIO_METHOD));
-#endif
 
   return BioMethodUniquePtr(newmeth);
 }

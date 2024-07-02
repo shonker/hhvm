@@ -18,7 +18,6 @@
 #include <wangle/ssl/ClientHelloExtStats.h>
 #include <wangle/ssl/SSLCacheOptions.h>
 #include <wangle/ssl/SSLContextManager.h>
-#include <wangle/ssl/SSLSessionCacheManager.h>
 #include <wangle/ssl/SSLUtil.h>
 #include <wangle/ssl/ServerSSLContext.h>
 #include <wangle/ssl/TLSTicketKeyManager.h>
@@ -31,13 +30,7 @@
 #include <folly/ssl/OpenSSLCertUtils.h>
 #include <functional>
 
-#include <folly/io/async/EventBase.h>
 #include <string>
-
-#define OPENSSL_MISSING_FEATURE(name)                                 \
-  do {                                                                \
-    throw std::runtime_error("missing " #name " support in openssl"); \
-  } while (0)
 
 using folly::SSLContext;
 using std::shared_ptr;
@@ -85,7 +78,7 @@ void set_key_from_curve(SSL_CTX* ctx, const std::string& curveName) {
 #if OPENSSL_VERSION_NUMBER >= 0x0090800fL
 #ifndef OPENSSL_NO_ECDH
   EC_KEY* ecdh = nullptr;
-  int nid;
+  int nid = 0;
 
   /*
    * Elliptic-Curve Diffie-Hellman parameters are either "named curves"
@@ -139,7 +132,7 @@ DH* get_dh2048() {
       0x02,
   };
   DH* dh = DH_new();
-  BIGNUM *dhp_bn, *dhg_bn;
+  BIGNUM *dhp_bn = nullptr, *dhg_bn = nullptr;
 
   if (dh == nullptr) {
     return nullptr;
@@ -200,7 +193,6 @@ void configureTicketResumption(
     const TLSTicketKeySeeds* ticketSeeds,
     const SSLContextConfig& ctxConfig,
     SSLStats* stats) {
-#ifdef SSL_CTRL_SET_TLSEXT_TICKET_KEY_CB
   if (ticketSeeds && ticketSeeds->isNotEmpty() &&
       ctxConfig.sessionTicketEnabled) {
     auto handler = TicketSeedHandler::fromSeeds(ticketSeeds);
@@ -209,11 +201,6 @@ void configureTicketResumption(
   } else {
     sslCtx->setOptions(SSL_OP_NO_TICKET);
   }
-#else
-  if (ticketSeeds && ctxConfig.sessionTicketEnabled) {
-    OPENSSL_MISSING_FEATURE(TLSTicket);
-  }
-#endif
 }
 
 TicketSeedHandler* getTicketSeedHandler(
@@ -317,12 +304,10 @@ class SSLContextManager::SslContexts
    * Callback function from openssl to find the right X509 to
    * use during SSL handshake
    */
-#if FOLLY_OPENSSL_HAS_SNI
   static folly::SSLContext::ServerNameCallbackResult serverNameCallback(
       SSL* ssl,
       ClientHelloExtStats* stats,
       const std::shared_ptr<SslContexts>& contexts);
-#endif
 
  private:
   SslContexts(bool strict);
@@ -639,7 +624,7 @@ SSLContextManager::SslContexts::buildServerSSLContext(
   auto sslCtx = std::make_shared<ServerSSLContext>(ctxConfig.sslVersion);
 
   std::string commonName;
-  bool loaded;
+  bool loaded = false;
   if (ctxConfig.offloadDisabled) {
     loaded = mgr->loadCertKeyPairsInSSLContext(sslCtx, ctxConfig, commonName);
   } else {
@@ -832,8 +817,7 @@ void SSLContextManager::verifyCertNames(
     altName->sort();
     VLOG(3) << "cert " << description << " SAN: " << flattenList(*altName);
   } else {
-    VLOG(3) << "cert " << description << " SAN: "
-            << "{none}";
+    VLOG(3) << "cert " << description << " SAN: " << "{none}";
   }
   if (firstCert) {
     groupIdentity = *identity;
@@ -860,7 +844,6 @@ void SSLContextManager::verifyCertNames(
   }
 }
 
-#if FOLLY_OPENSSL_HAS_SNI
 /*static*/ SSLContext::ServerNameCallbackResult
 SSLContextManager::SslContexts::serverNameCallback(
     SSL* ssl,
@@ -914,7 +897,6 @@ SSLContextManager::SslContexts::serverNameCallback(
   }
   return SSLContext::SERVER_NAME_NOT_FOUND;
 }
-#endif
 
 // Consolidate all SSL_CTX setup which depends on openssl version/feature
 void SSLContextManager::SslContexts::ctxSetupByOpensslFeature(
@@ -951,15 +933,10 @@ void SSLContextManager::SslContexts::ctxSetupByOpensslFeature(
 
   // NPN (Next Protocol Negotiation)
   if (!ctxConfig.nextProtocols.empty()) {
-#if FOLLY_OPENSSL_HAS_ALPN
     sslCtx->setRandomizedAdvertisedNextProtocols(ctxConfig.nextProtocols);
-#else
-    OPENSSL_MISSING_FEATURE(NPN);
-#endif
   }
 
   // SNI
-#if FOLLY_OPENSSL_HAS_SNI
   if (ctxConfig.isDefault) {
     if (newDefault) {
       throw std::runtime_error("More than 1 X509 is set as default");
@@ -973,18 +950,7 @@ void SSLContextManager::SslContexts::ctxSetupByOpensslFeature(
           });
     }
   }
-#else
-  // without SNI support, we expect only a single cert. set it as default and
-  // error if we go to another.
-  if (newDefault) {
-    OPENSSL_MISSING_FEATURE(SNI);
-  }
 
-  newDefault = sslCtx;
-
-  // Silence unused parameter warning
-  (mgr);
-#endif
 #ifdef SSL_OP_NO_RENEGOTIATION
   // Disable renegotiation at the OpenSSL layer
   sslCtx->setOptions(SSL_OP_NO_RENEGOTIATION);
@@ -1216,8 +1182,8 @@ bool SSLContextManager::SslContexts::isDefaultCtxExact(
 
 bool SSLContextManager::SslContexts::isDefaultCtxSuffix(
     const SSLContextKey& key) const {
-  size_t dot;
-  if ((dot = key.dnString.find_first_of(".")) != DNString::npos) {
+  size_t dot = 0;
+  if ((dot = key.dnString.find_first_of('.')) != DNString::npos) {
     SSLContextKey suffixKey(DNString(key.dnString, dot));
     return isDefaultCtxExact(suffixKey);
   }
@@ -1236,9 +1202,9 @@ shared_ptr<SSLContext> SSLContextManager::SslContexts::getSSLCtx(
 
 shared_ptr<SSLContext> SSLContextManager::SslContexts::getSSLCtxBySuffix(
     const SSLContextKey& key) const {
-  size_t dot;
+  size_t dot = 0;
 
-  if ((dot = key.dnString.find_first_of(".")) != DNString::npos) {
+  if ((dot = key.dnString.find_first_of('.')) != DNString::npos) {
     SSLContextKey suffixKey(DNString(key.dnString, dot));
     const auto v = dnMap_.find(suffixKey);
     if (v != dnMap_.end()) {

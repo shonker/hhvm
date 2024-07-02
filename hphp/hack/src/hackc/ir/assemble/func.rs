@@ -41,10 +41,12 @@ use ir_core::FunctionFlags;
 use ir_core::Immediate;
 use ir_core::InstrId;
 use ir_core::InstrIdSet;
+use ir_core::IterArgsFlags;
 use ir_core::IterId;
 use ir_core::LocId;
 use ir_core::LocalId;
 use ir_core::MOpMode;
+use ir_core::Maybe;
 use ir_core::MethodFlags;
 use ir_core::ObjMethodOp;
 use ir_core::PropName;
@@ -193,7 +195,15 @@ impl<'b> FunctionParser<'b> {
             Default::default()
         };
 
-        parse!(tokenizer, "(" <params:parse_param(),*> ")" <shadowed_tparams:parse_shadowed_tparams> ":" <return_type:parse_type_info>);
+        parse!(
+            tokenizer,
+            "(" <params:parse_param(),*> ")" <shadowed_tparams:parse_shadowed_tparams> ":"
+        );
+
+        let return_type = match tokenizer.peek_is_identifier("<")? {
+            false => None,
+            true => Some(parse_type_info(tokenizer)?),
+        };
         let attrs = parse_attr(tokenizer)?;
 
         if let Some(class_state) = &mut class_state {
@@ -203,19 +213,23 @@ impl<'b> FunctionParser<'b> {
 
         parse!(tokenizer, "{" "\n");
 
+        // Undo the effects of Func::return_type() mapping None to EMPTY in
+        // print_function() and print_method().
         let mut builder = FuncBuilder::with_func(Func {
-            return_type,
-            params,
-            upper_bounds: tparams,
-            shadowed_tparams,
+            return_type: return_type.into(),
+            upper_bounds: tparams.into(),
+            shadowed_tparams: shadowed_tparams.into(),
             attrs,
+            repr: ir_core::IrRepr {
+                params,
+                ..Default::default()
+            },
             ..Default::default()
         });
 
         let cur_loc = if let Some(src_loc) = unit_state.src_loc.as_ref() {
-            let loc = builder.add_loc(src_loc.clone());
-            builder.func.loc_id = loc;
-            loc
+            builder.func.span = src_loc.to_span();
+            builder.add_loc(src_loc.clone())
         } else {
             LocId::NONE
         };
@@ -285,28 +299,29 @@ impl<'b> FunctionParser<'b> {
         Ok(Function {
             flags: state.flags,
             name,
-            func: state.builder.finish(),
+            body: state.builder.finish(),
         })
     }
 
     fn latch_blocks(&mut self) {
-        assert!(self.builder.func.instrs.is_empty());
+        assert!(self.builder.func.repr.instrs.is_empty());
 
         // Sort the blocks.  BlockId::NONE (where the params all live) will end
         // up at the end.
         self.blocks.sort_by_key(|block| block.bid);
 
-        let func_blocks = &mut self.builder.func.blocks;
+        let func_blocks = &mut self.builder.func.repr.blocks;
 
         let count_instrs: usize = self.blocks.iter().map(|bi| bi.instrs.len()).sum();
         self.builder
             .func
+            .repr
             .instrs
             .resize(count_instrs, Instr::tombstone());
 
         let mut unused_iids: InstrIdSet = (0..count_instrs).map(InstrId::from_usize).collect();
 
-        let func_instrs = &mut self.builder.func.instrs;
+        let func_instrs = &mut self.builder.func.repr.instrs;
 
         // Place the Instrs with known InstrIds.
         for bi in &mut self.blocks {
@@ -667,25 +682,42 @@ impl FunctionParser<'_> {
     }
 
     fn parse_iterator(&mut self, tokenizer: &mut Tokenizer<'_>, loc: LocId) -> Result<Instr> {
-        parse!(tokenizer, "^" <iter_id:parse_u32> <op:["free":"free"; "next":"next"; "init":"init"]>);
-        let iter_id = IterId { idx: iter_id };
+        parse!(tokenizer, "^" <iter_id:parse_usize> <op:["free":"free"; "next":"next"; "init":"init"]>);
+        let iter_id = IterId::new(iter_id);
         Ok(match op.identifier() {
             "free" => Instr::Hhbc(Hhbc::IterFree(iter_id, loc)),
             "init" => {
-                parse!(tokenizer, "from" <vid:self.vid> "jmp" "to" <target0:parse_bid> "else" <target1:parse_bid> "with" <locals:self.keyvalue>);
-                Instr::Terminator(Terminator::IterInit(
-                    instr::IteratorArgs::new(iter_id, locals.0, locals.1, target0, target1, loc),
-                    vid,
-                ))
+                let flags = self.parse_iterator_flags(tokenizer)?;
+                parse!(tokenizer, "from" <lid:self.lid> "jmp" "to" <target0:parse_bid> "else" <target1:parse_bid> "with" <locals:self.keyvalue>);
+                Instr::Terminator(Terminator::IterInit(instr::IteratorArgs::new(
+                    iter_id, flags, lid, locals.0, locals.1, target0, target1, loc,
+                )))
             }
             "next" => {
-                parse!(tokenizer, "jmp" "to" <target0:parse_bid> "else" <target1:parse_bid> "with" <locals:self.keyvalue>);
+                let flags = self.parse_iterator_flags(tokenizer)?;
+                parse!(tokenizer, "from" <lid:self.lid> "jmp" "to" <target0:parse_bid> "else" <target1:parse_bid> "with" <locals:self.keyvalue>);
                 Instr::Terminator(Terminator::IterNext(instr::IteratorArgs::new(
-                    iter_id, locals.0, locals.1, target0, target1, loc,
+                    iter_id, flags, lid, locals.0, locals.1, target0, target1, loc,
                 )))
             }
             _ => unreachable!(),
         })
+    }
+
+    fn parse_iterator_flags(&mut self, tokenizer: &mut Tokenizer<'_>) -> Result<IterArgsFlags> {
+        fn convert_iter_args_flag(id: &str) -> Option<IterArgsFlags> {
+            Some(match id {
+                "base_const" => IterArgsFlags::BaseConst,
+                _ => return None,
+            })
+        }
+
+        let mut flags = IterArgsFlags::None;
+        while let Some(flag) = parse_opt_enum(tokenizer, convert_iter_args_flag)? {
+            flags |= flag;
+        }
+
+        Ok(flags)
     }
 
     fn parse_jmp(&mut self, tokenizer: &mut Tokenizer<'_>, loc: LocId) -> Result<Instr> {
@@ -1189,20 +1221,17 @@ impl FunctionParser<'_> {
     fn parse_const(&mut self, tokenizer: &mut Tokenizer<'_>) -> Result<()> {
         parse!(tokenizer, <idx:parse_imm_id> "=" <value:parse_imm()>);
 
-        if self.builder.func.imms.len() <= idx.as_usize() {
-            self.builder
-                .func
-                .imms
-                .resize(idx.as_usize() + 1, Immediate::Uninit);
+        if self.builder.func.repr.imms.len() <= idx.as_usize() {
+            (self.builder.func.repr.imms).resize(idx.as_usize() + 1, Immediate::Uninit);
         }
         self.builder.imm_lookup.insert(value.clone(), idx);
-        self.builder.func.imms[idx] = value;
+        self.builder.func.repr.imms[idx] = value;
         Ok(())
     }
 
     fn parse_doc(&mut self, tokenizer: &mut Tokenizer<'_>) -> Result<()> {
         let doc = tokenizer.expect_any_string()?.unescaped_string()?;
-        self.builder.func.doc_comment = Some(doc);
+        self.builder.func.doc_comment = Maybe::Just(doc.into());
         Ok(())
     }
 
@@ -1223,7 +1252,7 @@ impl FunctionParser<'_> {
         };
 
         let frame = ExFrame { parent, catch_bid };
-        self.builder.func.ex_frames.insert(num, frame);
+        self.builder.func.repr.ex_frames.insert(num, frame);
 
         Ok(())
     }
@@ -1328,9 +1357,10 @@ impl FunctionParser<'_> {
             "cont_valid" => I::Hhbc(H::ContValid(loc)),
             "create_class" => parse_instr!(tok, I::Hhbc(H::CreateCl{operands: operands.into(), clsid, loc}), <clsid:parse_class_name> "(" <operands:self.vid,*> ")"),
             "create_cont" => I::Hhbc(H::CreateCont(loc)),
-            "create_special_implicit_context" => I::Hhbc(H::CreateSpecialImplicitContext(self.vid2(tok)?, loc)),
+            "get_inaccessible_implicit_context" => I::Hhbc(H::GetInaccessibleImplicitContext(loc)),
             "div" => I::Hhbc(H::Div(self.vid2(tok)?, loc)),
             "enter" => parse_instr!(tok, I::Terminator(T::Enter(p0, loc)), "to" <p0:parse_bid>),
+            "enum_class_label_name" => I::Hhbc(H::EnumClassLabelName(self.vid(tok)?, loc)),
             "eval" => I::Hhbc(H::IncludeEval(IncludeEval { kind: IncludeKind::Eval, vid: self.vid(tok)?, loc })),
             "exit" => I::Terminator(T::Exit(self.vid(tok)?, loc)),
             "fatal" => parse_instr!(tok, I::Terminator(T::Fatal(p0, p1, loc)), <p1:parse_fatal_op> "," <p0:self.vid>),
@@ -1349,7 +1379,8 @@ impl FunctionParser<'_> {
             "include" => I::Hhbc(H::IncludeEval(IncludeEval { kind: IncludeKind::Include, vid: self.vid(tok)?, loc })),
             "include_once" => I::Hhbc(H::IncludeEval(IncludeEval { kind: IncludeKind::IncludeOnce, vid: self.vid(tok)?, loc })),
             "init_prop" => parse_instr!(tok, I::Hhbc(H::InitProp(p0, p1, p2, loc)), <p1:parse_prop_id> "," <p0:self.vid> "," <p2:parse_init_prop_op>),
-            "instance_of_d" => parse_instr!(tok, I::Hhbc(H::InstanceOfD(p0, p1, loc)), <p0:self.vid> "," <p1:parse_class_name>),
+            // parse nullable boolean from 0/1 arguments
+            "instance_of_d" => parse_instr!(tok, I::Hhbc(H::InstanceOfD(p0, p1, p2 > 0, loc)), <p0:self.vid> "," <p1:parse_class_name> "," <p2:parse_u32>),
             "is_late_bound_cls" => I::Hhbc(H::IsLateBoundCls(self.vid(tok)?, loc)),
             "is_type_c" => parse_instr!(tok, I::Hhbc(H::IsTypeC(p0, p1, loc)), <p0:self.vid> "," <p1:parse_is_type_op>),
             "is_type_l" => parse_instr!(tok, I::Hhbc(H::IsTypeL(p0, p1, loc)), <p0:self.lid> "," <p1:parse_is_type_op>),
@@ -1357,6 +1388,7 @@ impl FunctionParser<'_> {
             "isset_g" => I::Hhbc(H::IssetG(self.vid(tok)?, loc)),
             "isset_l" => I::Hhbc(H::IssetL(self.lid(tok)?, loc)),
             "isset_s" => parse_instr!(tok, I::Hhbc(H::IssetS([p0, p1], loc)), <p0:self.vid> "::" <p1:self.vid>),
+            "iter_base" => I::Hhbc(H::IterBase(self.vid(tok)?, loc)),
             "iterator" => self.parse_iterator(tok, loc)?,
             "jmp" => self.parse_jmp(tok, loc)?,
             "late_bound_cls" => I::Hhbc(H::LateBoundCls(loc)),
@@ -1422,7 +1454,6 @@ impl FunctionParser<'_> {
             "unreachable" => I::Terminator(T::Unreachable),
             "unset" => self.parse_unset(tok, loc)?,
             "unsetm" => self.parse_member_op(tok, mnemonic, loc)?,
-            "verify_implicit_context_state" => I::Hhbc(H::VerifyImplicitContextState(loc)),
             "verify_out_type" => parse_instr!(tok, I::Hhbc(Hhbc::VerifyOutType(p0, p1, loc)), <p0:self.vid> "," <p1:self.lid>),
             "verify_param_type" => parse_instr!(tok, I::Hhbc(Hhbc::VerifyParamType(p0, p1, loc)), <p0:self.vid> "," <p1:self.lid>),
             "verify_param_type_ts" => parse_instr!(tok, I::Hhbc(Hhbc::VerifyParamTypeTS(p0, p1, loc)), <p0:self.vid> "," <p1:self.lid>),
@@ -1452,11 +1483,8 @@ impl FunctionParser<'_> {
             instrs: Default::default(),
         });
 
-        if self.builder.func.blocks.len() <= bid.as_usize() {
-            self.builder
-                .func
-                .blocks
-                .resize_with(bid.as_usize() + 1, Block::default);
+        if self.builder.func.repr.blocks.len() <= bid.as_usize() {
+            (self.builder.func.repr.blocks).resize_with(bid.as_usize() + 1, Block::default);
         }
 
         self.builder.start_block(bid);

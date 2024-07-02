@@ -84,6 +84,33 @@ class MyStruct(_fbthrift_python_types.Struct, _fbthrift_compatible_with_MyStruct
     def _to_py_deprecated(self) -> "module.ttypes.MyStruct": ...  # type: ignore
 
 
+class _fbthrift_compatible_with_Containers:
+    pass
+
+
+class Containers(_fbthrift_python_types.Struct, _fbthrift_compatible_with_Containers):
+    I32List: _typing.Final[_typing.Sequence[int]] = ...
+    StringSet: _typing.Final[_typing.AbstractSet[str]] = ...
+    StringToI64Map: _typing.Final[_typing.Mapping[str, int]] = ...
+    def __init__(
+        self, *,
+        I32List: _typing.Optional[_typing.Sequence[int]]=...,
+        StringSet: _typing.Optional[_typing.AbstractSet[str]]=...,
+        StringToI64Map: _typing.Optional[_typing.Mapping[str, int]]=...
+    ) -> None: ...
+
+    def __call__(
+        self, *,
+        I32List: _typing.Optional[_typing.Sequence[int]]=...,
+        StringSet: _typing.Optional[_typing.AbstractSet[str]]=...,
+        StringToI64Map: _typing.Optional[_typing.Mapping[str, int]]=...
+    ) -> _typing.Self: ...
+    def __iter__(self) -> _typing.Iterator[_typing.Tuple[str, _typing.Union[_typing.Sequence[int], _typing.AbstractSet[str], _typing.Mapping[str, int]]]]: ...
+    def _to_python(self) -> _typing.Self: ...
+    def _to_py3(self) -> "test.fixtures.basic.module.types.Containers": ...  # type: ignore
+    def _to_py_deprecated(self) -> "module.ttypes.Containers": ...  # type: ignore
+
+
 class _fbthrift_compatible_with_MyDataItem:
     pass
 
@@ -137,6 +164,29 @@ class MyUnion(_fbthrift_python_types.Union, _fbthrift_compatible_with_MyUnion):
     def _to_py_deprecated(self) -> "module.ttypes.MyUnion": ...  # type: ignore
 
 
+class _fbthrift_compatible_with_MyException:
+    pass
+
+
+class MyException(_fbthrift_python_exceptions.GeneratedError, _fbthrift_compatible_with_MyException):
+    MyIntField: _typing.Final[int] = ...
+    MyStringField: _typing.Final[str] = ...
+    myStruct: _typing.Final[MyStruct] = ...
+    myUnion: _typing.Final[MyUnion] = ...
+    def __init__(
+        self, *,
+        MyIntField: _typing.Optional[int]=...,
+        MyStringField: _typing.Optional[str]=...,
+        myStruct: _typing.Optional[_fbthrift_compatible_with_MyStruct]=...,
+        myUnion: _typing.Optional[_fbthrift_compatible_with_MyUnion]=...
+    ) -> None: ...
+
+    def __iter__(self) -> _typing.Iterator[_typing.Tuple[str, _typing.Union[int, str, MyStruct, MyUnion]]]: ...
+    def _to_python(self) -> _typing.Self: ...
+    def _to_py3(self) -> "test.fixtures.basic.module.types.MyException": ...  # type: ignore
+    def _to_py_deprecated(self) -> "module.ttypes.MyException": ...  # type: ignore
+
+
 class _fbthrift_compatible_with_ReservedKeyword:
     pass
 
@@ -182,6 +232,28 @@ class UnionToBeRenamed(_fbthrift_python_types.Union, _fbthrift_compatible_with_U
     def _to_python(self) -> _typing.Self: ...
     def _to_py3(self) -> "test.fixtures.basic.module.types.UnionToBeRenamed": ...  # type: ignore
     def _to_py_deprecated(self) -> "module.ttypes.UnionToBeRenamed": ...  # type: ignore
+
+
+FLAG: bool = ...
+
+OFFSET: int = ...
+
+COUNT: int = ...
+
+MASK: int = ...
+
+E: float = ...
+
+DATE: str = ...
+
+AList: _typing.List[int] = ...
+
+ASet: _typing.Set[str] = ...
+
+AMap: _typing.Dict[str, _typing.Sequence[int]] = ...
+
+MyEnumAlias = MyEnum
+MyDataItemAlias = MyDataItem
 
 
 class _fbthrift_FooService_simple_rpc_args(_fbthrift_python_types.Struct):

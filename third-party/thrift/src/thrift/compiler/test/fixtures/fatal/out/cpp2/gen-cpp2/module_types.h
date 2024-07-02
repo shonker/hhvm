@@ -833,7 +833,7 @@ APACHE_THRIFT_DEFINE_ACCESSOR(field);
 } // namespace apache
 
 // BEGIN declare_enums
-namespace test_cpp2 { namespace cpp_reflection {
+namespace test_cpp2::cpp_reflection {
 
 enum class enum1 {
   field0 = 0,
@@ -891,7 +891,7 @@ enum class enum_with_special_names {
 
 
 
-}} // test_cpp2::cpp_reflection
+} // namespace test_cpp2::cpp_reflection
 
 namespace std {
 template<> struct hash<::test_cpp2::cpp_reflection::enum1> :
@@ -1000,7 +1000,7 @@ template <> struct TEnumTraits<::test_cpp2::cpp_reflection::enum_with_special_na
 
 // END declare_enums
 // BEGIN forward_declare
-namespace test_cpp2 { namespace cpp_reflection {
+namespace test_cpp2::cpp_reflection {
 class union1;
 class union2;
 class union3;
@@ -1022,7 +1022,7 @@ class struct_with_special_names;
 class struct_with_indirections;
 class StructWithFieldAdapter;
 class UnionWithTypedefFieldAdapter;
-}} // test_cpp2::cpp_reflection
+} // namespace test_cpp2::cpp_reflection
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -1032,7 +1032,7 @@ namespace apache::thrift::detail::qualifier {
 
 // BEGIN hash_and_equal_to
 // END hash_and_equal_to
-namespace test_cpp2 { namespace cpp_reflection {
+namespace test_cpp2::cpp_reflection {
 using ::apache::thrift::detail::operator!=;
 using ::apache::thrift::detail::operator>;
 using ::apache::thrift::detail::operator<=;
@@ -1096,6 +1096,8 @@ class union1 final  {
   using __fbthrift_cpp2_type = union1;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1490,6 +1492,8 @@ class union2 final  {
   using __fbthrift_cpp2_type = union2;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1884,6 +1888,8 @@ class union3 final  {
   using __fbthrift_cpp2_type = union3;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -2274,6 +2280,8 @@ class structA final  {
   using __fbthrift_cpp2_type = structA;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -2489,6 +2497,8 @@ class unionA final  {
   using __fbthrift_cpp2_type = unionA;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -2954,6 +2964,8 @@ class structB final  {
   using __fbthrift_cpp2_type = structB;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -3213,6 +3225,8 @@ class structC final  {
  public:
   using __fbthrift_cpp2_type = structC;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -4864,6 +4878,8 @@ class struct1 final  {
   using __fbthrift_cpp2_type = struct1;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -5290,6 +5306,8 @@ class struct2 final  {
  public:
   using __fbthrift_cpp2_type = struct2;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -5788,6 +5806,8 @@ class struct3 final  {
  public:
   using __fbthrift_cpp2_type = struct3;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -6820,6 +6840,8 @@ class struct4 final  {
   using __fbthrift_cpp2_type = struct4;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -7127,6 +7149,8 @@ class struct5 final  {
  public:
   using __fbthrift_cpp2_type = struct5;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -7490,6 +7514,8 @@ class struct_binary final  {
   using __fbthrift_cpp2_type = struct_binary;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -7648,6 +7674,8 @@ class dep_A_struct final  {
  public:
   using __fbthrift_cpp2_type = dep_A_struct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -7904,6 +7932,8 @@ class dep_B_struct final  {
   using __fbthrift_cpp2_type = dep_B_struct;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -8155,6 +8185,8 @@ class annotated final  {
   using __fbthrift_cpp2_type = annotated;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -8358,6 +8390,8 @@ class union_with_special_names final  {
   using __fbthrift_cpp2_type = union_with_special_names;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -10196,6 +10230,8 @@ class struct_with_special_names final  {
   using __fbthrift_cpp2_type = struct_with_special_names;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -11785,6 +11821,8 @@ class struct_with_indirections final  {
   using __fbthrift_cpp2_type = struct_with_indirections;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -12148,6 +12186,8 @@ class StructWithFieldAdapter final  {
   using __fbthrift_cpp2_type = StructWithFieldAdapter;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    true;
 
 
  public:
@@ -12285,6 +12325,8 @@ class UnionWithTypedefFieldAdapter final  {
  public:
   using __fbthrift_cpp2_type = UnionWithTypedefFieldAdapter;
   static constexpr bool __fbthrift_cpp2_is_union =
+    true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     true;
 
 
@@ -12435,7 +12477,7 @@ unsigned long UnionWithTypedefFieldAdapter::read(Protocol_* iprot) {
 }
 
 
-}} // test_cpp2::cpp_reflection
+} // namespace test_cpp2::cpp_reflection
 
 namespace apache { namespace thrift {
 

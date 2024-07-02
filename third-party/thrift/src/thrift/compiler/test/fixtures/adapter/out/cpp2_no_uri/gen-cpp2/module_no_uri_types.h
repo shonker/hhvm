@@ -31,7 +31,7 @@ APACHE_THRIFT_DEFINE_ACCESSOR(field1);
 // BEGIN forward_declare
 namespace cpp2 {
 class RefUnion;
-} // cpp2
+} // namespace cpp2
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -92,6 +92,8 @@ class RefUnion final  {
  public:
   using __fbthrift_cpp2_type = RefUnion;
   static constexpr bool __fbthrift_cpp2_is_union =
+    true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     true;
 
 
@@ -265,7 +267,7 @@ unsigned long RefUnion::read(Protocol_* iprot) {
 }
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache { namespace thrift {
 

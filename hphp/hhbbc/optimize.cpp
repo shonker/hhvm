@@ -182,7 +182,7 @@ void insert_assertions_step(const php::Func& func,
         case MET: case MPT: case MQT:
           break;
       }
-    }
+    }                                                           break;
     default:                                                    break;
   }
 }
@@ -330,10 +330,8 @@ void insert_assertions(VisitContext& visit, BlockId bid, State state) {
 
     if (state.unreachable) {
       fallthrough = NoBlockId;
-      if (!(instrFlags(op.op) & TF)) {
-        gen(bc::BreakTraceHint {});
-        gen(bc::String { s_unreachable.get() });
-        gen(bc::Fatal { FatalOp::Runtime });
+      if (newBCs.empty() || !(instrFlags(newBCs.back().op) & TF)) {
+        gen(bc::StaticAnalysisError {});
       }
       break;
     }
@@ -383,8 +381,7 @@ BlockId make_fatal_block(php::WideFunc& func, const php::Block* srcBlk,
   auto const blk = func.blocks()[bid].mutate();
   auto const srcLoc = srcBlk->hhbcs.back().srcLoc;
   blk->hhbcs = {
-    bc_with_loc(srcLoc, bc::String { s_unreachable.get() }),
-    bc_with_loc(srcLoc, bc::Fatal { FatalOp::Runtime })
+    bc_with_loc(srcLoc, bc::StaticAnalysisError {})
   };
   blk->fallthrough = NoBlockId;
   blk->throwExit = NoBlockId;
@@ -434,8 +431,7 @@ void visit_blocks(const char* what, VisitContext& visit, Fun&& fun) {
 
 IterId iterFromInit(const php::WideFunc& func, BlockId initBlock) {
   auto const& op = func.blocks()[initBlock]->hhbcs.back();
-  if (op.op == Op::IterInit)  return op.IterInit.ita.iterId;
-  if (op.op == Op::LIterInit) return op.LIterInit.ita.iterId;
+  if (op.op == Op::IterInit) return op.IterInit.ita.iterId;
   always_assert(false);
 }
 
@@ -503,8 +499,7 @@ struct OptimizeIterState {
         );
       }
 
-      auto const fixupForInit = [&] {
-        auto const base = topStkLocal(state);
+      auto const fixupForInit = [&] (LocalId base) {
         if (base == NoLocalId && eligible[bid]) {
           FTRACE(2, "   - blk:{} ineligible\n", bid);
           eligible[bid] = false;
@@ -535,13 +530,10 @@ struct OptimizeIterState {
       switch (op.op) {
         case Op::IterInit:
           assertx(opIdx == blk->hhbcs.size() - 1);
-          fixupForInit();
+          fixupForInit(findIterBaseLoc(state, func, op.IterInit.loc2));
           break;
         case Op::IterNext:
           fixupFromState(op.IterNext.ita.iterId);
-          break;
-        case Op::IterFree:
-          fixupFromState(op.IterFree.iter1);
           break;
         default:
           break;
@@ -617,31 +609,24 @@ void optimize_iterators(VisitContext& visit) {
     switch (op.op) {
       case Op::IterInit: {
         auto args = op.IterInit.ita;
-        auto const target = op.IterInit.target2;
+        if (args.flags == flags && op.IterInit.loc2 == fixup.base) continue;
+        auto const target = op.IterInit.target3;
         args.flags = flags;
         newOps = {
-          bc_with_loc(op.srcLoc, bc::PopC {}),
-          bc_with_loc(op.srcLoc, bc::LIterInit{args, fixup.base, target})
+          bc_with_loc(op.srcLoc, bc::IterInit{args, fixup.base, target})
         };
         break;
       }
       case Op::IterNext: {
         auto args = op.IterNext.ita;
-        auto const target = op.IterNext.target2;
+        if (args.flags == flags && op.IterNext.loc2 == fixup.base) continue;
+        auto const target = op.IterNext.target3;
         args.flags = flags;
         newOps = {
-          bc_with_loc(op.srcLoc, bc::LIterNext{args, fixup.base, target}),
+          bc_with_loc(op.srcLoc, bc::IterNext{args, fixup.base, target}),
         };
         break;
       }
-      case Op::IterFree:
-        newOps = {
-          bc_with_loc(
-            op.srcLoc,
-            bc::LIterFree { op.IterFree.iter1, fixup.base }
-          )
-        };
-        break;
       default:
         always_assert(false);
     }
@@ -776,20 +761,24 @@ Bytecode gen_constant(const TypedValue& cell) {
       return bc::Double { cell.m_data.dbl };
     case KindOfString:
       assertx(cell.m_data.pstr->isStatic());
+      [[fallthrough]];
     case KindOfPersistentString:
       return bc::String { cell.m_data.pstr };
     case KindOfVec:
       assertx(cell.m_data.parr->isStatic());
+      [[fallthrough]];
     case KindOfPersistentVec:
       assertx(cell.m_data.parr->isVecType());
       return bc::Vec { cell.m_data.parr };
     case KindOfDict:
       assertx(cell.m_data.parr->isStatic());
+      [[fallthrough]];
     case KindOfPersistentDict:
       assertx(cell.m_data.parr->isDictType());
       return bc::Dict { cell.m_data.parr };
     case KindOfKeyset:
       assertx(cell.m_data.parr->isStatic());
+      [[fallthrough]];
     case KindOfPersistentKeyset:
       assertx(cell.m_data.parr->isKeysetType());
       return bc::Keyset { cell.m_data.parr };
@@ -812,16 +801,17 @@ Bytecode gen_constant(const TypedValue& cell) {
 
 void optimize_func(const Index& index, FuncAnalysis&& ainfo,
                    php::WideFunc& func) {
-  auto const bump = trace_bump_for(ainfo.ctx.cls, func);
-
   SCOPE_ASSERT_DETAIL("optimize_func") {
     return "Optimizing:" + show(ainfo.ctx);
   };
 
-  Trace::Bump bumper1{Trace::hhbbc, bump};
-  Trace::Bump bumper2{Trace::hhbbc_cfg, bump};
-  Trace::Bump bumper3{Trace::hhbbc_dce, bump};
-  Trace::Bump bumper4{Trace::hhbbc_index, bump};
+  auto const UNUSED bump = trace_bump(
+    ainfo.ctx,
+    Trace::hhbbc,
+    Trace::hhbbc_cfg,
+    Trace::hhbbc_dce,
+    Trace::hhbbc_index
+  );
   do_optimize(index, std::move(ainfo), func);
 }
 
@@ -850,16 +840,10 @@ UpdateBCResult update_bytecode(php::WideFunc& func,
     auto const removing_fatal = [&] {
       auto const& u = ent.second;
       if (!u.replacedBcs.empty()) return false;
-      if (u.unchangedBcs + 3 != blk->hhbcs.size()) return false;
-      auto const& bc1 = blk->hhbcs[u.unchangedBcs];
-      auto const& bc2 = blk->hhbcs[u.unchangedBcs+1];
-      auto const& bc3 = blk->hhbcs[u.unchangedBcs+2];
-      if (bc1.op != Op::BreakTraceHint) return false;
-      if (bc2.op != Op::String) return false;
-      if (bc3.op != Op::Fatal) return false;
-      if (bc2.String.str1 != s_unreachable.get()) return false;
-      if (bc3.Fatal.subop1 != FatalOp::Runtime) return false;
-      assertx(instrFlags(bc3.op) & TF);
+      if (u.unchangedBcs + 1 != blk->hhbcs.size()) return false;
+      auto const& bc = blk->hhbcs[u.unchangedBcs];
+      if (bc.op != Op::StaticAnalysisError) return false;
+      assertx(instrFlags(bc.op) & TF);
       return true;
     };
 
@@ -913,9 +897,7 @@ UpdateBCResult update_bytecode(php::WideFunc& func,
       if (hasCf) {
         blk->fallthrough = fatal();
       } else {
-        blk->hhbcs.push_back(bc::BreakTraceHint {});
-        blk->hhbcs.push_back(bc::String { s_unreachable.get() });
-        blk->hhbcs.push_back(bc::Fatal { FatalOp::Runtime });
+        blk->hhbcs.push_back(bc::StaticAnalysisError {});
         set_changed();
       }
     }

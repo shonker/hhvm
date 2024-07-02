@@ -30,12 +30,16 @@ from libcpp.utility cimport move as cmove
 from libcpp.vector cimport vector as cvector
 from folly.executor cimport get_executor
 from folly.iobuf cimport IOBuf, from_unique_ptr
-from thrift.py3.exceptions cimport cTApplicationException, cTApplicationExceptionType__UNKNOWN, ApplicationError
+from thrift.python.exceptions cimport (
+    ApplicationError,
+    cTApplicationException,
+    cTApplicationExceptionType__UNKNOWN,
+)
 from thrift.py3.server cimport Cpp2RequestContext, RequestContext, THRIFT_REQUEST_CONTEXT
 from libcpp.optional cimport optional
 from thrift.py3.stream cimport cServerStream, cResponseAndServerStream, createResponseAndServerStream, createAsyncIteratorFromPyIterator, ServerStream
 from thrift.python.types cimport ServiceInterface as cServiceInterface
-from thrift.python.serializer cimport Protocol
+from thrift.python.protocol cimport Protocol
 from folly cimport (
   cFollyPromise,
   cFollyUnit,
@@ -343,8 +347,8 @@ cdef class PythonAsyncProcessorFactory(AsyncProcessorFactory):
         return inst
 
 cdef class ThriftServer(ThriftServer_py3):
-    def __init__(self, cServiceInterface server, int port=0, ip=None, path=None):
+    def __init__(self, cServiceInterface server, int port=0, ip=None, path=None, socket_fd=None):
         self.funcMap = server.getFunctionTable()
         self.handler = server
         self.lifecycle = [self.handler.onStartServing, self.handler.onStopRequested]
-        super().__init__(PythonAsyncProcessorFactory.create(self.funcMap, self.lifecycle, self.handler.service_name(), self.handler), port, ip, path)
+        super().__init__(PythonAsyncProcessorFactory.create(self.funcMap, self.lifecycle, self.handler.service_name(), self.handler), port, ip, path, socket_fd)

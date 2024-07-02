@@ -116,10 +116,22 @@ struct IRGS {
   TranslateRetryContext* retryContext;
 
   /*
-   * Used to reuse blocks of code between specialized IterInits and IterNexts.
+   * Used to communicate iterator profile info from IterInit to IterNext.
    * See irgen-iter-spec for details.
    */
-  jit::fast_map<Block*, std::unique_ptr<SpecializedIterator>> iters;
+  jit::fast_map<
+    std::pair<Block*, DataType>,
+    IterProfileInfo
+  > iterProfiles;
+
+  /*
+   * Used to reuse blocks of code between compatible IterInits and IterNexts.
+   * See irgen-iter-spec for details.
+   */
+  jit::fast_map<
+    std::tuple<Block*, DataType, uint16_t, uint8_t>,
+    IterSpecInfo
+  > iters;
 
   /*
    * Func entry inputs:

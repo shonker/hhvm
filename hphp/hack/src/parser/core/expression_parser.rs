@@ -443,6 +443,11 @@ where
             TokenKind::Package => self.parse_package_expression(),
             TokenKind::Empty => self.parse_empty(),
             TokenKind::Nameof => self.parse_nameof(),
+            TokenKind::Backtick => {
+                let pos = self.pos();
+                let prefix = self.sc_mut().make_missing(pos);
+                self.parse_expression_tree(prefix)
+            }
             kind if self.expects(kind) => {
                 // ERROR RECOVERY: if we've prematurely found a token we're expecting
                 // later, mark the expression missing, throw an error, and do not advance
@@ -1158,13 +1163,9 @@ where
         // SPEC:
         // nameof expr
         let kw_token = self.next_token();
-        let expr = if self.env.nameof_precedence {
-            self.parse_expression_with_operator_precedence(Operator::prefix_unary_from_token(
-                kw_token.kind(),
-            ))
-        } else {
-            self.parse_expression()
-        };
+        let expr = self.parse_expression_with_operator_precedence(
+            Operator::prefix_unary_from_token(kw_token.kind()),
+        );
         let kw = self.sc_mut().make_token(kw_token);
         self.sc_mut().make_nameof_expression(kw, expr)
     }
@@ -2289,21 +2290,21 @@ where
                 } else {
                     // Opening backtick of an expression tree literal.
                     let prefix = self.sc_mut().make_simple_type_specifier(name);
-                    let left_backtick = self.require_token(TokenKind::Backtick, Errors::error1065);
-                    self.in_expression_tree = true;
-                    let body = self.parse_lambda_body();
-                    self.in_expression_tree = false;
-                    let right_backtick = self.require_token(TokenKind::Backtick, Errors::error1065);
-                    self.sc_mut().make_prefixed_code_expression(
-                        prefix,
-                        left_backtick,
-                        body,
-                        right_backtick,
-                    )
+                    self.parse_expression_tree(prefix)
                 }
             }
             _ => name,
         }
+    }
+
+    fn parse_expression_tree(&mut self, prefix: S::Output) -> S::Output {
+        let left_backtick = self.require_token(TokenKind::Backtick, Errors::error1065);
+        self.in_expression_tree = true;
+        let body = self.parse_lambda_body();
+        self.in_expression_tree = false;
+        let right_backtick = self.require_token(TokenKind::Backtick, Errors::error1065);
+        self.sc_mut()
+            .make_prefixed_code_expression(prefix, left_backtick, body, right_backtick)
     }
 
     fn parse_collection_literal_expression(&mut self, name: S::Output) -> S::Output {

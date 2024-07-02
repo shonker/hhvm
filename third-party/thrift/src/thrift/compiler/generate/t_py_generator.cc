@@ -401,40 +401,41 @@ void t_py_generator::generate_json_field(
     generate_json_container(out, (t_container*)type, name, prefix_json);
   } else if (type->is_enum()) {
     generate_json_enum(out, (t_enum*)type, name, prefix_json);
-  } else if (type->is_base_type()) {
+  } else if (type->is_primitive_type()) {
     string conversion_function = "";
-    t_base_type::t_base tbase = ((t_base_type*)type)->get_base();
+    t_primitive_type::t_primitive tbase =
+        ((t_primitive_type*)type)->primitive_type();
     string number_limit = "";
     string number_negative_limit = "";
     switch (tbase) {
-      case t_base_type::TYPE_VOID:
-      case t_base_type::TYPE_STRING:
-      case t_base_type::TYPE_BINARY:
-      case t_base_type::TYPE_BOOL:
+      case t_primitive_type::TYPE_VOID:
+      case t_primitive_type::TYPE_STRING:
+      case t_primitive_type::TYPE_BINARY:
+      case t_primitive_type::TYPE_BOOL:
         break;
-      case t_base_type::TYPE_BYTE:
+      case t_primitive_type::TYPE_BYTE:
         number_limit = "0x7f";
         number_negative_limit = "-0x80";
         break;
-      case t_base_type::TYPE_I16:
+      case t_primitive_type::TYPE_I16:
         number_limit = "0x7fff";
         number_negative_limit = "-0x8000";
         break;
-      case t_base_type::TYPE_I32:
+      case t_primitive_type::TYPE_I32:
         number_limit = "0x7fffffff";
         number_negative_limit = "-0x80000000";
         break;
-      case t_base_type::TYPE_I64:
+      case t_primitive_type::TYPE_I64:
         conversion_function = "long";
         break;
-      case t_base_type::TYPE_DOUBLE:
-      case t_base_type::TYPE_FLOAT:
+      case t_primitive_type::TYPE_DOUBLE:
+      case t_primitive_type::TYPE_FLOAT:
         conversion_function = "float";
         break;
       default:
         throw std::runtime_error(
             "compiler error: no python reader for base type " +
-            t_base_type::t_base_name(tbase) + name);
+            t_primitive_type::t_primitive_name(tbase) + name);
     }
 
     string value = prefix_json;
@@ -465,10 +466,8 @@ void t_py_generator::generate_json_struct(
     const string& prefix_thrift,
     const string& prefix_json) {
   indent(out) << prefix_thrift << " = " << type_name(tstruct) << "()" << endl;
-  indent(out)
-      << prefix_thrift << ".readFromJson(" << prefix_json
-      << ", is_text=False, relax_enum_validation=relax_enum_validation, "
-      << "custom_set_cls=set_cls, custom_dict_cls=dict_cls)" << endl;
+  indent(out) << prefix_thrift << ".readFromJson(" << prefix_json
+              << ", is_text=False, **kwargs)" << endl;
 }
 
 void t_py_generator::generate_json_enum(
@@ -488,6 +487,11 @@ void t_py_generator::generate_json_enum(
   indent(out) << "else:" << endl;
   indent(out) << "    raise TProtocolException("
               << "TProtocolException.INVALID_DATA, msg)" << endl;
+  indent_down();
+  indent(out) << "if wrap_enum_constants:" << endl;
+  indent_up();
+  indent(out) << prefix_thrift << " = ThriftEnumWrapper(" << type_name(tenum)
+              << ", " << prefix_thrift << ")" << endl;
   indent_down();
 }
 
@@ -562,13 +566,14 @@ void t_py_generator::generate_json_collection_element(
   string to_parse = prefix_json;
   type = type->get_true_type();
 
-  if (type->is_base_type()) {
-    t_base_type::t_base tbase = ((t_base_type*)type)->get_base();
+  if (type->is_primitive_type()) {
+    t_primitive_type::t_primitive tbase =
+        ((t_primitive_type*)type)->primitive_type();
     switch (tbase) {
       // Explicitly cast into float because there is an asymetry
       // between serializing and deserializing NaN.
-      case t_base_type::TYPE_DOUBLE:
-      case t_base_type::TYPE_FLOAT:
+      case t_primitive_type::TYPE_DOUBLE:
+      case t_primitive_type::TYPE_FLOAT:
         to_act_on = "float(" + to_act_on + ")";
         break;
       default:
@@ -605,17 +610,23 @@ void t_py_generator::generate_json_map_key(
   type = type->get_true_type();
   if (type->is_enum()) {
     indent(out) << parsed_key << " = int(" << raw_key << ")" << endl;
-  } else if (type->is_base_type()) {
-    t_base_type::t_base tbase = ((t_base_type*)type)->get_base();
+    indent(out) << "if wrap_enum_constants:" << endl;
+    indent_up();
+    indent(out) << parsed_key << " = ThriftEnumWrapper(" << type_name(type)
+                << ", " << parsed_key << ")" << endl;
+    indent_down();
+  } else if (type->is_primitive_type()) {
+    t_primitive_type::t_primitive tbase =
+        ((t_primitive_type*)type)->primitive_type();
     string conversion_function = "";
     string number_limit = "";
     string number_negative_limit = "";
     bool generate_assignment = true;
     switch (tbase) {
-      case t_base_type::TYPE_STRING:
-      case t_base_type::TYPE_BINARY:
+      case t_primitive_type::TYPE_STRING:
+      case t_primitive_type::TYPE_BINARY:
         break;
-      case t_base_type::TYPE_BOOL:
+      case t_primitive_type::TYPE_BOOL:
         indent(out) << "if " << raw_key << " == 'true':" << endl;
         indent_up();
         indent(out) << parsed_key << " = True" << endl;
@@ -632,32 +643,32 @@ void t_py_generator::generate_json_map_key(
         indent_down();
         generate_assignment = false;
         break;
-      case t_base_type::TYPE_BYTE:
+      case t_primitive_type::TYPE_BYTE:
         conversion_function = "int";
         number_limit = "0x7f";
         number_negative_limit = "-0x80";
         break;
-      case t_base_type::TYPE_I16:
+      case t_primitive_type::TYPE_I16:
         conversion_function = "int";
         number_limit = "0x7fff";
         number_negative_limit = "-0x8000";
         break;
-      case t_base_type::TYPE_I32:
+      case t_primitive_type::TYPE_I32:
         conversion_function = "int";
         number_limit = "0x7fffffff";
         number_negative_limit = "-0x80000000";
         break;
-      case t_base_type::TYPE_I64:
+      case t_primitive_type::TYPE_I64:
         conversion_function = "long";
         break;
-      case t_base_type::TYPE_DOUBLE:
-      case t_base_type::TYPE_FLOAT:
+      case t_primitive_type::TYPE_DOUBLE:
+      case t_primitive_type::TYPE_FLOAT:
         conversion_function = "float";
         break;
       default:
         throw std::runtime_error(
             "compiler error: no C++ reader for base type " +
-            t_base_type::t_base_name(tbase));
+            t_primitive_type::t_primitive_name(tbase));
     }
 
     string value = raw_key;
@@ -688,13 +699,23 @@ void t_py_generator::generate_json_reader_fn_signature(ofstream& out) {
   indent(out) << "def readFromJson(self, json, is_text=True, **kwargs):"
               << endl;
   indent_up();
+  indent(out) << "kwargs_copy = dict(kwargs)" << endl;
   indent(out) << "relax_enum_validation = "
-                 "bool(kwargs.pop('relax_enum_validation', False))"
+                 "bool(kwargs_copy.pop('relax_enum_validation', False))"
               << endl;
-  indent(out) << "set_cls = kwargs.pop('custom_set_cls', set)" << endl;
-  indent(out) << "dict_cls = kwargs.pop('custom_dict_cls', dict)" << endl;
-  indent(out) << "if kwargs:" << endl;
-  indent(out) << "    extra_kwargs = ', '.join(kwargs.keys())" << endl;
+  indent(out) << "set_cls = kwargs_copy.pop('custom_set_cls', set)" << endl;
+  indent(out) << "dict_cls = kwargs_copy.pop('custom_dict_cls', dict)" << endl;
+  indent(out)
+      << "wrap_enum_constants = kwargs_copy.pop('wrap_enum_constants', False)"
+      << endl;
+  indent(out) << "if wrap_enum_constants and relax_enum_validation:" << endl;
+  indent(out) << "    raise ValueError(" << endl;
+  indent(out)
+      << "        'wrap_enum_constants cannot be used together with relax_enum_validation'"
+      << endl;
+  indent(out) << "    )" << endl;
+  indent(out) << "if kwargs_copy:" << endl;
+  indent(out) << "    extra_kwargs = ', '.join(kwargs_copy.keys())" << endl;
   indent(out) << "    raise ValueError(" << endl;
   indent(out) << "        'Unexpected keyword arguments: ' + extra_kwargs"
               << endl;
@@ -719,8 +740,8 @@ void t_py_generator::generate_json_reader(
 
   for (f_iter = fields.begin(); f_iter != fields.end(); ++f_iter) {
     string field = (*f_iter)->get_name();
-    indent(out) << "if '" << field << "' in json_obj "
-                << "and json_obj['" << field << "'] is not None:" << endl;
+    indent(out) << "if '" << field << "' in json_obj " << "and json_obj['"
+                << field << "'] is not None:" << endl;
     indent_up();
     generate_json_field(
         out, *f_iter, "self.", "", "json_obj['" + (*f_iter)->get_name() + "']");
@@ -901,7 +922,14 @@ string t_py_generator::render_fastproto_includes() {
          "            for _ in range(next_id, item[0]):\n"
          "                yield None\n"
          "        yield item\n"
-         "        next_id = item[0] + 1\n\n";
+         "        next_id = item[0] + 1\n\n"
+         "class ThriftEnumWrapper(int):\n"
+         "  def __new__(cls, enum_class, value):\n"
+         "    return super().__new__(cls, value)\n"
+         "  def __init__(self, enum_class, value):"
+         "    self.enum_class = enum_class\n"
+         "  def __repr__(self):\n"
+         "    return self.enum_class.__name__ + '.' + self.enum_class._VALUES_TO_NAMES[self]\n\n";
 }
 
 /**
@@ -1111,24 +1139,25 @@ string t_py_generator::render_const_value(
   type = type->get_true_type();
   std::ostringstream out;
 
-  if (type->is_base_type()) {
-    t_base_type::t_base tbase = ((t_base_type*)type)->get_base();
+  if (type->is_primitive_type()) {
+    t_primitive_type::t_primitive tbase =
+        ((t_primitive_type*)type)->primitive_type();
     switch (tbase) {
-      case t_base_type::TYPE_STRING:
-      case t_base_type::TYPE_BINARY:
+      case t_primitive_type::TYPE_STRING:
+      case t_primitive_type::TYPE_BINARY:
         out << render_string(value->get_string());
         break;
-      case t_base_type::TYPE_BOOL:
+      case t_primitive_type::TYPE_BOOL:
         out << (value->get_integer() > 0 ? "True" : "False");
         break;
-      case t_base_type::TYPE_BYTE:
-      case t_base_type::TYPE_I16:
-      case t_base_type::TYPE_I32:
-      case t_base_type::TYPE_I64:
+      case t_primitive_type::TYPE_BYTE:
+      case t_primitive_type::TYPE_I16:
+      case t_primitive_type::TYPE_I32:
+      case t_primitive_type::TYPE_I64:
         out << value->get_integer();
         break;
-      case t_base_type::TYPE_DOUBLE:
-      case t_base_type::TYPE_FLOAT:
+      case t_primitive_type::TYPE_DOUBLE:
+      case t_primitive_type::TYPE_FLOAT:
         out << std::showpoint;
         if (value->kind() == t_const_value::CV_INTEGER) {
           out << value->get_integer();
@@ -1139,7 +1168,7 @@ string t_py_generator::render_const_value(
       default:
         throw std::runtime_error(
             "compiler error: no const of base type " +
-            t_base_type::t_base_name(tbase));
+            t_primitive_type::t_primitive_name(tbase));
     }
   } else if (type->is_enum()) {
     indent(out) << value->get_integer();
@@ -1163,7 +1192,7 @@ string t_py_generator::render_const_value(
             v_iter->first->get_string());
       }
       out << indent();
-      out << render_const_value(&t_base_type::t_string(), v_iter->first);
+      out << render_const_value(&t_primitive_type::t_string(), v_iter->first);
       out << " : ";
       out << render_const_value(field_type, v_iter->second);
       out << "," << endl;
@@ -1446,12 +1475,10 @@ void t_py_generator::generate_py_union(
   indent_down();
   out << endl;
   if (compare_t_fields_only_) {
-    out << indent() << "return "
-        << "self.field == other.field and "
+    out << indent() << "return " << "self.field == other.field and "
         << "self.value == other.value" << endl;
   } else {
-    out << indent() << "return "
-        << "self.__dict__ == other.__dict__" << endl;
+    out << indent() << "return " << "self.__dict__ == other.__dict__" << endl;
   }
 
   indent_down();
@@ -1483,12 +1510,12 @@ void t_py_generator::generate_py_thrift_spec(
   for (m_iter = sorted_members.begin(); m_iter != sorted_members.end();
        ++m_iter) {
     indent(out) << "(" << (*m_iter)->get_key() << ", "
-                << type_to_enum((*m_iter)->get_type()) << ", "
-                << "'" << rename_reserved_keywords((*m_iter)->get_name()) << "'"
+                << type_to_enum((*m_iter)->get_type()) << ", " << "'"
+                << rename_reserved_keywords((*m_iter)->get_name()) << "'"
                 << ", " << type_to_spec_args((*m_iter)->get_type()) << ", "
                 << render_field_default_value(*m_iter) << ", "
-                << static_cast<int>((*m_iter)->get_req()) << ", ),"
-                << " # " << (*m_iter)->get_key() << endl;
+                << static_cast<int>((*m_iter)->get_req()) << ", )," << " # "
+                << (*m_iter)->get_key() << endl;
   }
 
   indent_down();
@@ -1551,7 +1578,7 @@ void t_py_generator::generate_py_thrift_spec(
       for (m_iter = members.begin(); m_iter != members.end(); ++m_iter) {
         // Initialize fields
         const t_type* type = (*m_iter)->get_type();
-        if (!type->is_base_type() && !type->is_enum() &&
+        if (!type->is_primitive_type() && !type->is_enum() &&
             (*m_iter)->get_value() != nullptr) {
           indent(out) << "if "
                       << rename_reserved_keywords((*m_iter)->get_name())
@@ -1790,8 +1817,8 @@ void t_py_generator::generate_py_struct_definition(
           << "== getattr(other, field.name, field.default)"
           << " for field in spec_t_fields)" << endl;
     } else {
-      out << indent() << "return "
-          << "self.__dict__ == other.__dict__ " << endl;
+      out << indent() << "return " << "self.__dict__ == other.__dict__ "
+          << endl;
     }
     indent_down();
     out << endl;
@@ -2024,15 +2051,13 @@ void t_py_generator::generate_py_struct_writer(
       // An optional field with a value set should not be serialized if
       // the value equals the default value
       out << " and self." << rename_reserved_keywords((*f_iter)->get_name())
-          << " != "
-          << "self.thrift_spec[" << get_thrift_spec_key(tstruct, *f_iter)
-          << "][4]";
+          << " != " << "self.thrift_spec["
+          << get_thrift_spec_key(tstruct, *f_iter) << "][4]";
     }
     out << ":" << endl;
     indent_up();
-    indent(out) << "oprot.writeFieldBegin("
-                << "'" << (*f_iter)->get_name() << "', "
-                << type_to_enum((*f_iter)->get_type()) << ", "
+    indent(out) << "oprot.writeFieldBegin(" << "'" << (*f_iter)->get_name()
+                << "', " << type_to_enum((*f_iter)->get_type()) << ", "
                 << (*f_iter)->get_key() << ")" << endl;
 
     // Write field contents
@@ -2177,8 +2202,8 @@ void t_py_generator::generate_py_converter_helpers(
       << python_namespace << ".thrift_types\")" << endl
       << indent()
       << "return thrift.python.converter.to_python_struct(python_types."
-      << rename_reserved_keywords(tstruct->get_name()) << ", self"
-      << ")" << endl
+      << rename_reserved_keywords(tstruct->get_name()) << ", self" << ")"
+      << endl
       << endl;
   indent_down();
 
@@ -2190,8 +2215,8 @@ void t_py_generator::generate_py_converter_helpers(
       << indent() << "py3_types = importlib.import_module(\"" << py3_namespace
       << ".types\")" << endl
       << indent() << "return thrift.py3.converter.to_py3_struct(py3_types."
-      << rename_reserved_keywords(tstruct->get_name()) << ", self"
-      << ")" << endl
+      << rename_reserved_keywords(tstruct->get_name()) << ", self" << ")"
+      << endl
       << endl;
   indent_down();
 
@@ -2883,8 +2908,8 @@ void t_py_generator::generate_service_server(
                << "Processor." << (gen_future_ ? "future_process_" : "process_")
                << (*f_iter)->get_name() << endl
                << indent() << "self._priorityMap["
-               << render_string((*f_iter)->get_name()) << "] = "
-               << "TPriority." << function_prio << endl;
+               << render_string((*f_iter)->get_name()) << "] = " << "TPriority."
+               << function_prio << endl;
   }
   indent_down();
   f_service_ << endl;
@@ -3135,48 +3160,49 @@ void t_py_generator::generate_deserialize_field(
     generate_deserialize_struct(out, (t_struct*)type, name);
   } else if (type->is_container()) {
     generate_deserialize_container(out, type, name);
-  } else if (type->is_base_type() || type->is_enum()) {
+  } else if (type->is_primitive_type() || type->is_enum()) {
     indent(out) << name << " = iprot.";
 
-    if (type->is_base_type()) {
-      t_base_type::t_base tbase = ((t_base_type*)type)->get_base();
+    if (type->is_primitive_type()) {
+      t_primitive_type::t_primitive tbase =
+          ((t_primitive_type*)type)->primitive_type();
       switch (tbase) {
-        case t_base_type::TYPE_VOID:
+        case t_primitive_type::TYPE_VOID:
           throw std::runtime_error(
               "compiler error: cannot serialize void field in a struct: " +
               name);
-        case t_base_type::TYPE_STRING:
+        case t_primitive_type::TYPE_STRING:
           out << "readString().decode('utf-8') "
               << "if UTF8STRINGS else iprot.readString()";
           break;
-        case t_base_type::TYPE_BINARY:
+        case t_primitive_type::TYPE_BINARY:
           out << "readString()";
           break;
-        case t_base_type::TYPE_BOOL:
+        case t_primitive_type::TYPE_BOOL:
           out << "readBool()";
           break;
-        case t_base_type::TYPE_BYTE:
+        case t_primitive_type::TYPE_BYTE:
           out << "readByte()";
           break;
-        case t_base_type::TYPE_I16:
+        case t_primitive_type::TYPE_I16:
           out << "readI16()";
           break;
-        case t_base_type::TYPE_I32:
+        case t_primitive_type::TYPE_I32:
           out << "readI32()";
           break;
-        case t_base_type::TYPE_I64:
+        case t_primitive_type::TYPE_I64:
           out << "readI64()";
           break;
-        case t_base_type::TYPE_DOUBLE:
+        case t_primitive_type::TYPE_DOUBLE:
           out << "readDouble()";
           break;
-        case t_base_type::TYPE_FLOAT:
+        case t_primitive_type::TYPE_FLOAT:
           out << "readFloat()";
           break;
         default:
           throw std::runtime_error(
               "compiler error: no Python name for base type " +
-              t_base_type::t_base_name(tbase));
+              t_primitive_type::t_primitive_name(tbase));
       }
     } else if (type->is_enum()) {
       out << "readI32()";
@@ -3214,10 +3240,10 @@ void t_py_generator::generate_deserialize_container(
   string vtype = tmp("_vtype");
   string etype = tmp("_etype");
 
-  t_field fsize(&t_base_type::t_i32(), size);
-  t_field fktype(&t_base_type::t_byte(), ktype);
-  t_field fvtype(&t_base_type::t_byte(), vtype);
-  t_field fetype(&t_base_type::t_byte(), etype);
+  t_field fsize(&t_primitive_type::t_i32(), size);
+  t_field fktype(&t_primitive_type::t_byte(), ktype);
+  t_field fvtype(&t_primitive_type::t_byte(), vtype);
+  t_field fetype(&t_primitive_type::t_byte(), etype);
 
   // Declare variables, read header
   if (ttype->is_map()) {
@@ -3360,49 +3386,50 @@ void t_py_generator::generate_serialize_field(
     generate_serialize_struct(out, (t_struct*)type, name);
   } else if (type->is_container()) {
     generate_serialize_container(out, type, name);
-  } else if (type->is_base_type() || type->is_enum()) {
+  } else if (type->is_primitive_type() || type->is_enum()) {
     indent(out) << "oprot.";
 
-    if (type->is_base_type()) {
-      t_base_type::t_base tbase = ((t_base_type*)type)->get_base();
+    if (type->is_primitive_type()) {
+      t_primitive_type::t_primitive tbase =
+          ((t_primitive_type*)type)->primitive_type();
       switch (tbase) {
-        case t_base_type::TYPE_VOID:
+        case t_primitive_type::TYPE_VOID:
           throw std::runtime_error(
               "compiler error: cannot serialize void field in a struct: " +
               name);
-        case t_base_type::TYPE_STRING:
+        case t_primitive_type::TYPE_STRING:
           out << "writeString(" << name << ".encode('utf-8')) "
               << "if UTF8STRINGS and not isinstance(" << name << ", bytes) "
               << "else oprot.writeString(" << name << ")";
           break;
-        case t_base_type::TYPE_BINARY:
+        case t_primitive_type::TYPE_BINARY:
           out << "writeString(" << name << ")";
           break;
-        case t_base_type::TYPE_BOOL:
+        case t_primitive_type::TYPE_BOOL:
           out << "writeBool(" << name << ")";
           break;
-        case t_base_type::TYPE_BYTE:
+        case t_primitive_type::TYPE_BYTE:
           out << "writeByte(" << name << ")";
           break;
-        case t_base_type::TYPE_I16:
+        case t_primitive_type::TYPE_I16:
           out << "writeI16(" << name << ")";
           break;
-        case t_base_type::TYPE_I32:
+        case t_primitive_type::TYPE_I32:
           out << "writeI32(" << name << ")";
           break;
-        case t_base_type::TYPE_I64:
+        case t_primitive_type::TYPE_I64:
           out << "writeI64(" << name << ")";
           break;
-        case t_base_type::TYPE_DOUBLE:
+        case t_primitive_type::TYPE_DOUBLE:
           out << "writeDouble(" << name << ")";
           break;
-        case t_base_type::TYPE_FLOAT:
+        case t_primitive_type::TYPE_FLOAT:
           out << "writeFloat(" << name << ")";
           break;
         default:
           throw std::runtime_error(
               "compiler error: no Python name for base type " +
-              t_base_type::t_base_name(tbase));
+              t_primitive_type::t_primitive_name(tbase));
       }
     } else if (type->is_enum()) {
       out << "writeI32(" << name << ")";
@@ -3692,27 +3719,28 @@ string t_py_generator::type_name(const t_type* ttype) {
 string t_py_generator::type_to_enum(const t_type* type) {
   type = type->get_true_type();
 
-  if (type->is_base_type()) {
-    t_base_type::t_base tbase = ((t_base_type*)type)->get_base();
+  if (type->is_primitive_type()) {
+    t_primitive_type::t_primitive tbase =
+        ((t_primitive_type*)type)->primitive_type();
     switch (tbase) {
-      case t_base_type::TYPE_VOID:
+      case t_primitive_type::TYPE_VOID:
         throw std::runtime_error("NO T_VOID CONSTRUCT");
-      case t_base_type::TYPE_STRING:
-      case t_base_type::TYPE_BINARY:
+      case t_primitive_type::TYPE_STRING:
+      case t_primitive_type::TYPE_BINARY:
         return "TType.STRING";
-      case t_base_type::TYPE_BOOL:
+      case t_primitive_type::TYPE_BOOL:
         return "TType.BOOL";
-      case t_base_type::TYPE_BYTE:
+      case t_primitive_type::TYPE_BYTE:
         return "TType.BYTE";
-      case t_base_type::TYPE_I16:
+      case t_primitive_type::TYPE_I16:
         return "TType.I16";
-      case t_base_type::TYPE_I32:
+      case t_primitive_type::TYPE_I32:
         return "TType.I32";
-      case t_base_type::TYPE_I64:
+      case t_primitive_type::TYPE_I64:
         return "TType.I64";
-      case t_base_type::TYPE_DOUBLE:
+      case t_primitive_type::TYPE_DOUBLE:
         return "TType.DOUBLE";
-      case t_base_type::TYPE_FLOAT:
+      case t_primitive_type::TYPE_FLOAT:
         return "TType.FLOAT";
     }
   } else if (type->is_enum()) {
@@ -3735,11 +3763,12 @@ string t_py_generator::type_to_spec_args(const t_type* ttype) {
   const auto* adapter = get_py_adapter(ttype); // Do this before get_true_type.
   ttype = ttype->get_true_type();
 
-  if (ttype->is_base_type()) {
-    t_base_type::t_base tbase = ((t_base_type*)ttype)->get_base();
-    if (tbase == t_base_type::TYPE_STRING) {
+  if (ttype->is_primitive_type()) {
+    t_primitive_type::t_primitive tbase =
+        ((t_primitive_type*)ttype)->primitive_type();
+    if (tbase == t_primitive_type::TYPE_STRING) {
       return "True";
-    } else if (tbase == t_base_type::TYPE_BINARY) {
+    } else if (tbase == t_primitive_type::TYPE_BINARY) {
       return "False";
     }
     return "None";

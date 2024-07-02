@@ -7,15 +7,8 @@
  *)
 
 open Hh_prelude
-open Typing_defs
 module Env = Typing_env
-module Cls = Decl_provider.Class
-
-(* If no module name is declared, treat as a default module *)
-let declared_module_name_with_default module_opt =
-  match module_opt with
-  | None -> Naming_special_names.Modules.default
-  | Some m -> m
+module Cls = Folded_class
 
 let can_access_internal
     ~(env : Typing_env_types.env)
@@ -41,67 +34,6 @@ let can_access_internal
       | Decl_entry.NotYetAvailable ->
         `Yes))
   | (Some current, Some target) -> `Disjoint (current, target)
-
-let get_module_pos env name =
-  match Env.get_module env name with
-  | Some m -> m.mdt_pos
-  | None -> Pos_or_decl.none
-
-let satisfies_package_deps env current_pkg target_pkg =
-  match (current_pkg, target_pkg) with
-  | (_, None) -> None
-  | (None, Some target_pkg_info) ->
-    if Env.is_package_loaded env (Package.get_package_name target_pkg_info) then
-      None
-    else
-      Some (Pos.none, Package.Unrelated)
-  (* Anyone can call code outside of a package *)
-  | (Some current_pkg_info, Some target_pkg_info) ->
-    Package.(
-      (match relationship current_pkg_info target_pkg_info with
-      | Equal
-      | Includes ->
-        None
-      | (Soft_includes | Unrelated) as r ->
-        if Env.is_package_loaded env (Package.get_package_name target_pkg_info)
-        then
-          None
-        else
-          Some (get_package_pos current_pkg_info, r)))
-
-let satisfies_pkg_rules env current target =
-  let current_name = declared_module_name_with_default current in
-  let target_name = declared_module_name_with_default target in
-  (* Note, we haven't checked if these modules are actually defined:
-     but they don't actually have to exist for their name to be used for package errors.
-     If the module isn't defined, we'll still use the name to check package related errors
-     as if it were defined, and use an empty position when needed.
-  *)
-  let current_pkg = Env.get_package_for_module env current_name in
-  let target_pkg = Env.get_package_for_module env target_name in
-  match satisfies_package_deps env current_pkg target_pkg with
-  | None -> None
-  | Some (current_package_pos, r) ->
-    (* Some package error, get the module pos *)
-    let current_module_pos = get_module_pos env current_name in
-    Some ((current_package_pos, current_module_pos), r)
-
-let can_access_public
-    ~(env : Typing_env_types.env)
-    ~(current : string option)
-    ~(target : string option) =
-  if Option.equal String.equal current target then
-    `Yes
-  else
-    match satisfies_pkg_rules env current target with
-    | Some (current_module, Package.Soft_includes) ->
-      `PackageSoftIncludes current_module
-    | Some (current_module, Package.Unrelated) ->
-      `PackageNotSatisfied current_module
-    | Some (_, Package.(Equal | Includes)) ->
-      Utils.assert_false_log_backtrace
-        (Some "Package constraints are satisfied with equal and includes")
-    | None -> `Yes
 
 let is_class_visible (env : Typing_env_types.env) (cls : Cls.t) =
   if Cls.internal cls then

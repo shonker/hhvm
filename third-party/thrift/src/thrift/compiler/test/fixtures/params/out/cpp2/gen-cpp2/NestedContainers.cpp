@@ -61,7 +61,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::cpp2::NestedContainers>
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::NestedContainers>::async_tm_mapList(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback, std::unique_ptr<::std::map<::std::int32_t, ::std::vector<::std::int32_t>>> p_foo) {
+void apache::thrift::ServiceHandler<::cpp2::NestedContainers>::async_tm_mapList(apache::thrift::HandlerCallbackPtr<void> callback, std::unique_ptr<::std::map<::std::int32_t, ::std::vector<::std::int32_t>>> p_foo) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -171,7 +171,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::cpp2::NestedContainers>
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::NestedContainers>::async_tm_mapSet(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback, std::unique_ptr<::std::map<::std::int32_t, ::std::set<::std::int32_t>>> p_foo) {
+void apache::thrift::ServiceHandler<::cpp2::NestedContainers>::async_tm_mapSet(apache::thrift::HandlerCallbackPtr<void> callback, std::unique_ptr<::std::map<::std::int32_t, ::std::set<::std::int32_t>>> p_foo) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -281,7 +281,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::cpp2::NestedContainers>
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::NestedContainers>::async_tm_listMap(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback, std::unique_ptr<::std::vector<::std::map<::std::int32_t, ::std::int32_t>>> p_foo) {
+void apache::thrift::ServiceHandler<::cpp2::NestedContainers>::async_tm_listMap(apache::thrift::HandlerCallbackPtr<void> callback, std::unique_ptr<::std::vector<::std::map<::std::int32_t, ::std::int32_t>>> p_foo) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -391,7 +391,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::cpp2::NestedContainers>
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::NestedContainers>::async_tm_listSet(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback, std::unique_ptr<::std::vector<::std::set<::std::int32_t>>> p_foo) {
+void apache::thrift::ServiceHandler<::cpp2::NestedContainers>::async_tm_listSet(apache::thrift::HandlerCallbackPtr<void> callback, std::unique_ptr<::std::vector<::std::set<::std::int32_t>>> p_foo) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -501,7 +501,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::cpp2::NestedContainers>
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::NestedContainers>::async_tm_turtles(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback, std::unique_ptr<::std::vector<::std::vector<::std::map<::std::int32_t, ::std::map<::std::int32_t, ::std::set<::std::int32_t>>>>>> p_foo) {
+void apache::thrift::ServiceHandler<::cpp2::NestedContainers>::async_tm_turtles(apache::thrift::HandlerCallbackPtr<void> callback, std::unique_ptr<::std::vector<::std::vector<::std::map<::std::int32_t, ::std::map<::std::int32_t, ::std::set<::std::int32_t>>>>>> p_foo) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -579,23 +579,23 @@ determineInvocationType:
 
 namespace cpp2 {
 
-void NestedContainersSvNull::mapList(std::unique_ptr<::std::map<::std::int32_t, ::std::vector<::std::int32_t>>> /*foo*/) {
+void NestedContainersSvNull::mapList(std::unique_ptr<::std::map<::std::int32_t, ::std::vector<::std::int32_t>>> /*foo*/) { 
   return;
 }
 
-void NestedContainersSvNull::mapSet(std::unique_ptr<::std::map<::std::int32_t, ::std::set<::std::int32_t>>> /*foo*/) {
+void NestedContainersSvNull::mapSet(std::unique_ptr<::std::map<::std::int32_t, ::std::set<::std::int32_t>>> /*foo*/) { 
   return;
 }
 
-void NestedContainersSvNull::listMap(std::unique_ptr<::std::vector<::std::map<::std::int32_t, ::std::int32_t>>> /*foo*/) {
+void NestedContainersSvNull::listMap(std::unique_ptr<::std::vector<::std::map<::std::int32_t, ::std::int32_t>>> /*foo*/) { 
   return;
 }
 
-void NestedContainersSvNull::listSet(std::unique_ptr<::std::vector<::std::set<::std::int32_t>>> /*foo*/) {
+void NestedContainersSvNull::listSet(std::unique_ptr<::std::vector<::std::set<::std::int32_t>>> /*foo*/) { 
   return;
 }
 
-void NestedContainersSvNull::turtles(std::unique_ptr<::std::vector<::std::vector<::std::map<::std::int32_t, ::std::map<::std::int32_t, ::std::set<::std::int32_t>>>>>> /*foo*/) {
+void NestedContainersSvNull::turtles(std::unique_ptr<::std::vector<::std::vector<::std::map<::std::int32_t, ::std::map<::std::int32_t, ::std::set<::std::int32_t>>>>>> /*foo*/) { 
   return;
 }
 
@@ -656,35 +656,35 @@ apache::thrift::ServiceRequestInfoMap const& NestedContainersServiceInfoHolder::
 apache::thrift::ServiceRequestInfoMap NestedContainersServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"mapList",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "NestedContainers.mapList",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"mapSet",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "NestedContainers.mapSet",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"listMap",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "NestedContainers.listMap",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"listSet",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "NestedContainers.listSet",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"turtles",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "NestedContainers.turtles",
      std::nullopt,
@@ -694,4 +694,4 @@ apache::thrift::ServiceRequestInfoMap NestedContainersServiceInfoHolder::staticR
 
   return requestInfoMap;
 }
-} // cpp2
+} // namespace cpp2

@@ -6,10 +6,8 @@
  * LICENSE file in the root directory of this source tree.
  */
 
-#include <folly/ssl/Init.h>
-
-#include "squangle/mysql_client/Connection.h"
 #include "squangle/mysql_client/MysqlClientBase.h"
+#include "squangle/mysql_client/Connection.h"
 
 namespace {
 
@@ -17,8 +15,10 @@ namespace {
 class InitMysqlLibrary {
  public:
   InitMysqlLibrary() {
-    folly::ssl::init();
     mysql_library_init(-1, nullptr, nullptr);
+  }
+  ~InitMysqlLibrary() {
+    mysql_library_end();
   }
 };
 
@@ -26,12 +26,13 @@ class InitMysqlLibrary {
 
 namespace facebook::common::mysql_client {
 
+// mysql_library_init() and mysql_library_end() need to run on the same thread
+[[maybe_unused]] static InitMysqlLibrary unused;
+
 MysqlClientBase::MysqlClientBase(
     std::unique_ptr<db::SquangleLoggerBase> db_logger,
     std::unique_ptr<db::DBCounterBase> db_stats)
-    : db_logger_(std::move(db_logger)), client_stats_(std::move(db_stats)) {
-  static InitMysqlLibrary unused;
-}
+    : db_logger_(std::move(db_logger)), client_stats_(std::move(db_stats)) {}
 
 void MysqlClientBase::logQuerySuccess(
     const db::QueryLoggingData& logging_data,
@@ -52,7 +53,7 @@ void MysqlClientBase::logQueryFailure(
     const std::string& error,
     const Connection& conn) {
   auto conn_context = conn.getConnectionContext();
-  stats()->incrFailedQueries(conn_context, mysqlErrno);
+  stats()->incrFailedQueries(conn_context, mysqlErrno, error);
 
   if (db_logger_) {
     db_logger_->logQueryFailure(
@@ -81,7 +82,7 @@ void MysqlClientBase::logConnectionFailure(
     unsigned int mysqlErrno,
     const std::string& error,
     const db::ConnectionContextBase* connection_context) {
-  stats()->incrFailedConnections(connection_context, mysqlErrno);
+  stats()->incrFailedConnections(connection_context, mysqlErrno, error);
 
   if (db_logger_) {
     db_logger_->logConnectionFailure(

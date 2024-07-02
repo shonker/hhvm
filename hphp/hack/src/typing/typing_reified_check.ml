@@ -12,7 +12,7 @@ open Typing_defs
 module Env = Typing_env
 module SN = Naming_special_names
 module UA = SN.UserAttributes
-module Cls = Decl_provider.Class
+module Cls = Folded_class
 module Nast = Aast
 
 let validator =
@@ -50,7 +50,7 @@ let validator =
       | TCAbstract _ when Option.is_some typeconst.ttc_reifiable ->
         super#on_typeconst acc class_ typeconst
       | TCAbstract _ ->
-        let r = Reason.Rwitness_from_decl (fst typeconst.ttc_name) in
+        let r = Reason.witness_from_decl (fst typeconst.ttc_name) in
         let kind =
           "an abstract type constant without the __Reifiable attribute"
         in

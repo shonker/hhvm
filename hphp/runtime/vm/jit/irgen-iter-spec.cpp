@@ -31,6 +31,8 @@
 
 namespace HPHP::jit::irgen {
 
+TRACE_SET_MOD(hhir);
+
 //////////////////////////////////////////////////////////////////////
 
 /*
@@ -73,7 +75,7 @@ namespace HPHP::jit::irgen {
  * IterInit and IterNext bytecodes that share that block its "iter group".
  *
  * Some invariants on iter groups enforced at the bytecode level:
- *  - All ops have the same "type" (NonLocal, LocalBaseConst, LocalBaseMutable)
+ *  - All ops have the same "type" (LocalBaseConst, LocalBaseMutable)
  *  - All ops have the same iterId, valLocalId, and keyLocalId
  *
  * And one thing that's not invariant:
@@ -206,38 +208,7 @@ namespace HPHP::jit::irgen {
 
 namespace {
 
-using BT = IterSpecialization::BaseType;
-
 const StaticString s_ArrayIterProfile{"ArrayIterProfile"};
-
-//////////////////////////////////////////////////////////////////////
-// Simple getters for IterSpecialization.
-
-Type getArrType(IterSpecialization specialization) {
-  switch (specialization.baseType()) {
-    case BT::Vec:           return TVec;
-    case BT::Dict:          return TDict;
-    case BT::kNumBaseTypes: always_assert(false);
-  }
-  always_assert(false);
-}
-
-ArrayIterProfile::Result getProfileResult(IRGS& env, const SSATmp* base) {
-  auto const generic = ArrayIterProfile::Result{};
-  assertx(!generic.top_specialization.specialized);
-
-  auto const profile = TargetProfile<ArrayIterProfile>(
-    env.context,
-    makeMarker(env, curSrcKey(env)),
-    s_ArrayIterProfile.get()
-  );
-  if (!profile.optimizing()) return generic;
-  auto const result = profile.data().result();
-  if (result.num_arrays == 0) return generic;
-
-  auto const rate = 1.0 * size_t{result.top_count} / size_t{result.num_arrays};
-  return rate > RO::EvalArrayIterSpecializationRate ? result : generic;
-}
 
 //////////////////////////////////////////////////////////////////////
 // Accessor for different base types.
@@ -246,21 +217,29 @@ ArrayIterProfile::Result getProfileResult(IRGS& env, const SSATmp* base) {
 // so that in the emitSpecialized* functions below, we can simply describe the
 // high-level structure of the code.
 struct Accessor {
-  Type arr_type;
-  Type pos_type;
-  IterSpecialization iter_type;
-  ArrayLayout layout = ArrayLayout::Top();
+  Accessor(Type arrType, bool isPtrIter)
+    : m_arrType(arrType)
+    , m_isPtrIter(isPtrIter)
+  {}
 
   virtual ~Accessor() {}
 
+  // Returns whether the iterated array may contain tombstones.
+  virtual bool mayContainTombstones() const = 0;
+
   // Branches to exit if the base doesn't match the iter's specialized type.
   virtual SSATmp* checkBase(IRGS& env, SSATmp* base, Block* exit) const = 0;
+
+  // Get index of the end iteration position. This is different from Count
+  // instruction in presence of tombstones.
+  // Might be used only when mayContainTombstones() is true.
+  virtual SSATmp* getEndIdx(IRGS& env, SSATmp* base) const = 0;
 
   // Given a base and a logical iter index, this method returns the value that
   // we should use as the iter's pos (e.g. a pointer, for pointer iters).
   //
   // This method assumes that we've already constrained arr to DataTypeSpecific
-  // and that the type of arr overlaps with arr_type.
+  // and that the type is an arrType().
   virtual SSATmp* getPos(IRGS& env, SSATmp* arr, SSATmp* idx) const = 0;
 
   // Given a pos and a constant offset, this method returns an updated pos.
@@ -271,143 +250,215 @@ struct Accessor {
   // index iters, we compute a pointer that's only valid for this iteration.)
   virtual SSATmp* getElm(IRGS& env, SSATmp* arr, SSATmp* pos) const = 0;
 
+  // Given a base and an "elm value", this method checks whether the elm
+  // corresponds to a tombstone. If so, branches to taken.
+  // Might be used only when mayContainTombstones() is true.
+  virtual void checkTombstone(IRGS& env, SSATmp* arr, SSATmp* elm, Block* taken)
+    const = 0;
+
   // Given a base and an "elm value", this method returns the key of that elm.
-  virtual SSATmp* getKey(IRGS& env, SSATmp* arr, SSATmp* elm) const = 0;
+  // Keysets use the already loaded val to avoid duplicate load.
+  virtual SSATmp* getKey(IRGS& env, SSATmp* arr, SSATmp* elm, SSATmp* val) const
+    = 0;
 
   // Given a base and an "elm value", this method returns the val of that elm.
   virtual SSATmp* getVal(IRGS& env, SSATmp* arr, SSATmp* elm) const = 0;
+
+  Type arrType() const { return m_arrType; }
+  bool isPtrIter() const { return m_isPtrIter; }
+
+private:
+  const Type m_arrType;
+  const bool m_isPtrIter;
 };
 
 struct VecAccessor : public Accessor {
-  explicit VecAccessor(
-    IterSpecialization specialization,
-    bool baseConst,
-    bool outputKey
-  ) {
-    is_ptr_iter =
-      baseConst && !outputKey && VanillaVec::stores_unaligned_typed_values;
-    arr_type = getArrType(specialization);
-    if (allowBespokeArrayLikes()) {
-      arr_type = arr_type.narrowToVanilla();
-    }
-    pos_type = is_ptr_iter ? TPtrToElem : TInt;
-    layout = ArrayLayout::Vanilla();
-    iter_type = specialization;
+  explicit VecAccessor(bool baseConst, bool outputKey)
+    : Accessor(
+        allowBespokeArrayLikes() ? TVanillaVec : TVec,
+        baseConst && !outputKey && VanillaVec::stores_unaligned_typed_values
+      )
+  {}
+
+  bool mayContainTombstones() const override {
+    return false;
   }
 
   SSATmp* checkBase(IRGS& env, SSATmp* base, Block* exit) const override {
-    return gen(env, CheckType, exit, arr_type, base);
+    return gen(env, CheckType, exit, arrType(), base);
+  }
+
+  SSATmp* getEndIdx(IRGS&, SSATmp*) const override {
+    always_assert(false);
   }
 
   SSATmp* getPos(IRGS& env, SSATmp* arr, SSATmp* idx) const override {
-    return is_ptr_iter ? gen(env, GetVecPtrIter, arr, idx) : idx;
+    return isPtrIter() ? gen(env, GetVecPtrIter, arr, idx) : idx;
   }
 
   SSATmp* getElm(IRGS& env, SSATmp* arr, SSATmp* pos) const override {
     return pos;
   }
 
-  SSATmp* getKey(IRGS& env, SSATmp* arr, SSATmp* elm) const override {
-    // is_ptr_iter is only true when the iterator doesn't output a key,
+  void checkTombstone(IRGS&, SSATmp*, SSATmp*, Block*) const override {
+    always_assert(false);
+  }
+
+  SSATmp* getKey(IRGS& env, SSATmp* arr, SSATmp* elm, SSATmp*) const override {
+    // isPtrIter() is only true when the iterator doesn't output a key,
     // and this method is only called when the iterator *does* output a key.
-    always_assert(!is_ptr_iter);
+    always_assert(!isPtrIter());
     return elm;
   }
 
   SSATmp* getVal(IRGS& env, SSATmp* arr, SSATmp* elm) const override {
-    if (is_ptr_iter) {
-      auto const valType = arrLikeElemType(
-        arr_type,
-        TInt,
-        curClass(env)
-      ).first;
-      return gen(env, LdPtrIterVal, valType, elm);
-    }
-    return gen(env, LdVecElem, arr, elm);
+    return isPtrIter()
+      ? gen(env, LdPtrIterVal, TInitCell, arr, elm)
+      : gen(env, LdVecElem, arr, elm);
   }
 
   SSATmp* advancePos(IRGS& env, SSATmp* pos, int16_t offset) const override {
-    return is_ptr_iter
+    return isPtrIter()
       ? gen(env, AdvanceVecPtrIter, IterOffsetData{offset}, pos)
       : gen(env, AddInt, cns(env, offset), pos);
   }
-
-  private:
-    bool is_ptr_iter = false;
 };
 
-struct MixedAccessor : public Accessor {
-  explicit MixedAccessor(IterSpecialization specialization, bool baseConst) {
-    is_ptr_iter = baseConst;
-    arr_type = getArrType(specialization);
-    if (allowBespokeArrayLikes()) {
-      arr_type = arr_type.narrowToVanilla();
-    }
-    pos_type = is_ptr_iter ? TPtrToElem : TInt;
-    key_types = specialization.keyTypes();
-    specialization.keyTypes().toJitType(key_jit_type);
-    layout = ArrayLayout::Vanilla();
-    iter_type = specialization;
+struct DictAccessor : public Accessor {
+  explicit DictAccessor(bool baseConst, ArrayKeyTypes keyTypes)
+    : Accessor(allowBespokeArrayLikes() ? TVanillaDict : TDict, baseConst)
+    , m_keyTypes(keyTypes) {
+    keyTypes.toJitType(m_keyJitType);
+  }
+
+  bool mayContainTombstones() const override {
+    return m_keyTypes.mayIncludeTombstone();
   }
 
   SSATmp* checkBase(IRGS& env, SSATmp* base, Block* exit) const override {
-    auto const data = ArrayKeyTypesData{key_types};
-    auto const arr = gen(env, CheckType, exit, arr_type, base);
-    gen(env, CheckDictKeys, exit, data, key_jit_type, arr);
+    auto const arr = gen(env, CheckType, exit, arrType(), base);
+    auto const data = ArrayKeyTypesData{m_keyTypes};
+    gen(env, CheckDictKeys, exit, data, m_keyJitType, arr);
     return arr;
   }
 
+  SSATmp* getEndIdx(IRGS& env, SSATmp* base) const override {
+    assertx(mayContainTombstones());
+    return gen(env, DictIterEnd, base);
+  }
+
   SSATmp* getPos(IRGS& env, SSATmp* arr, SSATmp* idx) const override {
-    return is_ptr_iter ? gen(env, GetDictPtrIter, arr, idx) : idx;
+    return isPtrIter() ? gen(env, GetDictPtrIter, arr, idx) : idx;
   }
 
   SSATmp* getElm(IRGS& env, SSATmp* arr, SSATmp* pos) const override {
-    return is_ptr_iter ? pos : gen(env, GetDictPtrIter, arr, pos);
+    return isPtrIter() ? pos : gen(env, GetDictPtrIter, arr, pos);
   }
 
-  SSATmp* getKey(IRGS& env, SSATmp* arr, SSATmp* elm) const override {
-    return gen(env, LdPtrIterKey, key_jit_type, elm);
+  void checkTombstone(IRGS& env, SSATmp* arr, SSATmp* elm, Block* taken)
+    const override {
+    assertx(mayContainTombstones());
+    gen(env, CheckPtrIterTombstone, taken, arr, elm);
+  }
+
+  SSATmp* getKey(IRGS& env, SSATmp* arr, SSATmp* elm, SSATmp*) const override {
+    return gen(env, LdPtrIterKey, m_keyJitType, arr, elm);
   }
 
   SSATmp* getVal(IRGS& env, SSATmp* arr, SSATmp* elm) const override {
-    auto const valType = arrLikeElemType(
-      is_ptr_iter ? arr_type : arr->type(),
-      key_jit_type,
-      curClass(env)
-    ).first;
-    return gen(env, LdPtrIterVal, valType, elm);
+    return gen(env, LdPtrIterVal, TInitCell, arr, elm);
   }
 
   SSATmp* advancePos(IRGS& env, SSATmp* pos, int16_t offset) const override {
-    return is_ptr_iter
+    return isPtrIter()
       ? gen(env, AdvanceDictPtrIter, IterOffsetData{offset}, pos)
       : gen(env, AddInt, cns(env, offset), pos);
   }
 
 private:
-  bool is_ptr_iter = false;
-  ArrayKeyTypes key_types;
-  Type key_jit_type;
+  const ArrayKeyTypes m_keyTypes;
+  Type m_keyJitType;
 };
 
-struct BespokeAccessor : public Accessor {
-  explicit BespokeAccessor(
-      IterSpecialization specialization, ArrayLayout layout) {
-    arr_type = getArrType(specialization).narrowToLayout(layout);
-    pos_type = TInt;
-    iter_type = specialization;
-    this->layout = layout;
+struct KeysetAccessor : public Accessor {
+  explicit KeysetAccessor(bool baseConst)
+    : Accessor(allowBespokeArrayLikes() ? TVanillaKeyset : TKeyset, baseConst)
+  {}
+
+  bool mayContainTombstones() const override {
+    return true;
   }
 
   SSATmp* checkBase(IRGS& env, SSATmp* base, Block* exit) const override {
-    auto const result = gen(env, CheckType, exit, arr_type, base);
-    if (result->isA(TDict)) {
+    return gen(env, CheckType, exit, arrType(), base);
+  }
+
+  SSATmp* getEndIdx(IRGS& env, SSATmp* base) const override {
+    assertx(mayContainTombstones());
+    return gen(env, KeysetIterEnd, base);
+  }
+
+  SSATmp* getPos(IRGS& env, SSATmp* arr, SSATmp* idx) const override {
+    return isPtrIter() ? gen(env, GetKeysetPtrIter, arr, idx) : idx;
+  }
+
+  SSATmp* getElm(IRGS& env, SSATmp* arr, SSATmp* pos) const override {
+    return isPtrIter() ? pos : gen(env, GetKeysetPtrIter, arr, pos);
+  }
+
+  void checkTombstone(IRGS& env, SSATmp* arr, SSATmp* elm, Block* taken)
+    const override {
+    assertx(mayContainTombstones());
+    gen(env, CheckPtrIterTombstone, taken, arr, elm);
+  }
+
+  SSATmp* getKey(IRGS&, SSATmp*, SSATmp*, SSATmp* val) const override {
+    return val;
+  }
+
+  SSATmp* getVal(IRGS& env, SSATmp* arr, SSATmp* elm) const override {
+    return gen(env, LdPtrIterVal, TInt | TStr, arr, elm);
+  }
+
+  SSATmp* advancePos(IRGS& env, SSATmp* pos, int16_t offset) const override {
+    return isPtrIter()
+      ? gen(env, AdvanceKeysetPtrIter, IterOffsetData{offset}, pos)
+      : gen(env, AddInt, cns(env, offset), pos);
+  }
+};
+
+struct BespokeAccessor : public Accessor {
+  explicit BespokeAccessor(Type baseType)
+    : Accessor(baseType, false)
+  {}
+
+  bool mayContainTombstones() const override {
+    // checkBase() side-exits if we have tombstones
+    return false;
+  }
+
+  SSATmp* checkBase(IRGS& env, SSATmp* base, Block* exit) const override {
+    auto const result = gen(env, CheckType, exit, arrType(), base);
+    auto const mayActuallyContainTombstones = [&] {
+      // We don't yet support fast iteration over bespoke arrays with
+      // tombstones. Currently only the MonotypeDict may contain them.
+      if (!RO::EvalEmitBespokeMonotypes) return false;
+      if (arrType() <= TVec) return false;
+      if (arrType().arrSpec().is_struct()) return false;
+      if (arrType().arrSpec().is_type_structure()) return false;
+      return true;
+    }();
+    if (mayActuallyContainTombstones) {
       auto const size = gen(env, Count, result);
       auto const used = gen(env, BespokeIterEnd, result);
       auto const same = gen(env, EqInt, size, used);
       gen(env, JmpZero, exit, same);
     }
     return result;
+  }
+
+  SSATmp* getEndIdx(IRGS&, SSATmp*) const override {
+    always_assert(false);
   }
 
   SSATmp* getPos(IRGS& env, SSATmp* arr, SSATmp* idx) const override {
@@ -418,7 +469,11 @@ struct BespokeAccessor : public Accessor {
     return pos;
   }
 
-  SSATmp* getKey(IRGS& env, SSATmp* arr, SSATmp* elm) const override {
+  void checkTombstone(IRGS&, SSATmp*, SSATmp*, Block*) const override {
+    always_assert(false);
+  }
+
+  SSATmp* getKey(IRGS& env, SSATmp* arr, SSATmp* elm, SSATmp*) const override {
     return gen(env, BespokeIterGetKey, arr, elm);
   }
 
@@ -432,39 +487,38 @@ struct BespokeAccessor : public Accessor {
 };
 
 std::unique_ptr<Accessor> getAccessor(
-    IterSpecialization type,
+    DataType baseDT,
+    ArrayKeyTypes keyTypes,
     ArrayLayout layout,
-    const IterArgs& data,
-    bool local
+    const IterArgs& data
 ) {
   if (!layout.vanilla()) {
-    return std::make_unique<BespokeAccessor>(type, layout);
+    auto const baseType = Type(baseDT).narrowToLayout(layout);
+    return std::make_unique<BespokeAccessor>(baseType);
   }
-  auto const baseConst = !local || (data.flags & IterArgs::Flags::BaseConst);
-  switch (type.baseType()) {
-    case BT::Vec: {
-      return std::make_unique<VecAccessor>(type, baseConst, data.hasKey());
-    }
-    case BT::Dict: {
-      return std::make_unique<MixedAccessor>(type, baseConst);
-    }
-    case BT::kNumBaseTypes:
+
+  auto const baseConst = has_flag(data.flags, IterArgs::Flags::BaseConst);
+  switch (baseDT) {
+    case KindOfVec:
+      return std::make_unique<VecAccessor>(baseConst, data.hasKey());
+    case KindOfDict:
+      return std::make_unique<DictAccessor>(baseConst, keyTypes);
+    case KindOfKeyset:
+      return std::make_unique<KeysetAccessor>(baseConst);
+    default:
       always_assert(false);
   }
-  always_assert(false);
 }
 
 //////////////////////////////////////////////////////////////////////
 // Specialization helpers.
 
-// Load the iterator base, either from the iterator itself or from a local.
+// Load the iterator base from a local.
 // This method may only be called from one of the guarded specialized blocks,
 // so we can assert that the type of the base matches the iterator type.
 SSATmp* iterBase(IRGS& env, const Accessor& accessor,
                  const IterArgs& data, uint32_t baseLocalId) {
-  auto const type = accessor.arr_type;
-  auto const local = baseLocalId != kInvalidId;
-  if (!local) return gen(env, LdIterBase, type, IterId(data.iterId), fp(env));
+  auto const type = accessor.arrType();
   gen(env, AssertLoc, type, LocalId(baseLocalId), fp(env));
   return gen(env, LdLoc, type, LocalId(baseLocalId), fp(env));
 }
@@ -508,6 +562,12 @@ void iterStore(IRGS& env, uint32_t local, SSATmp* cell) {
   gen(env, StLoc, LocalId(local), fp(env), cell);
 }
 
+// Convert an iterator position to an integer representation.
+SSATmp* posAsInt(IRGS& env, const Accessor& accessor, SSATmp* pos) {
+  if (!accessor.isPtrIter()) return pos;
+  return gen(env, PtrToElemAsInt, pos);
+}
+
 // It's important that we dec-ref the old values before the surprise check;
 // refcount-opts may fail to pair incs and decs separated by this check.
 //
@@ -531,7 +591,8 @@ void iterSurpriseCheck(IRGS& env, const Accessor& accessor,
       iterStore(env, data.valId, cns(env, TInitNull));
       if (data.hasKey()) iterStore(env, data.keyId, cns(env, TInitNull));
       auto const old = accessor.advancePos(env, pos, -1);
-      gen(env, StIterPos, IterId(data.iterId), fp(env), old);
+      gen(env, StIterPos, IterId(data.iterId), fp(env),
+          posAsInt(env, accessor, old));
       gen(env, Jmp, makeExitSlow(env));
     }
   );
@@ -540,16 +601,8 @@ void iterSurpriseCheck(IRGS& env, const Accessor& accessor,
 // In profiling mode, we profile the dec-ref of the iterator output locals
 // before calling the generic native helper, so that if we specialize we'll
 // produce good code for them. `init` is true for *IterInit*, not *IterNext*.
-void profileDecRefs(IRGS& env, const IterArgs& data, SSATmp* base,
-                    const bool local, const bool init) {
+void profileDecRefs(IRGS& env, const IterArgs& data, const bool init) {
   if (env.context.kind != TransKind::Profile) return;
-
-  // We could profile the iterator's base for IterNext here, too, but loading
-  // the value out of the base is tricky and it doesn't affect perf measurably.
-  if (!local) {
-    always_assert(init == (base != nullptr));
-    if (init) gen(env, ProfileDecRef, DecRefData(), base);
-  }
 
   auto const val = gen(env, LdLoc, TCell, LocalId(data.valId), fp(env));
   gen(env, ProfileDecRef, DecRefData(data.valId), val);
@@ -576,7 +629,7 @@ SSATmp* phiIterPos(IRGS& env, const Accessor& accessor) {
   auto block = env.irb->curBlock();
   auto const label = env.unit.defLabel(1, block, env.irb->nextBCContext());
   auto const pos = label->dst(0);
-  pos->setType(accessor.pos_type);
+  pos->setType(accessor.isPtrIter() ? TPtrToElem : TInt);
   return pos;
 }
 
@@ -584,47 +637,66 @@ SSATmp* phiIterPos(IRGS& env, const Accessor& accessor) {
 // Specialization implementations: init, header, next, and footer.
 
 void emitSpecializedInit(IRGS& env, const Accessor& accessor,
-                         const IterArgs& data, bool local, Block* header,
+                         const IterArgs& data, Block* header,
                          Block* done, SSATmp* base) {
+  // We don't need to specialize on key type for value-only iterators.
+  // However, we still need to call accessor.check to rule out tombstones.
   auto const arr = accessor.checkBase(env, base, makeExitSlow(env));
   auto const size = gen(env, Count, arr);
-  if (!local) discard(env, 1);
 
   ifThen(env,
     [&](Block* taken) { gen(env, JmpZero, taken, size); },
-    [&]{
-      if (!local) decRef(env, arr);
-      gen(env, Jmp, done);
-    }
+    [&]{ gen(env, Jmp, done); }
   );
 
   iterClear(env, data.valId);
   if (data.hasKey()) iterClear(env, data.keyId);
 
   auto const id = IterId(data.iterId);
-  auto const baseConst = !local || (data.flags & IterArgs::Flags::BaseConst);
-  auto const ty = IterTypeData(
-    data.iterId, accessor.iter_type, accessor.layout, baseConst, data.hasKey());
-  gen(env, StIterBase, id, fp(env), local ? cns(env, nullptr) : arr);
-  gen(env, StIterType, ty, fp(env));
-  gen(env, StIterEnd,  id, fp(env), accessor.getPos(env, arr, size));
-  gen(env, Jmp, header, accessor.getPos(env, arr, cns(env, 0)));
+  auto const endIdx = accessor.mayContainTombstones()
+    ? accessor.getEndIdx(env, arr)
+    : size;
+  auto const endPos = accessor.getPos(env, arr, endIdx);
+  gen(env, StIterEnd, id, fp(env), posAsInt(env, accessor, endPos));
+
+  auto const beginPos = accessor.getPos(env, arr, cns(env, 0));
+  if (accessor.mayContainTombstones()) {
+    auto const next = defBlock(env);
+    gen(env, Jmp, next, beginPos);
+
+    env.irb->appendBlock(next);
+    auto const pos = phiIterPos(env, accessor);
+    auto const elm = accessor.getElm(env, arr, pos);
+    iterIfThen(
+      env,
+      [&](Block* taken) { accessor.checkTombstone(env, arr, elm, taken); },
+      [&] {
+        auto const nextPos = accessor.advancePos(env, pos, 1);
+        gen(env, Jmp, next, nextPos);
+      }
+    );
+    gen(env, Jmp, header, pos);
+  } else {
+    gen(env, Jmp, header, beginPos);
+  }
 }
 
-void emitSpecializedHeader(IRGS& env, const Accessor& accessor,
-                           const IterArgs& data, const Type& value_type,
-                           Block* body, uint32_t baseLocalId) {
+Block* emitSpecializedHeader(IRGS& env, const Accessor& accessor,
+                             const IterArgs& data, const Type& value_type,
+                             Block* body, uint32_t baseLocalId) {
+  auto const header = env.unit.defBlock(body->profCount());
+  BlockPusher bp(*env.irb, env.irb->curMarker(), header);
+
   auto const pos = phiIterPos(env, accessor);
-  auto const arr = accessor.pos_type <= TInt
-    ? iterBase(env, accessor, data, baseLocalId)
-    : nullptr;
+  auto const arr = iterBase(env, accessor, data, baseLocalId);
 
   auto const finish = [&](SSATmp* elm, SSATmp* val) {
     auto const keyed = data.hasKey();
-    auto const key = keyed ? accessor.getKey(env, arr, elm) : nullptr;
+    auto const key = keyed ? accessor.getKey(env, arr, elm, val) : nullptr;
     iterStore(env, data.valId, val);
     if (keyed) iterStore(env, data.keyId, key);
-    gen(env, StIterPos, IterId(data.iterId), fp(env), pos);
+    gen(env, StIterPos, IterId(data.iterId), fp(env),
+        posAsInt(env, accessor, pos));
     gen(env, IncRef, val);
     if (keyed) gen(env, IncRef, key);
   };
@@ -646,63 +718,84 @@ void emitSpecializedHeader(IRGS& env, const Accessor& accessor,
   );
   finish(elm, guarded_val);
   gen(env, Jmp, body);
+
+  return header;
 }
 
 void emitSpecializedNext(IRGS& env, const Accessor& accessor,
                          const IterArgs& data, Block* footer,
-                         uint32_t baseLocalId) {
-  auto const exit = makeExitSlow(env);
-  auto const local = baseLocalId != kInvalidId;
-  auto const baseConst = !local || (data.flags & IterArgs::Flags::BaseConst);
-  auto const type = IterTypeData(
-    data.iterId, accessor.iter_type, accessor.layout, baseConst, data.hasKey());
-  gen(env, CheckIter, exit, type, fp(env));
+                         SSATmp* base) {
+  base = accessor.checkBase(env, base, makeExitSlow(env));
 
-  // For LocalBaseMutable iterators specialized on bespoke array-like bases,
-  // we unfortunately need to check the layout again at each IterNext.
-  if (!baseConst && type.type.bespoke) {
-    auto const dt = accessor.arr_type.unspecialize();
-    gen(env, AssertLoc, dt, LocalId(baseLocalId), fp(env));
-    auto const base = gen(env, LdLoc, dt, LocalId(baseLocalId), fp(env));
-    gen(env, CheckType, exit, accessor.arr_type, base);
-  }
+  auto const asIterPosType = [&](SSATmp* iterPos) {
+    if (!accessor.isPtrIter()) return iterPos;
+    return gen(env, IntAsPtrToElem, iterPos);
+  };
 
   auto const id = IterId(data.iterId);
-  auto const old = gen(env, LdIterPos, accessor.pos_type, id, fp(env));
-  auto const end = gen(env, LdIterEnd, accessor.pos_type, id, fp(env));
-  auto const pos = accessor.advancePos(env, old, 1);
+  auto const old = asIterPosType(gen(env, LdIterPos, id, fp(env)));
+  auto const end = asIterPosType(gen(env, LdIterEnd, id, fp(env)));
 
-  ifThen(env,
-    [&](Block* taken) {
-      auto const eq = accessor.pos_type <= TInt ? EqInt : EqPtrIter;
-      auto const done = gen(env, eq, pos, end);
-      gen(env, JmpNZero, taken, done);
-      gen(env, Jmp, footer, pos);
-    },
-    [&]{
-      auto const next = getBlock(env, nextSrcKey(env));
-      env.irb->curBlock()->setProfCount(next->profCount());
+  auto const done = defBlock(env);
+  auto const checkDone = [&] (SSATmp* pos) {
+    auto const eq = accessor.isPtrIter() ? EqPtrIter : EqInt;
+    gen(env, JmpNZero, done, gen(env, eq, pos, end));
+  };
 
-      if (local) {
-        gen(env, KillIter, id, fp(env));
-      } else {
-        // Load and dec-ref the base for non-local iters. We don't want to do
-        // this load in the loop, because it's dead there for pointer iters,
-        auto const base = iterBase(env, accessor, data, baseLocalId);
-        gen(env, KillIter, id, fp(env));
-        decRef(env, base);
-      }
-    }
-  );
+  if (accessor.mayContainTombstones()) {
+    auto const next = defBlock(env);
+    gen(env, Jmp, next, old);
+
+    env.irb->appendBlock(next);
+    auto const phi = phiIterPos(env, accessor);
+    auto const cur = accessor.advancePos(env, phi, 1);
+    checkDone(cur);
+
+    auto const elm = accessor.getElm(env, base, cur);
+    iterIfThen(
+      env,
+      [&](Block* taken) { accessor.checkTombstone(env, base, elm, taken); },
+      [&] { gen(env, Jmp, next, cur); }
+    );
+
+    gen(env, Jmp, footer, cur);
+  } else {
+    auto const cur = accessor.advancePos(env, old, 1);
+    checkDone(cur);
+    gen(env, Jmp, footer, cur);
+  }
+
+  env.irb->appendBlock(done);
+  auto const next = getBlock(env, nextSrcKey(env));
+  env.irb->curBlock()->setProfCount(next->profCount());
+  gen(env, KillIter, id, fp(env));
 }
 
-void emitSpecializedFooter(IRGS& env, const Accessor& accessor,
+Block* emitSpecializedFooter(IRGS& env, const Accessor& accessor,
                            const IterArgs& data, Block* header) {
+  auto const footer = env.unit.defBlock(env.irb->curBlock()->profCount());
+  BlockPusher bp{*env.irb, env.irb->curMarker(), footer};
+
   auto const pos = phiIterPos(env, accessor);
   iterClear(env, data.valId);
   if (data.hasKey()) iterClear(env, data.keyId);
   iterSurpriseCheck(env, accessor, data, pos);
   gen(env, Jmp, header, pos);
+
+  return footer;
+}
+
+// Use bespoke profiling (if enabled) to choose a layout.
+ArrayLayout getProfiledLayout(IRGS& env, SSATmp* base) {
+  auto const baseDT = dt_modulo_persistence(base->type().toDataType());
+  if (!allowBespokeArrayLikes()) return ArrayLayout::Vanilla();
+  if (!arrayTypeCouldBeBespoke(baseDT)) return ArrayLayout::Vanilla();
+
+  auto const knownLayout = base->type().arrSpec().layout();
+  auto const sl = bespoke::layoutsForSink(
+    env.profTransIDs, curSrcKey(env), knownLayout);
+  assertx(sl.layouts.size() == 1);
+  return sl.layouts[0].layout;
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -712,137 +805,109 @@ void emitSpecializedFooter(IRGS& env, const Accessor& accessor,
 //////////////////////////////////////////////////////////////////////
 // The public API for iterator specialization.
 
-// Speculatively generate specialized code for this IterInit.
-void specializeIterInit(IRGS& env, Offset doneOffset,
-                        const IterArgs& data, uint32_t baseLocalId) {
-  auto const local = baseLocalId != kInvalidId;
-  auto const base = local ? ldLoc(env, baseLocalId, DataTypeSpecific)
-                          : topC(env, BCSPRelOffset{0}, DataTypeSpecific);
-  profileDecRefs(env, data, base, local, /*init=*/true);
+// Generate specialized code for this IterInit. Returns true on success.
+bool specializeIterInit(IRGS& env, Offset doneOffset,
+                        const IterArgs& data, SSATmp* base,
+                        uint32_t baseLocalId,
+                        ArrayIterProfile::Result profiledResult) {
+  assertx(base->type().subtypeOfAny(TVec, TDict, TKeyset, TObj));
+  profileDecRefs(env, data, /*init=*/true);
+  if (base->isA(TObj)) return false;
 
-  // `body` and `done` are at a different stack depth for non-local IterInits.
-  if (!local) env.irb->fs().decBCSPDepth();
   auto const body = getBlock(env, nextSrcKey(env));
   auto const done = getBlock(env, bcOff(env) + doneOffset);
-  if (!local) env.irb->fs().incBCSPDepth();
-  auto const iter = env.iters.contains(body) ? env.iters[body].get() : nullptr;
+  auto const keyTypes = profiledResult.key_types;
+  auto const layout = getProfiledLayout(env, base);
 
-  // We mark this iter group as being despecialized if we fail to specialize.
-  auto const despecialize = [&]{
-    if (iter == nullptr) {
-      auto const def = SpecializedIterator{
-          ArrayLayout::Top(), IterSpecialization::generic()};
-      env.iters[body] = std::make_unique<SpecializedIterator>(def);
-    } else {
-      iter->iter_type = IterSpecialization::generic();
-    }
-    assertx(!env.iters[body]->iter_type.specialized);
-  };
-
-  // We don't need to specialize on key type for value-only iterators.
-  // However, we still need to call accessor.check to rule out tombstones.
-  auto result = getProfileResult(env, base);
-  auto& iter_type = result.top_specialization;
-
-  if (!iter_type.specialized) {
-    FTRACE(2, "Failure to specialize IterInit: no profiled specialization.\n");
-    return despecialize();
-  }
-
-  // Use bespoke profiling (if enabled) to choose a layout.
-  auto const layout = [&]{
-    if (!allowBespokeArrayLikes()) return ArrayLayout::Vanilla();
-    auto const dt = getArrType(iter_type).toDataType();
-    if (!arrayTypeCouldBeBespoke(dt)) return ArrayLayout::Vanilla();
-    auto const sl = bespoke::layoutsForSink(env.profTransIDs, curSrcKey(env));
-    assertx(sl.layouts.size() == 1);
-    return sl.sideExit ? sl.layouts[0].layout : ArrayLayout::Top();
-  }();
-  iter_type.bespoke = layout.bespoke();
-  auto const accessor = getAccessor(iter_type, layout, data, local);
-
-  // Check all the conditions for iterator specialization, with logging.
   FTRACE(2, "Trying to specialize IterInit: {} @ {}\n",
-         show(iter_type), layout.describe());
+         keyTypes.show(), layout.describe());
   if (!layout.vanilla() && !layout.monotype() && !layout.is_struct()) {
     FTRACE(2, "Failure: not a vanilla, monotype, or struct layout.\n");
-    return despecialize();
-  } else if (iter && iter->iter_type.as_byte != iter_type.as_byte) {
-    FTRACE(2, "Failure: specialization mismatch: {}\n", show(iter->iter_type));
-    return despecialize();
-  } else if (iter && iter->layout != layout) {
-    FTRACE(2, "Failure: layout mismatch: {}\n", layout.describe());
-    return despecialize();
-  } else if (!base->type().maybe(accessor->arr_type)) {
-    FTRACE(2, "Failure: incoming type mismatch: {}\n", base->type());
-    return despecialize();
+    return false;
   }
+
+  // We're committing to the specialization.
   TRACE(2, "Success! Generating specialized code.\n");
 
-  // We're committing to the specialization. Hide the specialized code behind
-  // a placeholder so that we won't use it unless we also specialize the next.
-  auto const main = env.unit.defBlock(env.irb->curBlock()->profCount());
-  auto const init = env.unit.defBlock(env.irb->curBlock()->profCount());
-  gen(env, JmpPlaceholder, init);
-  auto const inst = &env.irb->curBlock()->back();
-  always_assert(inst->is(JmpPlaceholder));
-  gen(env, Jmp, main);
+  // Record the first profile for this DataType specialization. We should almost
+  // always have just one, but in case regionizeFunc() did something weird and
+  // produced multiple IterInits of the same base DataType pointing to the same
+  // body block, the first one likely has the highest weight, so we pick that
+  // one as a hint for IterNext.
+  auto const baseDT = dt_modulo_persistence(base->type().toDataType());
+  auto const iterProfileKey = std::make_pair(body, baseDT);
+  env.iterProfiles.emplace(iterProfileKey, IterProfileInfo{layout, keyTypes});
 
-  env.irb->appendBlock(init);
-  auto const header = iter == nullptr ? env.unit.defBlock(body->profCount())
-                                      : iter->header;
-  emitSpecializedInit(env, *accessor, data, local, header, done, base);
+  auto const accessor = getAccessor(baseDT, keyTypes, layout, data);
+  assertx(base->type().maybe(accessor->arrType()));
 
-  if (iter != nullptr) {
-    iter->placeholders.push_back(inst);
-  } else {
-    env.irb->appendBlock(header);
-    auto const& value_type = result.value_type;
-    emitSpecializedHeader(env, *accessor, data, value_type, body, baseLocalId);
-    auto const def = SpecializedIterator{
-        layout, iter_type, {inst}, header, nullptr};
-    env.iters[body] = std::make_unique<SpecializedIterator>(def);
-  }
+  auto const iterKey = std::make_tuple(
+    body, baseDT, layout.toUint16(), keyTypes.toBits());
+  auto const header = [&] {
+    if (env.iters.contains(iterKey)) return env.iters[iterKey].header;
+    auto const res = emitSpecializedHeader(
+      env, *accessor, data, profiledResult.value_type, body, baseLocalId);
+    env.iters.emplace(iterKey, IterSpecInfo{res, nullptr});
+    return res;
+  }();
 
-  env.irb->appendBlock(main);
+  emitSpecializedInit(env, *accessor, data, header, done, base);
+  return true;
 }
 
 // `baseLocalId` is only valid for local iters. Returns true on specialization.
 bool specializeIterNext(IRGS& env, Offset loopOffset,
-                        const IterArgs& data, uint32_t baseLocalId) {
-  auto const local = baseLocalId != kInvalidId;
-  profileDecRefs(env, data, nullptr, local, /*init=*/false);
+                        const IterArgs& data, SSATmp* base,
+                        uint32_t baseLocalId) {
+  assertx(base->type().subtypeOfAny(TVec, TDict, TKeyset, TObj));
+  profileDecRefs(env, data, /*init=*/false);
+  if (base->isA(TObj)) return false;
 
   auto const body = getBlock(env, bcOff(env) + loopOffset);
-  if (!env.iters.contains(body)) return false;
+  auto const baseDT = dt_modulo_persistence(base->type().toDataType());
+  auto const iterProfileKey = std::make_pair(body, baseDT);
+  auto const it = env.iterProfiles.find(iterProfileKey);
+  auto const keyTypes = it != env.iterProfiles.end()
+    ? it->second.keyTypes
+    : baseDT == KindOfVec ? ArrayKeyTypes::Ints() : ArrayKeyTypes::ArrayKeys();
+  auto const layout = [&] {
+    if (it != env.iterProfiles.end()) {
+      // If IterInit provided a profiling hint and it doesn't contradict what
+      // we know about the type, use it.
+      auto const l = it->second.layout & base->type().arrSpec().layout();
+      if (l != ArrayLayout::Bottom()) return l;
+    }
+    return getProfiledLayout(env, base);
+  }();
 
-  auto const iter = env.iters[body].get();
-  if (!iter->iter_type.specialized) return false;
-  auto const accessor =
-    getAccessor(iter->iter_type, iter->layout, data, local);
-  if (baseLocalId != kInvalidId) {
-    auto const type = env.irb->fs().local(baseLocalId).type;
-    if (!type.maybe(accessor->arr_type)) return false;
+  FTRACE(2, "Trying to specialize IterNext: {} @ {}\n",
+         keyTypes.show(), layout.describe());
+  if (!layout.vanilla() && !layout.monotype() && !layout.is_struct()) {
+    FTRACE(2, "Failure: not a vanilla, monotype, or struct layout.\n");
+    return false;
   }
 
-  // We're committing to specialization for this loop. Replace the placeholders
-  // for the inits with uncondition jumps into the specialized code.
-  for (auto inst : iter->placeholders) {
-    assertx(inst->is(JmpPlaceholder));
-    env.unit.replace(inst, Jmp, inst->taken());
-  }
-  iter->placeholders.clear();
+  auto const accessor = getAccessor(baseDT, keyTypes, layout, data);
+  assertx(base->type().maybe(accessor->arrType()));
 
-  assertx(iter->header != nullptr);
-  auto const footer = iter->footer == nullptr
-    ? env.unit.defBlock(env.irb->curBlock()->profCount())
-    : iter->footer;
-  emitSpecializedNext(env, *accessor, data, footer, baseLocalId);
-  if (iter->footer == nullptr) {
-    BlockPusher pushBlock{*env.irb, env.irb->curMarker(), footer};
-    emitSpecializedFooter(env, *accessor, data, iter->header);
-    iter->footer = footer;
-  }
+  auto const iterKey = std::make_tuple(
+    body, baseDT, layout.toUint16(), keyTypes.toBits());
+  auto const header = [&] {
+    if (env.iters.contains(iterKey)) return env.iters[iterKey].header;
+    auto const res = emitSpecializedHeader(
+      env, *accessor, data, TInitCell, body, baseLocalId);
+    env.iters.emplace(iterKey, IterSpecInfo{res, nullptr});
+    return res;
+  }();
+  auto const footer = [&] {
+    assertx(env.iters.contains(iterKey));
+    if (auto const f = env.iters[iterKey].footer) return f;
+    auto const res = emitSpecializedFooter(env, *accessor, data, header);
+    env.iters[iterKey].footer = res;
+    return res;
+  }();
+
+  emitSpecializedNext(env, *accessor, data, footer, base);
   return true;
 }
 

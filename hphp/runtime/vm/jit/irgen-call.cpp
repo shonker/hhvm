@@ -69,7 +69,7 @@ const Class* callContext(IRGS& env, const FCallArgs& fca, const Class* cls) {
     if (RO::RepoAuthoritative) PUNT(Bad-Dyn-Override);
     return cls;
   }
-  return lookupUniqueClass(env, fca.context, true /* trustUnit */);
+  return lookupKnownWithUnit(env, fca.context);
 }
 
 bool emitCallerInOutChecksKnown(IRGS& env, const Func* callee,
@@ -196,14 +196,14 @@ void emitCallerReadonlyChecksUnknown(IRGS& env, SSATmp* callee,
 void emitCallerDynamicCallChecksKnown(IRGS& env, const Func* callee) {
   assertx(callee);
   auto const dynCallable = callee->isDynamicallyCallable();
-  if (dynCallable && !RO::EvalForbidDynamicCallsWithAttr) {
+  if (dynCallable && !Cfg::Eval::ForbidDynamicCallsWithAttr) {
     return;
   }
   auto const level = callee->isMethod()
     ? (callee->isStatic()
-        ? RO::EvalForbidDynamicCallsToClsMeth
-        : RO::EvalForbidDynamicCallsToInstMeth)
-    : RO::EvalForbidDynamicCallsToFunc;
+        ? Cfg::Eval::ForbidDynamicCallsToClsMeth
+        : Cfg::Eval::ForbidDynamicCallsToInstMeth)
+    : Cfg::Eval::ForbidDynamicCallsToFunc;
   if (level <= 0) return;
   if (dynCallable && level < 2) return;
   gen(env, RaiseForbiddenDynCall, cns(env, callee));
@@ -211,7 +211,7 @@ void emitCallerDynamicCallChecksKnown(IRGS& env, const Func* callee) {
 
 void emitCallerDynamicCallChecksUnknown(IRGS& env, SSATmp* callee) {
   assertx(!callee->hasConstVal());
-  if (RO::EvalForbidDynamicCallsWithAttr) {
+  if (Cfg::Eval::ForbidDynamicCallsWithAttr) {
     gen(env, RaiseForbiddenDynCall, callee);
   } else {
     ifElse(
@@ -514,7 +514,7 @@ bool hasConstParamMemoCache(IRGS& env, const Func* callee, SSATmp* objOrClass) {
 rds::Link<TypedValue, rds::Mode::Normal>
 constParamCacheLink(IRGS& env, const Func* callee, SSATmp* cls,
                     bool asyncEagerReturn) {
-  auto const clsVal = cls ? cls->clsVal() : nullptr;;
+  auto const clsVal = cls ? cls->clsVal() : nullptr;
   auto arr = Array::CreateVec();
   for (auto i = 0; i < callee->numFuncEntryInputs(); ++i) {
     auto const t = publicTopType(env, BCSPRelOffset {i});
@@ -613,7 +613,6 @@ void prepareAndCallKnown(IRGS& env, const Func* callee, const FCallArgs& fca,
     if (!calleeFP->isA(TBottom)) calleeFP->inst()->convertToNop();
 
     if (hasRdsCache) {
-      verifyImplicitContextState(env, callee);
       auto const link =
         constParamCacheLink(env, callee, objOrClass, asyncEagerReturn);
       assertx(link.isNormal());
@@ -770,7 +769,7 @@ void fcallObjMethodUnknown(
 
   auto const callerCtx = [&] {
     if (!fca.context) return curClass(env);
-    auto const ret = lookupUniqueClass(env, fca.context, true /* trustUnit */);
+    auto const ret = lookupKnownWithUnit(env, fca.context);
     if (!ret) PUNT(no-context);
     return ret;
   }();
@@ -1095,7 +1094,7 @@ void fcallObjMethodObj(IRGS& env, const FCallArgs& fca, SSATmp* obj,
     if (!methodName->hasConstVal()) return notFound;
 
     if (!clsHint->empty()) {
-      auto const cls = lookupUniqueClass(env, clsHint);
+      auto const cls = lookupKnown(env, clsHint);
       if (cls && isNormalClass(cls)) {
         obj = gen(env, AssertType, Type::SubObj(cls), obj);
         auto const callCtx =
@@ -1312,8 +1311,8 @@ void emitModuleBoundaryCheckKnownImpl(IRGS& env, const T* symbol) {
         OptClassAndFuncData { curClass(env), caller },
         cns(env, symbol));
   }
-  if (RO::EvalEnforceDeployment &&
-      env.unit.packageInfo().violatesDeploymentBoundary(*symbol)) {
+  if (env.unit.packageInfo().violatesDeploymentBoundary(*caller)) return;
+  if (env.unit.packageInfo().violatesDeploymentBoundary(*symbol)) {
     gen(env,
         RaiseDeploymentBoundaryViolation,
         OptClassAndFuncData { curClass(env), caller },
@@ -1346,6 +1345,7 @@ void emitModuleBoundaryCheckKnown(IRGS& env, const Class::SProp* prop) {
 }
 
 void emitModuleBoundaryCheck(IRGS& env, SSATmp* symbol, bool func /* = true */) {
+  if (!RO::EvalEnforceModules) return;
   auto const caller = curFunc(env);
   if (symbol->hasConstVal()) {
     if (func) {
@@ -1387,21 +1387,13 @@ void emitModuleBoundaryCheck(IRGS& env, SSATmp* symbol, bool func /* = true */) 
 
 void emitFCallFuncD(IRGS& env, FCallArgs fca, const StringData* funcName) {
   auto const func = lookupImmutableFunc(funcName);
-  auto const callerCtx = [&] {
-    if (!fca.context) return curClass(env);
-    auto const ret = lookupUniqueClass(env, fca.context, true /* trustUnit */);
-    if (!ret) PUNT(no-context);
-    return ret;
-  }();
-
   if (func) {
     emitModuleBoundaryCheckKnown(env, func);
     prepareAndCallKnown(env, func, fca, nullptr, false, false);
     return;
   }
 
-  auto const cachedFunc =
-    gen(env, LdFuncCached, FuncNameData { funcName, callerCtx });
+  auto const cachedFunc = gen(env, LdFuncCached, FuncNameData { funcName } );
   emitModuleBoundaryCheck(env, cachedFunc);
   prepareAndCallProfiled(env, cachedFunc, fca, nullptr, false, false);
 }
@@ -1418,16 +1410,15 @@ void emitFCallFunc(IRGS& env, FCallArgs fca) {
 }
 
 void emitResolveFunc(IRGS& env, const StringData* name) {
-  auto const func = lookupImmutableFunc(name);
-  if (!func) {
-    auto const func =
-      gen(env, LookupFuncCached, FuncNameData { name, curClass(env) });
+  auto const cachedFunc = lookupImmutableFunc(name);
+  if (!cachedFunc) {
+    auto const func = gen(env, LookupFuncCached, FuncNameData { name } );
     emitModuleBoundaryCheck(env, func);
     push(env, func);
     return;
   }
-  emitModuleBoundaryCheckKnown(env, func);
-  push(env, cns(env, func));
+  emitModuleBoundaryCheckKnown(env, cachedFunc);
+  push(env, cns(env, cachedFunc));
 }
 
 void emitResolveMethCaller(IRGS& env, const StringData* name) {
@@ -1444,7 +1435,7 @@ void emitResolveMethCaller(IRGS& env, const StringData* name) {
   auto const methodName = func->methCallerMethName();
 
   auto const ok = [&] () -> bool {
-    auto const cls = lookupUniqueClass(env, className);
+    auto const cls = lookupKnown(env, className);
     if (cls && !isTrait(cls)) {
       auto const callCtx = MemberLookupContext(curClass(env), curFunc(env));
       auto const res = lookupImmutableObjMethod(cls, methodName, callCtx, false);
@@ -1465,9 +1456,7 @@ void emitResolveRFunc(IRGS& env, const StringData* name) {
 
   auto const funcTmp = [&] () -> SSATmp* {
     auto const func = lookupImmutableFunc(name);
-    if (!func) {
-      return gen(env, LookupFuncCached, FuncNameData { name, curClass(env) });
-    }
+    if (!func) return gen(env, LookupFuncCached, FuncNameData { name } );
     return cns(env, func);
   }();
 
@@ -1510,7 +1499,7 @@ SSATmp* specialClsRefToCls(IRGS& env, SpecialClsRef ref) {
 }
 
 void emitDynamicConstructChecks(IRGS& env, SSATmp* cls) {
-  if (RuntimeOption::EvalForbidDynamicConstructs <= 0) return;
+  if (Cfg::Eval::ForbidDynamicConstructs <= 0) return;
   if (cls->hasConstVal()) {
     if (cls->clsVal()->isDynamicallyConstructible()) return;
     gen(env, RaiseForbiddenDynConstruct, cls);
@@ -1541,17 +1530,18 @@ void emitNewObj(IRGS& env) {
 }
 
 void emitNewObjD(IRGS& env, const StringData* className) {
-  auto const cls = lookupUniqueClass(env, className);
-  bool const persistentCls = classIsPersistentOrCtxParent(env, cls);
-  bool const canInstantiate = cls && isNormalClass(cls) && !isAbstract(cls);
-  if (persistentCls && canInstantiate && !cls->hasNativePropHandler()){
-    push(env, allocObjFast(env, cls));
-    return;
-  }
-  if (cls || persistentCls) {
-    push(env, gen(env, AllocObj, cns(env, cls)));
-    return;
-  }
+  auto const cls = lookupKnown(env, className);
+
+  auto const knownClass = [&]() {
+    bool const canInstantiate = isNormalClass(cls) && !isAbstract(cls);
+    if (canInstantiate && !cls->hasNativePropHandler()) {
+      push(env, allocObjFast(env, cls));
+    } else {
+      push(env, gen(env, AllocObj, cns(env, cls)));
+    }
+  };
+  if (cls) return knownClass();
+
   auto const cachedCls = gen(env,
                              LdClsCached,
                              LdClsFallbackData::Fatal(),
@@ -1589,7 +1579,7 @@ void emitFCallCtor(IRGS& env, FCallArgs fca, const StringData* clsHint) {
 
   auto const exactCls = [&] {
     if (!clsHint->empty()) {
-      auto const cls = lookupUniqueClass(env, clsHint);
+      auto const cls = lookupKnown(env, clsHint);
       if (cls && isNormalClass(cls)) return cls;
     }
     return obj->type().clsSpec().exactCls();
@@ -1715,36 +1705,69 @@ void emitFCallClsMethodD(IRGS& env,
                          FCallArgs fca,
                          const StringData* className,
                          const StringData* methodName) {
-  auto const cls = lookupUniqueClass(env, className);
-  if (cls) {
-    auto const callCtx =
-      MemberLookupContext(callContext(env, fca, cls), curFunc(env));
-    auto const func = lookupImmutableClsMethod(cls, methodName, callCtx, true);
-    if (func) {
-      if (!classIsPersistentOrCtxParent(env, cls)) {
-        gen(env, LdClsCached, LdClsFallbackData::Fatal(), cns(env, className));
-      }
+  auto const lookup = lookupKnownMaybe(env, className);
+  auto const slow = [&]() {
+    auto const callerCtx = [&] {
+      if (!fca.context) return curClass(env);
+      auto const ret = lookupKnownWithUnit(env, fca.context);
+      if (!ret) PUNT(no-context);
+      return ret;
+    }();
+
+    auto const slowExit = makeExitSlow(env);
+    auto const ne = NamedType::getOrCreate(className);
+    auto const data =
+      ClsMethodData { className, methodName, ne, callerCtx, curFunc(env) };
+    auto const func = loadClsMethodUnknown(env, data, slowExit);
+    auto const ctx = gen(env, LdClsMethodCacheCls, data);
+    emitModuleBoundaryCheck(env, ctx, false);
+    prepareAndCallProfiled(env, func, fca, ctx, false, false);
+  };
+
+  switch (lookup.tag) {
+    case Class::ClassLookupResult::Exact: {
+      auto const cls = lookup.cls;
+      auto const callCtx =
+        MemberLookupContext(callContext(env, fca, cls), curFunc(env));
+      auto const func = lookupImmutableClsMethod(cls, methodName, callCtx, true);
+      if (!func) return slow();
       auto const ctx = ldCtxForClsMethod(env, func, cns(env, cls), cls, true);
       emitModuleBoundaryCheckKnown(env, cls);
       return prepareAndCallKnown(env, func, fca, ctx, false, false);
     }
+    case Class::ClassLookupResult::None: {
+      return slow();
+    }
+    case Class::ClassLookupResult::Maybe: {
+      auto const cls = lookup.cls;
+      assertx(!RO::RepoAuthoritative);
+      auto const callCtx =
+        MemberLookupContext(callContext(env, fca, cls), curFunc(env));
+      auto const func = lookupImmutableClsMethod(cls, methodName, callCtx, true);
+      if (!func) return slow();
+
+      auto const loadedCls = gen(env, LdClsCached, LdClsFallbackData::Fatal(), cns(env, className));
+      auto const classId = lookup.cls->classId();
+      return ifThenElse(
+        env,
+        [&] (Block* taken) {
+          gen(env, EqClassId, ClassIdData(classId), taken, loadedCls);
+        },
+        [&] {
+          updateStackOffset(env);
+          auto const ctx = ldCtxForClsMethod(env, func, cns(env, cls), cls, true);
+          emitModuleBoundaryCheckKnown(env, cls);
+          prepareAndCallKnown(env, func, fca, ctx, false, false);
+        },
+        [&] {
+          hint(env, Block::Hint::Unlikely);
+          updateStackOffset(env);
+          slow();
+        }
+      );
+    }
+    not_reached();
   }
-
-  auto const callerCtx = [&] {
-    if (!fca.context) return curClass(env);
-    auto const ret = lookupUniqueClass(env, fca.context, true /* trustUnit */);
-    if (!ret) PUNT(no-context);
-    return ret;
-  }();
-
-  auto const slowExit = makeExitSlow(env);
-  auto const ne = NamedType::getOrCreate(className);
-  auto const data =
-    ClsMethodData { className, methodName, ne, callerCtx, curFunc(env) };
-  auto const func = loadClsMethodUnknown(env, data, slowExit);
-  auto const ctx = gen(env, LdClsMethodCacheCls, data);
-  emitModuleBoundaryCheck(env, ctx, false);
-  prepareAndCallProfiled(env, func, fca, ctx, false, false);
 }
 
 namespace {
@@ -1839,7 +1862,7 @@ void resolveClsMethodCommon(IRGS& env, SSATmp* clsVal,
 void checkClsMethodAndLdCtx(IRGS& env, const Class* cls, const Func* func,
                             const StringData* className) {
   gen(env, CheckClsMethFunc, cns(env, func));
-  if (!classIsPersistentOrCtxParent(env, cls)) {
+  if (!lookupKnown(env, cls)) {
     gen(env, LdClsCached, LdClsFallbackData::Fatal(), cns(env, className));
   }
   ldCtxForClsMethod(env, func, cns(env, cls), cls, true);
@@ -1872,7 +1895,7 @@ void emitResolveClsMethod(IRGS& env, const StringData* methodName) {
 
 void emitResolveClsMethodD(IRGS& env, const StringData* className,
                            const StringData* methodName) {
-  auto const cls = lookupUniqueClass(env, className, false /* trustUnit */);
+  auto const cls = lookupKnown(env, className);
   if (cls) {
     auto const callCtx = MemberLookupContext(curClass(env), curFunc(env));
     auto const func = lookupImmutableClsMethod(cls, methodName, callCtx, true);
@@ -1918,7 +1941,7 @@ void emitResolveRClsMethodD(IRGS& env, const StringData* className,
     return interpOne(env);
   }
 
-  auto const cls = lookupUniqueClass(env, className, false /* trustUnit */);
+  auto const cls = lookupKnown(env, className);
   if (cls) {
     auto const callCtx = MemberLookupContext(curClass(env), curFunc(env));
     auto const func = lookupImmutableClsMethod(cls, methodName, callCtx, true);
@@ -1998,7 +2021,7 @@ void fcallClsMethodCommon(IRGS& env,
   auto const methodName = methVal->strVal();
   auto const knownClass = [&] () -> std::pair<const Class*, bool> {
     if (!clsHint->empty()) {
-      auto const cls = lookupUniqueClass(env, clsHint);
+      auto const cls = lookupKnown(env, clsHint);
       if (cls && isNormalClass(cls)) return std::make_pair(cls, true);
     }
 
@@ -2047,7 +2070,7 @@ void emitFCallClsMethod(IRGS& env, FCallArgs fca, const StringData* clsHint,
 
   auto const suppressDynCallCheck =
     op == IsLogAsDynamicCallOp::DontLogAsDynamicCall &&
-    !RO::EvalLogKnownMethodsAsDynamicCalls;
+    !Cfg::Eval::LogKnownMethodsAsDynamicCalls;
 
   fcallClsMethodCommon(env, fca, clsHint, cls, methName, false,
                        true, suppressDynCallCheck,
@@ -2065,7 +2088,7 @@ void emitFCallClsMethodM(IRGS& env, FCallArgs fca, const StringData* clsHint,
   auto const cls = [&] {
     if (name->isA(TCls)) return name;
     if (name->isA(TStr) &&
-      RO::EvalRaiseStrToClsConversionNoticeSampleRate > 0) {
+      Cfg::Eval::RaiseStrToClsConversionNoticeSampleRate > 0) {
       gen(env, RaiseStrToClassNotice, name);
     }
     auto const ret = name->isA(TObj) ?
@@ -2077,7 +2100,7 @@ void emitFCallClsMethodM(IRGS& env, FCallArgs fca, const StringData* clsHint,
 
   auto const suppressDynCallCheck =
     op == IsLogAsDynamicCallOp::DontLogAsDynamicCall &&
-    !RO::EvalLogKnownMethodsAsDynamicCalls;
+    !Cfg::Eval::LogKnownMethodsAsDynamicCalls;
 
   fcallClsMethodCommon(env, fca, clsHint, cls, cns(env, methName), false,
                        name->isA(TStr), suppressDynCallCheck, 1);

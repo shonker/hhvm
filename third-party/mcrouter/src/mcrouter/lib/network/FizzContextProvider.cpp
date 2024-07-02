@@ -7,15 +7,14 @@
 
 #include "FizzContextProvider.h"
 
+#include <fizz/backend/openssl/certificate/CertUtils.h>
 #include <fizz/client/FizzClientContext.h>
 #include <fizz/client/SynchronizedLruPskCache.h>
-#include <fizz/protocol/CertUtils.h>
 #include <fizz/protocol/DefaultCertificateVerifier.h>
 #include <fizz/server/FizzServerContext.h>
 #include <fizz/server/TicketCodec.h>
 #include <fizz/server/TicketTypes.h>
 #include <folly/Singleton.h>
-#include <folly/ssl/Init.h>
 #include <folly/synchronization/CallOnce.h>
 
 #include "mcrouter/lib/fbi/cpp/LogFailure.h"
@@ -24,11 +23,6 @@ namespace facebook {
 namespace memcache {
 
 namespace {
-void initSSL() {
-  static folly::once_flag flag;
-  folly::call_once(flag, [&]() { folly::ssl::init(); });
-}
-
 /* Sessions are valid for upto 24 hours */
 constexpr size_t kSessionLifeTime = 86400;
 /* Handshakes are valid for up to 1 week */
@@ -43,15 +37,14 @@ FizzContextAndVerifier createClientFizzContextAndVerifier(
   // global session cache
   static auto SESSION_CACHE =
       std::make_shared<fizz::client::SynchronizedLruPskCache>(100);
-  initSSL();
   auto ctx = std::make_shared<fizz::client::FizzClientContext>();
   ctx->setSupportedVersions({fizz::ProtocolVersion::tls_1_3});
   ctx->setPskCache(SESSION_CACHE);
   // Thrift's Rocket transport requires an ALPN
   ctx->setSupportedAlpns({"rs"});
   if (!certData.empty() && !keyData.empty()) {
-    auto cert =
-        fizz::CertUtils::makeSelfCert(std::move(certData), std::move(keyData));
+    auto cert = fizz::openssl::CertUtils::makeSelfCert(
+        std::move(certData), std::move(keyData));
     ctx->setClientCertificate(std::move(cert));
   }
   std::shared_ptr<fizz::DefaultCertificateVerifier> verifier;
@@ -82,13 +75,12 @@ std::shared_ptr<fizz::server::FizzServerContext> createFizzServerContext(
     bool requireClientVerification,
     bool preferOcbCipher,
     wangle::TLSTicketKeySeeds* ticketKeySeeds) {
-  initSSL();
   auto certMgr = std::make_shared<fizz::server::CertManager>();
   try {
     auto selfCert =
-        fizz::CertUtils::makeSelfCert(certData.str(), keyData.str());
+        fizz::openssl::CertUtils::makeSelfCert(certData.str(), keyData.str());
     // add the default cert
-    certMgr->addCert(std::move(selfCert), true);
+    certMgr->addCertAndSetDefault(std::move(selfCert));
   } catch (const std::exception& ex) {
     LOG_FAILURE(
         "SSLCert",

@@ -14,7 +14,7 @@
  * limitations under the License.
  */
 
-#include <fizz/crypto/aead/OpenSSLEVPCipher.h>
+#include <fizz/backend/openssl/OpenSSL.h>
 #include <fizz/experimental/ktls/AsyncKTLSSocket.h>
 #include <fizz/experimental/ktls/KTLS.h>
 #include <fizz/record/EncryptedRecordLayer.h>
@@ -46,7 +46,7 @@ static std::unique_ptr<T> makeEncryptedRecordLayer(
   // parameter
   static unsigned char dummy;
 
-  auto aead = fizz::OpenSSLEVPCipher::makeCipher<fizz::AESGCM128>();
+  auto aead = fizz::openssl::OpenSSLEVPCipher::makeCipher<fizz::AESGCM128>();
   aead->setKey(std::move(key));
   auto rl = std::make_unique<T>(fizz::EncryptionLevel::AppTraffic);
   rl->setAead(folly::ByteRange(&dummy, 1), std::move(aead));
@@ -264,7 +264,7 @@ TEST_F(KTLSReadTest, BasicReadWrite) {
         clientRead_->read(clientReadQueue_, fizz::Aead::AeadOptions());
     ASSERT_TRUE(message.has_value());
     EXPECT_EQ(message->type, fizz::ContentType::application_data);
-    auto data = message->fragment->moveToFbString().toStdString();
+    auto data = message->fragment->to<std::string>();
     EXPECT_EQ("goodbye world", data);
   }
 }
@@ -402,8 +402,8 @@ TEST_F(KTLSReadTest, HandshakeDispatch) {
       .WillOnce(Invoke([&](auto&&, fizz::NewSessionTicket ticket) {
         EXPECT_EQ(ticket.ticket_lifetime, 100);
         EXPECT_EQ(ticket.ticket_age_add, 20);
-        EXPECT_EQ("abc", ticket.ticket_nonce->moveToFbString().toStdString());
-        EXPECT_EQ("123", ticket.ticket->moveToFbString().toStdString());
+        EXPECT_EQ("abc", ticket.ticket_nonce->to<std::string>());
+        EXPECT_EQ("123", ticket.ticket->to<std::string>());
         serverConn_->setReadCB(nullptr);
       }));
   serverConn_->setReadCB(&mockReadCB_);
@@ -456,8 +456,8 @@ TEST_F(KTLSReadTest, HandshakeRecordSmallBuffer) {
       .WillOnce(Invoke([&](auto&&, fizz::NewSessionTicket ticket) {
         EXPECT_EQ(ticket.ticket_lifetime, 100);
         EXPECT_EQ(ticket.ticket_age_add, 20);
-        EXPECT_EQ("abc", ticket.ticket_nonce->moveToFbString().toStdString());
-        EXPECT_EQ("123", ticket.ticket->moveToFbString().toStdString());
+        EXPECT_EQ("abc", ticket.ticket_nonce->to<std::string>());
+        EXPECT_EQ("123", ticket.ticket->to<std::string>());
         serverConn_->setReadCB(nullptr);
       }));
   serverConn_->setReadCB(&mockReadCB_);
@@ -521,8 +521,8 @@ TEST_F(KTLSReadTest, HandshakeMessageAcrossRecords) {
       .WillOnce(Invoke([&](auto&&, fizz::NewSessionTicket ticket) {
         EXPECT_EQ(ticket.ticket_lifetime, 100);
         EXPECT_EQ(ticket.ticket_age_add, 20);
-        EXPECT_EQ("abc", ticket.ticket_nonce->moveToFbString().toStdString());
-        EXPECT_EQ("123", ticket.ticket->moveToFbString().toStdString());
+        EXPECT_EQ("abc", ticket.ticket_nonce->to<std::string>());
+        EXPECT_EQ("123", ticket.ticket->to<std::string>());
         serverConn_->setReadCB(nullptr);
       }));
   evb_.loop();

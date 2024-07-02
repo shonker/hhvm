@@ -457,7 +457,7 @@ String DebuggerClient::FormatVariable(
       VariableSerializer::Type::DebuggerDump;
     VariableSerializer vs(t, 0, 2);
     value = vs.serialize(v, true);
-  } catch (const StringBufferLimitException& e) {
+  } catch (const StringBufferLimitException&) {
     value = "Serialization limit reached";
   } catch (...) {
     assertx(false);
@@ -1016,6 +1016,7 @@ char* DebuggerClient::getCompletion(const char* text, int state) {
             addCompletion("<?hh");
             break;
           }
+          [[fallthrough]];
         case '@':
         case '=':
         case '$': {
@@ -1736,6 +1737,7 @@ bool DebuggerClient::process() {
         processTakeCode();
         return true;
       }
+      break;
     }
     case '?': {
       if (match("?")) {

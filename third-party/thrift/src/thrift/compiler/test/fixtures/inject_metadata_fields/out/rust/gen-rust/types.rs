@@ -5,8 +5,6 @@
 #![recursion_limit = "100000000"]
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, unused_crate_dependencies, clippy::redundant_closure, clippy::type_complexity)]
 
-pub mod errors;
-
 #[allow(unused_imports)]
 pub(crate) use crate as types;
 
@@ -87,10 +85,17 @@ impl ::fbthrift::GetTType for self::Fields {
     const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
 }
 
+impl ::fbthrift::GetTypeNameType for self::Fields {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::Fields
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("Fields");
         p.write_field_begin("injected_field", ::fbthrift::TType::String, 100);
@@ -105,6 +110,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::Fields
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("injected_field", ::fbthrift::TType::String, 100),
@@ -182,10 +188,17 @@ impl ::fbthrift::GetTType for self::FieldsInjectedToEmptyStruct {
     const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
 }
 
+impl ::fbthrift::GetTypeNameType for self::FieldsInjectedToEmptyStruct {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::FieldsInjectedToEmptyStruct
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("FieldsInjectedToEmptyStruct");
         p.write_field_begin("injected_field", ::fbthrift::TType::String, -1100);
@@ -200,6 +213,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::FieldsInjectedToEmptyStruct
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("injected_field", ::fbthrift::TType::String, -1100),
@@ -289,10 +303,17 @@ impl ::fbthrift::GetTType for self::FieldsInjectedToStruct {
     const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
 }
 
+impl ::fbthrift::GetTypeNameType for self::FieldsInjectedToStruct {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::FieldsInjectedToStruct
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("FieldsInjectedToStruct");
         p.write_field_begin("string_field", ::fbthrift::TType::String, 1);
@@ -310,6 +331,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::FieldsInjectedToStruct
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("injected_field", ::fbthrift::TType::String, -1100),
@@ -409,10 +431,17 @@ impl ::fbthrift::GetTType for self::FieldsInjectedWithIncludedStruct {
     const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
 }
 
+impl ::fbthrift::GetTypeNameType for self::FieldsInjectedWithIncludedStruct {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::FieldsInjectedWithIncludedStruct
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("FieldsInjectedWithIncludedStruct");
         p.write_field_begin("string_field", ::fbthrift::TType::String, 1);
@@ -440,6 +469,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::FieldsInjectedWithIncludedStruct
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("injected_field", ::fbthrift::TType::String, -1100),

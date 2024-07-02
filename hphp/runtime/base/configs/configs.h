@@ -25,19 +25,28 @@
 
 namespace HPHP {
 
-struct IniSettingMap;
 struct Hdf;
+struct IniSettingMap;
+struct RepoGlobalData;
 struct RepoOptionsFlags;
+
+namespace hackc {
+struct HhbcFlags;
+}
 
 namespace Cfg {
 
 void Load(const IniSettingMap& ini, const Hdf& config);
 void LoadForCompiler(const IniSettingMap& ini, const Hdf& config);
+void LoadFromGlobalData(const RepoGlobalData& gd);
+void LoadFromGlobalDataOnlyHHBBC(const RepoGlobalData& gd);
+void StoreToGlobalData(RepoGlobalData& gd);
 
 void GetRepoOptionsFlags(RepoOptionsFlags& flags, const IniSettingMap& ini, const Hdf& config);
 void GetRepoOptionsFlagsFromConfig(RepoOptionsFlags& flags, const Hdf& config,
                                    const RepoOptionsFlags& default_flags);
 void GetRepoOptionsFlagsForSystemlib(RepoOptionsFlags& flags);
+void InitHackcHHBCFlags(const RepoOptionsFlags& repo_flags, hackc::HhbcFlags& flags);
 
 using StringStringMap = std::map<std::string, std::string>;
 using StringVector = std::vector<std::string>;

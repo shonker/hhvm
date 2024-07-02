@@ -29,6 +29,7 @@
 #include <folly/Range.h>
 #include <folly/Traits.h>
 #include <folly/Utility.h>
+#include <folly/container/Reserve.h>
 #include <folly/container/View.h>
 #include <thrift/lib/cpp/protocol/TType.h>
 #include <thrift/lib/cpp2/FieldRefTraits.h>
@@ -102,24 +103,63 @@ struct FieldInfo {
   // Offset into the data member of the field in the struct.
   ptrdiff_t memberOffset;
 
-  // 0 means that the field does not have __isset.
+  /**
+   * If the owning `StructInfo` specifies a `getIsset` and/or `setIsset`
+   * function(s), then this value will be passed as the `offset` argument.
+   *
+   * For either operation, if the owning `StructInfo` does not have a function
+   * pointer set, then this field should hold the offset (in bytes) from the
+   * beginning of the corresponding struct object, of memory that can be
+   * reintepreted as a `bool` holding the "isset" information for this field.
+   *
+   * If the owning `StructInfo` is a union, this field is set to 0 (and, in
+   * practice, never used).
+   */
   ptrdiff_t issetOffset;
 
   const TypeInfo* typeInfo;
 };
 
 struct UnionExt {
-  // Clear union before setting a field.
+  /**
+   * Clears the given union data object.
+   *
+   * Should be called prior to setting any field.
+   */
   VoidFuncPtr clear;
 
+  /**
+   * Offset (in bytes) from the start of the corresponding union data object to
+   * the `int` memory holding the ID of the currently active (i.e., present)
+   * field.
+   *
+   * This is used (and should be non-zero) iff `getActiveId` or `setActiveId`
+   * below are nullptr, in which case the value of the active field ID will be
+   * written and read directly into that memory.
+   */
   ptrdiff_t unionTypeOffset;
 
+  /**
+   * Returns the ID of the currently active field for the given union data
+   * object, or 0 if none.
+   *
+   * If this (or `setActiveId`) are non-nullptr, `unionTypeOffset` is not used.
+   */
   int (*getActiveId)(const void* /* object */);
+
+  /**
+   * Sets the active field ID of the union data `object` to the given value.
+   *
+   * If this (or `getActiveId`) are non-nullptr, `unionTypeOffset` is not used.
+   */
   void (*setActiveId)(void* /* object */, int /* fieldId */);
 
+  FOLLY_PUSH_WARNING
+  FOLLY_CLANG_DISABLE_WARNING("-Wc99-extensions")
   // Value initialized using placement new into the member.
   // Generated code should order this list by fields key order.
   VoidFuncPtr initMember[];
+  FOLLY_POP_WARNING
 };
 
 // Templatized version to const initialize with the exact array length.
@@ -143,12 +183,23 @@ struct StructInfo {
   // This should be set to nullptr when not a union.
   const UnionExt* unionExt = nullptr;
 
+  /**
+   * Returns the value of the "isset" flag at the given `offset` for the given
+   * `object`.
+   *
+   * @param object
+   * @param offset of the isset flag to check for a given field, corresponding
+   *        to the value of `FieldInfo::issetOffset` for that field.
+   */
   bool (*getIsset)(const void* /* object */, ptrdiff_t /* offset */);
+
   void (*setIsset)(void* /* object */, ptrdiff_t /* offset */, bool /*set */);
 
   // Use for other languages to pass in additional information.
   const void* customExt;
 
+  FOLLY_PUSH_WARNING
+  FOLLY_CLANG_DISABLE_WARNING("-Wc99-extensions")
   /**
    * Holds `numFields` entries.
    *
@@ -156,6 +207,7 @@ struct StructInfo {
    * `StructInfo`, so this field MUST be the last in this struct.
    */
   FieldInfo fieldInfos[];
+  FOLLY_POP_WARNING
 };
 
 // Templatized version to const initialize with the exact array length.
@@ -471,7 +523,7 @@ void readMap(
     void (*keyReader)(const void* /*context*/, void* /*key*/),
     void (*valueReader)(const void* /*context*/, void* /*val*/)) {
   Map& out = *static_cast<Map*>(object);
-  ::apache::thrift::detail::pm::reserve_if_possible(&out, mapSize);
+  folly::reserve_if_available(out, mapSize);
 
   for (auto i = mapSize; i--;) {
     typename Map::key_type key;
@@ -507,8 +559,8 @@ void readKnownLengthSet(
     void* object,
     std::uint32_t setSize,
     void (*reader)(const void* /*context*/, void* /*val*/)) {
-  ::apache::thrift::detail::pm::reserve_if_possible(
-      static_cast<Set*>(object), setSize);
+  Set& out = *static_cast<Set*>(object);
+  folly::reserve_if_available(out, setSize);
 
   while (setSize--) {
     consumeSetElem<Set>(context, object, reader);
@@ -524,7 +576,7 @@ void readList(
   List& out = *static_cast<List*>(object);
   using traits = std::iterator_traits<typename List::iterator>;
   using cat = typename traits::iterator_category;
-  if (::apache::thrift::detail::pm::reserve_if_possible(&out, listSize) ||
+  if (folly::reserve_if_available(out, listSize) ||
       std::is_same<cat, std::bidirectional_iterator_tag>::value) {
     while (listSize--) {
       consumeListElem<List>(context, object, reader);

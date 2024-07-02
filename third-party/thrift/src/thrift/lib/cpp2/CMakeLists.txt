@@ -109,8 +109,8 @@ add_library(
   type/TypeRegistry.cpp
   type/UniversalName.cpp
 )
-add_dependencies(thrifttype type-cpp2-target thriftannotation thrifttyperep
-  thriftprotocol)
+add_dependencies(thrifttype any_rep-cpp2-target type-cpp2-target
+  thriftannotation thrifttyperep thriftprotocol)
 target_link_libraries(
   thrifttype
   PUBLIC
@@ -252,7 +252,6 @@ add_library(
   security/extensions/ThriftParametersContext.cpp
   security/extensions/Types.cpp
   server/AdaptiveConcurrency.cpp
-  server/BaseThriftServer.cpp
   server/ConcurrencyControllerInterface.cpp
   server/ConcurrencyControllerBase.cpp
   server/Cpp2ConnContext.cpp
@@ -264,6 +263,7 @@ add_library(
   server/LegacyHeaderRoutingHandler.cpp
   server/LoggingEvent.cpp
   server/LoggingEventHelper.cpp
+  server/LoggingEventTransportMetadata.cpp
   server/MonitoringMethodNames.cpp
   server/ParallelConcurrencyController.cpp
   server/TokenBucketConcurrencyController.cpp
@@ -283,10 +283,12 @@ add_library(
   server/ServerFlags.cpp
   server/ServerInstrumentation.cpp
   server/ServiceHealthPoller.cpp
+  server/ServiceInterceptorBase.cpp
   server/ThriftProcessor.cpp
   server/ThriftServer.cpp
   server/ThriftServerConfig.cpp
   server/TMConcurrencyController.cpp
+  server/metrics/MetricCollector.cpp
   server/peeking/TLSHelper.cpp
   transport/core/RequestStateMachine.cpp
   transport/core/RpcMetadataUtil.cpp
@@ -341,6 +343,7 @@ add_dependencies(
 target_link_libraries(
   thriftcpp2
   PUBLIC
+    fmt::fmt
     thrift
     rpcmetadata
     thriftannotation

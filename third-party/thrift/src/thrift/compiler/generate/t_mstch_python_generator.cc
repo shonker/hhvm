@@ -34,8 +34,8 @@
 #include <thrift/compiler/generate/common.h>
 #include <thrift/compiler/generate/mstch_objects.h>
 #include <thrift/compiler/generate/t_mstch_generator.h>
-#include <thrift/compiler/lib/cpp2/util.h>
 #include <thrift/compiler/lib/py3/util.h>
+#include <thrift/compiler/lib/python/util.h>
 #include <thrift/compiler/lib/uri.h>
 #include <thrift/compiler/sema/ast_validator.h>
 
@@ -44,14 +44,6 @@ namespace thrift {
 namespace compiler {
 
 namespace {
-
-bool is_type_iobuf(std::string_view name) {
-  return name == "folly::IOBuf" || name == "std::unique_ptr<folly::IOBuf>";
-}
-
-bool is_type_iobuf(const t_type* type) {
-  return is_type_iobuf(cpp2::get_type(type));
-}
 
 const t_const* find_structured_adapter_annotation(
     const t_named& node, const char* uri = kPythonAdapterUri) {
@@ -137,7 +129,7 @@ class python_mstch_program : public mstch_program {
   python_mstch_program(
       const t_program* p, mstch_context& ctx, mstch_element_position pos)
       : mstch_program(p, ctx, pos) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"program:module_path", &python_mstch_program::module_path},
@@ -145,7 +137,6 @@ class python_mstch_program : public mstch_program {
              &python_mstch_program::py_deprecated_module_path},
             {"program:py_asyncio_module_path",
              &python_mstch_program::py_asyncio_module_path},
-            {"program:is_types_file?", &python_mstch_program::is_types_file},
             {"program:include_namespaces",
              &python_mstch_program::include_namespaces},
             {"program:base_library_package",
@@ -155,6 +146,15 @@ class python_mstch_program : public mstch_program {
             {"program:adapter_modules", &python_mstch_program::adapter_modules},
             {"program:adapter_type_hint_modules",
              &python_mstch_program::adapter_type_hint_modules},
+            {"program:py3_auto_migrate?",
+             &python_mstch_program::py3_auto_migrate},
+        });
+    register_volatile_methods(
+        this,
+        {
+            {"program:is_types_file?", &python_mstch_program::is_types_file},
+            {"program:generate_mutable_types",
+             &python_mstch_program::generate_mutable_types},
         });
     register_has_option("program:import_static?", "import_static");
     gather_included_program_namespaces();
@@ -164,6 +164,8 @@ class python_mstch_program : public mstch_program {
     visit_types_for_typedefs();
     visit_types_for_adapters();
   }
+
+  mstch::node py3_auto_migrate() { return has_option("auto_migrate"); }
 
   mstch::node is_types_file() { return has_option("is_types_file"); }
 
@@ -221,6 +223,10 @@ class python_mstch_program : public mstch_program {
 
   mstch::node adapter_type_hint_modules() {
     return module_path_array(adapter_type_hint_modules_);
+  }
+
+  mstch::node generate_mutable_types() {
+    return !get_option("generate_mutable_types").empty();
   }
 
  protected:
@@ -417,15 +423,14 @@ class python_mstch_service : public mstch_service {
       const t_service* s,
       mstch_context& ctx,
       mstch_element_position pos,
-      const t_program* prog)
-      : mstch_service(s, ctx, pos), prog_(prog) {
-    register_methods(
+      const t_program* prog,
+      const t_service* containing_service = nullptr)
+      : mstch_service(s, ctx, pos, containing_service), prog_(prog) {
+    register_cached_methods(
         this,
         {
             {"service:module_path", &python_mstch_service::module_path},
             {"service:program_name", &python_mstch_service::program_name},
-            {"service:parent_service_name",
-             &python_mstch_service::parent_service_name},
             {"service:supported_functions",
              &python_mstch_service::supported_functions},
             {"service:supported_service_functions",
@@ -441,10 +446,6 @@ class python_mstch_service : public mstch_service {
   }
 
   mstch::node program_name() { return service_->program()->name(); }
-
-  mstch::node parent_service_name() {
-    return context_.options.at("parent_service_name");
-  }
 
   std::vector<t_function*> get_supported_functions(
       std::function<bool(const t_function*)> func_filter) {
@@ -477,6 +478,19 @@ class python_mstch_service : public mstch_service {
 
  protected:
   const t_program* prog_;
+};
+
+class python_mstch_interaction : public python_mstch_service {
+ public:
+  using ast_type = t_interaction;
+
+  python_mstch_interaction(
+      const t_interaction* interaction,
+      mstch_context& ctx,
+      mstch_element_position pos,
+      const t_service* containing_service,
+      const t_program* prog)
+      : python_mstch_service(interaction, ctx, pos, prog, containing_service) {}
 };
 
 // Generator-specific validator that enforces that a reserved key is not used
@@ -522,7 +536,7 @@ class python_mstch_function : public mstch_function {
       mstch_element_position pos,
       const t_interface* iface)
       : mstch_function(f, ctx, pos, iface) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"function:created_interaction",
@@ -585,18 +599,22 @@ class python_mstch_type : public mstch_type {
         adapter_annotation_(find_structured_adapter_annotation(*type)),
         transitive_adapter_annotation_(
             get_transitive_annotation_of_adapter_or_null(*type)) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"type:module_path", &python_mstch_type::module_path},
             {"type:program_name", &python_mstch_type::program_name},
             {"type:metadata_path", &python_mstch_type::metadata_path},
             {"type:py3_namespace", &python_mstch_type::py3_namespace},
-            {"type:need_module_path?", &python_mstch_type::need_module_path},
             {"type:external_program?", &python_mstch_type::is_external_program},
             {"type:integer?", &python_mstch_type::is_integer},
             {"type:iobuf?", &python_mstch_type::is_iobuf},
             {"type:has_adapter?", &python_mstch_type::adapter},
+        });
+    register_volatile_methods(
+        this,
+        {
+            {"type:need_module_path?", &python_mstch_type::need_module_path},
         });
   }
 
@@ -667,7 +685,7 @@ class python_mstch_typedef : public mstch_typedef {
       const t_typedef* t, mstch_context& ctx, mstch_element_position pos)
       : mstch_typedef(t, ctx, pos),
         adapter_annotation_(find_structured_adapter_annotation(*t)) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"typedef:has_adapter?", &python_mstch_typedef::adapter},
@@ -688,9 +706,10 @@ class python_mstch_struct : public mstch_struct {
       const t_structured* s, mstch_context& ctx, mstch_element_position pos)
       : mstch_struct(s, ctx, pos),
         adapter_annotation_(find_structured_adapter_annotation(*s)) {
-    register_methods(
+    register_cached_methods(
         this,
         {
+            {"struct:py_name", &python_mstch_struct::py_name},
             {"struct:fields_ordered_by_id",
              &python_mstch_struct::fields_ordered_by_id},
             {"struct:exception_message?",
@@ -702,6 +721,8 @@ class python_mstch_struct : public mstch_struct {
             {"struct:fields_size", &python_mstch_struct::fields_size},
         });
   }
+
+  mstch::node py_name() { return py3::get_py3_name(*struct_); }
 
   mstch::node fields_ordered_by_id() {
     std::vector<const t_field*> fields = struct_->fields().copy();
@@ -729,7 +750,7 @@ class python_mstch_struct : public mstch_struct {
     return ::apache::thrift::compiler::generate_legacy_api(*struct_);
   }
 
-  mstch::node fields_size() { return std::to_string(struct_->fields().size()); }
+  mstch::node fields_size() { return struct_->fields().size(); }
 
  private:
   const t_const* adapter_annotation_;
@@ -747,7 +768,7 @@ class python_mstch_field : public mstch_field {
         adapter_annotation_(find_structured_adapter_annotation(*field)),
         transitive_adapter_annotation_(
             get_transitive_annotation_of_adapter_or_null(*field)) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"field:py_name", &python_mstch_field::py_name},
@@ -819,7 +840,7 @@ class python_mstch_enum : public mstch_enum {
   python_mstch_enum(
       const t_enum* e, mstch_context& ctx, mstch_element_position pos)
       : mstch_enum(e, ctx, pos) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"enum:flags?", &python_mstch_enum::has_flags},
@@ -842,7 +863,7 @@ class python_mstch_enum_value : public mstch_enum_value {
   python_mstch_enum_value(
       const t_enum_value* ev, mstch_context& ctx, mstch_element_position pos)
       : mstch_enum_value(ev, ctx, pos) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"enum_value:py_name", &python_mstch_enum_value::py_name},
@@ -932,6 +953,7 @@ class t_mstch_python_generator : public t_mstch_generator {
   void generate_file(
       const std::string& file,
       TypesFile is_types_file,
+      bool generate_mutable_types,
       const std::filesystem::path& base);
   void set_types_file(bool val);
   void generate_types();
@@ -956,7 +978,7 @@ class python_mstch_const : public mstch_const {
         adapter_annotation_(find_structured_adapter_annotation(*c)),
         transitive_adapter_annotation_(
             get_transitive_annotation_of_adapter_or_null(*c)) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"constant:has_adapter?", &python_mstch_const::has_adapter},
@@ -1010,7 +1032,7 @@ class python_mstch_const_value : public mstch_const_value {
       const t_const* current_const,
       const t_type* expected_type)
       : mstch_const_value(cv, ctx, pos, current_const, expected_type) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"value:py3_enum_value_name",
@@ -1120,7 +1142,7 @@ class python_mstch_deprecated_annotation : public mstch_deprecated_annotation {
   python_mstch_deprecated_annotation(
       const t_annotation* a, mstch_context& ctx, mstch_element_position pos)
       : mstch_deprecated_annotation(a, ctx, pos) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"annotation:value?",
@@ -1148,6 +1170,7 @@ class python_mstch_deprecated_annotation : public mstch_deprecated_annotation {
 void t_mstch_python_generator::set_mstch_factories() {
   mstch_context_.add<python_mstch_program>();
   mstch_context_.add<python_mstch_service>(program_);
+  mstch_context_.add<python_mstch_interaction>(program_);
   mstch_context_.add<python_mstch_function>();
   mstch_context_.add<python_mstch_type>(program_);
   mstch_context_.add<python_mstch_typedef>();
@@ -1168,6 +1191,7 @@ std::filesystem::path t_mstch_python_generator::package_to_path() {
 void t_mstch_python_generator::generate_file(
     const std::string& file,
     TypesFile is_types_file,
+    bool generate_mutable_types,
     const std::filesystem::path& base = {}) {
   auto program = get_program();
   const auto& name = program->name();
@@ -1176,21 +1200,44 @@ void t_mstch_python_generator::generate_file(
   } else {
     mstch_context_.options.erase("is_types_file");
   }
+  if (generate_mutable_types) {
+    mstch_context_.options["generate_mutable_types"] = "yes";
+  } else {
+    mstch_context_.options.erase("generate_mutable_types");
+  }
   auto mstch_program = make_mstch_program_cached(program, mstch_context_);
   render_to_file(mstch_program, file, base / name / file);
 }
 
 void t_mstch_python_generator::generate_types() {
-  generate_file("thrift_types.py", IsTypesFile, generate_root_path_);
-  generate_file("thrift_types.pyi", IsTypesFile, generate_root_path_);
+  bool generate_mutable_types = false;
+  generate_file(
+      "thrift_types.py",
+      IsTypesFile,
+      generate_mutable_types,
+      generate_root_path_);
+  generate_file(
+      "thrift_types.pyi",
+      IsTypesFile,
+      generate_mutable_types,
+      generate_root_path_);
   if (has_option("experimental_generate_mutable_types")) {
-    generate_file("thrift_mutable_types.py", IsTypesFile, generate_root_path_);
-    generate_file("thrift_mutable_types.pyi", IsTypesFile, generate_root_path_);
+    generate_mutable_types = true;
+    generate_file(
+        "thrift_mutable_types.py",
+        IsTypesFile,
+        generate_mutable_types,
+        generate_root_path_);
+    generate_file(
+        "thrift_mutable_types.pyi",
+        IsTypesFile,
+        generate_mutable_types,
+        generate_root_path_);
   }
 }
 
 void t_mstch_python_generator::generate_metadata() {
-  generate_file("thrift_metadata.py", IsTypesFile, generate_root_path_);
+  generate_file("thrift_metadata.py", IsTypesFile, false, generate_root_path_);
 }
 
 void t_mstch_python_generator::generate_clients() {
@@ -1200,7 +1247,7 @@ void t_mstch_python_generator::generate_clients() {
     return;
   }
 
-  generate_file("thrift_clients.py", NotTypesFile, generate_root_path_);
+  generate_file("thrift_clients.py", NotTypesFile, false, generate_root_path_);
 }
 
 void t_mstch_python_generator::generate_services() {
@@ -1209,7 +1256,7 @@ void t_mstch_python_generator::generate_services() {
     // services.
     return;
   }
-  generate_file("thrift_services.py", NotTypesFile, generate_root_path_);
+  generate_file("thrift_services.py", NotTypesFile, false, generate_root_path_);
 }
 
 } // namespace

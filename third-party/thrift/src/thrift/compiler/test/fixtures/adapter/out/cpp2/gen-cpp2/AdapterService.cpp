@@ -62,7 +62,7 @@ folly::coro::Task<std::unique_ptr<::facebook::thrift::test::CountingStruct>> apa
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::facebook::thrift::test::AdapterService>::async_tm_count(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::facebook::thrift::test::CountingStruct>>> callback) {
+void apache::thrift::ServiceHandler<::facebook::thrift::test::AdapterService>::async_tm_count(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::facebook::thrift::test::CountingStruct>> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -120,7 +120,7 @@ determineInvocationType:
       {
         ::facebook::thrift::test::CountingStruct _return;
         sync_count(_return);
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -174,7 +174,7 @@ folly::coro::Task<std::unique_ptr<::facebook::thrift::test::HeapAllocated>> apac
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::facebook::thrift::test::AdapterService>::async_tm_adaptedTypes(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::facebook::thrift::test::HeapAllocated>>> callback, std::unique_ptr<::facebook::thrift::test::HeapAllocated> p_arg) {
+void apache::thrift::ServiceHandler<::facebook::thrift::test::AdapterService>::async_tm_adaptedTypes(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::facebook::thrift::test::HeapAllocated>> callback, std::unique_ptr<::facebook::thrift::test::HeapAllocated> p_arg) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -232,7 +232,7 @@ determineInvocationType:
       {
         ::facebook::thrift::test::HeapAllocated _return;
         sync_adaptedTypes(_return, std::move(p_arg));
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -251,11 +251,11 @@ determineInvocationType:
 }
 
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
-void AdapterServiceSvNull::count(::facebook::thrift::test::CountingStruct& /*_return*/) {}
+void AdapterServiceSvNull::count(::facebook::thrift::test::CountingStruct& /*_return*/) {  }
 
-void AdapterServiceSvNull::adaptedTypes(::facebook::thrift::test::HeapAllocated& /*_return*/, std::unique_ptr<::facebook::thrift::test::HeapAllocated> /*arg*/) {}
+void AdapterServiceSvNull::adaptedTypes(::facebook::thrift::test::HeapAllocated& /*_return*/, std::unique_ptr<::facebook::thrift::test::HeapAllocated> /*arg*/) {  }
 
 
 const char* AdapterServiceAsyncProcessor::getServiceName() {
@@ -299,14 +299,14 @@ apache::thrift::ServiceRequestInfoMap const& AdapterServiceServiceInfoHolder::re
 apache::thrift::ServiceRequestInfoMap AdapterServiceServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"count",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "AdapterService.count",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"adaptedTypes",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "AdapterService.adaptedTypes",
      std::nullopt,
@@ -316,4 +316,4 @@ apache::thrift::ServiceRequestInfoMap AdapterServiceServiceInfoHolder::staticReq
 
   return requestInfoMap;
 }
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test

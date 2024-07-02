@@ -18,12 +18,12 @@ use ir::instr;
 use ir::instr::HasLoc;
 use ir::instr::HasLocals;
 use ir::instr::IrToBc;
-use ir::newtype::ImmIdMap;
 use ir::print::FmtRawVid;
 use ir::print::FmtSep;
 use ir::BlockId;
 use ir::BlockIdMap;
 use ir::FCallArgsFlags;
+use ir::Immediate;
 use ir::LocalId;
 use ir::StringId;
 use itertools::Itertools;
@@ -37,29 +37,35 @@ pub(crate) fn emit_func(
     labeler: &mut Labeler,
     adata_cache: &mut AdataState,
 ) -> (InstrSeq, Vec<StringId>) {
-    let adata_id_map = func
-        .imms
-        .iter()
-        .enumerate()
-        .filter_map(|(idx, constant)| {
-            let cid = ir::ImmId::from_usize(idx);
-            match constant {
-                ir::Immediate::Array(tv) => {
-                    let id = adata_cache.intern((**tv).clone());
-                    let kind = match **tv {
-                        ir::TypedValue::Dict(_) => AdataKind::Dict,
-                        ir::TypedValue::Keyset(_) => AdataKind::Keyset,
-                        ir::TypedValue::Vec(_) => AdataKind::Vec,
-                        _ => unreachable!(),
-                    };
-                    Some((cid, (id, kind)))
-                }
-                _ => None,
-            }
-        })
-        .collect();
+    let mut intern_adata = |imm: &Immediate| {
+        // Identical array literals will be shared between funcs in the same unit.
+        adata_cache
+            .intern_value(imm.clone().try_into().unwrap())
+            .clone()
+    };
+    let imm_to_opcode =
+        ImmToOpcode::new_from_vec(Vec::from_iter(func.repr.imms.iter().map(|imm| match imm {
+            Immediate::Bool(false) => Opcode::False,
+            Immediate::Bool(true) => Opcode::True,
+            Immediate::Dir => Opcode::Dir,
+            Immediate::EnumClassLabel(v) => Opcode::EnumClassLabel(*v),
+            Immediate::Float(v) => Opcode::Double(*v),
+            Immediate::File => Opcode::File,
+            Immediate::FuncCred => Opcode::FuncCred,
+            Immediate::Int(v) => Opcode::Int(*v),
+            Immediate::LazyClass(cid) => Opcode::LazyClass(*cid),
+            Immediate::Method => Opcode::Method,
+            Immediate::Named(name) => Opcode::CnsE(*name),
+            Immediate::NewCol(k) => Opcode::NewCol(*k),
+            Immediate::Null => Opcode::Null,
+            Immediate::String(v) => Opcode::String(*v),
+            Immediate::Uninit => Opcode::NullUninit,
+            Immediate::Vec(_) => Opcode::Vec(intern_adata(imm)),
+            Immediate::Dict(_) => Opcode::Dict(intern_adata(imm)),
+            Immediate::Keyset(_) => Opcode::Keyset(intern_adata(imm)),
+        })));
 
-    let mut ctx = InstrEmitter::new(func, labeler, &adata_id_map);
+    let mut ctx = InstrEmitter::new(func, labeler, &imm_to_opcode);
 
     // Collect the Blocks, grouping them into TryCatch sections.
     let root = crate::ex_frame::collect_tc_sections(func);
@@ -74,23 +80,14 @@ pub(crate) fn emit_func(
             LocalId::Named(name) => Some(name),
             LocalId::Unnamed(_) => None,
         })
-        .skip(func.params.len())
+        .skip(func.repr.params.len())
         .collect();
 
     (InstrSeq::List(ctx.instrs), decl_vars)
 }
 
-/// Use to look up a ImmId and get the AdataId and AdataKind
-type AdataIdMap = ImmIdMap<(hhbc::AdataId, AdataKind)>;
-
-/// Used for adata_id_map - the kind of the underlying array. Storing this in
-/// AdataIdMap means we don't have to pass around a &Unit just to look up what
-/// kind of array it represents.
-enum AdataKind {
-    Dict,
-    Keyset,
-    Vec,
-}
+/// Use to look up a ImmId and get the opcode Opcode that will construct it
+type ImmToOpcode = ir::IdVec<ir::ImmId, Opcode>;
 
 /// Helper struct for converting ir::BlockId to hhbc::Label.
 pub(crate) struct Labeler {
@@ -125,8 +122,9 @@ impl Labeler {
         }
 
         for (bid, label) in func
+            .repr
             .block_ids()
-            .map(|bid| (bid, func.block(bid)))
+            .map(|bid| (bid, func.repr.block(bid)))
             .filter_map(|(bid, block)| block.pname_hint.as_ref().map(|pname| (bid, pname)))
             .filter_map(|(bid, pname)| pname_to_label(pname).map(|label| (bid, label)))
         {
@@ -162,14 +160,14 @@ impl Labeler {
 
 fn compute_block_entry_edges(func: &ir::Func) -> BlockIdMap<usize> {
     let mut edges = BlockIdMap::default();
-    for (_, dv) in &func.params {
+    for (_, dv) in &func.repr.params {
         if let Some(dv) = dv {
             edges.entry(dv.init).and_modify(|e| *e += 1).or_insert(1);
         }
     }
-    for bid in func.block_ids() {
+    for bid in func.repr.block_ids() {
         edges.entry(bid).or_insert(0);
-        for &edge in func.edges(bid) {
+        for &edge in func.repr.edges(bid) {
             edges.entry(edge).and_modify(|e| *e += 1).or_insert(1);
         }
     }
@@ -184,7 +182,7 @@ pub(crate) struct InstrEmitter<'b> {
     labeler: &'b mut Labeler,
     loc_id: ir::LocId,
     locals: HashMap<LocalId, hhbc::Local>,
-    adata_id_map: &'b AdataIdMap,
+    imm_to_opcode: &'b ImmToOpcode,
 }
 
 fn convert_indexes_to_bools(total_len: usize, indexes: Option<&[u32]>) -> Vec<bool> {
@@ -201,7 +199,7 @@ fn convert_indexes_to_bools(total_len: usize, indexes: Option<&[u32]>) -> Vec<bo
 }
 
 impl<'b> InstrEmitter<'b> {
-    fn new(func: &'b ir::Func, labeler: &'b mut Labeler, adata_id_map: &'b AdataIdMap) -> Self {
+    fn new(func: &'b ir::Func, labeler: &'b mut Labeler, imm_to_opcode: &'b ImmToOpcode) -> Self {
         let locals = Self::prealloc_locals(func);
 
         Self {
@@ -211,7 +209,7 @@ impl<'b> InstrEmitter<'b> {
             labeler,
             loc_id: ir::LocId::NONE,
             locals,
-            adata_id_map,
+            imm_to_opcode,
         }
     }
 
@@ -221,12 +219,13 @@ impl<'b> InstrEmitter<'b> {
         // The parameters are required to be the first named locals. We can't
         // control that.
         let mut locals: HashMap<LocalId, hhbc::Local> = func
+            .repr
             .params
             .iter()
             .enumerate()
             .map(|(_, (param, _))| {
                 let name = LocalId::Named(param.name);
-                let local = hhbc::Local::from_usize(next_local_idx);
+                let local = hhbc::Local::new(next_local_idx);
                 next_local_idx += 1;
                 (name, local)
             })
@@ -236,12 +235,12 @@ impl<'b> InstrEmitter<'b> {
 
         // Now go through and collect the named and unnamed locals. Once we know
         // how many named locals there are we can fixup the unnamed ones.
-        for instr in func.body_instrs() {
+        for instr in func.repr.body_instrs() {
             for lid in instr.locals() {
                 match lid {
                     LocalId::Named(_) => {
                         locals.entry(*lid).or_insert_with(|| {
-                            let local = hhbc::Local::from_usize(next_local_idx);
+                            let local = hhbc::Local::new(next_local_idx);
                             next_local_idx += 1;
                             local
                         });
@@ -249,7 +248,7 @@ impl<'b> InstrEmitter<'b> {
                     LocalId::Unnamed(idx) => {
                         locals
                             .entry(*lid)
-                            .or_insert_with(|| hhbc::Local::from_usize(idx.as_usize()));
+                            .or_insert_with(|| hhbc::Local::new(idx.as_usize()));
                     }
                 }
             }
@@ -261,7 +260,7 @@ impl<'b> InstrEmitter<'b> {
         // locals.
         for (k, v) in locals.iter_mut() {
             if matches!(k, LocalId::Unnamed(_)) {
-                v.idx += next_local_idx as u32;
+                *v = hhbc::Local::new(v.index() + next_local_idx);
             }
         }
 
@@ -366,7 +365,7 @@ impl<'b> InstrEmitter<'b> {
             // variables are all contiguous...
             locals.iter().reduce(|x, y| {
                 assert!(
-                    x.as_usize() + 1 == y.as_usize(),
+                    x.index() + 1 == y.index(),
                     "non-linear locals: [{}]",
                     locals
                         .iter()
@@ -480,7 +479,7 @@ impl<'b> InstrEmitter<'b> {
                 ..
             } => Opcode::CreateCl(operands.len() as u32, clsid),
             Hhbc::CreateCont(_) => Opcode::CreateCont,
-            Hhbc::CreateSpecialImplicitContext(..) => Opcode::CreateSpecialImplicitContext,
+            Hhbc::GetInaccessibleImplicitContext(..) => Opcode::GetInaccessibleImplicitContext,
             Hhbc::Div(..) => Opcode::Div,
             Hhbc::EnumClassLabelName(..) => Opcode::EnumClassLabelName,
             Hhbc::GetClsRGProp(..) => Opcode::GetClsRGProp,
@@ -497,7 +496,7 @@ impl<'b> InstrEmitter<'b> {
             Hhbc::IncDecS(_, op, _) => Opcode::IncDecS(op),
             Hhbc::IncludeEval(ref ie) => self.emit_include_eval(ie),
             Hhbc::InitProp(_, prop, op, _) => Opcode::InitProp(prop, op),
-            Hhbc::InstanceOfD(_, clsid, _) => Opcode::InstanceOfD(clsid),
+            Hhbc::InstanceOfD(_, clsid, _, _) => Opcode::InstanceOfD(clsid),
             Hhbc::IsLateBoundCls(_, _) => Opcode::IsLateBoundCls,
             Hhbc::IsTypeC(_, op, _) => Opcode::IsTypeC(op),
             Hhbc::IsTypeL(lid, op, _) => {
@@ -511,6 +510,7 @@ impl<'b> InstrEmitter<'b> {
                 Opcode::IssetL(local)
             }
             Hhbc::IssetS(_, _) => Opcode::IssetS,
+            Hhbc::IterBase(..) => Opcode::IterBase,
             Hhbc::IterFree(iter_id, _) => Opcode::IterFree(iter_id),
             Hhbc::LateBoundCls(_) => Opcode::LateBoundCls,
             Hhbc::LazyClassFromClass(_, _) => Opcode::LazyClassFromClass,
@@ -582,7 +582,6 @@ impl<'b> InstrEmitter<'b> {
                 let local = self.lookup_local(lid);
                 Opcode::UnsetL(local)
             }
-            Hhbc::VerifyImplicitContextState(_) => Opcode::VerifyImplicitContextState,
             Hhbc::VerifyOutType(_, pid, _) => {
                 let local = self.lookup_local(pid);
                 Opcode::VerifyOutType(local)
@@ -619,42 +618,13 @@ impl<'b> InstrEmitter<'b> {
         }
     }
 
-    fn emit_constant(&mut self, cid: ir::ImmId) {
-        use ir::Immediate;
-
-        let i = if let Some((id, kind)) = self.adata_id_map.get(&cid) {
-            match kind {
-                AdataKind::Dict => Opcode::Dict(*id),
-                AdataKind::Keyset => Opcode::Keyset(*id),
-                AdataKind::Vec => Opcode::Vec(*id),
-            }
-        } else {
-            let lc = self.func.imm(cid);
-            match lc {
-                Immediate::Array(_) => unreachable!(),
-                Immediate::Bool(false) => Opcode::False,
-                Immediate::Bool(true) => Opcode::True,
-                Immediate::Dir => Opcode::Dir,
-                Immediate::EnumClassLabel(v) => Opcode::EnumClassLabel(*v),
-                Immediate::Float(v) => Opcode::Double(*v),
-                Immediate::File => Opcode::File,
-                Immediate::FuncCred => Opcode::FuncCred,
-                Immediate::Int(v) => Opcode::Int(*v),
-                Immediate::LazyClass(cid) => Opcode::LazyClass(*cid),
-                Immediate::Method => Opcode::Method,
-                Immediate::Named(name) => Opcode::CnsE(*name),
-                Immediate::NewCol(k) => Opcode::NewCol(*k),
-                Immediate::Null => Opcode::Null,
-                Immediate::String(v) => Opcode::String(*v),
-                Immediate::Uninit => Opcode::NullUninit,
-            }
-        };
-        self.push_opcode(i);
+    fn emit_constant(&mut self, imm: ir::ImmId) {
+        self.push_opcode(self.imm_to_opcode[imm].clone());
     }
 
     fn emit_loc(&mut self, loc_id: ir::LocId) {
         if self.loc_id != loc_id {
-            if let Some(loc) = self.func.get_loc(loc_id) {
+            if let Some(loc) = self.func.repr.get_loc(loc_id) {
                 self.loc_id = loc_id;
                 self.instrs
                     .push(Instruct::Pseudo(Pseudo::SrcLoc(hhbc::SrcLoc {
@@ -896,16 +866,18 @@ impl<'b> InstrEmitter<'b> {
             Terminator::Fatal(_, op, _) => {
                 self.push_opcode(Opcode::Fatal(op));
             }
-            Terminator::IterInit(ref ir_args, _iid) => {
+            Terminator::IterInit(ref ir_args) => {
                 let args = hhbc::IterArgs {
                     iter_id: ir_args.iter_id,
                     key_id: ir_args
                         .key_lid()
                         .map_or(hhbc::Local::INVALID, |lid| self.lookup_local(lid)),
                     val_id: self.lookup_local(ir_args.value_lid()),
+                    flags: ir_args.flags,
                 };
+                let base_id = self.lookup_local(ir_args.base_lid());
                 let label = self.labeler.lookup_or_insert_bid(ir_args.done_bid());
-                self.push_opcode(Opcode::IterInit(args, label));
+                self.push_opcode(Opcode::IterInit(args, base_id, label));
                 self.jump_to(ir_args.next_bid());
             }
             Terminator::IterNext(ref ir_args) => {
@@ -915,9 +887,11 @@ impl<'b> InstrEmitter<'b> {
                         .key_lid()
                         .map_or(hhbc::Local::INVALID, |lid| self.lookup_local(lid)),
                     val_id: self.lookup_local(ir_args.value_lid()),
+                    flags: ir_args.flags,
                 };
+                let base_id = self.lookup_local(ir_args.base_lid());
                 let label = self.labeler.lookup_or_insert_bid(ir_args.done_bid());
-                self.push_opcode(Opcode::IterNext(args, label));
+                self.push_opcode(Opcode::IterNext(args, base_id, label));
                 self.jump_to(ir_args.next_bid());
             }
             Terminator::Jmp(bid, _) | Terminator::JmpArgs(bid, _, _) => {
@@ -1040,7 +1014,7 @@ impl<'b> InstrEmitter<'b> {
     }
 
     fn convert_block(&mut self, bid: BlockId) {
-        let block = self.func.block(bid);
+        let block = self.func.repr.block(bid);
         trace!(
             "Block {}{}{}",
             bid,
@@ -1072,7 +1046,7 @@ impl<'b> InstrEmitter<'b> {
             trace!("  skipped label (run_on = {run_on})");
         }
 
-        for (iid, instr) in block.iids().map(|iid| (iid, self.func.instr(iid))) {
+        for (iid, instr) in block.iids().map(|iid| (iid, self.func.repr.instr(iid))) {
             self.emit_instr(iid, instr);
         }
     }

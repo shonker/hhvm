@@ -16,12 +16,17 @@ use anyhow::Context;
 use anyhow::Result;
 use ffi::Maybe;
 use ffi::Vector;
+use hash::HashMap;
+use hhbc::AdataId;
+use hhbc::AdataState;
+use hhbc::Attribute;
 use hhbc::BytesId;
 use hhbc::ClassName;
 use hhbc::ModuleName;
 use hhbc::ParamEntry;
 use hhbc::StringId;
 use hhbc::StringIdMap;
+use hhbc::TypedValue;
 use hhvm_types_ffi::Attr;
 use log::trace;
 use naming_special_names_rust::coeffects::Ctx;
@@ -32,7 +37,7 @@ use crate::lexer::Lexer;
 use crate::token::Line;
 use crate::token::Token;
 
-pub(crate) type DeclMap = StringIdMap<u32>;
+pub(crate) type DeclMap = StringIdMap<hhbc::Local>;
 
 /// Assembles the hhas within f to a hhbc::Unit
 pub fn assemble(f: &Path) -> Result<(hhbc::Unit, PathBuf)> {
@@ -50,10 +55,14 @@ pub fn assemble_from_bytes(s: &[u8]) -> Result<(hhbc::Unit, PathBuf)> {
 
 /// Assembles a single bytecode. This is useful for dynamic analysis,
 /// where we want to assemble each bytecode as it is being executed.
-pub fn assemble_single_instruction(decl_map: &mut DeclMap, s: &[u8]) -> Result<hhbc::Instruct> {
+pub fn assemble_single_instruction(
+    decl_map: &mut DeclMap,
+    adata: &AdataMap,
+    s: &[u8],
+) -> Result<hhbc::Instruct> {
     let mut lex = Lexer::from_slice(s, Line(1));
     let mut tcb_count = 0;
-    assemble_instr(&mut lex, decl_map, &mut tcb_count)
+    assemble_instr(&mut lex, decl_map, adata, &mut tcb_count)
 }
 
 /// Assembles the HCU. Parses over the top level of the .hhas file
@@ -74,14 +83,14 @@ fn assemble_from_toks(token_iter: &mut Lexer<'_>) -> Result<(hhbc::Unit, PathBuf
 }
 
 #[derive(Default)]
-struct UnitBuilder {
-    adatas: Vec<hhbc::Adata>,
+pub(crate) struct UnitBuilder {
+    adata: AdataMap,
     class_refs: Option<Vec<hhbc::ClassName>>,
     classes: Vec<hhbc::Class>,
     constant_refs: Option<Vec<hhbc::ConstName>>,
     constants: Vec<hhbc::Constant>,
     fatal: Option<hhbc::Fatal>,
-    file_attributes: Vec<hhbc::Attribute>,
+    file_attributes: Vec<Attribute>,
     func_refs: Option<Vec<hhbc::FunctionName>>,
     funcs: Vec<hhbc::Function>,
     include_refs: Option<Vec<hhbc::IncludePath>>,
@@ -94,7 +103,6 @@ struct UnitBuilder {
 impl UnitBuilder {
     fn into_unit(self) -> hhbc::Unit {
         hhbc::Unit {
-            adata: self.adatas.into(),
             functions: self.funcs.into(),
             classes: self.classes.into(),
             typedefs: self.typedefs.into(),
@@ -111,8 +119,6 @@ impl UnitBuilder {
             fatal: self.fatal.into(),
             missing_symbols: Default::default(),
             error_symbols: Default::default(),
-            valid_utf8: true,
-            invalid_utf8_offset: 0,
         }
     }
 
@@ -128,13 +134,14 @@ impl UnitBuilder {
                 self.fatal = Some(assemble_fatal(token_iter)?);
             }
             b".adata" => {
-                self.adatas.push(assemble_adata(token_iter)?);
+                let (src_id, value) = assemble_adata(token_iter)?;
+                self.adata.insert(src_id, value);
             }
             b".function" => {
-                self.funcs.push(assemble_function(token_iter)?);
+                self.funcs.push(assemble_function(token_iter, &self.adata)?);
             }
             b".class" => {
-                self.classes.push(assemble_class(token_iter)?);
+                self.classes.push(assemble_class(token_iter, &self.adata)?);
             }
             b".function_refs" => {
                 ensure_single_defn(&self.func_refs, tok)?;
@@ -201,6 +208,31 @@ impl UnitBuilder {
     }
 }
 
+/// Lookup table to map hhas text AdataId to interned TypedValue.
+/// `remap` only has entries when the interned id is different from what
+/// we saw in the source text.
+#[derive(Default, Debug)]
+pub struct AdataMap {
+    remap: HashMap<AdataId, AdataId>,
+    adata: AdataState,
+}
+
+impl AdataMap {
+    fn insert(&mut self, src_id: AdataId, value: TypedValue) {
+        let id = self.adata.intern(value);
+        if id != src_id {
+            // Only store entries if the interned id is different from src_id
+            // from the hhas text.
+            self.remap.insert(src_id, id);
+        }
+    }
+
+    pub(crate) fn lookup(&self, src_id: AdataId) -> Option<&TypedValue> {
+        let id = self.remap.get(&src_id).unwrap_or(&src_id);
+        self.adata.lookup(*id)
+    }
+}
+
 fn ensure_single_defn<T>(v: &Option<T>, tok: &Token<'_>) -> Result<()> {
     if v.is_none() {
         Ok(())
@@ -253,7 +285,7 @@ fn assemble_module_use(token_iter: &mut Lexer<'_>) -> Result<ModuleName> {
 /// .file_attributes ["__EnableUnstableFeatures"("""v:1:{s:8:\"readonly\";}""")] ;
 fn assemble_file_attributes(
     token_iter: &mut Lexer<'_>,
-    file_attributes: &mut Vec<hhbc::Attribute>,
+    file_attributes: &mut Vec<Attribute>,
 ) -> Result<()> {
     parse!(token_iter, ".file_attributes" "[" <attrs:assemble_user_attr(),*> "]" ";");
     file_attributes.extend(attrs);
@@ -289,7 +321,7 @@ fn assemble_typedef(token_iter: &mut Lexer<'_>, case_type: bool) -> Result<hhbc:
     })
 }
 
-fn assemble_class(token_iter: &mut Lexer<'_>) -> Result<hhbc::Class> {
+fn assemble_class(token_iter: &mut Lexer<'_>, adata: &AdataMap) -> Result<hhbc::Class> {
     parse!(token_iter, ".class"
        <upper_bounds:assemble_upper_bounds()>
        <attr:assemble_special_and_user_attrs()>
@@ -316,7 +348,7 @@ fn assemble_class(token_iter: &mut Lexer<'_>) -> Result<hhbc::Class> {
             b".require" => requirements.push(assemble_requirement(token_iter)?),
             b".ctx" => ctx_constants.push(assemble_ctx_constant(token_iter)?),
             b".property" => properties.push(assemble_property(token_iter)?),
-            b".method" => methods.push(assemble_method(token_iter)?),
+            b".method" => methods.push(assemble_method(token_iter, adata)?),
             b".const" => {
                 assemble_const_or_type_const(token_iter, &mut constants, &mut type_constants)?
             }
@@ -444,23 +476,26 @@ fn assemble_const_or_type_const(
 /// .method {}{} [public abstract] (15,15) <"" N > a(<"?HH\\varray" "HH\\varray" nullable extended_hint display_nullable> $a1 = DV1("""NULL"""), <"HH\\varray" "HH\\varray" > $a2 = DV2("""varray[]""")) {
 ///    ...
 /// }
-fn assemble_method(token_iter: &mut Lexer<'_>) -> Result<hhbc::Method> {
+fn assemble_method(token_iter: &mut Lexer<'_>, adata: &AdataMap) -> Result<hhbc::Method> {
     let method_tok = token_iter.peek().copied();
     token_iter.expect_str(Token::is_decl, ".method")?;
     let shadowed_tparams = assemble_shadowed_tparams(token_iter)?;
     let upper_bounds = assemble_upper_bounds(token_iter)?;
     let (attrs, attributes) = assemble_special_and_user_attrs(token_iter)?;
     let span = assemble_span(token_iter)?;
-    let return_type_info = assemble_type_info_opt(token_iter, TypeInfoKind::NotEnumOrTypeDef)?;
+    let return_type = assemble_type_info_opt(token_iter, TypeInfoKind::NotEnumOrTypeDef)?;
     let name = assemble_method_name(token_iter)?;
     let mut decl_map = DeclMap::default();
     let params = assemble_params(token_iter, &mut decl_map)?;
     let flags = assemble_method_flags(token_iter)?;
-    let (body, coeffects) = assemble_body(
+    let body = assemble_body(
         token_iter,
         &mut decl_map,
+        adata,
+        attributes,
+        attrs,
         params,
-        return_type_info,
+        return_type,
         shadowed_tparams,
         upper_bounds,
         span,
@@ -469,23 +504,19 @@ fn assemble_method(token_iter: &mut Lexer<'_>) -> Result<hhbc::Method> {
     // confusion: Visibility::Internal is a mix of AttrInternal and AttrPublic?
     let visibility =
         determine_visibility(&attrs).map_err(|e| method_tok.unwrap().error(e.to_string()))?;
-    let met = hhbc::Method {
-        attributes: attributes.into(),
+    Ok(hhbc::Method {
         visibility,
         name,
         body,
-        coeffects,
         flags,
-        attrs,
-    };
-    Ok(met)
+    })
 }
 
-fn assemble_shadowed_tparams(token_iter: &mut Lexer<'_>) -> Result<Vec<StringId>> {
+fn assemble_shadowed_tparams(token_iter: &mut Lexer<'_>) -> Result<Vec<ClassName>> {
     token_iter.expect(Token::is_open_curly)?;
     let mut stp = Vec::new();
     while token_iter.peek_is(Token::is_identifier) {
-        stp.push(hhbc::intern(
+        stp.push(ClassName::intern(
             token_iter.expect(Token::is_identifier)?.as_str()?,
         ));
         if !token_iter.peek_is(Token::is_close_curly) {
@@ -721,10 +752,10 @@ fn assemble_fatal(token_iter: &mut Lexer<'_>) -> Result<hhbc::Fatal> {
 /// A line of adata looks like:
 /// .adata id = """<tv>"""
 /// with tv being a typed value; see `assemble_typed_value` doc for what <tv> looks like.
-fn assemble_adata(token_iter: &mut Lexer<'_>) -> Result<hhbc::Adata> {
+fn assemble_adata(token_iter: &mut Lexer<'_>) -> Result<(AdataId, TypedValue)> {
     parse!(token_iter, ".adata" <id:id> "=" <value:assemble_triple_quoted_typed_value()> ";");
     let id = hhbc::AdataId::parse(std::str::from_utf8(id.as_bytes())?)?;
-    Ok(hhbc::Adata { id, value })
+    Ok((id, value))
 }
 
 /// For use by initial value
@@ -883,8 +914,8 @@ fn assemble_typed_value(src: &[u8], line: Line) -> Result<hhbc::TypedValue> {
 
             pub fn build(&self, content: Vec<hhbc::TypedValue>) -> hhbc::TypedValue {
                 match self {
-                    VecOrKeyset::Vec => hhbc::TypedValue::Vec(content.into()),
-                    VecOrKeyset::Keyset => hhbc::TypedValue::Keyset(content.into()),
+                    VecOrKeyset::Vec => hhbc::TypedValue::vec(content),
+                    VecOrKeyset::Keyset => hhbc::TypedValue::keyset(content),
                 }
             }
         }
@@ -924,7 +955,7 @@ fn assemble_typed_value(src: &[u8], line: Line) -> Result<hhbc::TypedValue> {
                 tv_vec.push(hhbc::DictEntry { key, value })
             }
             let src = expect(src, b"}")?;
-            Ok((src, hhbc::TypedValue::Dict(tv_vec.into())))
+            Ok((src, hhbc::TypedValue::dict(tv_vec)))
         }
 
         fn deserialize_tv<'a>(src: &'a [u8]) -> Result<(&'a [u8], hhbc::TypedValue)> {
@@ -992,16 +1023,16 @@ where
 
 /// A function def is composed of the following:
 /// .function {upper bounds} [special_and_user_attrs] (span) <type_info> name (params) flags? {body}
-fn assemble_function(token_iter: &mut Lexer<'_>) -> Result<hhbc::Function> {
+fn assemble_function(token_iter: &mut Lexer<'_>, adata: &AdataMap) -> Result<hhbc::Function> {
     token_iter.expect_str(Token::is_decl, ".function")?;
     let upper_bounds = assemble_upper_bounds(token_iter)?;
     // Special and user attrs may or may not be specified. If not specified, no [] printed
-    let (attr, attributes) = assemble_special_and_user_attrs(token_iter)?;
+    let (attrs, attributes) = assemble_special_and_user_attrs(token_iter)?;
     let span = assemble_span(token_iter)?;
     // Body may not have return type info, so check if next token is a < or not
     // Specifically if body doesn't have a return type info bytecode printer doesn't print anything
     // (doesn't print <>)
-    let return_type_info = assemble_type_info_opt(token_iter, TypeInfoKind::NotEnumOrTypeDef)?;
+    let return_type = assemble_type_info_opt(token_iter, TypeInfoKind::NotEnumOrTypeDef)?;
     // Assemble_name
 
     let name = assemble_function_name(token_iter)?;
@@ -1010,24 +1041,19 @@ fn assemble_function(token_iter: &mut Lexer<'_>) -> Result<hhbc::Function> {
     let params = assemble_params(token_iter, &mut decl_map)?;
     let flags = assemble_function_flags(name, token_iter)?;
     let shadowed_tparams = Default::default();
-    let (body, coeffects) = assemble_body(
+    let body = assemble_body(
         token_iter,
         &mut decl_map,
+        adata,
+        attributes,
+        attrs,
         params,
-        return_type_info,
+        return_type,
         shadowed_tparams,
         upper_bounds,
         span,
     )?;
-    let hhas_func = hhbc::Function {
-        attributes: attributes.into(),
-        name,
-        body,
-        coeffects,
-        flags,
-        attrs: attr,
-    };
-    Ok(hhas_func)
+    Ok(hhbc::Function { name, body, flags })
 }
 
 /// Have to parse flags which may or may not appear: isGenerator isAsync isPairGenerator
@@ -1092,7 +1118,7 @@ fn assemble_upper_bound(token_iter: &mut Lexer<'_>) -> Result<hhbc::UpperBound> 
 /// Ex: [abstract final] This example lacks Attributes
 fn assemble_special_and_user_attrs(
     token_iter: &mut Lexer<'_>,
-) -> Result<(hhvm_types_ffi::ffi::Attr, Vec<hhbc::Attribute>)> {
+) -> Result<(hhvm_types_ffi::ffi::Attr, Vec<Attribute>)> {
     let mut user_atts = Vec::new();
     let mut tr = hhvm_types_ffi::ffi::Attr::AttrNone;
     if token_iter.next_is(Token::is_open_bracket) {
@@ -1166,14 +1192,14 @@ fn assemble_hhvm_attr(token_iter: &mut Lexer<'_>) -> Result<hhvm_types_ffi::ffi:
 
 /// Attributes are printed as follows:
 /// "name"("""v:args.len:{args}""") where args are typed values.
-fn assemble_user_attr(token_iter: &mut Lexer<'_>) -> Result<hhbc::Attribute> {
+fn assemble_user_attr(token_iter: &mut Lexer<'_>) -> Result<Attribute> {
     let nm = escaper::unescape_literal_bytes_into_vec_bytes(
         token_iter.expect_with(Token::into_unquoted_str_literal)?,
     )?;
     token_iter.expect(Token::is_open_paren)?;
     let arguments = assemble_user_attr_args(token_iter)?;
     token_iter.expect(Token::is_close_paren)?;
-    Ok(hhbc::Attribute::new(std::str::from_utf8(&nm)?, arguments))
+    Ok(Attribute::new(std::str::from_utf8(&nm)?, arguments))
 }
 
 /// Printed as follows (print_attributes in bcp)
@@ -1181,7 +1207,7 @@ fn assemble_user_attr(token_iter: &mut Lexer<'_>) -> Result<hhbc::Attribute> {
 fn assemble_user_attr_args(token_iter: &mut Lexer<'_>) -> Result<Vec<hhbc::TypedValue>> {
     let tok = token_iter.peek().copied();
     if let hhbc::TypedValue::Vec(vals) = assemble_triple_quoted_typed_value(token_iter)? {
-        Ok(vals.into())
+        Ok(vals.into_vec())
     } else {
         Err(tok
             .unwrap()
@@ -1302,9 +1328,14 @@ fn assemble_param(token_iter: &mut Lexer<'_>, decl_map: &mut DeclMap) -> Result<
     let is_readonly = token_iter.next_is_str(Token::is_identifier, "readonly");
     let is_variadic = token_iter.next_is(Token::is_variadic);
     let type_info = assemble_type_info_opt(token_iter, TypeInfoKind::NotEnumOrTypeDef)?;
-    let name = token_iter.expect_with(Token::into_variable)?;
-    let name = hhbc::intern(std::str::from_utf8(name)?);
-    decl_map.insert(name, decl_map.len() as u32);
+    let name_tok = token_iter.expect_with(Token::into_variable)?;
+    let name = hhbc::intern(std::str::from_utf8(name_tok)?);
+    if decl_map
+        .insert(name, hhbc::Local::new(decl_map.len()))
+        .is_some()
+    {
+        bail!("Duplicate parameter: {name} at {name_tok:?}");
+    }
     let dv = assemble_default_value(token_iter)?;
     let param = hhbc::Param {
         name,
@@ -1336,17 +1367,20 @@ fn assemble_default_value(token_iter: &mut Lexer<'_>) -> Result<Maybe<hhbc::Defa
 fn assemble_body(
     token_iter: &mut Lexer<'_>,
     decl_map: &mut DeclMap,
+    adata: &AdataMap,
+    attributes: Vec<Attribute>,
+    attrs: hhbc::Attr,
     params: Vec<ParamEntry>,
-    return_type_info: Maybe<hhbc::TypeInfo>,
-    shadowed_tparams: Vec<StringId>,
+    return_type: Maybe<hhbc::TypeInfo>,
+    shadowed_tparams: Vec<ClassName>,
     upper_bounds: Vec<hhbc::UpperBound>,
     span: hhbc::Span,
-) -> Result<(hhbc::Body, hhbc::Coeffects)> {
+) -> Result<hhbc::Body> {
     let mut doc_comment = Maybe::Nothing;
     let mut instrs = Vec::new();
     let mut decl_vars = Vec::new();
     let mut num_iters = 0;
-    let mut coeff = hhbc::Coeffects::default();
+    let mut coeffects = hhbc::Coeffects::default();
     let mut is_memoize_wrapper = false;
     let mut is_memoize_wrapper_lsb = false;
     // For now we don't parse params, so will just have decl_vars (might need to move this later)
@@ -1378,7 +1412,7 @@ fn assemble_body(
             }
             decl_vars = assemble_decl_vars(token_iter, decl_map)?;
         } else if token_iter.peek_is(is_coeffects_decl) {
-            coeff = assemble_coeffects(token_iter)?;
+            coeffects = assemble_coeffects(token_iter)?;
         } else {
             break;
         }
@@ -1387,25 +1421,29 @@ fn assemble_body(
     // we only stop parsing instructions once we see a is_close_curly and tcb_count is 0
     let mut tcb_count = 0;
     while tcb_count > 0 || !token_iter.peek_is(Token::is_close_curly) {
-        instrs.push(assemble_instr(token_iter, decl_map, &mut tcb_count)?);
+        instrs.push(assemble_instr(token_iter, decl_map, adata, &mut tcb_count)?);
     }
     token_iter.expect(Token::is_close_curly)?;
     let stack_depth = stack_depth::compute_stack_depth(&params, &instrs)?;
-    let tr = hhbc::Body {
-        body_instrs: instrs.into(),
-        decl_vars: decl_vars.into(),
+    Ok(hhbc::Body {
+        attributes: attributes.into(),
+        attrs,
+        coeffects,
         num_iters,
         is_memoize_wrapper,
         is_memoize_wrapper_lsb,
         doc_comment,
-        params: params.into(),
-        return_type_info,
+        return_type,
         shadowed_tparams: shadowed_tparams.into(),
-        stack_depth,
         upper_bounds: upper_bounds.into(),
         span,
-    };
-    Ok((tr, coeff))
+        repr: hhbc::BcRepr {
+            instrs: instrs.into(),
+            decl_vars: decl_vars.into(),
+            params: params.into(),
+            stack_depth,
+        },
+    })
 }
 
 fn is_coeffects_decl(tok: &Token<'_>) -> bool {
@@ -1599,7 +1637,12 @@ fn assemble_decl_vars(token_iter: &mut Lexer<'_>, decl_map: &mut DeclMap) -> Res
         let var_nm = token_iter.expect_var()?;
         let var_nm = hhbc::intern(std::str::from_utf8(&var_nm)?);
         var_names.push(var_nm);
-        decl_map.insert(var_nm, decl_map.len().try_into().unwrap());
+        if decl_map
+            .insert(var_nm, hhbc::Local::new(decl_map.len()))
+            .is_some()
+        {
+            bail!("Duplicate named local: {var_nm}");
+        }
     }
     token_iter.expect(Token::is_semicolon)?;
     Ok(var_names)
@@ -1619,6 +1662,7 @@ fn assemble_opcode(
 fn assemble_instr(
     token_iter: &mut Lexer<'_>,
     decl_map: &mut DeclMap,
+    adata: &AdataMap,
     tcb_count: &mut usize, // Increase this when get TryCatchBegin, decrease when TryCatchEnd
 ) -> Result<hhbc::Instruct> {
     if let Some(mut sl_lexer) = token_iter.split_at_newline() {
@@ -1660,7 +1704,7 @@ fn assemble_instr(
             match tb {
                 b"MemoGetEager" => assemble_memo_get_eager(&mut sl_lexer),
                 b"SSwitch" => assemble_sswitch(&mut sl_lexer),
-                tb => assemble_opcode(tb, &mut sl_lexer, decl_map),
+                tb => assemble_opcode(tb, &mut sl_lexer, decl_map, adata),
             }
         } else {
             Err(sl_lexer.error("Function body line that's neither decl or identifier."))
@@ -1714,6 +1758,21 @@ pub(crate) fn assemble_fcallargsflags(token_iter: &mut Lexer<'_>) -> Result<hhbc
             b"HasAsyncEagerOffset" => flags.add(hhbc::FCallArgsFlags::HasAsyncEagerOffset),
             b"NumArgsStart" => flags.add(hhbc::FCallArgsFlags::NumArgsStart),
             _ => return Err(tok.error("Unrecognized FCallArgsFlags")),
+        }
+    }
+    token_iter.expect(Token::is_gt)?;
+    Ok(flags)
+}
+
+/// <(iterargflag)*>
+pub(crate) fn assemble_iterargsflags(token_iter: &mut Lexer<'_>) -> Result<hhbc::IterArgsFlags> {
+    let mut flags = hhbc::IterArgsFlags::None;
+    token_iter.expect(Token::is_lt)?;
+    while !token_iter.peek_is(Token::is_gt) {
+        let tok = token_iter.expect_token()?;
+        match tok.into_identifier()? {
+            b"BaseConst" => flags |= hhbc::IterArgsFlags::BaseConst,
+            _ => return Err(tok.error("Unrecognized IterArgsFlags")),
         }
     }
     token_iter.expect(Token::is_gt)?;
@@ -1824,9 +1883,7 @@ fn assemble_memo_get_eager(token_iter: &mut Lexer<'_>) -> Result<hhbc::Instruct>
 fn assemble_local_range(token_iter: &mut Lexer<'_>) -> Result<hhbc::LocalRange> {
     token_iter.expect_str(Token::is_identifier, "L")?;
     token_iter.expect(Token::is_colon)?;
-    let start = hhbc::Local {
-        idx: token_iter.expect_and_get_number()?,
-    };
+    let start = hhbc::Local::new(token_iter.expect_and_get_number()?);
     //token_iter.expect(Token::is_plus)?; // Not sure if this exists yet
     let len = token_iter.expect_and_get_number()?;
     Ok(hhbc::LocalRange { start, len })

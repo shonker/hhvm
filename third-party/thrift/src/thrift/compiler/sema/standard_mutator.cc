@@ -19,6 +19,7 @@
 #include <functional>
 #include <type_traits>
 
+#include <thrift/compiler/detail/pluggable_functions.h>
 #include <thrift/compiler/lib/cpp2/util.h>
 #include <thrift/compiler/lib/schematizer.h>
 #include <thrift/compiler/lib/uri.h>
@@ -340,59 +341,9 @@ void normalize_return_type(
 
   // Check the (first) response type.
   const t_type* true_type = type->get_true_type();
-  if (dynamic_cast<const t_service*>(true_type) ||
-      dynamic_cast<const t_exception*>(true_type)) {
+  if (dynamic_cast<const t_service*>(true_type)) {
     ctx.error("Invalid first response type: {}", type->get_full_name());
   }
-}
-
-template <typename Nde>
-void generate_runtime_schema(
-    diagnostic_context& ctx,
-    mutator_context&,
-    bool annotation_required,
-    std::string schemaTypeUri,
-    Nde node,
-    std::function<std::unique_ptr<apache::thrift::compiler::t_const_value>()>
-        generator) {
-  const t_const* annotation =
-      node.find_structured_annotation_or_null(kGenerateRuntimeSchemaUri);
-  if (annotation_required && !annotation) {
-    return;
-  }
-
-  std::string name;
-  if (auto nameOverride = annotation
-          ? annotation->get_value_from_structured_annotation_or_null("name")
-          : nullptr) {
-    name = nameOverride->get_string();
-  } else {
-    name = fmt::format("schema{}", node.name());
-  }
-
-  auto program = const_cast<t_program*>(node.program());
-  auto schemaType =
-      dynamic_cast<const t_type*>(program->scope()->find_by_uri(schemaTypeUri));
-  if (!schemaType) {
-    ctx.error("Must include thrift/lib/thrift/schema.thrift");
-    return;
-  }
-
-  std::unique_ptr<apache::thrift::compiler::t_const_value> schema = generator();
-
-  auto schemaConst = std::make_unique<t_const>(
-      program, schemaType, std::move(name), std::move(schema));
-  schemaConst->set_generated();
-  schemaConst->set_src_range(node.src_range());
-  program->add_definition(std::move(schemaConst));
-}
-
-void generate_service_schema(
-    diagnostic_context& ctx, mutator_context& mCtx, t_service& node) {
-  generate_runtime_schema<t_service&>(
-      ctx, mCtx, true, "facebook.com/thrift/type/Schema", node, [&]() {
-        return schematizer(mCtx.bundle).gen_full_schema(node);
-      });
 }
 
 template <typename Node>
@@ -421,16 +372,16 @@ void lower_type_annotations(
       (node_type->is_typedef() &&
        static_cast<const t_typedef*>(node_type)->typedef_kind() !=
            t_typedef::kind::defined) ||
-      (node_type->is_base_type() && !node_type->annotations().empty())) {
+      (node_type->is_primitive_type() && !node_type->annotations().empty())) {
     // This is a new type we can modify in place
     for (auto& pair : unstructured) {
       const_cast<t_type*>(node_type)->set_annotation(pair.first, pair.second);
     }
-  } else if (node_type->is_base_type()) {
+  } else if (node_type->is_primitive_type()) {
     // Copy type as we don't handle unnamed typedefs to base types :(
     auto& program = mCtx.program();
-    auto unnamed = std::make_unique<t_base_type>(
-        *static_cast<const t_base_type*>(node_type));
+    auto unnamed = std::make_unique<t_primitive_type>(
+        *static_cast<const t_primitive_type*>(node_type));
     for (auto& pair : unstructured) {
       unnamed->set_annotation(pair.first, pair.second);
     }
@@ -451,6 +402,36 @@ void lower_type_annotations(
   }
 }
 
+void inject_schema_const(
+    diagnostic_context& ctx, mutator_context&, t_program& prog) {
+  schematizer::options opts;
+  opts.only_root_program_ = true;
+  opts.use_hash = true;
+  opts.include.reset(schematizer::included_data::DoubleWrites);
+  std::string serialized;
+  try {
+    serialized = detail::pluggable_functions().call<GetSchemaTag>(
+        opts, ctx.source_mgr(), prog);
+  } catch (const std::runtime_error&) {
+    // Standard library isn't loaded yet so can't generate schemas.
+    return;
+  }
+
+  if (serialized.empty()) {
+    return;
+  }
+
+  auto cnst = std::make_unique<t_const>(
+      &prog,
+      t_primitive_type::t_binary(),
+      "_fbthrift_schema",
+      std::make_unique<t_const_value>(std::move(serialized)));
+  cnst->set_uri("");
+  cnst->set_src_range(prog.src_range());
+  cnst->set_generated();
+  prog.add_const(std::move(cnst));
+}
+
 } // namespace
 
 ast_mutators standard_mutators(bool use_legacy_type_ref_resolution) {
@@ -469,10 +450,14 @@ ast_mutators standard_mutators(bool use_legacy_type_ref_resolution) {
     main.add_struct_visitor(&mutate_terse_write_annotation_structured);
     main.add_exception_visitor(&mutate_terse_write_annotation_structured);
     main.add_struct_visitor(&mutate_inject_metadata_fields);
-    main.add_service_visitor(&generate_service_schema);
     main.add_const_visitor(&match_const_type_with_value);
     main.add_field_visitor(&match_field_type_with_default_value);
     main.add_definition_visitor(&match_annotation_types_with_const_values);
+  }
+
+  {
+    auto& plugin = mutators[standard_mutator_stage::plugin];
+    plugin.add_program_visitor(&inject_schema_const);
   }
 
   add_patch_mutators(mutators);

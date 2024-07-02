@@ -27,6 +27,8 @@
 
 namespace HPHP::jit::irgen {
 
+TRACE_SET_MOD(hhir);
+
 namespace {
 
 //////////////////////////////////////////////////////////////////////
@@ -233,9 +235,7 @@ interpOutputLocals(IRGS& env,
       break;
 
     case OpIterInit:
-    case OpLIterInit:
-    case OpIterNext:
-    case OpLIterNext: {
+    case OpIterNext: {
       auto const ita = getImm(sk.pc(),  0).u_ITA;
       setLocType(ita.valId, TCell);
       if (ita.hasKey()) setLocType(ita.keyId, TCell);

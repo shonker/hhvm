@@ -17,11 +17,11 @@
       "name_html": "clear",
       "location": {
         "file": "fbcode/thrift/lib/cpp2/op/detail/BasePatch.h",
-        "line": "249",
-        "column": "1",
+        "line": "279",
+        "column": "8",
         "bodyfile": "fbcode/thrift/lib/cpp2/op/detail/BasePatch.h",
-        "bodystart": "249",
-        "bodyend": "249"
+        "bodystart": "279",
+        "bodyend": "279"
       },
       "definition": {
         "simple_html": "void clear()",
@@ -46,5 +46,11 @@
   "brief_html": "<p>Clears the value. </p>",
   "groupname_html": "",
   "href": "/ref/cpp/f/class/apache/thrift/op/detail/BinaryPatch/clear",
-  "refid": "/ref/cpp/f/class/apache/thrift/op/detail/BinaryPatch/clear"
+  "refid": "/ref/cpp/f/class/apache/thrift/op/detail/BinaryPatch/clear",
+  "parent_links": [
+    {
+      "text_html": "BinaryPatch",
+      "href": "/ref/cpp/class/apache/thrift/op/detail/BinaryPatch"
+    }
+  ]
 }

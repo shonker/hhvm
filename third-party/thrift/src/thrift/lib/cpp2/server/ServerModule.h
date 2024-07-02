@@ -18,6 +18,7 @@
 
 #include <thrift/lib/cpp/TProcessorEventHandler.h>
 #include <thrift/lib/cpp/server/TServerEventHandler.h>
+#include <thrift/lib/cpp2/server/ServiceInterceptorBase.h>
 
 namespace apache::thrift {
 
@@ -26,6 +27,11 @@ class ServerModule {
   virtual ~ServerModule() = default;
 
   virtual std::string getName() const = 0;
+
+  virtual std::vector<std::shared_ptr<ServiceInterceptorBase>>
+  getServiceInterceptors() {
+    return {};
+  }
 
   virtual std::vector<std::shared_ptr<TProcessorEventHandler>>
   getLegacyEventHandlers() {

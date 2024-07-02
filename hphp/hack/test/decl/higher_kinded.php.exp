@@ -9,7 +9,7 @@
        td_as_constraint = None; td_super_constraint = None;
        td_type = (Rhint ([3:14-15]), (Tgeneric ("T", [])));
        td_is_ctx = false; td_attributes = []; td_internal = false;
-       td_docs_url = None }));
+       td_docs_url = None; td_package_override = None }));
   ("\\Test1",
    (Shallow_decl_defs.Typedef
       { Typing_defs.td_module = None; td_pos = [5:6-11];
@@ -44,11 +44,11 @@
               (Rhint ([5:41-43]), (Tapply (([5:41-43], "\\ID"), [])))]
             )));
         td_is_ctx = false; td_attributes = []; td_internal = false;
-        td_docs_url = None }));
+        td_docs_url = None; td_package_override = None }));
   ("\\filter",
    (Shallow_decl_defs.Fun
       { Typing_defs.fe_deprecated = None; fe_module = None;
-        fe_internal = false;
+        fe_package_override = None; fe_internal = false;
         fe_type =
         (Rwitness_from_decl ([7:10-16]),
          (Tfun
@@ -77,7 +77,8 @@
                      [(Rhint ([7:31-33]), (Tgeneric ("TV", [])))])));
                  fp_flags =
                  { Typing_defs_flags.FunParam.accept_disposable = false;
-                   inout = false; has_default = false; readonly = false };
+                   inout = false; has_default = false; readonly = false;
+                   ignore_readonly_error = false };
                  fp_def_value = None }
                 ];
               ft_implicit_params = { capability = (CapDefaults [7:10-16]) };

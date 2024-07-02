@@ -53,12 +53,22 @@ class StructMetadata<::test::fixtures::basic::MyStruct> {
   static const ::apache::thrift::metadata::ThriftStruct& gen(ThriftMetadata& metadata);
 };
 template <>
+class StructMetadata<::test::fixtures::basic::Containers> {
+ public:
+  static const ::apache::thrift::metadata::ThriftStruct& gen(ThriftMetadata& metadata);
+};
+template <>
 class StructMetadata<::test::fixtures::basic::MyDataItem> {
  public:
   static const ::apache::thrift::metadata::ThriftStruct& gen(ThriftMetadata& metadata);
 };
 template <>
 class StructMetadata<::test::fixtures::basic::MyUnion> {
+ public:
+  static const ::apache::thrift::metadata::ThriftStruct& gen(ThriftMetadata& metadata);
+};
+template <>
+class StructMetadata<::test::fixtures::basic::MyException> {
  public:
   static const ::apache::thrift::metadata::ThriftStruct& gen(ThriftMetadata& metadata);
 };
@@ -71,6 +81,11 @@ template <>
 class StructMetadata<::test::fixtures::basic::UnionToBeRenamed> {
  public:
   static const ::apache::thrift::metadata::ThriftStruct& gen(ThriftMetadata& metadata);
+};
+template <>
+class ExceptionMetadata<::test::fixtures::basic::MyException> {
+ public:
+  static void gen(ThriftMetadata& metadata);
 };
 template <>
 class ServiceMetadata<::apache::thrift::ServiceHandler<::test::fixtures::basic::FooService>> {

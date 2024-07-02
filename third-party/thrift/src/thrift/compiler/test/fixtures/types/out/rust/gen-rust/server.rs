@@ -6,6 +6,7 @@
 #![recursion_limit = "100000000"]
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, unused_crate_dependencies, unused_imports, clippy::all)]
 
+
 #[doc(inline)]
 pub use :: as types;
 
@@ -105,6 +106,7 @@ pub struct SomeServiceProcessor<P, H, R, RS> {
 struct Args_SomeService_bounce_map {
     m: included__types::SomeMap,
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_SomeService_bounce_map {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "SomeService.bounce_map"))]
@@ -133,6 +135,7 @@ impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_So
 struct Args_SomeService_binary_keyed_map {
     r: ::std::vec::Vec<::std::primitive::i64>,
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_SomeService_binary_keyed_map {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "SomeService.binary_keyed_map"))]
@@ -190,7 +193,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -227,34 +230,28 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "SomeService.bounce_map", "success");
-                crate::services::some_service::BounceMapExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::some_service::BounceMapExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "bounce_map",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                 ::tracing::info!(method = "SomeService.bounce_map", exception = ?exn);
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("SomeService.bounce_map", exn);
                 ::tracing::error!(method = "SomeService.bounce_map", panic = ?aexn);
-                crate::services::some_service::BounceMapExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::some_service::BounceMapExn::ApplicationException(aexn))
             }
         };
 
-        let env = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
+        let env = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::some_service::BounceMapExn>(
             "bounce_map",
             METHOD_NAME.as_cstr(),
             _seqid,
             req_ctxt,
             &mut ctx_stack,
-            res
+            res,
         )?;
-        reply_state.lock().unwrap().send_reply(env);
+        reply_state.send_reply(env);
         Ok(())
     }
 
@@ -264,7 +261,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -301,34 +298,28 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "SomeService.binary_keyed_map", "success");
-                crate::services::some_service::BinaryKeyedMapExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::some_service::BinaryKeyedMapExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "binary_keyed_map",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                 ::tracing::info!(method = "SomeService.binary_keyed_map", exception = ?exn);
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("SomeService.binary_keyed_map", exn);
                 ::tracing::error!(method = "SomeService.binary_keyed_map", panic = ?aexn);
-                crate::services::some_service::BinaryKeyedMapExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::some_service::BinaryKeyedMapExn::ApplicationException(aexn))
             }
         };
 
-        let env = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
+        let env = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::some_service::BinaryKeyedMapExn>(
             "binary_keyed_map",
             METHOD_NAME.as_cstr(),
             _seqid,
             req_ctxt,
             &mut ctx_stack,
-            res
+            res,
         )?;
-        reply_state.lock().unwrap().send_reply(env);
+        reply_state.send_reply(env);
         Ok(())
     }
 }
@@ -366,7 +357,7 @@ where
         _p: &mut P::Deserializer,
         _req: ::fbthrift::ProtocolDecoded<P>,
         _req_ctxt: &R,
-        _reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        _reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         match idx {
@@ -435,7 +426,7 @@ where
         &self,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
     ) -> ::anyhow::Result<()> {
         use ::fbthrift::{ProtocolReader as _, ServiceProcessor as _};
         let mut p = P::deserializer(req.clone());
@@ -477,9 +468,9 @@ where
 
     fn get_method_names(&self) -> &'static [&'static str] {
         &[
-                // from SomeService
-                "bounce_map",
-                "binary_keyed_map",
+            // From module.SomeService:
+            "bounce_map",
+            "binary_keyed_map",
         ]
     }
 

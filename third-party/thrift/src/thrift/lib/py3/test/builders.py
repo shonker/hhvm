@@ -29,6 +29,7 @@ from testing.builders import (
     Reserved_Builder,
     ValueOrError_Builder,
 )
+from thrift.lib.py3.test.auto_migrate_util import brokenInAutoMigrate
 
 
 class BuilderTest(unittest.TestCase):
@@ -90,9 +91,10 @@ class BuilderTest(unittest.TestCase):
 
     def test_build_with_wrong_type_field(self) -> None:
         easy_builder = easy_Builder()
+        # pyre-fixme[8]: Attribute has type `Optional[int]`; used as `str`.
+        easy_builder.val = "123"
         with self.assertRaises(TypeError):
-            # pyre-fixme[8]: Attribute has type `Optional[int]`; used as `str`.
-            easy_builder.val = "123"
+            easy_builder()  # caught at build step
         easy_builder = easy_Builder()
         easy_builder.val_list = [
             "123",
@@ -107,6 +109,7 @@ class BuilderTest(unittest.TestCase):
         with self.assertRaises(TypeError):
             value_or_error_builder()  # caught at build step
 
+    @brokenInAutoMigrate()
     def test_reserved_names(self) -> None:
         builder = Reserved_Builder()
         builder.from_ = "from"

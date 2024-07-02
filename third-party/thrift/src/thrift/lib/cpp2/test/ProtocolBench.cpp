@@ -21,6 +21,7 @@
 
 #include <glog/logging.h>
 #include <folly/Benchmark.h>
+#include <folly/BenchmarkUtil.h>
 #include <folly/Optional.h>
 #include <folly/init/Init.h>
 #include <folly/portability/GFlags.h>
@@ -88,12 +89,21 @@ void writeBench(size_t iters, Counter&&) {
   }
   susp.dismiss();
 
+  IOBufQueue q;
   while (iters--) {
     if constexpr (kSerializerMethod == SerializerMethod::Object) {
-      auto q = protocol::serializeObject<GetWriter<Serializer>>(obj);
+      protocol::serializeObject<GetWriter<Serializer>>(obj, q);
+      folly::doNotOptimizeAway(q);
     } else {
-      IOBufQueue q;
       Serializer::serialize(strct, &q);
+      folly::doNotOptimizeAway(q);
+    }
+
+    // Reuse the queue across iterations to avoid allocating a new buffer for
+    // each struct (which would dominate the measurement), but keep only the
+    // tail to avoid unbounded growth.
+    if (auto head = q.front(); head && head->isChained()) {
+      q.append(q.move()->prev()->unlink());
     }
   }
   susp.rehire();
@@ -117,9 +127,11 @@ void readBench(size_t iters, Counter&& counter) {
   while (iters--) {
     if constexpr (kSerializerMethod == SerializerMethod::Object) {
       auto obj = protocol::parseObject<GetReader<Serializer>>(*buf);
+      folly::doNotOptimizeAway(obj);
     } else {
       Struct data;
       Serializer::deserialize(buf.get(), data);
+      folly::doNotOptimizeAway(data);
     }
   }
   susp.rehire();
@@ -175,6 +187,9 @@ constexpr SerializerMethod getSerializerMethod(std::string_view prefix) {
   X2(Prefix, proto, UnorderedSetInt)    \
   X2(Prefix, proto, SortedVecSetInt)    \
   X2(Prefix, proto, LargeMapInt)        \
+  X2(Prefix, proto, LargeMapMixed)        \
+  X2(Prefix, proto, LargeUnorderedMapMixed)        \
+  X2(Prefix, proto, LargeSortedVecMapMixed)        \
   X2(Prefix, proto, UnorderedMapInt)    \
   X2(Prefix, proto, NestedMap)          \
   X2(Prefix, proto, SortedVecNestedMap) \
@@ -197,6 +212,9 @@ constexpr SerializerMethod getSerializerMethod(std::string_view prefix) {
   OpEncodeX2(Prefix, proto, UnorderedSetInt)    \
   OpEncodeX2(Prefix, proto, SortedVecSetInt)    \
   OpEncodeX2(Prefix, proto, LargeMapInt)        \
+  OpEncodeX2(Prefix, proto, LargeMapMixed)        \
+  OpEncodeX2(Prefix, proto, LargeUnorderedMapMixed)        \
+  OpEncodeX2(Prefix, proto, LargeSortedVecMapMixed)        \
   OpEncodeX2(Prefix, proto, UnorderedMapInt)    \
   OpEncodeX2(Prefix, proto, NestedMap)          \
   OpEncodeX2(Prefix, proto, SortedVecNestedMap) \

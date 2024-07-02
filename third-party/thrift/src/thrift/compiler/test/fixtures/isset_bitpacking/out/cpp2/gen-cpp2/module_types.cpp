@@ -76,7 +76,7 @@ Default::Default(apache::thrift::FragileConstructor, ::std::int32_t field1__arg,
     __fbthrift_field_field1(std::move(field1__arg)),
     __fbthrift_field_field2(std::move(field2__arg)),
     __fbthrift_field_field3(std::move(field3__arg)),
-    __fbthrift_field_field4(std::move(field4__arg)) {
+    __fbthrift_field_field4(std::move(field4__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
   __isset.set(folly::index_constant<2>(), true);
@@ -131,7 +131,7 @@ template uint32_t Default::serializedSize<>(apache::thrift::CompactProtocolWrite
 template uint32_t Default::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -197,7 +197,7 @@ NonAtomic::NonAtomic(apache::thrift::FragileConstructor, ::std::int32_t field1__
     __fbthrift_field_field1(std::move(field1__arg)),
     __fbthrift_field_field2(std::move(field2__arg)),
     __fbthrift_field_field3(std::move(field3__arg)),
-    __fbthrift_field_field4(std::move(field4__arg)) {
+    __fbthrift_field_field4(std::move(field4__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
   __isset.set(folly::index_constant<2>(), true);
@@ -252,7 +252,7 @@ template uint32_t NonAtomic::serializedSize<>(apache::thrift::CompactProtocolWri
 template uint32_t NonAtomic::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -318,7 +318,7 @@ Atomic::Atomic(apache::thrift::FragileConstructor, ::std::int32_t field1__arg, :
     __fbthrift_field_field1(std::move(field1__arg)),
     __fbthrift_field_field2(std::move(field2__arg)),
     __fbthrift_field_field3(std::move(field3__arg)),
-    __fbthrift_field_field4(std::move(field4__arg)) {
+    __fbthrift_field_field4(std::move(field4__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
   __isset.set(folly::index_constant<2>(), true);
@@ -373,7 +373,7 @@ template uint32_t Atomic::serializedSize<>(apache::thrift::CompactProtocolWriter
 template uint32_t Atomic::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -439,7 +439,7 @@ AtomicFoo::AtomicFoo(apache::thrift::FragileConstructor, ::std::int32_t field1__
     __fbthrift_field_field1(std::move(field1__arg)),
     __fbthrift_field_field2(std::move(field2__arg)),
     __fbthrift_field_field3(std::move(field3__arg)),
-    __fbthrift_field_field4(std::move(field4__arg)) {
+    __fbthrift_field_field4(std::move(field4__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
   __isset.set(folly::index_constant<2>(), true);
@@ -494,11 +494,11 @@ template uint32_t AtomicFoo::serializedSize<>(apache::thrift::CompactProtocolWri
 template uint32_t AtomicFoo::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace cpp2 { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}} // cpp2
+}} // namespace cpp2
 namespace apache::thrift::detail::annotation {
 }

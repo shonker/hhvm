@@ -95,6 +95,14 @@ struct AutoloadMap {
   virtual void ensureUpdated() = 0;
 
   /**
+   * Check the integrity of facts data
+   * This can mean duplicate Symbols pointing to the same file path
+   *
+   * Will throw a UnexpectedValueException is facts data is not seen as valid.
+   */
+  virtual void validate(const std::set<std::string>& types_to_ignore) = 0;
+
+  /**
    * Returns a Holder object which wraps a native AutoloadMap in a manner which
    * is safe to be shared across threads. For non-native or non-shareable maps
    * returns an empty holder.
@@ -142,18 +150,30 @@ struct AutoloadMap {
    * Map symbols to files
    */
   virtual Optional<FileResult> getTypeOrTypeAliasFile(const String& typeName) = 0;
+  virtual Optional<FileResult> getTypeOrTypeAliasFileRelative(const String& typeName) = 0;
   virtual Optional<FileResult> getTypeFile(const String& typeName) = 0;
+  virtual Optional<FileResult> getTypeFileRelative(const String& typeName) = 0;
   virtual Optional<FileResult> getFunctionFile(const String& functionName) = 0;
+  virtual Optional<FileResult> getFunctionFileRelative(const String& functionName) = 0;
   virtual Optional<FileResult> getConstantFile(const String& constantName) = 0;
+  virtual Optional<FileResult> getConstantFileRelative(const String& constantName) = 0;
   virtual Optional<FileResult> getTypeAliasFile(const String& aliasName) = 0;
+  virtual Optional<FileResult> getTypeAliasFileRelative(const String& aliasName) = 0;
   virtual Optional<FileResult> getModuleFile(const String& moduleName) = 0;
+  virtual Optional<FileResult> getModuleFileRelative(const String& moduleName) = 0;
 
   virtual Optional<std::filesystem::path> getTypeOrTypeAliasFile(std::string_view name) = 0;
+  virtual Optional<std::filesystem::path> getTypeOrTypeAliasFileRelative(std::string_view name) = 0;
   virtual Optional<std::filesystem::path> getTypeFile(std::string_view name) = 0;
+  virtual Optional<std::filesystem::path> getTypeFileRelative(std::string_view name) = 0;
   virtual Optional<std::filesystem::path> getFunctionFile(std::string_view name) = 0;
+  virtual Optional<std::filesystem::path> getFunctionFileRelative(std::string_view name) = 0;
   virtual Optional<std::filesystem::path> getConstantFile(std::string_view name) = 0;
+  virtual Optional<std::filesystem::path> getConstantFileRelative(std::string_view name) = 0;
   virtual Optional<std::filesystem::path> getTypeAliasFile(std::string_view name) = 0;
+  virtual Optional<std::filesystem::path> getTypeAliasFileRelative(std::string_view name) = 0;
   virtual Optional<std::filesystem::path> getModuleFile(std::string_view name) = 0;
+  virtual Optional<std::filesystem::path> getModuleFileRelative(std::string_view name) = 0;
 
   /**
    * Map path to symbols

@@ -295,6 +295,20 @@ type type_checking_result = {
   cancel_reason: MultiThreadedCall.cancel_reason option;
 }
 
+let filter_out_mergebase_warnings
+    (env : ServerEnv.env) ~preexisting_warnings errors =
+  if preexisting_warnings then
+    errors
+  else
+    Errors.filter errors ~f:(fun _path error ->
+        match error.User_error.severity with
+        | User_error.Err -> true
+        | User_error.Warning ->
+          not
+            (Warnings_saved_state.mem
+               (Errors.Error.hash_for_saved_state error)
+               env.init_env.mergebase_warning_hashes))
+
 let do_type_checking
     (genv : genv)
     (env : env)
@@ -339,13 +353,12 @@ let do_type_checking
               time_first_error;
             } ),
           cancelled ) =
-      let root = Some (ServerArgs.root genv.ServerEnv.options) in
       Typing_check_service.go_with_interrupt
         ctx
         genv.workers
         telemetry
         (files_to_check |> Relative_path.Set.elements)
-        ~root
+        ~root:(Some (ServerArgs.root genv.ServerEnv.options))
         ~interrupt
         ~longlived_workers
         ~hh_distc_fanout_threshold
@@ -355,6 +368,16 @@ let do_type_checking
              ~log_errors:true
              genv
              env)
+    in
+    let (errorl, telemetry) =
+      Telemetry.with_duration
+        ~description:"filter_out_mergebase_warnings"
+        telemetry
+      @@ fun () ->
+      filter_out_mergebase_warnings
+        env
+        ~preexisting_warnings:env.tcopt.GlobalOptions.preexisting_warnings
+        errorl
     in
     (errorl, telemetry, env, cancelled, time_first_error)
   in
@@ -444,7 +467,8 @@ let quantile ~index ~count : Relative_path.Set.t -> Relative_path.Set.t =
   in
   pop_quantiles index files |> Relative_path.Set.of_list
 
-let type_check_core genv env start_time ~check_reason cgroup_steps =
+let type_check_core
+    (genv : genv) (env : env) start_time ~check_reason cgroup_steps =
   let t = Unix.gettimeofday () in
   (* `start_time` is when the recheck_loop started and includes preliminaries like
    * reading about file-change notifications and communicating with client.

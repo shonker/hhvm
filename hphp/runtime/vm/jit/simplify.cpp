@@ -174,7 +174,9 @@ DEBUG_ONLY bool validate(const State& env,
           (oldSrc->inst()->is(NewRFunc) &&
              canonical(oldSrc->inst()->src(1)) == src) ||
           (oldSrc->inst()->is(NewRClsMeth) &&
-             canonical(oldSrc->inst()->src(2)) == src)) {
+             canonical(oldSrc->inst()->src(2)) == src) ||
+          (oldSrc->inst()->is(ConstructClosure) &&
+             canonical(oldSrc->inst()->src(0)) == src)) {
         return true;
       }
     }
@@ -317,6 +319,7 @@ SSATmp* mergeBranchDests(State& env, const IRInstruction* inst) {
                    CheckRDSInitialized,
                    CheckVecBounds,
                    CheckDictKeys,
+                   CheckPtrIterTombstone,
                    CheckMissingKeyInArrLike,
                    CheckDictOffset,
                    CheckKeysetOffset));
@@ -416,6 +419,19 @@ SSATmp* simplifyEqFunc(State& env, const IRInstruction* inst) {
   return nullptr;
 }
 
+SSATmp* simplifyLdClosureCtx(State& env, const IRInstruction* inst) {
+  auto const closure = canonical(inst->src(0));
+  if (!closure->inst()->is(ConstructClosure)) return nullptr;
+  return gen(env, AssertType, inst->typeParam(), closure->inst()->src(0));
+}
+
+SSATmp* simplifyLdClosureCls(State& env, const IRInstruction* inst) {
+  return simplifyLdClosureCtx(env, inst);
+}
+
+SSATmp* simplifyLdClosureThis(State& env, const IRInstruction* inst) {
+  return simplifyLdClosureCtx(env, inst);
+}
 
 SSATmp* simplifyLdFuncCls(State& env, const IRInstruction* inst) {
   auto const funcTmp = inst->src(0);
@@ -609,7 +625,7 @@ SSATmp* simplifyLdCls(State& env, const IRInstruction* inst) {
   if (str->hasConstVal() && (cls->hasConstVal(TCls) || cls->isA(TNullptr))) {
     auto const sval = str->strVal();
     auto const cval = cls->hasConstVal(TCls) ? cls->clsVal() : nullptr;
-    auto const result = Class::lookupUniqueInContext(sval, cval, nullptr);
+    auto const result = Class::lookupKnown(sval, cval);
     if (result) return cns(env, result);
   }
   return nullptr;
@@ -1873,8 +1889,10 @@ SSATmp* simplifyInstanceOfIface(State& env, const IRInstruction* inst) {
   auto const src1 = inst->src(0);
   auto const src2 = inst->src(1);
 
-  auto const cls2 = Class::lookupUniqueInContext(
-      src2->strVal(), inst->ctx(), nullptr);
+  // We only emit InstanceOfIface if we checked that we could trust the class.
+  // Just grab it from the named-entity map.
+  auto const ne = NamedType::getOrCreate(src2->strVal());
+  auto const cls2 = ne->clsList();
   assertx(cls2 && isInterface(cls2));
   auto const spec2 = ClassSpec{cls2, ClassSpec::ExactTag{}};
 
@@ -2461,6 +2479,18 @@ SSATmp* simplifyDblAsBits(State& env, const IRInstruction* inst) {
     d = src->dblVal();
     return cns(env, i);
   }
+  return nullptr;
+}
+
+SSATmp* simplifyIntAsPtrToElem(State&, const IRInstruction* inst) {
+  auto const src = inst->src(0);
+  if (src->inst()->is(PtrToElemAsInt)) return src->inst()->src(0);
+  return nullptr;
+}
+
+SSATmp* simplifyPtrToElemAsInt(State&, const IRInstruction* inst) {
+  auto const src = inst->src(0);
+  if (src->inst()->is(IntAsPtrToElem)) return src->inst()->src(0);
   return nullptr;
 }
 
@@ -3059,6 +3089,32 @@ SSATmp* simplifyGetDictPtrIter(State& env, const IRInstruction* inst) {
   return cns(env, Type::cns(elm, outputType(inst)));
 }
 
+SSATmp* simplifyGetKeysetPtrIter(State& env, const IRInstruction* inst) {
+  auto const arr = inst->src(0);
+  auto const idx = inst->src(1);
+  if (!arr->hasConstVal(TArrLike)) return nullptr;
+  if (!idx->hasConstVal(TInt)) return nullptr;
+  auto const ad  = VanillaKeyset::asSet(arr->arrLikeVal());
+  auto const elm = ad->data() + idx->intVal();
+  return cns(env, Type::cns(elm, outputType(inst)));
+}
+
+SSATmp* simplifyGetVecPtrIter(State& env, const IRInstruction* inst) {
+  assertx(VanillaVec::stores_unaligned_typed_values);
+  auto const arr = inst->src(0);
+  auto const idx = inst->src(1);
+  if (!arr->hasConstVal(TArrLike)) return nullptr;
+  if (!idx->hasConstVal(TInt)) return nullptr;
+  auto const entries = VanillaVec::entries(arr->arrLikeVal());
+  auto const elm = entries + idx->intVal();
+  return cns(env, Type::cns(elm, outputType(inst)));
+}
+
+SSATmp* simplifyCheckPtrIterTombstone(State& env, const IRInstruction* inst) {
+  if (inst->src(0)->isA(TStaticArrLike)) return gen(env, Nop);
+  return mergeBranchDests(env, inst);
+}
+
 SSATmp* simplifyCheckDictKeys(State& env, const IRInstruction* inst) {
   auto const src = inst->src(0);
   if (!src->hasConstVal()) return mergeBranchDests(env, inst);
@@ -3188,6 +3244,34 @@ X(CountDict)
 X(CountKeyset)
 
 #undef X
+
+SSATmp* simplifyDictIterEnd(State& env, const IRInstruction* inst) {
+  auto const arr = inst->src(0);
+
+  if (arr->hasConstVal()) {
+    auto const dict = VanillaDict::as(arr->type().arrLikeVal());
+    return cns(env, dict->iterLimit());
+  }
+
+  // Static dicts do not have tombstones.
+  if (arr->isA(TStaticDict)) return gen(env, CountDict, arr);
+
+  return nullptr;
+}
+
+SSATmp* simplifyKeysetIterEnd(State& env, const IRInstruction* inst) {
+  auto const arr = inst->src(0);
+
+  if (arr->hasConstVal()) {
+    auto const keyset = VanillaKeyset::asSet(arr->type().arrLikeVal());
+    return cns(env, keyset->iterLimit());
+  }
+
+  // Static keysets do not have tombstones.
+  if (arr->isA(TStaticKeyset)) return gen(env, CountKeyset, arr);
+
+  return nullptr;
+}
 
 // Simplify generic bespoke getters, either based on the DataType (often we
 // can make simplifications for all varrays and vecs) or specific layout.
@@ -3341,6 +3425,9 @@ SSATmp* simplifyBespokeIterEnd(State& env, const IRInstruction* inst) {
   if (arr->isA(TDict) && spec.is_struct()) {
     return gen(env, CountDict, arr);
   }
+
+  // Static arrays do not have tombstones.
+  if (arr->isA(TStaticArrLike)) return gen(env, Count, arr);
 
   return nullptr;
 }
@@ -3523,14 +3610,14 @@ SSATmp* simplifyLdEnumClassLabelName(State& env, const IRInstruction* inst) {
   return src->hasConstVal(TEnumClassLabel) ? cns(env, src->eclVal()) : nullptr;
 }
 
-SSATmp* simplifyLookupClsRDS(State& env, const IRInstruction* inst) {
+SSATmp* simplifyLookupCls(State& env, const IRInstruction* inst) {
   auto const str = inst->src(0);
   if (str->inst()->is(LdClsName, LdLazyCls)) {
     return str->inst()->src(0);
   }
   if (str->hasConstVal()) {
     auto const sval = str->strVal();
-    auto const result = Class::lookupUniqueInContext(sval, nullptr, nullptr);
+    auto const result = Class::lookupKnown(sval, nullptr);
     if (result) return cns(env, result);
   }
   return nullptr;
@@ -4039,10 +4126,14 @@ SSATmp* simplifyWork(State& env, const IRInstruction* inst) {
       X(ConvArrLikeToDict)
       X(ConvArrLikeToKeyset)
       X(DblAsBits)
+      X(IntAsPtrToElem)
+      X(PtrToElemAsInt)
       X(Count)
       X(CountVec)
       X(CountDict)
       X(CountKeyset)
+      X(DictIterEnd)
+      X(KeysetIterEnd)
       X(DecRef)
       X(DecRefNZ)
       X(DefLabel)
@@ -4077,7 +4168,7 @@ SSATmp* simplifyWork(State& env, const IRInstruction* inst) {
       X(LdWHResult)
       X(LdWHState)
       X(LdWHNotDone)
-      X(LookupClsRDS)
+      X(LookupCls)
       X(LookupSPropSlot)
       X(LdClsMethod)
       X(LdStrLen)
@@ -4099,6 +4190,8 @@ SSATmp* simplifyWork(State& env, const IRInstruction* inst) {
       X(LdStructDictVal)
       X(LdTypeStructureVal)
       X(MethodExists)
+      X(LdClosureCls)
+      X(LdClosureThis)
       X(LdFuncCls)
       X(LdFuncInOutBits)
       X(LdFuncNumParams)
@@ -4192,6 +4285,9 @@ SSATmp* simplifyWork(State& env, const IRInstruction* inst) {
       X(KeysetGetQuiet)
       X(KeysetGetK)
       X(GetDictPtrIter)
+      X(GetKeysetPtrIter)
+      X(GetVecPtrIter)
+      X(CheckPtrIterTombstone)
       X(CheckDictKeys)
       X(CheckDictOffset)
       X(CheckKeysetOffset)

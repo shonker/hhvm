@@ -200,6 +200,8 @@ bool supportsGVN(const IRInstruction* inst) {
   case ConvDblToInt:
   case ConvFuncPrologueFlagsToARFlags:
   case DblAsBits:
+  case IntAsPtrToElem:
+  case PtrToElemAsInt:
   case GtInt:
   case GteInt:
   case LtInt:
@@ -315,11 +317,13 @@ bool supportsGVN(const IRInstruction* inst) {
   case DictGetQuiet:
   case DictIdx:
   case DictIsset:
+  case DictIterEnd:
   case KeysetGet:
   case KeysetGetK:
   case KeysetGetQuiet:
   case KeysetIdx:
   case KeysetIsset:
+  case KeysetIterEnd:
   case CheckDictOffset:
   case CheckKeysetOffset:
   case CheckDictKeys:
@@ -802,7 +806,7 @@ bool replaceRedundantComputations(
 
 /////////////////////////////////////////////////////////////////////////
 
-void gvn(IRUnit& unit) {
+bool gvn(IRUnit& unit) {
   PassTracer tracer{&unit, Trace::hhir_gvn, "gvn"};
   Timer t(Timer::optimize_gvn, unit.logEntry().get_pointer());
   splitCriticalEdges(unit);
@@ -827,11 +831,7 @@ void gvn(IRUnit& unit) {
   state.globalTable = nullptr;
   // We might have added a new use of a SSATmp past a CheckType or
   // AssertType on it, so refine if necessary.
-  if (changed) {
-    // Restore basic invariants before refining.
-    mandatoryDCE(unit);
-    refineTmps(unit);
-  }
+  return changed;
 }
 
 }

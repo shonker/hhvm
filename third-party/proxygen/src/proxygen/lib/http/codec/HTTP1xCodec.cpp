@@ -621,15 +621,14 @@ void HTTP1xCodec::generateHeader(
   }
 
   bool bodyCheck =
-      (downstream && keepalive_ && !expectNoResponseBody_ && !egressUpgrade_) ||
+      (downstream && !expectNoResponseBody_ && !egressUpgrade_) ||
       // auto chunk POSTs and any request that came to us chunked
       (upstream && ((msg.getMethod() == HTTPMethod::POST) || egressChunked_));
   // TODO: 400 a 1.0 POST with no content-length
   // clear egressChunked_ if the header wasn't actually set
   egressChunked_ &= hasTransferEncodingChunked;
   if (bodyCheck && !egressChunked_ && deferredContentLength.empty()) {
-    // On a connection that would otherwise be eligible for keep-alive,
-    // we're being asked to send a response message with no Content-Length,
+    // We're being asked to send a response message with no Content-Length,
     // no chunked encoding, and no special circumstances that would eliminate
     // the need for a response body. If the client supports chunking, turn
     // on chunked encoding now.  Otherwise, turn off keepalives on this
@@ -1152,9 +1151,8 @@ int HTTP1xCodec::onHeadersComplete(size_t len) {
       const std::string& accept =
           hdrs.getSingleOrEmpty(HTTP_HEADER_SEC_WEBSOCKET_ACCEPT);
       if (accept != websockAcceptKey_) {
-        LOG(ERROR) << "Mismatch in expected ws accept key: "
-                   << "upstream: " << accept
-                   << " expected: " << websockAcceptKey_;
+        LOG(ERROR) << "Mismatch in expected ws accept key: " << "upstream: "
+                   << accept << " expected: " << websockAcceptKey_;
         return -1;
       }
     } else {
@@ -1464,8 +1462,8 @@ int HTTP1xCodec::onMessageCompleteCB(http_parser* parser) {
   }
 }
 
-bool HTTP1xCodec::supportsNextProtocol(const std::string& npn) {
-  return npn.length() == 8 && (npn == "http/1.0" || npn == "http/1.1");
+bool HTTP1xCodec::supportsNextProtocol(folly::StringPiece alpn) {
+  return alpn.size() == 8 && (alpn == "http/1.0" || alpn == "http/1.1");
 }
 
 HTTP1xCodec HTTP1xCodec::makeResponseCodec(bool mayChunkEgress) {

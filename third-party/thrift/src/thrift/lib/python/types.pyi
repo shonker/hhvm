@@ -12,6 +12,7 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
+import enum
 import typing
 
 from thrift.python.adapter import Adapter
@@ -32,6 +33,14 @@ class IntegerTypeInfo:
 class StringTypeInfo:
     pass
 
+class IOBufTypeInfo:
+    pass
+
+class FieldQualifier(enum.Enum):
+    Unqualified: FieldQualifier = ...
+    Optional: FieldQualifier = ...
+    Terse: FieldQualifier = ...
+
 typeinfo_bool: TypeInfo
 typeinfo_byte: IntegerTypeInfo
 typeinfo_i16: IntegerTypeInfo
@@ -45,8 +54,28 @@ typeinfo_binary: TypeInfo
 StructOrError = typing.Union[Struct, GeneratedError]
 
 AnyTypeInfo = typing.Union[
-    StructTypeInfo, ListTypeInfo, SetTypeInfo, MapTypeInfo, EnumTypeInfo
+    StructTypeInfo,
+    ListTypeInfo,
+    SetTypeInfo,
+    MapTypeInfo,
+    EnumTypeInfo,
+    TypeInfo,
+    IntegerTypeInfo,
+    StringTypeInfo,
 ]
+
+class FieldInfo:
+    def __init__(
+        self,
+        id: int,
+        qualifier: FieldQualifier,
+        name: str,
+        py_name: str,
+        type_info: AnyTypeInfo | typing.Callable[[], AnyTypeInfo],
+        default_value: object,
+        adapter_info: typing.Optional[tuple[object, Struct]],
+        is_primitive: bool,
+    ) -> None: ...
 
 class ListTypeInfo:
     def __init__(self, val_info: AnyTypeInfo) -> None: ...
@@ -153,7 +182,9 @@ class _fbthrift_ResponseStreamResult(Struct, typing.Generic[TChunk]):
 class ServiceInterface:
     @staticmethod
     def service_name() -> bytes: ...
-    def getFunctionTable(self) -> typing.Mapping[bytes, typing.Callable[..., ...]]: ...
+    def getFunctionTable(
+        self,
+    ) -> typing.Mapping[bytes, typing.Callable[..., object]]: ...
     # pyre-ignore[3]: it can return anything
     async def __aenter__(self) -> typing.Any: ...
     async def __aexit__(

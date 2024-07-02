@@ -75,6 +75,7 @@ namespace HH {
   type ExtDeclAttribute = shape(
     'name' => string,
     ?'args' => vec<string>,
+    ?'raw_val' => string,
   );
 
   type ExtDeclTypeConstraint = shape(
@@ -426,6 +427,14 @@ namespace HH {
     public function getFileTypedefs()[]: vec<ExtDeclTypedef>;
 
     /*
+     * Fetches all keys for the supplied shape name. 
+     *
+     * @param string $name - the name of the shape typedef
+     * @return vec<string> - empty if error or no matching shape name
+     */
+    public function getShapeKeys(string $name)[]: vec<string>;
+
+    /*
      * Query the content for a specific top level type definition.
      *
      * @param string $name - the typedef name
@@ -550,7 +559,7 @@ namespace HH {
     )[]: ?ExtDeclAttribute;
 
     // Prevent cloning
-    final public function __clone(): this;
+    final public function __clone(): void;
 
     public function __toString()[]: string;
   }

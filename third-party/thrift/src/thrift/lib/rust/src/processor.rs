@@ -17,7 +17,6 @@
 use std::ffi::CStr;
 use std::marker::PhantomData;
 use std::sync::Arc;
-use std::sync::Mutex;
 
 use anyhow::bail;
 use anyhow::Error;
@@ -49,8 +48,6 @@ pub enum SerializedStreamElement<Payload> {
     DeclaredException(Payload),
     /// Contains the application exception.
     ApplicationException(ApplicationException),
-    /// The serialization failed. Contains the error.
-    SerializationError(Error),
 }
 
 pub trait ReplyState<F>
@@ -59,15 +56,15 @@ where
 {
     type RequestContext;
 
-    fn send_reply(&mut self, reply: FramingEncodedFinal<F>);
+    fn send_reply(&self, reply: FramingEncodedFinal<F>);
     fn send_stream_reply(
-        &mut self,
+        &self,
         response: FramingEncodedFinal<F>,
         stream: Option<BoxStream<'static, SerializedStreamElement<FramingEncodedFinal<F>>>>,
         protocol_id: ProtocolID,
     ) -> Result<()>;
     fn set_interaction_processor(
-        &mut self,
+        &self,
         _processor: Arc<
             dyn ThriftService<
                     F,
@@ -95,7 +92,7 @@ where
         &self,
         req: FramingDecoded<F>,
         req_ctxt: &Self::RequestContext,
-        reply_state: Arc<Mutex<Self::ReplyState>>,
+        reply_state: Arc<Self::ReplyState>,
     ) -> Result<(), Error>;
 
     fn create_interaction(
@@ -148,7 +145,7 @@ where
         &self,
         req: FramingDecoded<F>,
         req_ctxt: &Self::RequestContext,
-        reply_state: Arc<Mutex<Self::ReplyState>>,
+        reply_state: Arc<Self::ReplyState>,
     ) -> Result<(), Error> {
         (**self).call(req, req_ctxt, reply_state).await
     }
@@ -195,7 +192,7 @@ where
         &self,
         req: FramingDecoded<F>,
         req_ctxt: &Self::RequestContext,
-        reply_state: Arc<Mutex<Self::ReplyState>>,
+        reply_state: Arc<Self::ReplyState>,
     ) -> Result<(), Error> {
         (**self).call(req, req_ctxt, reply_state).await
     }
@@ -250,7 +247,7 @@ where
         d: &mut P::Deserializer,
         req: ProtocolDecoded<P>,
         req_ctxt: &Self::RequestContext,
-        reply_state: Arc<Mutex<Self::ReplyState>>,
+        reply_state: Arc<Self::ReplyState>,
         seqid: u32,
     ) -> Result<(), Error>;
 
@@ -328,7 +325,7 @@ where
         _d: &mut P::Deserializer,
         _req: ProtocolDecoded<P>,
         _req_ctxt: &R,
-        _reply_state: Arc<Mutex<RS>>,
+        _reply_state: Arc<RS>,
         _seqid: u32,
     ) -> Result<(), Error> {
         // Should never be called since method_idx() always returns an error
@@ -376,7 +373,7 @@ where
         &self,
         req: ProtocolDecoded<P>,
         rctxt: &R,
-        reply_state: Arc<Mutex<RS>>,
+        reply_state: Arc<RS>,
     ) -> Result<(), Error> {
         let mut p = P::deserializer(req);
 
@@ -396,7 +393,7 @@ where
             ae.write(p);
             p.write_message_end();
         });
-        reply_state.lock().unwrap().send_reply(res);
+        reply_state.send_reply(res);
         Ok(())
     }
 

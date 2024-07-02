@@ -6,6 +6,7 @@
 #![recursion_limit = "100000000"]
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, unused_crate_dependencies, unused_imports, clippy::all)]
 
+
 #[doc(inline)]
 pub use :: as types;
 
@@ -84,6 +85,7 @@ pub struct MyInteractionProcessor<P, H, R, RS> {
 
 struct Args_MyInteraction_ping {
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_MyInteraction_ping {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "MyInteraction.ping"))]
@@ -137,7 +139,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -173,34 +175,28 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "MyInteraction.ping", "success");
-                crate::services::my_interaction::PingExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_interaction::PingExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "ping",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                 ::tracing::info!(method = "MyInteraction.ping", exception = ?exn);
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("MyInteraction.ping", exn);
                 ::tracing::error!(method = "MyInteraction.ping", panic = ?aexn);
-                crate::services::my_interaction::PingExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::my_interaction::PingExn::ApplicationException(aexn))
             }
         };
 
-        let env = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
+        let env = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::my_interaction::PingExn>(
             "ping",
             METHOD_NAME.as_cstr(),
             _seqid,
             req_ctxt,
             &mut ctx_stack,
-            res
+            res,
         )?;
-        reply_state.lock().unwrap().send_reply(env);
+        reply_state.send_reply(env);
         Ok(())
     }
 }
@@ -237,7 +233,7 @@ where
         _p: &mut P::Deserializer,
         _req: ::fbthrift::ProtocolDecoded<P>,
         _req_ctxt: &R,
-        _reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        _reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         match idx {
@@ -306,7 +302,7 @@ where
         &self,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
     ) -> ::anyhow::Result<()> {
         use ::fbthrift::{ProtocolReader as _, ServiceProcessor as _};
         let mut p = P::deserializer(req.clone());
@@ -348,8 +344,9 @@ where
 
     fn get_method_names(&self) -> &'static [&'static str] {
         &[
-                // interaction's method names are never queried directly.
-                // they are always queried from the "main" processor.
+            // From module.MyInteraction:
+            // Interaction's method names are never queried directly.
+            // They are always queried from the "main" processor.
         ]
     }
 
@@ -738,6 +735,7 @@ pub struct MyServiceProcessor<P, H, R, RS> {
 
 struct Args_MyService_ping {
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_MyService_ping {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "MyService.ping"))]
@@ -761,6 +759,7 @@ impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_My
 
 struct Args_MyService_getRandomData {
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_MyService_getRandomData {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "MyService.getRandomData"))]
@@ -785,6 +784,7 @@ impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_My
 struct Args_MyService_hasDataById {
     id: ::std::primitive::i64,
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_MyService_hasDataById {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "MyService.hasDataById"))]
@@ -813,6 +813,7 @@ impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_My
 struct Args_MyService_getDataById {
     id: ::std::primitive::i64,
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_MyService_getDataById {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "MyService.getDataById"))]
@@ -842,6 +843,7 @@ struct Args_MyService_putDataById {
     id: ::std::primitive::i64,
     data: ::std::string::String,
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_MyService_putDataById {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "MyService.putDataById"))]
@@ -875,6 +877,7 @@ struct Args_MyService_lobDataById {
     id: ::std::primitive::i64,
     data: ::std::string::String,
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_MyService_lobDataById {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "MyService.lobDataById"))]
@@ -907,6 +910,7 @@ impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_My
 struct Args_MyService_streamById {
     id: ::std::primitive::i64,
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_MyService_streamById {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "MyService.streamById"))]
@@ -935,6 +939,7 @@ impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_My
 struct Args_MyService_streamByIdWithException {
     id: ::std::primitive::i64,
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_MyService_streamByIdWithException {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "MyService.streamByIdWithException"))]
@@ -963,6 +968,7 @@ impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_My
 struct Args_MyService_streamByIdWithResponse {
     id: ::std::primitive::i64,
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_MyService_streamByIdWithResponse {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "MyService.streamByIdWithResponse"))]
@@ -990,6 +996,7 @@ impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_My
 
 struct Args_MyService_startPingInteraction {
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_MyService_startPingInteraction {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "MyService.startPingInteraction"))]
@@ -1043,7 +1050,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -1080,34 +1087,28 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "MyService.ping", "success");
-                crate::services::my_service::PingExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_service::PingExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "ping",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                 ::tracing::info!(method = "MyService.ping", exception = ?exn);
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("MyService.ping", exn);
                 ::tracing::error!(method = "MyService.ping", panic = ?aexn);
-                crate::services::my_service::PingExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::my_service::PingExn::ApplicationException(aexn))
             }
         };
 
-        let env = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
+        let env = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::my_service::PingExn>(
             "ping",
             METHOD_NAME.as_cstr(),
             _seqid,
             req_ctxt,
             &mut ctx_stack,
-            res
+            res,
         )?;
-        reply_state.lock().unwrap().send_reply(env);
+        reply_state.send_reply(env);
         Ok(())
     }
 
@@ -1117,7 +1118,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -1154,34 +1155,28 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "MyService.getRandomData", "success");
-                crate::services::my_service::GetRandomDataExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_service::GetRandomDataExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "getRandomData",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                 ::tracing::info!(method = "MyService.getRandomData", exception = ?exn);
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("MyService.getRandomData", exn);
                 ::tracing::error!(method = "MyService.getRandomData", panic = ?aexn);
-                crate::services::my_service::GetRandomDataExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::my_service::GetRandomDataExn::ApplicationException(aexn))
             }
         };
 
-        let env = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
+        let env = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::my_service::GetRandomDataExn>(
             "getRandomData",
             METHOD_NAME.as_cstr(),
             _seqid,
             req_ctxt,
             &mut ctx_stack,
-            res
+            res,
         )?;
-        reply_state.lock().unwrap().send_reply(env);
+        reply_state.send_reply(env);
         Ok(())
     }
 
@@ -1191,7 +1186,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -1229,34 +1224,28 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "MyService.hasDataById", "success");
-                crate::services::my_service::HasDataByIdExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_service::HasDataByIdExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "hasDataById",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                 ::tracing::info!(method = "MyService.hasDataById", exception = ?exn);
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("MyService.hasDataById", exn);
                 ::tracing::error!(method = "MyService.hasDataById", panic = ?aexn);
-                crate::services::my_service::HasDataByIdExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::my_service::HasDataByIdExn::ApplicationException(aexn))
             }
         };
 
-        let env = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
+        let env = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::my_service::HasDataByIdExn>(
             "hasDataById",
             METHOD_NAME.as_cstr(),
             _seqid,
             req_ctxt,
             &mut ctx_stack,
-            res
+            res,
         )?;
-        reply_state.lock().unwrap().send_reply(env);
+        reply_state.send_reply(env);
         Ok(())
     }
 
@@ -1266,7 +1255,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -1304,34 +1293,28 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "MyService.getDataById", "success");
-                crate::services::my_service::GetDataByIdExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_service::GetDataByIdExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "getDataById",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                 ::tracing::info!(method = "MyService.getDataById", exception = ?exn);
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("MyService.getDataById", exn);
                 ::tracing::error!(method = "MyService.getDataById", panic = ?aexn);
-                crate::services::my_service::GetDataByIdExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::my_service::GetDataByIdExn::ApplicationException(aexn))
             }
         };
 
-        let env = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
+        let env = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::my_service::GetDataByIdExn>(
             "getDataById",
             METHOD_NAME.as_cstr(),
             _seqid,
             req_ctxt,
             &mut ctx_stack,
-            res
+            res,
         )?;
-        reply_state.lock().unwrap().send_reply(env);
+        reply_state.send_reply(env);
         Ok(())
     }
 
@@ -1341,7 +1324,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -1380,34 +1363,28 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "MyService.putDataById", "success");
-                crate::services::my_service::PutDataByIdExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_service::PutDataByIdExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "putDataById",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                 ::tracing::info!(method = "MyService.putDataById", exception = ?exn);
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("MyService.putDataById", exn);
                 ::tracing::error!(method = "MyService.putDataById", panic = ?aexn);
-                crate::services::my_service::PutDataByIdExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::my_service::PutDataByIdExn::ApplicationException(aexn))
             }
         };
 
-        let env = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
+        let env = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::my_service::PutDataByIdExn>(
             "putDataById",
             METHOD_NAME.as_cstr(),
             _seqid,
             req_ctxt,
             &mut ctx_stack,
-            res
+            res,
         )?;
-        reply_state.lock().unwrap().send_reply(env);
+        reply_state.send_reply(env);
         Ok(())
     }
 
@@ -1417,7 +1394,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -1456,34 +1433,28 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "MyService.lobDataById", "success");
-                crate::services::my_service::LobDataByIdExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_service::LobDataByIdExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "lobDataById",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                 ::tracing::info!(method = "MyService.lobDataById", exception = ?exn);
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("MyService.lobDataById", exn);
                 ::tracing::error!(method = "MyService.lobDataById", panic = ?aexn);
-                crate::services::my_service::LobDataByIdExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::my_service::LobDataByIdExn::ApplicationException(aexn))
             }
         };
 
-        let env = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
+        let env = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::my_service::LobDataByIdExn>(
             "lobDataById",
             METHOD_NAME.as_cstr(),
             _seqid,
             req_ctxt,
             &mut ctx_stack,
-            res
+            res,
         )?;
-        reply_state.lock().unwrap().send_reply(env);
+        reply_state.send_reply(env);
         Ok(())
     }
 
@@ -1493,7 +1464,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -1531,47 +1502,35 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "MyService.streamById", "success");
-                crate::services::my_service::StreamByIdExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_service::StreamByIdExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "streamById",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("MyService.streamById", exn);
                 ::tracing::error!(method = "MyService.streamById", panic = ?aexn);
-                crate::services::my_service::StreamByIdExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::my_service::StreamByIdExn::ApplicationException(aexn))
             }
         };
 
         use ::futures::StreamExt as _;
 
         let (response, stream) = match res {
-            crate::services::my_service::StreamByIdExn::Success(res) => {
-                let response = crate::services::my_service::StreamByIdResponseExn::Success(());
+            ::std::result::Result::Ok(res) => {
+                let response = ::std::result::Result::Ok(());
                 let stream = res;
 
                 let stream = ::std::panic::AssertUnwindSafe(stream)
                     .catch_unwind()
                     .map(|item| {
                         match item {
-                            ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
-                                let item = crate::services::my_service::StreamByIdStreamExn::Success(res);
-                                match ::fbthrift::help::serialize_stream_item::<P, _>(item) {
-                                    Ok(payload) => ::fbthrift::SerializedStreamElement::Success(payload),
-                                    Err(err) => {
-                                        tracing::error!(?err, method="MyService.streamById", "Failed to serialize success response");
-                                        ::fbthrift::SerializedStreamElement::SerializationError(err)
-                                    },
-                                }
-                            }
-                            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_service::StreamByIdStreamExn::Success(_))) => {
-                                panic!("{} attempted to return success via error", "streamById");
+                            ::std::result::Result::Ok(::std::result::Result::Ok(success)) => {
+                                let payload = ::fbthrift::help::serialize_stream_item::<P, crate::services::my_service::StreamByIdStreamExn>(
+                                    ::std::result::Result::Ok(success),
+                                    "streamById",
+                                );
+                                ::fbthrift::SerializedStreamElement::Success(payload)
                             }
                             ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_service::StreamByIdStreamExn::ApplicationException(aexn))) => {
                                 tracing::info!(?aexn, method="MyService.streamById", "Streaming ApplicationException");
@@ -1587,22 +1546,19 @@ where
                     .boxed();
                 (response, Some(stream))
             },
-            crate::services::my_service::StreamByIdExn::ApplicationException(aexn)=> {
-                let response = crate::services::my_service::StreamByIdResponseExn::ApplicationException(aexn);
-                (response, None)
-            },
+            ::std::result::Result::Err(exn) => (::std::result::Result::Err(exn), None),
         };
 
-        let response = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
-                    "streamById",
-                    METHOD_NAME.as_cstr(),
-                    _seqid,
-                    req_ctxt,
-                    &mut ctx_stack,
-                    response
-                )?;
+        let response = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::my_service::StreamByIdExn>(
+            "streamById",
+            METHOD_NAME.as_cstr(),
+            _seqid,
+            req_ctxt,
+            &mut ctx_stack,
+            response,
+        )?;
 
-        let _ = reply_state.lock().unwrap().send_stream_reply(response, stream, P::PROTOCOL_ID);
+        let _ = reply_state.send_stream_reply(response, stream, P::PROTOCOL_ID);
         Ok(())
     }
 
@@ -1612,7 +1568,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -1650,47 +1606,35 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "MyService.streamByIdWithException", "success");
-                crate::services::my_service::StreamByIdWithExceptionExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_service::StreamByIdWithExceptionExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "streamByIdWithException",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("MyService.streamByIdWithException", exn);
                 ::tracing::error!(method = "MyService.streamByIdWithException", panic = ?aexn);
-                crate::services::my_service::StreamByIdWithExceptionExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::my_service::StreamByIdWithExceptionExn::ApplicationException(aexn))
             }
         };
 
         use ::futures::StreamExt as _;
 
         let (response, stream) = match res {
-            crate::services::my_service::StreamByIdWithExceptionExn::Success(res) => {
-                let response = crate::services::my_service::StreamByIdWithExceptionResponseExn::Success(());
+            ::std::result::Result::Ok(res) => {
+                let response = ::std::result::Result::Ok(());
                 let stream = res;
 
                 let stream = ::std::panic::AssertUnwindSafe(stream)
                     .catch_unwind()
                     .map(|item| {
                         match item {
-                            ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
-                                let item = crate::services::my_service::StreamByIdWithExceptionStreamExn::Success(res);
-                                match ::fbthrift::help::serialize_stream_item::<P, _>(item) {
-                                    Ok(payload) => ::fbthrift::SerializedStreamElement::Success(payload),
-                                    Err(err) => {
-                                        tracing::error!(?err, method="MyService.streamByIdWithException", "Failed to serialize success response");
-                                        ::fbthrift::SerializedStreamElement::SerializationError(err)
-                                    },
-                                }
-                            }
-                            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_service::StreamByIdWithExceptionStreamExn::Success(_))) => {
-                                panic!("{} attempted to return success via error", "streamByIdWithException");
+                            ::std::result::Result::Ok(::std::result::Result::Ok(success)) => {
+                                let payload = ::fbthrift::help::serialize_stream_item::<P, crate::services::my_service::StreamByIdWithExceptionStreamExn>(
+                                    ::std::result::Result::Ok(success),
+                                    "streamByIdWithException",
+                                );
+                                ::fbthrift::SerializedStreamElement::Success(payload)
                             }
                             ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_service::StreamByIdWithExceptionStreamExn::ApplicationException(aexn))) => {
                                 tracing::info!(?aexn, method="MyService.streamByIdWithException", "Streaming ApplicationException");
@@ -1698,13 +1642,11 @@ where
                             }
                             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                                 tracing::debug!(?exn, method="MyService.streamByIdWithException", "Streaming declared exception");
-                                match ::fbthrift::help::serialize_stream_item::<P, _>(exn) {
-                                    Ok(payload) => ::fbthrift::SerializedStreamElement::DeclaredException(payload),
-                                    Err(err) => {
-                                        tracing::error!(?err, method="MyService.streamByIdWithException", "Failed to serialize declared exception return");
-                                        ::fbthrift::SerializedStreamElement::SerializationError(err)
-                                    }
-                                }
+                                let payload = ::fbthrift::help::serialize_stream_item::<P, crate::services::my_service::StreamByIdWithExceptionStreamExn>(
+                                    ::std::result::Result::Err(exn),
+                                    "streamByIdWithException",
+                                );
+                                ::fbthrift::SerializedStreamElement::DeclaredException(payload)
                             }
                             ::std::result::Result::Err(exn) => {
                                 tracing::error!(?exn, method="MyService.streamByIdWithException", "Streaming unwind");
@@ -1716,22 +1658,19 @@ where
                     .boxed();
                 (response, Some(stream))
             },
-            crate::services::my_service::StreamByIdWithExceptionExn::ApplicationException(aexn)=> {
-                let response = crate::services::my_service::StreamByIdWithExceptionResponseExn::ApplicationException(aexn);
-                (response, None)
-            },
+            ::std::result::Result::Err(exn) => (::std::result::Result::Err(exn), None),
         };
 
-        let response = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
-                    "streamByIdWithException",
-                    METHOD_NAME.as_cstr(),
-                    _seqid,
-                    req_ctxt,
-                    &mut ctx_stack,
-                    response
-                )?;
+        let response = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::my_service::StreamByIdWithExceptionExn>(
+            "streamByIdWithException",
+            METHOD_NAME.as_cstr(),
+            _seqid,
+            req_ctxt,
+            &mut ctx_stack,
+            response,
+        )?;
 
-        let _ = reply_state.lock().unwrap().send_stream_reply(response, stream, P::PROTOCOL_ID);
+        let _ = reply_state.send_stream_reply(response, stream, P::PROTOCOL_ID);
         Ok(())
     }
 
@@ -1741,7 +1680,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -1779,47 +1718,35 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "MyService.streamByIdWithResponse", "success");
-                crate::services::my_service::StreamByIdWithResponseExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_service::StreamByIdWithResponseExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "streamByIdWithResponse",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("MyService.streamByIdWithResponse", exn);
                 ::tracing::error!(method = "MyService.streamByIdWithResponse", panic = ?aexn);
-                crate::services::my_service::StreamByIdWithResponseExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::my_service::StreamByIdWithResponseExn::ApplicationException(aexn))
             }
         };
 
         use ::futures::StreamExt as _;
 
         let (response, stream) = match res {
-            crate::services::my_service::StreamByIdWithResponseExn::Success(res) => {
+            ::std::result::Result::Ok(res) => {
                 let (response, stream) = res;
-                let response = crate::services::my_service::StreamByIdWithResponseResponseExn::Success(response);
+                let response = ::std::result::Result::Ok(response);
 
                 let stream = ::std::panic::AssertUnwindSafe(stream)
                     .catch_unwind()
                     .map(|item| {
                         match item {
-                            ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
-                                let item = crate::services::my_service::StreamByIdWithResponseStreamExn::Success(res);
-                                match ::fbthrift::help::serialize_stream_item::<P, _>(item) {
-                                    Ok(payload) => ::fbthrift::SerializedStreamElement::Success(payload),
-                                    Err(err) => {
-                                        tracing::error!(?err, method="MyService.streamByIdWithResponse", "Failed to serialize success response");
-                                        ::fbthrift::SerializedStreamElement::SerializationError(err)
-                                    },
-                                }
-                            }
-                            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_service::StreamByIdWithResponseStreamExn::Success(_))) => {
-                                panic!("{} attempted to return success via error", "streamByIdWithResponse");
+                            ::std::result::Result::Ok(::std::result::Result::Ok(success)) => {
+                                let payload = ::fbthrift::help::serialize_stream_item::<P, crate::services::my_service::StreamByIdWithResponseStreamExn>(
+                                    ::std::result::Result::Ok(success),
+                                    "streamByIdWithResponse",
+                                );
+                                ::fbthrift::SerializedStreamElement::Success(payload)
                             }
                             ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_service::StreamByIdWithResponseStreamExn::ApplicationException(aexn))) => {
                                 tracing::info!(?aexn, method="MyService.streamByIdWithResponse", "Streaming ApplicationException");
@@ -1835,22 +1762,19 @@ where
                     .boxed();
                 (response, Some(stream))
             },
-            crate::services::my_service::StreamByIdWithResponseExn::ApplicationException(aexn)=> {
-                let response = crate::services::my_service::StreamByIdWithResponseResponseExn::ApplicationException(aexn);
-                (response, None)
-            },
+            ::std::result::Result::Err(exn) => (::std::result::Result::Err(exn), None),
         };
 
-        let response = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
-                    "streamByIdWithResponse",
-                    METHOD_NAME.as_cstr(),
-                    _seqid,
-                    req_ctxt,
-                    &mut ctx_stack,
-                    response
-                )?;
+        let response = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::my_service::StreamByIdWithResponseExn>(
+            "streamByIdWithResponse",
+            METHOD_NAME.as_cstr(),
+            _seqid,
+            req_ctxt,
+            &mut ctx_stack,
+            response,
+        )?;
 
-        let _ = reply_state.lock().unwrap().send_stream_reply(response, stream, P::PROTOCOL_ID);
+        let _ = reply_state.send_stream_reply(response, stream, P::PROTOCOL_ID);
         Ok(())
     }
 
@@ -1866,7 +1790,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -1905,35 +1829,29 @@ where
                 ::tracing::trace!(method = "MyService.startPingInteraction", "success");
                 let (interaction_handler, res) = (res, ());
                 let interaction_processor = ::std::sync::Arc::new(MyInteractionProcessor::<P, ::std::boxed::Box<dyn MyInteraction>, R, RS>::new(interaction_handler));
-                reply_state.lock().unwrap().set_interaction_processor(interaction_processor)?;
-                crate::services::my_service::StartPingInteractionExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_service::StartPingInteractionExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "startPingInteraction",
-                )
+                reply_state.set_interaction_processor(interaction_processor)?;
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                 ::tracing::info!(method = "MyService.startPingInteraction", exception = ?exn);
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("MyService.startPingInteraction", exn);
                 ::tracing::error!(method = "MyService.startPingInteraction", panic = ?aexn);
-                crate::services::my_service::StartPingInteractionExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::my_service::StartPingInteractionExn::ApplicationException(aexn))
             }
         };
 
-        let env = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
+        let env = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::my_service::StartPingInteractionExn>(
             "startPingInteraction",
             METHOD_NAME.as_cstr(),
             _seqid,
             req_ctxt,
             &mut ctx_stack,
-            res
+            res,
         )?;
-        reply_state.lock().unwrap().send_reply(env);
+        reply_state.send_reply(env);
         Ok(())
     }
 }
@@ -1979,7 +1897,7 @@ where
         _p: &mut P::Deserializer,
         _req: ::fbthrift::ProtocolDecoded<P>,
         _req_ctxt: &R,
-        _reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        _reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         match idx {
@@ -2078,7 +1996,7 @@ where
         &self,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
     ) -> ::anyhow::Result<()> {
         use ::fbthrift::{ProtocolReader as _, ServiceProcessor as _};
         let mut p = P::deserializer(req.clone());
@@ -2120,18 +2038,18 @@ where
 
     fn get_method_names(&self) -> &'static [&'static str] {
         &[
-                // from MyService
-                "ping",
-                "getRandomData",
-                "hasDataById",
-                "getDataById",
-                "putDataById",
-                "lobDataById",
-                "streamById",
-                "streamByIdWithException",
-                "streamByIdWithResponse",
-                "startPingInteraction",
-                "MyInteraction.ping",
+            // From module.MyService:
+            "ping",
+            "getRandomData",
+            "hasDataById",
+            "getDataById",
+            "putDataById",
+            "lobDataById",
+            "streamById",
+            "streamByIdWithException",
+            "streamByIdWithResponse",
+            "startPingInteraction",
+            "MyInteraction.ping",
         ]
     }
 

@@ -38,9 +38,9 @@ namespace {
 
 std::vector<t_function*> lifecycleFunctions() {
   static t_function onStartServing_{
-      nullptr, t_base_type::t_void(), "onStartServing"};
+      nullptr, t_primitive_type::t_void(), "onStartServing"};
   static t_function onStopRequested_{
-      nullptr, t_base_type::t_void(), "onStopRequested"};
+      nullptr, t_primitive_type::t_void(), "onStopRequested"};
 
   return {&onStartServing_, &onStopRequested_};
 }
@@ -134,7 +134,7 @@ class py3_mstch_program : public mstch_program {
   py3_mstch_program(
       const t_program* p, mstch_context& ctx, mstch_element_position pos)
       : mstch_program(p, ctx, pos) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"program:unique_functions_by_return_type",
@@ -153,6 +153,7 @@ class py3_mstch_program : public mstch_program {
             {"program:python_capi_converter?",
              &py3_mstch_program::capi_converter},
             {"program:intercompatible?", &py3_mstch_program::intercompatible},
+            {"program:auto_migrate?", &py3_mstch_program::auto_migrate},
             {"program:stream_types", &py3_mstch_program::getStreamTypes},
             {"program:response_and_stream_functions",
              &py3_mstch_program::response_and_stream_functions},
@@ -268,6 +269,8 @@ class py3_mstch_program : public mstch_program {
   mstch::node capi_converter() { return has_option("python_capi_converter"); }
 
   mstch::node intercompatible() { return has_option("intercompatible"); }
+
+  mstch::node auto_migrate() { return has_option("auto_migrate"); }
 
   mstch::node py_deprecated_module_path() {
     const std::string& module_path = program_->get_namespace("py");
@@ -405,9 +408,10 @@ class py3_mstch_service : public mstch_service {
       const t_service* service,
       mstch_context& ctx,
       mstch_element_position pos,
-      const t_program* prog)
-      : mstch_service(service, ctx, pos), prog_{prog} {
-    register_methods(
+      const t_program* prog,
+      const t_service* containing_service = nullptr)
+      : mstch_service(service, ctx, pos, containing_service), prog_{prog} {
+    register_cached_methods(
         this,
         {
             {"service:externalProgram?", &py3_mstch_service::isExternalProgram},
@@ -416,10 +420,6 @@ class py3_mstch_service : public mstch_service {
             {"service:programName", &py3_mstch_service::programName},
             {"service:includePrefix", &py3_mstch_service::includePrefix},
             {"service:cpp_name", &py3_mstch_service::cpp_name},
-            {"service:parent_service_name",
-             &py3_mstch_service::parent_service_name},
-            {"service:parent_service_cpp_name",
-             &py3_mstch_service::parent_service_cpp_name},
             {"service:qualified_name", &py3_mstch_service::qualified_name},
             {"service:supportedFunctions",
              &py3_mstch_service::get_supported_functions},
@@ -427,7 +427,17 @@ class py3_mstch_service : public mstch_service {
              &py3_mstch_service::get_lifecycle_functions},
             {"service:supportedFunctionsWithLifecycle",
              &py3_mstch_service::get_supported_functions_with_lifecycle},
+            {"service:supportedInteractions",
+             &py3_mstch_service::get_supported_interactions},
         });
+
+    // Collect supported interactions
+    for (const auto* function : get_functions()) {
+      if (function->is_interaction_constructor()) {
+        supported_interactions_.insert(dynamic_cast<const t_interaction*>(
+            function->interaction().get_type()));
+      }
+    }
   }
 
   mstch::node isExternalProgram() { return prog_ != service_->program(); }
@@ -450,14 +460,6 @@ class py3_mstch_service : public mstch_service {
   mstch::node qualified_name() {
     return cpp2::get_gen_namespace(*service_->program()) +
         "::" + cpp2::get_name(service_);
-  }
-
-  mstch::node parent_service_name() {
-    return context_.options.at("parent_service_name");
-  }
-
-  mstch::node parent_service_cpp_name() {
-    return context_.options.at("parent_service_cpp_name");
   }
 
   std::vector<t_function*> supportedFunctions() {
@@ -487,8 +489,35 @@ class py3_mstch_service : public mstch_service {
     return make_mstch_functions(funcs, service_);
   }
 
+  mstch::node get_supported_interactions() {
+    return make_mstch_interactions(supported_interactions_, service_);
+  }
+
  protected:
   const t_program* prog_;
+  std::set<const t_interaction*> supported_interactions_;
+};
+
+class py3_mstch_interaction : public py3_mstch_service {
+ public:
+  using ast_type = t_interaction;
+
+  py3_mstch_interaction(
+      const t_interaction* interaction,
+      mstch_context& ctx,
+      mstch_element_position pos,
+      const t_service* containing_service,
+      const t_program* prog)
+      : py3_mstch_service(interaction, ctx, pos, prog, containing_service) {
+    register_cached_methods(
+        this,
+        {{"interaction:parent_service_cpp_name",
+          &py3_mstch_interaction::parent_service_cpp_name}});
+  }
+
+  mstch::node parent_service_cpp_name() {
+    return cpp2::get_name(containing_service_);
+  }
 };
 
 class py3_mstch_function : public mstch_function {
@@ -499,7 +528,7 @@ class py3_mstch_function : public mstch_function {
       mstch_element_position pos,
       const t_interface* iface)
       : mstch_function(f, ctx, pos, iface), cppName_(cpp2::get_name(f)) {
-    register_methods(
+    register_cached_methods(
         this,
         {{"function:eb", &py3_mstch_function::event_based},
          {"function:stack_arguments?", &py3_mstch_function::stack_arguments},
@@ -527,11 +556,7 @@ class py3_mstch_function : public mstch_function {
 
 class py3_mstch_type : public mstch_type {
  public:
-  struct CachedProperties {
-    const std::string cppTemplate;
-    std::string cppType;
-    std::string flatName;
-  };
+  using CachedProperties = apache::thrift::compiler::py3::CachedProperties;
 
   struct data {
     const t_program* program;
@@ -548,12 +573,10 @@ class py3_mstch_type : public mstch_type {
       : mstch_type(type->get_true_type(), ctx, pos),
         prog_(d.program),
         cached_props_(get_cached_props(type, d)) {
-    strip_cpp_comments_and_newlines(cached_props_.cppType);
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"type:modulePath", &py3_mstch_type::modulePath},
-            {"type:need_module_path?", &py3_mstch_type::need_module_path},
             {"type:flat_name", &py3_mstch_type::flatName},
             {"type:cppNamespaces", &py3_mstch_type::cppNamespaces},
             {"type:cppTemplate", &py3_mstch_type::cppTemplate},
@@ -577,6 +600,11 @@ class py3_mstch_type : public mstch_type {
             {"type:resolves_to_complex_return?",
              &py3_mstch_type::resolves_to_complex_return},
         });
+    register_volatile_methods(
+        this,
+        {
+            {"type:need_module_path?", &py3_mstch_type::need_module_path},
+        });
   }
 
   mstch::node need_module_path() {
@@ -595,19 +623,19 @@ class py3_mstch_type : public mstch_type {
     return fmt::format("_{}", fmt::join(get_type_py3_namespace(), "_"));
   }
 
-  mstch::node flatName() { return cached_props_.flatName; }
+  mstch::node flatName() { return cached_props_.flatName(); }
 
   mstch::node cppNamespaces() {
     return create_string_array(get_type_cpp2_namespace());
   }
 
-  mstch::node cppTemplate() { return cached_props_.cppTemplate; }
+  mstch::node cppTemplate() { return cached_props_.cppTemplate(); }
 
   mstch::node cythonTemplate() { return to_cython_template(); }
 
   mstch::node isDefaultTemplate() { return is_default_template(); }
 
-  mstch::node cppType() { return cached_props_.cppType; }
+  mstch::node cppType() { return cached_props_.cppType(); }
 
   mstch::node cythonType() { return to_cython_type(); }
 
@@ -636,7 +664,7 @@ class py3_mstch_type : public mstch_type {
   mstch::node hasCustomTypeBehavior() { return has_custom_type_behavior(); }
 
   mstch::node isSimple() {
-    return (type_->is_base_type() || type_->is_enum()) &&
+    return (type_->is_primitive_type() || type_->is_enum()) &&
         !has_custom_type_behavior();
   }
 
@@ -646,33 +674,17 @@ class py3_mstch_type : public mstch_type {
         resolved_type_->is_exception();
   }
 
-  const std::string& get_flat_name() const { return cached_props_.flatName; }
+  const std::string& get_flat_name() const { return cached_props_.flatName(); }
 
-  void set_flat_name(std::string extra) {
-    std::string custom_prefix;
-    if (!is_default_template()) {
-      custom_prefix = to_cython_template() + "__";
-    } else {
-      if (cached_props_.cppType != "") {
-        custom_prefix = to_cython_type() + "__";
-      }
-    }
-    const t_program* typeProgram = type_->program();
-    if (typeProgram && typeProgram != prog_) {
-      custom_prefix += typeProgram->name() + "_";
-    }
-    custom_prefix += extra;
-    cached_props_.flatName = std::move(custom_prefix);
+  void set_flat_name(const std::string& extra) {
+    cached_props_.set_flat_name(prog_, type_, extra);
   }
 
   bool is_default_template() const {
-    return (!type_->is_container() && cached_props_.cppTemplate == "") ||
-        (type_->is_list() && cached_props_.cppTemplate == "std::vector") ||
-        (type_->is_set() && cached_props_.cppTemplate == "std::set") ||
-        (type_->is_map() && cached_props_.cppTemplate == "std::map");
+    return cached_props_.is_default_template(type_);
   }
 
-  bool has_custom_cpp_type() const { return cached_props_.cppType != ""; }
+  bool has_custom_cpp_type() const { return cached_props_.cppType() != ""; }
 
  protected:
   const t_program* get_type_program() const {
@@ -693,32 +705,10 @@ class py3_mstch_type : public mstch_type {
   }
 
   std::string to_cython_template() const {
-    // handle special built-ins first:
-    if (cached_props_.cppTemplate == "std::vector") {
-      return "vector";
-    } else if (cached_props_.cppTemplate == "std::set") {
-      return "cset";
-    } else if (cached_props_.cppTemplate == "std::map") {
-      return "cmap";
-    }
-    // then default handling:
-    return boost::algorithm::replace_all_copy(
-        cached_props_.cppTemplate, "::", "_");
+    return cached_props_.to_cython_template();
   }
 
-  std::string to_cython_type() const {
-    if (cached_props_.cppType == "") {
-      return "";
-    }
-    std::string cython_type = cached_props_.cppType;
-    boost::algorithm::replace_all(cython_type, "::", "_");
-    boost::algorithm::replace_all(cython_type, "<", "_");
-    boost::algorithm::replace_all(cython_type, ">", "");
-    boost::algorithm::replace_all(cython_type, " ", "");
-    boost::algorithm::replace_all(cython_type, ", ", "_");
-    boost::algorithm::replace_all(cython_type, ",", "_");
-    return cython_type;
-  }
+  std::string to_cython_type() const { return cached_props_.to_cython_type(); }
 
   bool is_integer() const { return type_->is_any_int() || type_->is_byte(); }
 
@@ -740,10 +730,10 @@ class py3_mstch_type : public mstch_type {
 
   bool has_cython_type() const { return !type_->is_container(); }
 
-  bool is_iobuf() const { return cached_props_.cppType == "folly::IOBuf"; }
+  bool is_iobuf() const { return cached_props_.cppType() == "folly::IOBuf"; }
 
   bool is_iobuf_ref() const {
-    return cached_props_.cppType == "std::unique_ptr<folly::IOBuf>";
+    return cached_props_.cppType() == "std::unique_ptr<folly::IOBuf>";
   }
 
   bool is_flexible_binary() const {
@@ -751,8 +741,8 @@ class py3_mstch_type : public mstch_type {
         !is_iobuf_ref() &&
         // We know that folly::fbstring is completely substitutable for
         // std::string and it's a common-enough type to special-case:
-        cached_props_.cppType != "folly::fbstring" &&
-        cached_props_.cppType != "::folly::fbstring";
+        cached_props_.cppType() != "folly::fbstring" &&
+        cached_props_.cppType() != "::folly::fbstring";
   }
 
   bool has_custom_type_behavior() const {
@@ -768,7 +758,7 @@ class py3_mstch_struct : public mstch_struct {
   py3_mstch_struct(
       const t_structured* s, mstch_context& ctx, mstch_element_position pos)
       : mstch_struct(s, ctx, pos) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"struct:size", &py3_mstch_struct::getSize},
@@ -784,6 +774,8 @@ class py3_mstch_struct : public mstch_struct {
             {"struct:py3_fields", &py3_mstch_struct::py3_fields},
             {"struct:py3_fields?", &py3_mstch_struct::has_py3_fields},
             {"struct:has_hidden_fields?", &py3_mstch_struct::has_hidden_fields},
+            {"struct:has_defaulted_field?",
+             &py3_mstch_struct::has_defaulted_field},
         });
     py3_fields_ = struct_->fields().copy();
     py3_fields_.erase(
@@ -800,7 +792,7 @@ class py3_mstch_struct : public mstch_struct {
         py3_fields_.end());
   }
 
-  mstch::node getSize() { return std::to_string(py3_fields_.size()); }
+  mstch::node getSize() { return py3_fields_.size(); }
 
   mstch::node isStructOrderable() {
     return cpp2::is_orderable(*struct_) &&
@@ -830,6 +822,18 @@ class py3_mstch_struct : public mstch_struct {
   mstch::node has_py3_fields() { return !py3_fields_.empty(); }
 
   mstch::node has_hidden_fields() { return hidden_fields; }
+
+  mstch::node has_defaulted_field() {
+    if (struct_->is_union()) {
+      return false;
+    }
+    for (const auto& field : py3_fields_) {
+      if (field->get_value()) {
+        return true;
+      }
+    }
+    return false;
+  }
 
   mstch::node fields_and_mixin_fields() {
     std::vector<const t_field*> fields = py3_fields_;
@@ -862,7 +866,7 @@ class py3_mstch_field : public mstch_field {
       : mstch_field(field, ctx, pos, field_context),
         pyName_(py3::get_py3_name(*field)),
         cppName_(cpp2::get_name(field)) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"field:py_name", &py3_mstch_field::pyName},
@@ -982,7 +986,7 @@ class py3_mstch_enum : public mstch_enum {
   py3_mstch_enum(
       const t_enum* e, mstch_context& ctx, mstch_element_position pos)
       : mstch_enum(e, ctx, pos) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"enum:flags?", &py3_mstch_enum::hasFlags},
@@ -1002,7 +1006,7 @@ class py3_mstch_enum_value : public mstch_enum_value {
   py3_mstch_enum_value(
       const t_enum_value* ev, mstch_context& ctx, mstch_element_position pos)
       : mstch_enum_value(ev, ctx, pos) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"enum_value:py_name", &py3_mstch_enum_value::pyName},
@@ -1025,7 +1029,7 @@ class py3_mstch_deprecated_annotation : public mstch_deprecated_annotation {
   py3_mstch_deprecated_annotation(
       const t_annotation* a, mstch_context& ctx, mstch_element_position pos)
       : mstch_deprecated_annotation(a, ctx, pos) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"annotation:value?", &py3_mstch_deprecated_annotation::has_value},
@@ -1294,6 +1298,7 @@ py3_mstch_type::CachedProperties& py3_mstch_type::get_cached_props(
 void t_mstch_py3_generator::set_mstch_factories() {
   mstch_context_.add<py3_mstch_program>();
   mstch_context_.add<py3_mstch_service>(program_);
+  mstch_context_.add<py3_mstch_interaction>(program_);
   mstch_context_.add<py3_mstch_function>();
   mstch_context_.add<py3_mstch_type>(
       py3_mstch_type::data{program_, &type_props_cache_});
@@ -1339,6 +1344,23 @@ void t_mstch_py3_generator::generate_file(
 }
 
 void t_mstch_py3_generator::generate_types() {
+  std::vector<std::string> autoMigrateFilesWithTypeContext{
+      "types.py",
+      // without auto_migrate, .pxd contains just bindings of cpp thrift types
+      "types.pxd",
+  };
+
+  std::vector<std::string> autoMigrateFilesNoTypeContext{
+      "metadata.py",
+      "builders.py",
+      "types_reflection.py",
+  };
+
+  std::vector<std::string> converterFiles{
+      "converter.pxd",
+      "converter.pyx",
+  };
+
   std::vector<std::string> cythonFilesWithTypeContext{
       "types.pyx",
       "types.pxd",
@@ -1346,13 +1368,11 @@ void t_mstch_py3_generator::generate_types() {
   };
 
   std::vector<std::string> cythonFilesNoTypeContext{
-      "types_reflection.pxd",
-      "types_reflection.pyx",
+      "types_reflection.py",
+      "types_empty.pyx",
       "types_fields.pxd",
       "types_fields.pyx",
-      "builders.pxd",
-      "builders.pyx",
-      "builders.pyi",
+      "builders.py",
       "metadata.pxd",
       "metadata.pyi",
       "metadata.pyx",
@@ -1367,17 +1387,31 @@ void t_mstch_py3_generator::generate_types() {
       "metadata.cpp",
   };
 
-  for (const auto& file : cythonFilesWithTypeContext) {
+  for (const auto& file : converterFiles) {
     generate_file(file, IsTypesFile, generateRootPath_);
   }
-  for (const auto& file : cppFilesWithTypeContext) {
-    generate_file(file, IsTypesFile);
-  }
-  for (const auto& file : cythonFilesNoTypeContext) {
-    generate_file(file, NotTypesFile, generateRootPath_);
-  }
-  for (const auto& file : cppFilesWithNoTypeContext) {
-    generate_file(file, NotTypesFile);
+  // - if auto_migrate is present, generate types.pxd, and types.py
+  // - else, just generate normal cython files
+  if (has_option("auto_migrate")) {
+    for (const auto& file : autoMigrateFilesWithTypeContext) {
+      generate_file(file, IsTypesFile, generateRootPath_);
+    }
+    for (const auto& file : autoMigrateFilesNoTypeContext) {
+      generate_file(file, NotTypesFile, generateRootPath_);
+    }
+  } else {
+    for (const auto& file : cythonFilesWithTypeContext) {
+      generate_file(file, IsTypesFile, generateRootPath_);
+    }
+    for (const auto& file : cppFilesWithTypeContext) {
+      generate_file(file, IsTypesFile);
+    }
+    for (const auto& file : cythonFilesNoTypeContext) {
+      generate_file(file, NotTypesFile, generateRootPath_);
+    }
+    for (const auto& file : cppFilesWithNoTypeContext) {
+      generate_file(file, NotTypesFile);
+    }
   }
 }
 
@@ -1390,17 +1424,26 @@ void t_mstch_py3_generator::generate_services() {
     return;
   }
 
-  std::vector<std::string> cythonFiles{
+  std::vector<std::string> pythonFiles{
+      "clients.py",
+      "services.py",
+      "services_reflection.py",
+  };
+
+  std::vector<std::string> normalCythonFiles{
       "clients.pxd",
       "clients.pyx",
       "clients.pyi",
-      "clients_wrapper.pxd",
       "services.pxd",
       "services.pyx",
       "services.pyi",
+  };
+
+  std::vector<std::string> cythonFiles{
+      "clients_wrapper.pxd",
       "services_wrapper.pxd",
       "services_reflection.pxd",
-      "services_reflection.pyx",
+      "services_reflection.py",
   };
 
   std::vector<std::string> cppFiles{
@@ -1410,11 +1453,25 @@ void t_mstch_py3_generator::generate_services() {
       "services_wrapper.cpp",
   };
 
-  for (const auto& file : cythonFiles) {
-    generate_file(file, NotTypesFile, generateRootPath_);
-  }
-  for (const auto& file : cppFiles) {
-    generate_file(file, NotTypesFile);
+  // TODO this logic is a complete mess and I intend to clean it up later
+  // the gist is:
+  // - if auto_migrate is present, generate py3_clients and clients.px
+  // - if auto_migrate isn't present, just generate all the normal files
+
+  if (has_option("auto_migrate")) {
+    for (const auto& file : pythonFiles) {
+      generate_file(file, NotTypesFile, generateRootPath_);
+    }
+  } else {
+    for (const auto& file : normalCythonFiles) {
+      generate_file(file, NotTypesFile, generateRootPath_);
+    }
+    for (const auto& file : cppFiles) {
+      generate_file(file, NotTypesFile);
+    }
+    for (const auto& file : cythonFiles) {
+      generate_file(file, NotTypesFile, generateRootPath_);
+    }
   }
 }
 

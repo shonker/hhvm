@@ -103,6 +103,7 @@ type t =
       pos: Pos.t;
       id: string option;
     }
+  | Invalid_type_access_in_where of Pos.t
   | Duplicate_user_attribute of {
       pos: Pos.t;
       attr_name: string;
@@ -296,6 +297,7 @@ type t =
       def_pos: Pos.t;
     }
   | Toplevel_statement of Pos.t
+  | Attribute_outside_allowed_files of Pos.t
 
 let const_without_typehint pos name type_ =
   let name = Utils.strip_all_ns name in
@@ -307,7 +309,7 @@ let const_without_typehint pos name type_ =
     | "float" -> ("Add float type annotation", "float " ^ name)
     | _ -> ("Add mixed type annotation", "mixed " ^ name)
   in
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum AddATypehint)
     ~quickfixes:[Quickfix.make_eager_default_hint_style ~title ~new_text pos]
     (pos, msg)
@@ -318,28 +320,28 @@ let prop_without_typehint pos name vis =
   let msg =
     Printf.sprintf "Please add a type hint `%s SomeType $%s`" visibility name
   in
-  User_error.make Error_code.(to_enum AddATypehint) (pos, msg) []
+  User_error.make_err Error_code.(to_enum AddATypehint) (pos, msg) []
 
 let illegal_constant pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum IllegalConstant)
     (pos, "Illegal constant value")
     []
 
 let invalid_req_implements pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum InvalidReqImplements)
     (pos, "Only traits may use `require implements`")
     []
 
 let invalid_req_extends pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum InvalidReqExtends)
     (pos, "Only traits and interfaces may use `require extends`")
     []
 
 let invalid_req_class pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum InvalidReqClass)
     (pos, "Only traits may use `require class`")
     []
@@ -355,7 +357,7 @@ let did_you_mean_naming pos name suggest_pos suggest_name =
         pos;
     ]
   in
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum DidYouMeanNaming)
     ~quickfixes
     (pos, "Could not find " ^ Markdown_lite.md_codify name ^ ".")
@@ -367,7 +369,7 @@ let did_you_mean_naming pos name suggest_pos suggest_name =
     ]
 
 let using_internal_class pos name =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum UsingInternalClass)
     ( pos,
       Markdown_lite.md_codify name
@@ -375,19 +377,19 @@ let using_internal_class pos name =
     []
 
 let too_few_type_arguments p =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum TooFewTypeArguments)
     (p, "Too few type arguments for this type")
     []
 
 let dynamic_class_name_in_strict_mode pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum DynamicClassNameInStrictMode)
     (pos, "Cannot use dynamic class or method name in strict mode")
     []
 
 let xhp_optional_required_attr pos id =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum XhpOptionalRequiredAttr)
     ( pos,
       "XHP attribute "
@@ -396,7 +398,7 @@ let xhp_optional_required_attr pos id =
     []
 
 let xhp_required_with_default pos id =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum XhpRequiredWithDefault)
     ( pos,
       "XHP attribute "
@@ -405,20 +407,20 @@ let xhp_required_with_default pos id =
     []
 
 let array_typehints_disallowed pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum ArrayTypehintsDisallowed)
     ( pos,
       "Array typehints are no longer legal; use `varray` or `darray` instead" )
     []
 
 let wildcard_hint_disallowed pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum WildcardHintDisallowed)
     (pos, "Wildcard typehints are not allowed in this position")
     []
 
 let dynamic_hint_disallowed pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum DynamicHintDisallowed)
     (pos, "dynamic typehints are not allowed in this position")
     []
@@ -430,20 +432,20 @@ let illegal_typed_local ~join id_pos name def_pos =
     else
       "It is already defined. Typed locals must have their type declared before they can be assigned."
   in
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum IllegalTypedLocal)
     (id_pos, "Illegal definition of typed local variable " ^ name ^ ".")
     [(def_pos, desc)]
 
 let wildcard_param_disallowed pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum WildcardTypeParamDisallowed)
     (pos, "Cannot use anonymous type parameter in this position.")
     []
 
 let illegal_use_of_dynamically_callable attr_pos meth_pos vis =
   let visibility = visibility_to_string vis in
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum IllegalUseOfDynamicallyCallable)
     (attr_pos, "`__DynamicallyCallable` can only be used on public methods")
     [
@@ -452,7 +454,7 @@ let illegal_use_of_dynamically_callable attr_pos meth_pos vis =
     ]
 
 let unsupported_trait_use_as pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum UnsupportedTraitUseAs)
     ( pos,
       "Aliasing with `as` within a trait `use` is a PHP feature that is unsupported in Hack"
@@ -460,13 +462,13 @@ let unsupported_trait_use_as pos =
     []
 
 let unsupported_instead_of pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum UnsupportedInsteadOf)
     (pos, "`insteadof` is a PHP feature that is unsupported in Hack")
     []
 
 let unexpected_arrow pos cname =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum UnexpectedArrow)
     ( pos,
       Format.sprintf {|Keys may not be specified for %s initialization|} cname
@@ -486,10 +488,10 @@ let parent_in_function_pointer pos meth_name parent_name =
         "Cannot use `parent::` in a function pointer due to class context ambiguity. Consider using %s instead"
         name
   in
-  User_error.make Error_code.(to_enum ParentInFunctionPointer) (pos, msg) []
+  User_error.make_err Error_code.(to_enum ParentInFunctionPointer) (pos, msg) []
 
 let missing_arrow pos cname =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum MissingArrow)
     ( pos,
       Format.sprintf {|Keys must be specified for %s initialization|}
@@ -497,7 +499,7 @@ let missing_arrow pos cname =
     []
 
 let disallowed_xhp_type pos ty_name =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum DisallowedXhpType)
     ( pos,
       Format.sprintf {|%s is not a valid type. Use `:xhp` or `XHPChild`.|}
@@ -505,7 +507,7 @@ let disallowed_xhp_type pos ty_name =
     []
 
 let name_is_reserved pos name =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum NameIsReserved)
     ( pos,
       Format.sprintf {|%s cannot be used as it is reserved.|}
@@ -514,7 +516,7 @@ let name_is_reserved pos name =
     []
 
 let dollardollar_unused pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum DollardollarUnused)
     ( pos,
       "This expression does not contain a "
@@ -523,7 +525,7 @@ let dollardollar_unused pos =
     []
 
 let already_bound pos name =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum NameAlreadyBound)
     ( pos,
       Format.sprintf "Argument already bound: %s"
@@ -531,7 +533,7 @@ let already_bound pos name =
     []
 
 let method_name_already_bound pos meth_name =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum MethodNameAlreadyBound)
     ( pos,
       Format.sprintf "Method name already bound: %s"
@@ -560,7 +562,7 @@ let error_name_already_bound pos name prev_pos =
     [(Pos_or_decl.of_raw_pos prev_pos, "Previous definition is here")] @ suffix
   in
 
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum ErrorNameAlreadyBound)
     ( pos,
       Format.sprintf "Name already bound: %s"
@@ -569,10 +571,10 @@ let error_name_already_bound pos name prev_pos =
     reasons
 
 let invalid_fun_pointer pos name =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum InvalidFunPointer)
     ( pos,
-      Format.sprintf "Unbound global function: %s is not a valid name for fun()"
+      Format.sprintf "%s cannot be used as a function pointer"
       @@ Markdown_lite.md_codify
       @@ Render.strip_ns name )
     []
@@ -595,7 +597,7 @@ let undefined pos var_name did_you_mean =
               pos;
           ] ))
   in
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum Undefined)
     ( pos,
       Format.sprintf "Variable %s is undefined, or not always defined."
@@ -625,7 +627,7 @@ let undefined_in_expr_tree pos var_name dsl did_you_mean =
     | Some dsl -> Printf.sprintf "`%s` expression tree" @@ Utils.strip_ns dsl
     | None -> "expression tree"
   in
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum Undefined)
     ( pos,
       Format.sprintf
@@ -636,19 +638,19 @@ let undefined_in_expr_tree pos var_name dsl did_you_mean =
     ~quickfixes
 
 let this_reserved pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum ThisReserved)
     (pos, "The type parameter `this` is reserved")
     []
 
 let start_with_T pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum StartWith_T)
     (pos, "Please make your type parameter start with the letter `T` (capital)")
     []
 
 let unexpected_typedef pos expected_kind decl_pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum UnexpectedTypedef)
     ( pos,
       Printf.sprintf "Expected a %s but got a type alias."
@@ -657,13 +659,13 @@ let unexpected_typedef pos expected_kind decl_pos =
     [(Pos_or_decl.of_raw_pos decl_pos, "Alias definition is here.")]
 
 let field_name_already_bound pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum FdNameAlreadyBound)
     (pos, "Field name already bound")
     []
 
 let primitive_top_level pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum PrimitiveToplevel)
     ( pos,
       "Primitive type annotations are always available and may no longer be referred to in the toplevel namespace."
@@ -671,7 +673,7 @@ let primitive_top_level pos =
     []
 
 let primitive_invalid_alias pos ty_name_used ty_name_canon =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum PrimitiveInvalidAlias)
     ( pos,
       Format.sprintf
@@ -681,7 +683,7 @@ let primitive_invalid_alias pos ty_name_used ty_name_canon =
     []
 
 let dynamic_new_in_strict_mode pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum DynamicNewInStrictMode)
     (pos, "Cannot use dynamic `new`.")
     []
@@ -695,10 +697,21 @@ let invalid_type_access_root pos id_opt =
     | _ ->
       Format.sprintf "Type access is only valid for a class, `self`, or `this`"
   in
-  User_error.make Error_code.(to_enum InvalidTypeAccessRoot) (pos, msg) []
+  User_error.make_err Error_code.(to_enum InvalidTypeAccessRoot) (pos, msg) []
+
+let invalid_type_access_in_where pos =
+  let msg =
+    "Type access is only valid for a class, `self`, or `this`."
+    ^ " To relate type parameters and type constants,"
+    ^ " you likely want to use the 'with refinement' feature instead."
+  in
+  User_error.make_err
+    Error_code.(to_enum InvalidTypeAccessInWhere)
+    (pos, msg)
+    []
 
 let duplicate_user_attribute attr_name prev_pos pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum DuplicateUserAttribute)
     ( pos,
       Format.sprintf "You cannot reuse the attribute %s"
@@ -709,7 +722,7 @@ let duplicate_user_attribute attr_name prev_pos pos =
     ]
 
 let invalid_memoize_label attr_name pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum InvalidMemoizeLabel)
     ( pos,
       Format.sprintf
@@ -728,7 +741,7 @@ let unbound_name pos name kind =
     | Name_context.ModuleNamespace -> " (a module)"
     | Name_context.PackageNamespace -> " (a package)"
   in
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum UnboundName)
     ( pos,
       "Unbound name: "
@@ -759,7 +772,7 @@ let unbound_attribute_name pos attr_name closest_attr_name =
       []
   in
 
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum UnboundName)
     ~quickfixes
     ( pos,
@@ -770,37 +783,37 @@ let unbound_attribute_name pos attr_name closest_attr_name =
     []
 
 let this_no_argument pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum ThisNoArgument)
     (pos, "`this` expects no arguments")
     []
 
 let object_cast pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum ObjectCast)
     (pos, "Casts are only supported for `bool`, `int`, `float` and `string`.")
     []
 
 let this_hint_outside_class pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum ThisHintOutsideClass)
     (pos, "Cannot use `this` outside of a class")
     []
 
 let parent_outside_class pos =
-  User_error.make
+  User_error.make_err
     Error_codes.Typing.(to_enum ParentOutsideClass)
     (pos, "`parent` is undefined outside of a class")
     []
 
 let self_outside_class pos =
-  User_error.make
+  User_error.make_err
     Error_codes.Typing.(to_enum SelfOutsideClass)
     (pos, "`self` is undefined outside of a class")
     []
 
 let static_outside_class pos =
-  User_error.make
+  User_error.make_err
     Error_codes.Typing.(to_enum StaticOutsideClass)
     (pos, "`static` is undefined outside of a class")
     []
@@ -814,22 +827,31 @@ let this_type_forbidden pos in_extends in_req_extends =
     else
       "The type `this` cannot be used as a constraint on a class generic, or as the type of a static member variable"
   in
-  User_error.make Error_code.(to_enum ThisMustBeReturn) (pos, msg) []
+  User_error.make_err Error_code.(to_enum ThisMustBeReturn) (pos, msg) []
 
 let toplevel_statement pos =
   let msg =
     "Hack does not support top level statements. Use the `__EntryPoint` attribute on a function instead"
   in
-  User_error.make Error_code.(to_enum ToplevelStatement) (pos, msg) []
+  User_error.make_err Error_code.(to_enum ToplevelStatement) (pos, msg) []
+
+let attribute_outside_allowed_files pos =
+  User_error.make_err
+    Error_code.(to_enum AttributeOutsideAllowedFiles)
+    ( pos,
+      "This attribute exists in an unapproved file. "
+      ^ "The set of approved files is in .hhconfig. Please talk to someone from the Hack team before changing this."
+    )
+    []
 
 let nonstatic_property_with_lsb pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum NonstaticPropertyWithLSB)
     (pos, "`__LSB` attribute may only be used on static properties")
     []
 
 let lowercase_this pos ty_name =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum LowercaseThis)
     ( pos,
       Format.sprintf "Invalid Hack type %s. Use `this` instead."
@@ -837,7 +859,7 @@ let lowercase_this pos ty_name =
     []
 
 let classname_param pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum ClassnameParam)
     ( pos,
       "Missing type parameter to `classname`; `classname` is entirely"
@@ -845,7 +867,7 @@ let classname_param pos =
     []
 
 let tparam_applied_to_type pos tparam_name =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum HigherKindedTypesUnsupportedFeature)
     ( pos,
       Printf.sprintf
@@ -855,7 +877,7 @@ let tparam_applied_to_type pos tparam_name =
     []
 
 let tparam_with_tparam pos tparam_name =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum HigherKindedTypesUnsupportedFeature)
     ( pos,
       if String.equal tparam_name "_" then
@@ -867,7 +889,7 @@ let tparam_with_tparam pos tparam_name =
     []
 
 let shadowed_tparam prev_pos tparam_name pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum ShadowedTypeParam)
     ( pos,
       Printf.sprintf
@@ -881,31 +903,31 @@ let shadowed_tparam prev_pos tparam_name pos =
     ]
 
 let missing_typehint pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum MissingTypehint)
     (pos, "Please add a type hint")
     []
 
 let expected_variable pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum ExpectedVariable)
     (pos, "Was expecting a variable name")
     []
 
 let too_many_arguments pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum NamingTooManyArguments)
     (pos, "Too many arguments")
     []
 
 let too_few_arguments pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum NamingTooFewArguments)
     (pos, "Too few arguments")
     []
 
 let expected_collection pos cname =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum ExpectedCollection)
     ( pos,
       Format.sprintf
@@ -914,19 +936,19 @@ let expected_collection pos cname =
     []
 
 let illegal_CLASS pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum IllegalClass)
     (pos, "Using `__CLASS__` outside a class or trait")
     []
 
 let illegal_TRAIT pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum IllegalTrait)
     (pos, "Using `__TRAIT__` outside a trait")
     []
 
 let illegal_fun pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum IllegalFun)
     ( pos,
       "The argument to `fun()` must be a single-quoted, constant "
@@ -934,7 +956,7 @@ let illegal_fun pos =
     []
 
 let illegal_member_variable_class pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum IllegalMemberVariableClass)
     ( pos,
       "Cannot declare a constant named `class`. The name `class` is reserved for the class constant that represents the name of the class"
@@ -942,7 +964,7 @@ let illegal_member_variable_class pos =
     []
 
 let illegal_meth_fun pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum IllegalMethFun)
     ( pos,
       "String argument to `fun()` contains `:`;"
@@ -952,7 +974,7 @@ let illegal_meth_fun pos =
     []
 
 let illegal_inst_meth pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum IllegalInstMeth)
     ( pos,
       "The argument to `inst_meth()` must be an expression and a "
@@ -960,7 +982,7 @@ let illegal_inst_meth pos =
     []
 
 let illegal_meth_caller pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum IllegalMethCaller)
     ( pos,
       "The two arguments to `meth_caller()` must be:"
@@ -970,7 +992,7 @@ let illegal_meth_caller pos =
     []
 
 let illegal_class_meth pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum IllegalClassMeth)
     ( pos,
       "The two arguments to `class_meth()` must be:"
@@ -998,7 +1020,7 @@ let lvar_in_obj_get pos lvar_pos lvar_name =
     ]
   in
 
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum LvarInObjGet)
     ~quickfixes
     ( pos,
@@ -1007,7 +1029,7 @@ let lvar_in_obj_get pos lvar_pos lvar_name =
     [(Pos_or_decl.of_raw_pos lvar_pos, suggestion_message)]
 
 let dynamic_method_access pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum DynamicMethodAccess)
     ( pos,
       "Dynamic method access is not allowed. Please use the method name directly, for example `::myMethodName()`"
@@ -1015,7 +1037,7 @@ let dynamic_method_access pos =
     []
 
 let class_meth_non_final_self pos class_name =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum ClassMethNonFinalSelf)
     ( pos,
       Format.sprintf
@@ -1024,7 +1046,7 @@ let class_meth_non_final_self pos class_name =
     []
 
 let class_meth_non_final_CLASS pos class_name is_trait =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum ClassMethNonFinalCLASS)
     ( pos,
       if is_trait then
@@ -1045,7 +1067,7 @@ let self_in_non_final_function_pointer pos class_name meth_name =
       in
       "Consider using " ^ name ^ " instead"
   in
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum SelfInNonFinalFunctionPointer)
     ( pos,
       "Cannot use `self::` in a function pointer in a non-final class due to class context ambiguity. "
@@ -1053,7 +1075,7 @@ let self_in_non_final_function_pointer pos class_name meth_name =
     []
 
 let invalid_wildcard_context pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum InvalidWildcardContext)
     ( pos,
       "A wildcard can only be used as a context when it is the sole context of a callable parameter in a higher-order function. The parameter must also be referenced with `ctx` in the higher-order function's context list, e.g. `function hof((function ()[_]: void) $f)[ctx $f]: void {}`"
@@ -1068,7 +1090,7 @@ let return_only_typehint pos kind =
     | Hvoid -> "void"
     | Hnoreturn -> "noreturn"
   in
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum ReturnOnlyTypehint)
     ( pos,
       Format.sprintf
@@ -1077,19 +1099,19 @@ let return_only_typehint pos kind =
     []
 
 let unexpected_type_arguments pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum UnexpectedTypeArguments)
     (pos, "Type arguments are not expected for this type")
     []
 
 let too_many_type_arguments pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum TooManyTypeArguments)
     (pos, "Too many type arguments for this type")
     []
 
 let this_as_lexical_variable pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum ThisAsLexicalVariable)
     (pos, "Cannot use `$this` as lexical variable")
     []
@@ -1112,7 +1134,7 @@ let hkt_unsupported_feature pos because_nested var_name feature =
     | Ft_user_attrs -> "user attributes on"
     | Ft_variance -> "variance other than invariant for"
   in
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum HigherKindedTypesUnsupportedFeature)
     ( pos,
       Format.sprintf
@@ -1123,7 +1145,7 @@ let hkt_unsupported_feature pos because_nested var_name feature =
     []
 
 let hkt_partial_application pos count =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum HigherKindedTypesUnsupportedFeature)
     ( pos,
       Format.sprintf
@@ -1132,7 +1154,7 @@ let hkt_partial_application pos count =
     []
 
 let hkt_wildcard pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum HigherKindedTypesUnsupportedFeature)
     ( pos,
       "You are supplying _ where a higher-kinded type is expected."
@@ -1149,7 +1171,7 @@ let hkt_implicit_argument decl_pos param_name pos =
     else
       "the generic parameter " ^ param_name
   in
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum HigherKindedTypesUnsupportedFeature)
     ( pos,
       "You left out the type arguments here such that they may be inferred."
@@ -1164,7 +1186,7 @@ let hkt_implicit_argument decl_pos param_name pos =
     ]
 
 let hkt_class_with_constraints_used pos class_name =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum HigherKindedTypesUnsupportedFeature)
     ( pos,
       Format.sprintf
@@ -1183,7 +1205,7 @@ let hkt_alias_with_implicit_constraints
   let typedef_name = Render.strip_ns typedef_name
   and used_class_in_def_name = Render.strip_ns used_class_in_def_name
   and used_class_tparam_name = Render.strip_ns used_class_tparam_name in
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum HigherKindedTypesUnsupportedFeature)
     ( pos,
       Format.sprintf
@@ -1216,7 +1238,7 @@ let explicit_consistent_constructor ck pos =
     | Ast_defs.Cenum_class _ -> "enum class "
     | Ast_defs.Cenum -> "enum "
   in
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum ExplicitConsistentConstructor)
     ( pos,
       "This "
@@ -1226,7 +1248,7 @@ let explicit_consistent_constructor ck pos =
     []
 
 let module_declaration_outside_allowed_files pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum ModuleDeclarationOutsideAllowedFiles)
     ( pos,
       "This module declaration exists in an unapproved file. "
@@ -1234,7 +1256,7 @@ let module_declaration_outside_allowed_files pos =
     []
 
 let internal_module_level_trait pos =
-  User_error.make
+  User_error.make_err
     Error_code.(to_enum InternalModuleLevelTrait)
     (pos, "Internal modules cannot have the <<__ModuleLevelTrait>> attribute")
     []
@@ -1245,7 +1267,7 @@ let deprecated_use pos fn_name =
     ^ Markdown_lite.md_codify (Render.strip_ns fn_name)
     ^ " is deprecated."
   in
-  User_error.make Error_codes.Typing.(to_enum DeprecatedUse) (pos, msg) []
+  User_error.make_err Error_codes.Typing.(to_enum DeprecatedUse) (pos, msg) []
 
 let unnecessary_attribute pos ~attr ~class_pos ~class_name ~suggestion =
   let class_name = Render.strip_ns class_name in
@@ -1264,13 +1286,13 @@ let unnecessary_attribute pos ~attr ~class_pos ~class_name ~suggestion =
       (Pos_or_decl.of_raw_pos pos, suggestion);
     ]
   in
-  User_error.make
+  User_error.make_err
     Error_codes.Typing.(to_enum UnnecessaryAttribute)
     (pos, sprintf "The attribute `%s` is unnecessary" @@ Render.strip_ns attr)
     reason
 
 let tparam_non_shadowing_reuse pos var_name =
-  User_error.make
+  User_error.make_err
     Error_codes.Typing.(to_enum TypeParameterNameAlreadyUsedNonShadow)
     ( pos,
       "The name "
@@ -1305,6 +1327,7 @@ let to_user_error = function
     primitive_invalid_alias pos ty_name_used ty_name_canon
   | Dynamic_new_in_strict_mode pos -> dynamic_new_in_strict_mode pos
   | Invalid_type_access_root { pos; id } -> invalid_type_access_root pos id
+  | Invalid_type_access_in_where pos -> invalid_type_access_in_where pos
   | Duplicate_user_attribute { attr_name; prev_pos; pos } ->
     duplicate_user_attribute attr_name prev_pos pos
   | Invalid_memoize_label { attr_name; pos } ->
@@ -1424,3 +1447,4 @@ let to_user_error = function
   | Illegal_typed_local { join; id_pos; id_name; def_pos } ->
     illegal_typed_local ~join id_pos id_name (Pos_or_decl.of_raw_pos def_pos)
   | Toplevel_statement pos -> toplevel_statement pos
+  | Attribute_outside_allowed_files pos -> attribute_outside_allowed_files pos

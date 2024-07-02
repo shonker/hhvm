@@ -7,7 +7,10 @@ use env::emitter::Emitter;
 use error::Error;
 use error::Result;
 use ffi::Maybe;
+use hhbc::Attr;
+use hhbc::Attribute;
 use hhbc::Body;
+use hhbc::Coeffects;
 use hhbc::Local;
 use hhbc::ParamEntry;
 use instruction_sequence::instr;
@@ -26,44 +29,46 @@ pub fn emit_body<'a, 'd>(
     class_attrs: &[ast::UserAttribute],
     name: &ast::Sid,
     params: &[ast::FunParam],
+    attributes: Vec<Attribute>,
+    attrs: Attr,
+    coeffects: Coeffects,
     ret: Option<&aast::Hint>,
 ) -> Result<Body> {
-    let body_instrs = emit_native_opcode_impl(&name.1, params, &class_name.1, class_attrs);
+    let instrs = emit_native_opcode_impl(&name.1, params, &class_name.1, class_attrs)?;
     let mut tparams = scope
         .get_tparams()
         .iter()
         .map(|tp| tp.name.1.as_str())
         .collect::<Vec<_>>();
-    let params = emit_param::from_asts(emitter, &mut tparams, false, scope, params);
-    let return_type_info = emit_body::emit_return_type_info(tparams.as_slice(), false, ret);
+    let params = emit_param::from_asts(emitter, &mut tparams, false, scope, params)?;
+    let rti = emit_body::emit_return_type(tparams.as_slice(), false, ret)?;
 
-    body_instrs.and_then(|body_instrs| {
-        params.and_then(|params| {
-            return_type_info.and_then(|rti| {
-                let body_instrs = Vec::from_iter(body_instrs.iter().cloned());
-                let params = Vec::from_iter(params.into_iter().map(|(param, _)| ParamEntry {
-                    param,
-                    dv: Maybe::Nothing,
-                }));
-                let stack_depth = stack_depth::compute_stack_depth(&params, &body_instrs)
-                    .map_err(error::Error::from_error)?;
+    let instrs = Vec::from_iter(instrs.iter().cloned());
+    let params = Vec::from_iter(params.into_iter().map(|(param, _)| ParamEntry {
+        param,
+        dv: Maybe::Nothing,
+    }));
+    let stack_depth =
+        stack_depth::compute_stack_depth(&params, &instrs).map_err(error::Error::from_error)?;
 
-                Ok(Body {
-                    body_instrs: body_instrs.into(),
-                    params: params.into(),
-                    return_type_info: Maybe::Just(rti),
-                    decl_vars: Default::default(),
-                    doc_comment: Default::default(),
-                    is_memoize_wrapper: Default::default(),
-                    is_memoize_wrapper_lsb: Default::default(),
-                    num_iters: Default::default(),
-                    shadowed_tparams: Default::default(),
-                    stack_depth,
-                    upper_bounds: Default::default(),
-                    span: Default::default(),
-                })
-            })
-        })
+    Ok(Body {
+        attributes: attributes.into(),
+        attrs,
+        coeffects,
+        return_type: Maybe::Just(rti),
+        doc_comment: Default::default(),
+        is_memoize_wrapper: Default::default(),
+        is_memoize_wrapper_lsb: Default::default(),
+        num_iters: Default::default(),
+        shadowed_tparams: Default::default(),
+        upper_bounds: Default::default(),
+        span: Default::default(),
+        repr: hhbc::BcRepr {
+            instrs: instrs.into(),
+            params: params.into(),
+            decl_vars: Default::default(),
+            stack_depth,
+        },
     })
 }
 

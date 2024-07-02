@@ -23,6 +23,7 @@
 #include <thrift/compiler/ast/t_field.h>
 #include <thrift/compiler/gen/cpp/namespace_resolver.h>
 #include <thrift/compiler/lib/cpp2/util.h>
+#include <thrift/compiler/lib/rust/uri.h>
 #include <thrift/compiler/lib/uri.h>
 #include <thrift/compiler/sema/diagnostic_context.h>
 #include <thrift/compiler/sema/standard_mutator_stage.h>
@@ -38,25 +39,25 @@ t_field& rust_box(t_field& node) {
 }
 
 // TODO(afuller): Index all types by uri, and find them that way.
-const char* getPatchTypeName(t_base_type::type base_type) {
+const char* getPatchTypeName(t_primitive_type::type base_type) {
   switch (base_type) {
-    case t_base_type::type::t_bool:
+    case t_primitive_type::type::t_bool:
       return "patch.BoolPatch";
-    case t_base_type::type::t_byte:
+    case t_primitive_type::type::t_byte:
       return "patch.BytePatch";
-    case t_base_type::type::t_i16:
+    case t_primitive_type::type::t_i16:
       return "patch.I16Patch";
-    case t_base_type::type::t_i32:
+    case t_primitive_type::type::t_i32:
       return "patch.I32Patch";
-    case t_base_type::type::t_i64:
+    case t_primitive_type::type::t_i64:
       return "patch.I64Patch";
-    case t_base_type::type::t_float:
+    case t_primitive_type::type::t_float:
       return "patch.FloatPatch";
-    case t_base_type::type::t_double:
+    case t_primitive_type::type::t_double:
       return "patch.DoublePatch";
-    case t_base_type::type::t_string:
+    case t_primitive_type::type::t_string:
       return "patch.StringPatch";
-    case t_base_type::type::t_binary:
+    case t_primitive_type::type::t_binary:
       return "patch.BinaryPatch";
     default:
       return "";
@@ -127,6 +128,20 @@ struct StructGen {
   t_struct* operator->() { return &generated; }
   operator t_struct&() { return generated; }
   operator t_type_ref() { return generated; }
+
+  void add_name_annotation(std::string name, std::string_view name_uri) {
+    const t_type* annotation =
+        dynamic_cast<const t_type*>(program_.scope()->find_by_uri(name_uri));
+    assert(annotation);
+    auto value = t_const_value::make_map();
+    value->add_map(
+        std::make_unique<t_const_value>("name"),
+        std::make_unique<t_const_value>(std::move(name)));
+    value->set_ttype(*annotation);
+    auto const_name =
+        std::make_unique<t_const>(&program_, annotation, "", std::move(value));
+    generated.add_structured_annotation(std::move(const_name));
+  }
 
   void add_frozen_exclude() {
     const t_type* annotation = dynamic_cast<const t_type*>(
@@ -241,7 +256,7 @@ struct PatchGen : StructGen {
   t_field& clear() {
     return doc(
         "Clears a value. Applies first.",
-        field(kClearId, t_base_type::t_bool(), "clear"));
+        field(kClearId, t_primitive_type::t_bool(), "clear"));
   }
   t_field& clearUnion() {
     return doc("Clears any set value. Applies first.", clear());
@@ -327,6 +342,7 @@ void generate_struct_patch(
     // Add a 'field patch' and 'struct patch' using it.
     auto& generator = patch_generator::get_for(ctx, mctx);
     generator.add_struct_patch(*annot, node);
+    generator.add_safe_patch(*annot, node);
   }
 }
 
@@ -337,6 +353,7 @@ void generate_union_patch(
     // Add a 'field patch' and 'union patch' using it.
     auto& generator = patch_generator::get_for(ctx, mctx);
     generator.add_union_patch(*annot, node);
+    generator.add_safe_patch(*annot, node);
   }
 }
 
@@ -380,6 +397,19 @@ t_struct& patch_generator::add_ensure_struct(
     }
     gen.box(gen.field(field->id(), field->type(), field->name()));
   }
+  return gen;
+}
+
+t_struct& patch_generator::add_safe_patch(
+    const t_const& annot, t_structured& orig) {
+  StructGen gen{annot, gen_suffix_struct(annot, orig, "SafePatch"), program_};
+  gen.add_frozen_exclude();
+  gen.field(1, t_primitive_type::t_i32(), "version");
+  auto data = std::make_unique<t_primitive_type>(t_primitive_type::t_binary());
+  data->set_annotation("cpp.type", "std::unique_ptr<folly::IOBuf>");
+  t_type_ref data_ref = t_type_ref::from_ptr(data.get());
+  program_.add_unnamed_type(std::move(data));
+  gen.field(2, data_ref, "data");
   return gen;
 }
 
@@ -438,6 +468,12 @@ t_struct& patch_generator::add_struct_patch(
     const t_const& annot, t_structured& value_type) {
   PatchGen gen{
       {annot, gen_suffix_struct(annot, value_type, "Patch"), program_}};
+  // Rename it for Hack, Python and Rust to caution developers against
+  // accidental usage
+  const auto patch_name = value_type.name() + "PatchStructInternalDoNotUse";
+  gen.add_name_annotation(patch_name, kHackNameUri);
+  gen.add_name_annotation(patch_name, kPythonNameUri);
+  gen.add_name_annotation(patch_name, rust::kRustNameUri);
   gen.assign(value_type);
   gen.clear();
   if (get_assign_only_annotation_or_null(value_type)) {
@@ -470,8 +506,8 @@ t_type_ref patch_generator::find_patch_type(
   const auto* ttype = type->get_true_type();
 
   // Base types use a shared representation defined in patch.thrift.
-  if (auto* base_type = dynamic_cast<const t_base_type*>(ttype)) {
-    const char* name = getPatchTypeName(base_type->base_type());
+  if (auto* base_type = dynamic_cast<const t_primitive_type*>(ttype)) {
+    const char* name = getPatchTypeName(base_type->primitive_type());
     if (const auto* result = program_.scope()->find_type(name)) {
       return t_type_ref::from_ptr(result);
     }

@@ -173,18 +173,6 @@ TEST_F(UtilityTest, copy_noexcept_spec) {
   EXPECT_TRUE(noexcept(folly::copy(std::move(thr)))); // note: does not copy
 }
 
-TEST_F(UtilityTest, as_const) {
-  struct S {
-    bool member() { return false; }
-    bool member() const { return true; }
-  };
-  S s;
-  EXPECT_FALSE(s.member());
-  EXPECT_TRUE(folly::as_const(s).member());
-  EXPECT_EQ(&s, &folly::as_const(s));
-  EXPECT_TRUE(noexcept(folly::as_const(s)));
-}
-
 template <typename T>
 static T& as_mutable(T const& t) {
   return const_cast<T&>(t);
@@ -202,6 +190,40 @@ TEST_F(UtilityTest, forward_like) {
   // std::forward<const int&>(1);
   // folly::forward_like<const int&>(1);
 }
+
+TEST_F(UtilityTest, literal_string) {
+  constexpr auto s = folly::literal_string{"hello world"};
+  EXPECT_STREQ("hello world", s.c_str());
+  EXPECT_EQ(s.c_str(), s.data());
+  EXPECT_EQ(strlen(s.c_str()), s.size());
+  EXPECT_EQ(s.c_str(), std::string_view{s});
+  EXPECT_EQ(s.c_str(), std::string{s});
+}
+
+#if FOLLY_CPLUSPLUS >= 202002
+
+TEST_F(UtilityTest, literal_string_op_lit) {
+  using namespace folly::string_literals;
+  constexpr auto s = "hello world"_lit;
+  EXPECT_STREQ("hello world", s.c_str());
+  EXPECT_EQ(s.c_str(), s.data());
+  EXPECT_EQ(strlen(s.c_str()), s.size());
+  EXPECT_EQ(s.c_str(), std::string_view{s});
+  EXPECT_EQ(s.c_str(), std::string{s});
+}
+
+TEST_F(UtilityTest, literal_string_op_litv) {
+  using namespace folly::string_literals;
+  using t = decltype("hello world"_litv);
+  constexpr auto s = folly::value_list_element_v<0, t>;
+  EXPECT_STREQ("hello world", s.c_str());
+  EXPECT_EQ(s.c_str(), s.data());
+  EXPECT_EQ(strlen(s.c_str()), s.size());
+  EXPECT_EQ(s.c_str(), std::string_view{s});
+  EXPECT_EQ(s.c_str(), std::string{s});
+}
+
+#endif
 
 TEST_F(UtilityTest, inheritable) {
   struct foo : folly::index_constant<47> {};
@@ -264,6 +286,17 @@ TEST_F(UtilityTest, NonCopyableNonMovable) {
   static_assert(
       !std::is_move_constructible<FooBar>::value,
       "Should not be move constructible");
+}
+
+TEST_F(UtilityTest, noop) {
+  auto fn = folly::variadic_noop;
+  EXPECT_TRUE((std::is_nothrow_invocable_r_v<void, decltype(fn)>));
+}
+
+TEST_F(UtilityTest, constant_of) {
+  auto fn = folly::variadic_constant_of<3>;
+  EXPECT_TRUE((std::is_nothrow_invocable_r_v<int, decltype(fn)>));
+  EXPECT_EQ(3, fn());
 }
 
 TEST_F(UtilityTest, to_signed) {
@@ -353,7 +386,7 @@ static constexpr bool is_conv_v = std::is_convertible_v<S, D>;
 
 template <typename S, typename D>
 static constexpr bool is_nx_conv_v = //
-    is_conv_v<S, D>&& std::is_nothrow_constructible_v<D, S>;
+    is_conv_v<S, D> && std::is_nothrow_constructible_v<D, S>;
 
 static_assert(is_conv_v<of<int, 0, 0, 0>&, int>);
 static_assert(!is_conv_v<of<int, 0, 0, 0> const&, int>);

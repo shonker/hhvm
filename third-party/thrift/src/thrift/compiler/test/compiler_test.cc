@@ -342,16 +342,6 @@ TEST(CompilerTest, enum_underflow) {
 
 TEST(CompilerTest, integer_overflow_underflow) {
   check_compile(R"(
-    const i64 overflowInt = 9223372036854775808;  # max int64 + 1
-      # expected-error@-1: integer constant 9223372036854775808 is too large
-      # expected-warning@-2: 64-bit constant -9223372036854775808 may not work in all languages
-  )");
-  check_compile(R"(
-    const i64 underflowInt = -9223372036854775809; # min int64 - 1
-      # expected-error@-1: integer constant -9223372036854775809 is too small
-      # expected-warning@-2: 64-bit constant 9223372036854775807 may not work in all languages
-  )");
-  check_compile(R"(
     # Unsigned Ints
     const i64 overflowUint = 18446744073709551615;  # max uint64
       # expected-error@-1: integer constant 18446744073709551615 is too large
@@ -435,13 +425,11 @@ TEST(CompilerTest, const_i32_value) {
   check_compile(R"(
     const i32 c1 = 2147483647;
     const i32 c2 = 2147483648;
-    # expected-warning@-1: 64-bit constant 2147483648 may not work in all languages
-    # expected-error@-2: value error: const `c2` has an invalid custom default value.
+    # expected-error@-1: value error: const `c2` has an invalid custom default value.
 
     const i32 c3 = -2147483648;
     const i32 c4 = -2147483649;
-    # expected-warning@-1: 64-bit constant -2147483649 may not work in all languages
-    # expected-error@-2: value error: const `c4` has an invalid custom default value.
+    # expected-error@-1: value error: const `c4` has an invalid custom default value.
   )");
 }
 
@@ -471,12 +459,10 @@ TEST(CompilerTest, const_double_value) {
     const double c2 = -1.7976931348623157e+308;
 
     const float c3 = 10000000000000001;
-    # expected-warning@-1: 64-bit constant 10000000000000001 may not work in all languages
-    # expected-error@-2: value error: const `c3` cannot be represented precisely as `float` or `double`.
+    # expected-error@-1: value error: const `c3` cannot be represented precisely as `float` or `double`.
 
     const float c4 = -10000000000000001;
-    # expected-warning@-1: 64-bit constant -10000000000000001 may not work in all languages
-    # expected-error@-2: value error: const `c4` cannot be represented precisely as `float` or `double`.
+    # expected-error@-1: value error: const `c4` cannot be represented precisely as `float` or `double`.
   )");
 }
 
@@ -2005,5 +1991,58 @@ TEST(CompilerTest, same_named_field) {
       1: i32 E;
       # expected-warning@-1: Field 'E' has the same name as the containing exception.
     }
+  )");
+}
+
+TEST(CompilerTest, cursor_serialization_adapter) {
+  check_compile(R"(
+    include "thrift/annotation/cpp.thrift"
+
+    struct Regular {
+      @cpp.Adapter{name = "::apache::thrift::CursorSerializationAdapter"} # expected-error: CursorSerializationAdapter is not supported on fields. Place it on the top-level struct/union instead.
+      1: i32 field;
+      2: Adapted adapted; # expected-error: CursorSerializationAdapter is not supported on fields. Place it on the top-level struct/union instead.
+      3: set<Adapted> container; # expected-error: CursorSerializationAdapter is not supported inside containers.
+    }
+
+    @cpp.UseCursorSerialization
+    struct Adapted {}
+
+    service Service {
+      Adapted allowed(1: Adapted adapted);
+      Regular not_allowed(
+        1: Regular regular,
+        2: Adapted adapted # expected-error: CursorSerializationAdapter only supports single-argument functions.
+      );
+    }
+  )");
+}
+
+TEST(CompilerTest, no_generate_patch_in_cpp) {
+  check_compile(R"(
+    include "thrift/lib/thrift/patch.thrift"
+
+    @patch.GeneratePatch
+    package "meta.com/thrift/test"
+
+    struct MyStruct { # expected-error: @patch.GeneratePatch is disallowed in C++ [no-generate-patch]
+        1: i32 field;
+    }
+  )");
+}
+
+TEST(CompilerTest, exception_invalid_use) {
+  check_compile(R"(
+    exception E {}
+    struct S {
+      1: E field; # TODO (T191018859)
+    }
+
+    service Svc {
+      E return(); # expected-error: Exceptions cannot be used as function return types
+      void param(1: E e); # expected-error: Exceptions cannot be used as function arguments
+    }
+
+    const E e = E{}; # expected-error: Exceptions cannot be used as const types
   )");
 }

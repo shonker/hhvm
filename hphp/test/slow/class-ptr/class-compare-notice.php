@@ -5,7 +5,7 @@ function starts_with($x, $y): bool {
   $len = strlen($y);
   return !$len || 0 === strncmp($x, $y, $len);
 }
-function handle_error($_errno, $msg, ...) :mixed{
+function handle_error($_errno, $msg, ...$_rest) :mixed{
   //if (!Info::$SawError && $msg === "Class to string conversion") {
   if (starts_with($msg, "Implicit Class to string conversion")) {
     Info::$SawError = true;
@@ -27,7 +27,7 @@ class StrObj {
 class Wrapper { public function __construct(private mixed $w)[] {} }
 
 function LV($x)  :mixed{ return __hhvm_intrinsics\launder_value($x); }
-function CLS($c) :mixed{ return __hhvm_intrinsics\create_class_pointer($c); }
+function CLS($c) :mixed{ return HH\classname_to_class($c); }
 
 function WRAPA($x) :mixed{ return LV(vec[$x]); }
 function WRAPO($x) :mixed{ return LV(new Wrapper($x)); }

@@ -140,7 +140,7 @@ mstch::map t_mstch_generator::dump(const t_type& orig_type) {
       {"union?", type.is_union()},
       {"enum?", type.is_enum()},
       {"service?", type.is_service()},
-      {"base?", type.is_base_type()},
+      {"base?", type.is_primitive_type()},
       {"container?", type.is_container()},
       {"list?", type.is_list()},
       {"set?", type.is_set()},
@@ -265,14 +265,14 @@ mstch::map t_mstch_generator::dump(const t_const_value& value) {
 
   switch (type) {
     case cv::CV_DOUBLE:
-      result.emplace("value", fmt::format("{}", value.get_double()));
-      result.emplace("double_value", fmt::format("{}", value.get_double()));
+      result.emplace("value", value.get_double());
+      result.emplace("double_value", value.get_double());
       result.emplace("nonzero?", value.get_double() != 0.0);
       break;
     case cv::CV_BOOL:
-      result.emplace("value", std::to_string(value.get_bool()));
-      result.emplace("bool_value", value.get_bool() == true);
-      result.emplace("nonzero?", value.get_bool() == true);
+      result.emplace("value", value.get_bool() ? 1 : 0);
+      result.emplace("bool_value", value.get_bool());
+      result.emplace("nonzero?", value.get_bool());
       break;
     case cv::CV_INTEGER:
       if (value.get_enum_value()) {
@@ -420,10 +420,6 @@ void t_mstch_generator::gen_template_map(const std::filesystem::path& root) {
       // Remove a single '\n' or '\r\n' or '\r' at end, if present.
       chomp_last_char(&tpl, '\n');
       chomp_last_char(&tpl, '\r');
-      if (convert_delimiter()) {
-        tpl = "{{=<% %>=}}\n" + tpl;
-      }
-
       template_map_.emplace(name.generic_string(), std::move(tpl));
     }
   }

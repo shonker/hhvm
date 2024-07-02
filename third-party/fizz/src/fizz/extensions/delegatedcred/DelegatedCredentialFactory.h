@@ -8,9 +8,8 @@
 
 #pragma once
 
+#include <fizz/backend/openssl/OpenSSLFactory.h>
 #include <fizz/extensions/delegatedcred/Types.h>
-#include <fizz/protocol/OpenSSLFactory.h>
-#include <fizz/protocol/clock/SystemClock.h>
 
 namespace fizz {
 namespace extensions {
@@ -18,22 +17,16 @@ namespace extensions {
 /**
  * This class allows delegated credentials to be parsed when sent by the server.
  */
-class DelegatedCredentialFactory : public OpenSSLFactory {
+class DelegatedCredentialFactory : public openssl::OpenSSLFactory {
  public:
   ~DelegatedCredentialFactory() override = default;
 
-  std::shared_ptr<PeerCert> makePeerCert(CertificateEntry entry, bool leaf)
+  std::unique_ptr<PeerCert> makePeerCert(CertificateEntry entry, bool leaf)
       const override;
 
-  void setClock(std::shared_ptr<Clock> clock);
-
- private:
-  // Generates delegated credential cert based on credential + signing cert
-  std::shared_ptr<PeerCert> makeCredential(
-      DelegatedCredential&& credential,
-      folly::ssl::X509UniquePtr cert) const;
-
-  std::shared_ptr<Clock> clock_ = std::make_shared<SystemClock>();
+  static std::unique_ptr<PeerCert> makePeerCertStatic(
+      CertificateEntry entry,
+      bool leaf);
 };
 } // namespace extensions
 } // namespace fizz

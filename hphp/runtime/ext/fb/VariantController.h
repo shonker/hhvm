@@ -89,6 +89,7 @@ struct VariantControllerImpl {
         if (obj.toFuncVal()->isMethCaller()) {
           throw HPHP::serialize::MethCallerSerializeError();
         }
+        [[fallthrough]];
       case KindOfClass:
       case KindOfLazyClass:
       case KindOfPersistentString:
@@ -310,7 +311,7 @@ struct VariantControllerImpl {
     return !it.end();
   }
   static void setNext(ArrayIter& it) { ++it; }
-  static Variant setValue(ArrayIter& it) { return it.second(); }
+  static Variant setValue(ArrayIter& it) { return it.first(); }
 
   // string methods
   static StringType createMutableString(size_t n) {

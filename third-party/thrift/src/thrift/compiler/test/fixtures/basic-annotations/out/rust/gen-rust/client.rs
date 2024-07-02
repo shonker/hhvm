@@ -6,56 +6,14 @@
 #![recursion_limit = "100000000"]
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, unused_crate_dependencies, unused_imports, clippy::all)]
 
-pub mod mock;
 
 #[doc(inline)]
 pub use :: as types;
 
-pub mod errors {
-    #[doc(inline)]
-    pub use ::::errors::my_service;
-    #[doc(inline)]
-    #[allow(ambiguous_glob_reexports)]
-    pub use ::::errors::my_service::*;
-
-    #[doc(inline)]
-    pub use ::::errors::my_service_prio_parent;
-    #[doc(inline)]
-    #[allow(ambiguous_glob_reexports)]
-    pub use ::::errors::my_service_prio_parent::*;
-
-    #[doc(inline)]
-    pub use ::::errors::my_service_prio_child;
-    #[doc(inline)]
-    #[allow(ambiguous_glob_reexports)]
-    pub use ::::errors::my_service_prio_child::*;
-
-    #[doc(inline)]
-    pub use ::::errors::bad_service;
-    #[doc(inline)]
-    #[allow(ambiguous_glob_reexports)]
-    pub use ::::errors::bad_service::*;
-    #[doc(inline)]
-    pub use ::::errors::bad_interaction;
-    #[doc(inline)]
-    #[allow(ambiguous_glob_reexports)]
-    pub use ::::errors::bad_interaction::*;
-
-    #[doc(inline)]
-    pub use ::::errors::foo_bar_baz_service;
-    #[doc(inline)]
-    #[allow(ambiguous_glob_reexports)]
-    pub use ::::errors::foo_bar_baz_service::*;
-}
+pub mod errors;
 
 pub(crate) use crate as client;
 pub(crate) use ::::services;
-
-// Used by Thrift-generated code to implement service inheritance.
-#[doc(hidden)]
-#[deprecated]
-pub mod dependencies {
-}
 
 
 /// Client definitions for `MyService`.
@@ -119,13 +77,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::my_service::PingExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::my_service::PingReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::my_service::PingError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -165,13 +123,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::my_service::GetRandomDataExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::my_service::GetRandomDataReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::my_service::GetRandomDataError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -213,13 +171,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::my_service::HasDataByIdExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::my_service::HasDataByIdReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::my_service::HasDataByIdError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -261,13 +219,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::my_service::GetDataByIdExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::my_service::GetDataByIdReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::my_service::GetDataByIdError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -311,13 +269,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::my_service::PutDataByIdExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::my_service::PutDataByIdReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::my_service::PutDataByIdError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -361,13 +319,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::my_service::LobDataByIdExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::my_service::LobDataByIdReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::my_service::LobDataByIdError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -407,13 +365,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::my_service::DoNothingExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::my_service::DoNothingReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::my_service::DoNothingError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -1088,13 +1046,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::my_service_prio_parent::PingExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::my_service_prio_parent::PingReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::my_service_prio_parent::PingError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -1134,13 +1092,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::my_service_prio_parent::PongExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::my_service_prio_parent::PongReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::my_service_prio_parent::PongError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -1412,7 +1370,7 @@ impl ::fbthrift::ClientFactory for make_MyServicePrioParent {
 
 /// Client definitions for `MyServicePrioChild`.
 pub struct MyServicePrioChildImpl<P, T, S = ::fbthrift::NoopSpawner> {
-    parent: crate::MyServicePrioParentImpl<P, T, S>,
+    parent: crate::client::MyServicePrioParentImpl<P, T, S>,
 }
 
 impl<P, T, S> MyServicePrioChildImpl<P, T, S>
@@ -1427,7 +1385,7 @@ where
     pub fn new(
         transport: T,
     ) -> Self {
-        let parent = crate::MyServicePrioParentImpl::<P, T, S>::new(transport);
+        let parent = crate::client::MyServicePrioParentImpl::<P, T, S>::new(transport);
         Self { parent }
     }
 
@@ -1468,13 +1426,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::my_service_prio_child::PangExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::my_service_prio_child::PangReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::my_service_prio_child::PangError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -1484,7 +1442,7 @@ where
 }
 
 #[allow(deprecated)]
-impl<P, T, S> ::std::convert::AsRef<dyn crate::MyServicePrioParent + 'static> for MyServicePrioChildImpl<P, T, S>
+impl<P, T, S> ::std::convert::AsRef<dyn crate::client::MyServicePrioParent + 'static> for MyServicePrioChildImpl<P, T, S>
 where
     P: ::fbthrift::Protocol,
     T: ::fbthrift::Transport,
@@ -1493,14 +1451,14 @@ where
     P::Deserializer: ::std::marker::Send,
     S: ::fbthrift::help::Spawner,
 {
-    fn as_ref(&self) -> &(dyn crate::MyServicePrioParent + 'static)
+    fn as_ref(&self) -> &(dyn crate::client::MyServicePrioParent + 'static)
     {
         &self.parent
     }
 }
 
 #[allow(deprecated)]
-impl<P, T, S> ::std::convert::AsRef<dyn crate::MyServicePrioParentExt<T> + 'static> for MyServicePrioChildImpl<P, T, S>
+impl<P, T, S> ::std::convert::AsRef<dyn crate::client::MyServicePrioParentExt<T> + 'static> for MyServicePrioChildImpl<P, T, S>
 where
     P: ::fbthrift::Protocol,
     T: ::fbthrift::Transport,
@@ -1509,19 +1467,19 @@ where
     P::Deserializer: ::std::marker::Send,
     S: ::fbthrift::help::Spawner,
 {
-    fn as_ref(&self) -> &(dyn crate::MyServicePrioParentExt<T> + 'static)
+    fn as_ref(&self) -> &(dyn crate::client::MyServicePrioParentExt<T> + 'static)
     {
         &self.parent
     }
 }
 
-pub trait MyServicePrioChild: crate::MyServicePrioParent + ::std::marker::Send {
+pub trait MyServicePrioChild: crate::client::MyServicePrioParent + ::std::marker::Send {
     fn pang(
         &self,
     ) -> ::futures::future::BoxFuture<'static, ::std::result::Result<(), crate::errors::my_service_prio_child::PangError>>;
 }
 
-pub trait MyServicePrioChildExt<T>: MyServicePrioChild + crate::MyServicePrioParentExt<T>
+pub trait MyServicePrioChildExt<T>: MyServicePrioChild + crate::client::MyServicePrioParentExt<T>
 where
     T: ::fbthrift::Transport,
 {
@@ -1593,7 +1551,7 @@ where
 impl<'a, S> MyServicePrioChild for S
 where
     S: ::std::convert::AsRef<dyn MyServicePrioChild + 'a>,
-    S: crate::MyServicePrioParent,
+    S: crate::client::MyServicePrioParent,
     S: ::std::marker::Send,
 {
     fn pang(
@@ -1609,8 +1567,8 @@ impl<S, T> MyServicePrioChildExt<T> for S
 where
     S: ::std::convert::AsRef<dyn MyServicePrioChild + 'static>,
     S: ::std::convert::AsRef<dyn MyServicePrioChildExt<T> + 'static>,
-    S: crate::MyServicePrioParent,
-    S: crate::MyServicePrioParentExt<T>,
+    S: crate::client::MyServicePrioParent,
+    S: crate::client::MyServicePrioParentExt<T>,
     S: ::std::marker::Send,
     T: ::fbthrift::Transport,
 {
@@ -1788,13 +1746,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::bad_interaction::FooExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::bad_interaction::FooReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::bad_interaction::FooError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -2073,13 +2031,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::bad_service::BarExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::bad_service::BarReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::bad_service::BarError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -2383,13 +2341,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::foo_bar_baz_service::FooExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::foo_bar_baz_service::FooReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::foo_bar_baz_service::FooError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -2429,13 +2387,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::foo_bar_baz_service::BarExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::foo_bar_baz_service::BarReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::foo_bar_baz_service::BarError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -2475,13 +2433,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::foo_bar_baz_service::BazExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::foo_bar_baz_service::BazReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::foo_bar_baz_service::BazError::ApplicationException(aexn))
+                }
             };
             res
         }

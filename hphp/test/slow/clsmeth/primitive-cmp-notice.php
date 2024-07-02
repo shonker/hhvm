@@ -1,7 +1,7 @@
 <?hh
 
 class Info { public static bool $SawError = false; }
-function handle_error($_errno, $msg, ...) :mixed{
+function handle_error($_errno, $msg, ...$_rest) :mixed{
   if (Info::$SawError) return false;
   if (
     !preg_match('/Implicit clsmeth to [^ ]+ conversion/', $msg) &&
@@ -25,7 +25,7 @@ class Wrapper { public function __construct(private mixed $w)[] {} }
 function bar() :mixed{}
 
 function LV($x)  :mixed{ return __hhvm_intrinsics\launder_value($x); }
-function CLS($c) :mixed{ return __hhvm_intrinsics\create_class_pointer($c); }
+function CLS($c) :mixed{ return HH\classname_to_class($c); }
 
 function WRAPA($x) :mixed{ return LV(vec[$x]); }
 function WRAPO($x) :mixed{ return LV(new Wrapper($x)); }

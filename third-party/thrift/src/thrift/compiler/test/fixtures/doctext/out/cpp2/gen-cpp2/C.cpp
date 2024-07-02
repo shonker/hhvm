@@ -61,7 +61,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::cpp2::C>::co_f(apache::
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::C>::async_tm_f(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) {
+void apache::thrift::ServiceHandler<::cpp2::C>::async_tm_f(apache::thrift::HandlerCallbackPtr<void> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -170,7 +170,7 @@ folly::coro::Task<::apache::thrift::ServerStream<::cpp2::number>> apache::thrift
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::C>::async_tm_numbers(std::unique_ptr<apache::thrift::HandlerCallback<::apache::thrift::ServerStream<::cpp2::number>>> callback) {
+void apache::thrift::ServiceHandler<::cpp2::C>::async_tm_numbers(apache::thrift::HandlerCallbackPtr<::apache::thrift::ServerStream<::cpp2::number>> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -280,7 +280,7 @@ folly::coro::Task<std::unique_ptr<::std::string>> apache::thrift::ServiceHandler
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::C>::async_tm_thing(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::string>>> callback, ::std::int32_t p_a, std::unique_ptr<::std::string> p_b, std::unique_ptr<::std::set<::std::int32_t>> p_c) {
+void apache::thrift::ServiceHandler<::cpp2::C>::async_tm_thing(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::string>> callback, ::std::int32_t p_a, std::unique_ptr<::std::string> p_b, std::unique_ptr<::std::set<::std::int32_t>> p_c) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -338,7 +338,7 @@ determineInvocationType:
       {
         ::std::string _return;
         sync_thing(_return, p_a, std::move(p_b), std::move(p_c));
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -359,11 +359,11 @@ determineInvocationType:
 
 namespace cpp2 {
 
-void CSvNull::f() {
+void CSvNull::f() { 
   return;
 }
 
-void CSvNull::thing(::std::string& /*_return*/, ::std::int32_t /*a*/, std::unique_ptr<::std::string> /*b*/, std::unique_ptr<::std::set<::std::int32_t>> /*c*/) {}
+void CSvNull::thing(::std::string& /*_return*/, ::std::int32_t /*a*/, std::unique_ptr<::std::string> /*b*/, std::unique_ptr<::std::set<::std::int32_t>> /*c*/) {  }
 
 
 const char* CAsyncProcessor::getServiceName() {
@@ -412,21 +412,21 @@ apache::thrift::ServiceRequestInfoMap const& CServiceInfoHolder::requestInfoMap(
 apache::thrift::ServiceRequestInfoMap CServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"f",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "C.f",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"numbers",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_STREAMING_RESPONSE,
      "C.numbers",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"thing",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "C.thing",
      std::nullopt,
@@ -436,4 +436,4 @@ apache::thrift::ServiceRequestInfoMap CServiceInfoHolder::staticRequestInfoMap()
 
   return requestInfoMap;
 }
-} // cpp2
+} // namespace cpp2

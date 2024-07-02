@@ -136,13 +136,16 @@ inline void FiberManager::runReadyFiber(Fiber* fiber) {
   (void)folly::exchangeCurrentAsyncStackRoot(
       std::exchange(fiber->asyncRoot_, nullptr));
 
-  if (!observerList_.empty()) {
-    for (auto& observer : observerList_) {
-      observer.starting(
-          reinterpret_cast<uintptr_t>(fiber),
-          folly::ExecutionObserver::CallbackType::Fiber);
-    }
-  }
+  folly::Optional<ExecutionObserverScopeGuard> observersGuard{
+      std::in_place,
+      &observerList_,
+      fiber,
+      folly::ExecutionObserver::CallbackType::Fiber};
+  SCOPE_EXIT {
+    // Ensure that the guard is explicitly destroyed for all terminal states, so
+    // that it is done at the right time.
+    assert(!observersGuard);
+  };
 
   while (fiber->state_ == Fiber::NOT_STARTED ||
          fiber->state_ == Fiber::READY_TO_RUN) {
@@ -151,7 +154,7 @@ inline void FiberManager::runReadyFiber(Fiber* fiber) {
       try {
         immediateFunc_();
       } catch (...) {
-        exceptionCallback_(std::current_exception(), "running immediateFunc_");
+        exceptionCallback_(current_exception(), "running immediateFunc_");
       }
       immediateFunc_ = nullptr;
       fiber->state_ = Fiber::READY_TO_RUN;
@@ -161,11 +164,7 @@ inline void FiberManager::runReadyFiber(Fiber* fiber) {
   if (fiber->state_ == Fiber::AWAITING) {
     awaitFunc_(*fiber);
     awaitFunc_ = nullptr;
-    for (auto& observer : observerList_) {
-      observer.stopped(
-          reinterpret_cast<uintptr_t>(fiber),
-          folly::ExecutionObserver::CallbackType::Fiber);
-    }
+    observersGuard.reset();
     currentFiber_ = nullptr;
     fiber->rcontext_ = RequestContext::saveContext();
     fiber->asyncRoot_ = folly::exchangeCurrentAsyncStackRoot(nullptr);
@@ -182,17 +181,13 @@ inline void FiberManager::runReadyFiber(Fiber* fiber) {
       try {
         fiber->finallyFunc_();
       } catch (...) {
-        exceptionCallback_(std::current_exception(), "running finallyFunc_");
+        exceptionCallback_(current_exception(), "running finallyFunc_");
       }
       fiber->finallyFunc_ = nullptr;
     }
-    // Make sure LocalData is not accessible from its destructor
-    for (auto& observer : observerList_) {
-      observer.stopped(
-          reinterpret_cast<uintptr_t>(fiber),
-          folly::ExecutionObserver::CallbackType::Fiber);
-    }
+    observersGuard.reset();
 
+    // Make sure LocalData is not accessible from its destructor
     currentFiber_ = nullptr;
     fiber->rcontext_ = RequestContext::saveContext();
     // Async stack roots should have been popped by the time the
@@ -214,11 +209,7 @@ inline void FiberManager::runReadyFiber(Fiber* fiber) {
       --fibersAllocated_;
     }
   } else if (fiber->state_ == Fiber::YIELDED) {
-    for (auto& observer : observerList_) {
-      observer.stopped(
-          reinterpret_cast<uintptr_t>(fiber),
-          folly::ExecutionObserver::CallbackType::Fiber);
-    }
+    observersGuard.reset();
     currentFiber_ = nullptr;
     fiber->rcontext_ = RequestContext::saveContext();
     fiber->asyncRoot_ = folly::exchangeCurrentAsyncStackRoot(nullptr);
@@ -241,7 +232,7 @@ void FiberManager::runFibersHelper(LoopFunc&& loopFunc) {
   auto originalFiberManager = std::exchange(getCurrentFiberManager(), this);
 
   numUncaughtExceptions_ = uncaught_exceptions();
-  currentException_ = std::current_exception();
+  currentException_ = current_exception();
 
   // Save current context, and reset it after executing all fibers.
   // This can avoid a lot of context swapping,
@@ -280,7 +271,9 @@ inline size_t FiberManager::recordStackPosition(size_t position) {
 
 inline void FiberManager::loopUntilNoReadyImpl() {
   runFibersHelper([&] {
-    SCOPE_EXIT { isLoopScheduled_ = false; };
+    SCOPE_EXIT {
+      isLoopScheduled_ = false;
+    };
 
     bool hadRemote = true;
     while (hadRemote) {
@@ -326,7 +319,9 @@ inline void FiberManager::runEagerFiber(Fiber* fiber) {
 inline void FiberManager::runEagerFiberImpl(Fiber* fiber) {
   folly::fibers::runInMainContext([&] {
     auto prevCurrentFiber = std::exchange(currentFiber_, fiber);
-    SCOPE_EXIT { currentFiber_ = prevCurrentFiber; };
+    SCOPE_EXIT {
+      currentFiber_ = prevCurrentFiber;
+    };
     runFibersHelper([&] { runReadyFiber(fiber); });
   });
 }
@@ -358,8 +353,7 @@ struct FiberManager::AddTaskHelper {
       try {
         func_();
       } catch (...) {
-        fm_.exceptionCallback_(
-            std::current_exception(), "running Func functor");
+        fm_.exceptionCallback_(current_exception(), "running Func functor");
       }
       if (allocateInBuffer) {
         this->~Func();
@@ -449,8 +443,7 @@ struct FiberManager::AddTaskFinallyHelper {
       try {
         finally_(std::move(result_));
       } catch (...) {
-        fm_.exceptionCallback_(
-            std::current_exception(), "running Finally functor");
+        fm_.exceptionCallback_(current_exception(), "running Finally functor");
       }
 
       if (allocateInBuffer) {

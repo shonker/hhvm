@@ -31,7 +31,7 @@ class MyServiceFastServiceInfoHolder : public apache::thrift::ServiceInfoHolder 
    apache::thrift::ServiceRequestInfoMap const& requestInfoMap() const override;
    static apache::thrift::ServiceRequestInfoMap staticRequestInfoMap();
 };
-} // cpp2
+} // namespace cpp2
 
 namespace apache::thrift {
 template <>
@@ -46,10 +46,10 @@ class ServiceHandler<::cpp2::MyServiceFast> : public apache::thrift::ServerInter
   std::optional<std::reference_wrapper<apache::thrift::ServiceRequestInfoMap const>> getServiceRequestInfoMap() const;
  public:
 
-  virtual void async_eb_hasDataById(std::unique_ptr<apache::thrift::HandlerCallback<bool>> callback, ::std::int64_t p_id);
-  virtual void async_eb_getDataById(std::unique_ptr<apache::thrift::HandlerCallback<::std::string>> callback, ::std::int64_t p_id);
-  virtual void async_eb_putDataById(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback, ::std::int64_t p_id, const ::std::string& p_data);
-  virtual void async_eb_lobDataById(std::unique_ptr<apache::thrift::HandlerCallbackBase> callback, ::std::int64_t p_id, const ::std::string& p_data);
+  virtual void async_eb_hasDataById(apache::thrift::HandlerCallbackPtr<bool> callback, ::std::int64_t p_id);
+  virtual void async_eb_getDataById(apache::thrift::HandlerCallbackPtr<::std::string> callback, ::std::int64_t p_id);
+  virtual void async_eb_putDataById(apache::thrift::HandlerCallbackPtr<void> callback, ::std::int64_t p_id, const ::std::string& p_data);
+  virtual void async_eb_lobDataById(apache::thrift::HandlerCallbackBase::Ptr callback, ::std::int64_t p_id, const ::std::string& p_data);
  private:
   static ::cpp2::MyServiceFastServiceInfoHolder __fbthrift_serviceInfoHolder;
 };
@@ -58,7 +58,7 @@ class ServiceHandler<::cpp2::MyServiceFast> : public apache::thrift::ServerInter
 
 namespace cpp2 {
 using MyServiceFastSvIf [[deprecated("Use apache::thrift::ServiceHandler<MyServiceFast> instead")]] = ::apache::thrift::ServiceHandler<MyServiceFast>;
-} // cpp2
+} // namespace cpp2
 namespace cpp2 {
 class MyServiceFastSvNull : public ::apache::thrift::ServiceHandler<MyServiceFast> {
  public:
@@ -115,4 +115,4 @@ class MyServiceFastAsyncProcessor : public ::apache::thrift::GeneratedAsyncProce
   ~MyServiceFastAsyncProcessor() override {}
 };
 
-} // cpp2
+} // namespace cpp2

@@ -34,3 +34,19 @@ return None
 *)
 val get_virtual_expr_from_et :
   ('a, 'b) Aast_defs.expression_tree -> ('a, 'b) Aast_defs.expr option
+(** Get the leading assignments in an expression tree's lambda expression. *)
+
+val get_splices_from_et :
+  ('a, 'b) Aast_defs.expression_tree -> ('a, 'b) Aast_defs.stmt list
+
+(** Gets the fun_ of a (possibly Hole wrapped) Efun or Lfun *)
+val get_fun_expr : ('a, 'b) Aast_defs.expr -> ('a, 'b) Aast_defs.fun_ option
+
+(** True iff the expression is definitely not going to have any side effects.
+    This is a conservative syntactic check only, so calls always return false. *)
+val is_const_expr : ('a, 'b) Aast_defs.expr -> bool
+
+val is_param_variadic : ('a, 'b) Aast_defs.fun_param -> bool
+
+val get_param_default :
+  ('a, 'b) Aast_defs.fun_param -> ('a, 'b) Aast_defs.expr option

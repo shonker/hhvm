@@ -15,9 +15,10 @@
  */
 
 #include <stdexcept>
-#include <folly/VirtualExecutor.h>
 #include <folly/executors/CPUThreadPoolExecutor.h>
+#include <folly/executors/MeteredExecutor.h>
 #include <folly/executors/ThreadPoolExecutor.h>
+#include <folly/executors/VirtualExecutor.h>
 #include <thrift/lib/cpp2/server/ResourcePool.h>
 
 namespace apache::thrift {
@@ -58,11 +59,13 @@ ResourcePool::ResourcePool(
     std::unique_ptr<RequestPileInterface>&& requestPile,
     std::shared_ptr<folly::Executor> executor,
     std::unique_ptr<ConcurrencyControllerInterface>&& concurrencyController,
-    std::string_view name)
+    std::string_view name,
+    bool joinExecutorOnStop)
     : requestPile_(std::move(requestPile)),
       executor_(executor),
       concurrencyController_(std::move(concurrencyController)),
-      name_(name) {
+      name_(name),
+      joinExecutorOnStop_(joinExecutorOnStop) {
   // Current preconditions - either we have all three of these or none of them
   if (requestPile_ && concurrencyController_ && executor_) {
     // This is an async pool - that's allowed.
@@ -76,21 +79,34 @@ void ResourcePool::stop() {
   if (concurrencyController_) {
     concurrencyController_->stop();
   }
-  if (executor_) {
+  if (executor_ && joinExecutorOnStop_) {
     if (auto threadPoolExecutor =
             dynamic_cast<folly::ThreadPoolExecutor*>(executor_.get())) {
       threadPoolExecutor->join();
     } else if (
         auto virtualExecutor =
             dynamic_cast<folly::VirtualExecutor*>(executor_.get())) {
+      // since we're dealing with an executor wrapper it's sufficient to just
+      // release the pointer
+      executor_.reset();
+    } else if (
+        auto meteredExecutor =
+            dynamic_cast<folly::MeteredExecutor*>(executor_.get())) {
+      // since we're dealing with an executor wrapper it's sufficient to just
+      // release the pointer
       executor_.reset();
     } else if (
         auto threadManager =
             dynamic_cast<concurrency::ThreadManager*>(executor_.get())) {
       threadManager->join();
     } else {
+      // This ResourcePool is using an executor type that is not known to
+      // this method. As such, it is the responsibility of the user to ensure
+      // that the executor is stopped, but this ResourcePool was created with
+      // joinExecutorOnStop = true.
       auto& exe = *executor_.get();
-      LOG(WARNING) << "Could not join executor threads:"
+      LOG(WARNING) << "ResourcePool \"" << name_
+                   << "\" could not join executor threads. Executor type: "
                    << folly::demangle(typeid(exe)).toStdString();
     }
   }

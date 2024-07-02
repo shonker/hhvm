@@ -842,55 +842,37 @@ MemEffects memory_effects_impl(const IRInstruction& inst) {
   //////////////////////////////////////////////////////////////////////
   // Iterator instructions
 
-  case IterInit:
-  case LIterInit:
-  case IterNext:
-  case LIterNext: {
+  case IterExtractBase:
+    return may_load_store(AEmpty, AEmpty);
+
+  case IterInitArr:
+  case IterInitObj:
+  case IterNextArr:
+  case IterNextObj: {
     auto const& args = inst.extra<IterData>()->args;
     assertx(!args.hasKey());
-    auto const fp = inst.src(inst.op() == IterNext ? 0 : 1);
+    auto const fp = inst.src(1);
     AliasClass val = ALocal { fp, safe_cast<uint32_t>(args.valId) };
     return iter_effects(inst, fp, val);
   }
 
-  case IterInitK:
-  case LIterInitK:
-  case IterNextK:
-  case LIterNextK: {
+  case IterInitArrK:
+  case IterInitObjK:
+  case IterNextArrK:
+  case IterNextObjK: {
     auto const& args = inst.extra<IterData>()->args;
     assertx(args.hasKey());
-    auto const fp = inst.src(inst.op() == IterNextK ? 0 : 1);
+    auto const fp = inst.src(1);
     AliasClass key = ALocal { fp, safe_cast<uint32_t>(args.keyId) };
     AliasClass val = ALocal { fp, safe_cast<uint32_t>(args.valId) };
     return iter_effects(inst, fp, key | val);
   }
-
-  case IterFree: {
-    auto const base = aiter_base(inst.src(0), iterId(inst));
-    return may_load_store(AHeapAny | base, AHeapAny);
-  }
-
-  case CheckIter: {
-    auto const iter = inst.extra<CheckIter>()->iterId;
-    return may_load_store(aiter_type(inst.src(0), iter), AEmpty);
-  }
-
-  case LdIterBase:
-    return PureLoad { aiter_base(inst.src(0), iterId(inst)) };
 
   case LdIterPos:
     return PureLoad { aiter_pos(inst.src(0), iterId(inst)) };
 
   case LdIterEnd:
     return PureLoad { aiter_end(inst.src(0), iterId(inst)) };
-
-  case StIterBase:
-    return PureStore { aiter_base(inst.src(0), iterId(inst)), inst.src(1) };
-
-  case StIterType: {
-    auto const iter = inst.extra<StIterType>()->iterId;
-    return PureStore { aiter_type(inst.src(0), iter), nullptr };
-  }
 
   case StIterPos:
     return PureStore { aiter_pos(inst.src(0), iterId(inst)), inst.src(1) };
@@ -1257,6 +1239,7 @@ MemEffects memory_effects_impl(const IRInstruction& inst) {
     return PureLoad { AElemAny };
 
   case BespokeIterGetVal:
+  case CheckPtrIterTombstone:
     return may_load_store(AElemAny, AEmpty);
 
   case ElemDictK:
@@ -1297,6 +1280,7 @@ MemEffects memory_effects_impl(const IRInstruction& inst) {
   case CheckMissingKeyInArrLike:
   case ProfileDictAccess:
   case ProfileKeysetAccess:
+  case ProfileIterInit:
   case CheckArrayCOW:
   case ProfileArrayCOW:
     return may_load_store(AHeapAny, AEmpty);
@@ -1517,13 +1501,12 @@ MemEffects memory_effects_impl(const IRInstruction& inst) {
     };
 
   case LdImplicitContext:
-  case CreateSpecialImplicitContext:
-    // Not a PureLoad due to the leaking refcounting semantics.
-    return may_load_store(ARds { ImplicitContext::activeCtx.handle() }, AEmpty);
+    return PureLoad { ARds { ImplicitContext::activeCtx.handle() } };
 
   case StImplicitContext:
-    // Not a PureStore due to the leaking refcounting semantics.
-    return may_load_store(AEmpty, ARds { ImplicitContext::activeCtx.handle() });
+    return PureStore {
+      ARds { ImplicitContext::activeCtx.handle() }, inst.src(0), nullptr
+    };
 
   //////////////////////////////////////////////////////////////////////
   // Instructions that never read or write memory locations tracked by this
@@ -1534,6 +1517,7 @@ MemEffects memory_effects_impl(const IRInstruction& inst) {
   case AddInt:
   case AddOffset:
   case AdvanceDictPtrIter:
+  case AdvanceKeysetPtrIter:
   case AdvanceVecPtrIter:
   case AndInt:
   case AssertType:
@@ -1554,6 +1538,7 @@ MemEffects memory_effects_impl(const IRInstruction& inst) {
   case DefFuncPrologueFlags:
   case DefFuncPrologueNumArgs:
   case DefRegSP:
+  case DictIterEnd:
   case EndGuards:
   case EnterPrologue:
   case EnterTranslation:
@@ -1568,6 +1553,7 @@ MemEffects memory_effects_impl(const IRInstruction& inst) {
   case EqPtrIter:
   case ExitPrologue:
   case GetDictPtrIter:
+  case GetKeysetPtrIter:
   case GetVecPtrIter:
   case GteBool:
   case GteInt:
@@ -1576,6 +1562,7 @@ MemEffects memory_effects_impl(const IRInstruction& inst) {
   case Jmp:
   case JmpNZero:
   case JmpZero:
+  case KeysetIterEnd:
   case LdPropAddr:
   case LdStkAddr:
   case LdVecElemAddr:
@@ -1634,6 +1621,8 @@ MemEffects memory_effects_impl(const IRInstruction& inst) {
   case ConvDblToBool:
   case ConvDblToInt:
   case DblAsBits:
+  case IntAsPtrToElem:
+  case PtrToElemAsInt:
   case LdMIStateTempBaseAddr:
   case LdClsCns:
   case LdSubClsCns:
@@ -1643,11 +1632,11 @@ MemEffects memory_effects_impl(const IRInstruction& inst) {
   case LdClsCtxCns:
   case CheckSubClsCns:
   case LdClsCnsVecLen:
+  case EqClassId:
   case FuncHasAttr:
   case ClassHasAttr:
   case LdFuncRequiredCoeffects:
   case IsFunReifiedGenericsMatched:
-  case JmpPlaceholder:
   case LdSmashable:
   case LdSmashableFunc:
   case LdRDSAddr:
@@ -1816,7 +1805,7 @@ MemEffects memory_effects_impl(const IRInstruction& inst) {
   case ContArIncIdx:
   case ContArIncKey:
   case ContArUpdateIdx:
-  case LdClsCachedSafe:
+  case LookupClsCached:
   case LdClsInitData:
   case UnwindCheckSideExit:
   case CallViolatesModuleBoundary:
@@ -1846,7 +1835,7 @@ MemEffects memory_effects_impl(const IRInstruction& inst) {
   case LdWHState:
   case LdWHNotDone:
   case LookupClsMethod:
-  case LookupClsRDS:
+  case LookupCls:
   case StrictlyIntegerConv:
   case DbgAssertFunc:
   case ProfileCall:
@@ -1906,8 +1895,11 @@ MemEffects memory_effects_impl(const IRInstruction& inst) {
   case RaiseModuleBoundaryViolation:
   case RaiseModulePropertyViolation:
   case RaiseDeploymentBoundaryViolation:
-  case RaiseImplicitContextStateInvalid:
     return may_load_store(AEmpty, AEmpty);
+
+  case StaticAnalysisError:
+    if (RO::EvalCrashOnStaticAnalysisError) return IrrelevantEffects{};
+    return may_load_store(AHeapAny, AHeapAny);
 
   case LdClsPropAddrOrNull:   // may run 86{s,p}init, which can autoload
   case LdClsPropAddrOrRaise:  // raises errors, and 86{s,p}init

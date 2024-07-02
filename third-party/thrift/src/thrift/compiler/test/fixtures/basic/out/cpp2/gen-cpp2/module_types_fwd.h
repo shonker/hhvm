@@ -9,18 +9,20 @@
 #include <cstdint>
 
 // BEGIN forward_declare
-namespace test { namespace fixtures { namespace basic {
+namespace test::fixtures::basic {
 class MyStruct;
+class Containers;
 class MyDataItem;
 class MyUnion;
+class MyException;
 class ReservedKeyword;
 class UnionToBeRenamed;
-}}} // test::fixtures::basic
+} // namespace test::fixtures::basic
 // END forward_declare
 
 // BEGIN forward_declare_enums
-namespace test { namespace fixtures { namespace basic {
+namespace test::fixtures::basic {
 enum class MyEnum;
 enum class HackEnum;
-}}} // test::fixtures::basic
+} // namespace test::fixtures::basic
 // END forward_declare_enums

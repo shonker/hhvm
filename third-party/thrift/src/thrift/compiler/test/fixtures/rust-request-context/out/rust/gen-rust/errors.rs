@@ -8,201 +8,533 @@ pub mod my_interaction {
 
     pub type PingError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::my_interaction::PingExn> for
-        ::std::result::Result<(), PingError>
-    {
-        fn from(e: crate::services::my_interaction::PingExn) -> Self {
-            match e {
-                crate::services::my_interaction::PingExn::Success(res) => {
-                    ::std::result::Result::Ok(res)
+
+    pub(crate) enum PingReader {}
+
+    impl ::fbthrift::help::DeserializeExn for PingReader {
+        type Success = ();
+        type Error = PingError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Void, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::result::Result::Ok(());
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Void, 0i32), false) => {
+                        once = true;
+                        alt = ::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?);
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "PingError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
                 }
-                crate::services::my_interaction::PingExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(PingError::ApplicationException(aexn)),
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            ::std::result::Result::Ok(alt)
         }
     }
 
 }
+
+#[doc(inline)]
+#[allow(ambiguous_glob_reexports)]
+pub use self::my_interaction::*;
 
 /// Error definitions for `MyService`.
 pub mod my_service {
 
     pub type PingError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::my_service::PingExn> for
-        ::std::result::Result<(), PingError>
-    {
-        fn from(e: crate::services::my_service::PingExn) -> Self {
-            match e {
-                crate::services::my_service::PingExn::Success(res) => {
-                    ::std::result::Result::Ok(res)
+
+    pub(crate) enum PingReader {}
+
+    impl ::fbthrift::help::DeserializeExn for PingReader {
+        type Success = ();
+        type Error = PingError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Void, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::result::Result::Ok(());
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Void, 0i32), false) => {
+                        once = true;
+                        alt = ::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?);
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "PingError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
                 }
-                crate::services::my_service::PingExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(PingError::ApplicationException(aexn)),
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            ::std::result::Result::Ok(alt)
         }
     }
 
     pub type GetRandomDataError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::my_service::GetRandomDataExn> for
-        ::std::result::Result<::std::string::String, GetRandomDataError>
-    {
-        fn from(e: crate::services::my_service::GetRandomDataExn) -> Self {
-            match e {
-                crate::services::my_service::GetRandomDataExn::Success(res) => {
-                    ::std::result::Result::Ok(res)
+
+    pub(crate) enum GetRandomDataReader {}
+
+    impl ::fbthrift::help::DeserializeExn for GetRandomDataReader {
+        type Success = ::std::string::String;
+        type Error = GetRandomDataError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::String, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::option::Option::None;
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::String, 0i32), false) => {
+                        once = true;
+                        alt = ::std::option::Option::Some(::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?));
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "GetRandomDataError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
                 }
-                crate::services::my_service::GetRandomDataExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(GetRandomDataError::ApplicationException(aexn)),
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            alt.ok_or_else(||
+                ::fbthrift::ApplicationException::new(
+                    ::fbthrift::ApplicationExceptionErrorCode::MissingResult,
+                    format!("Empty union {}", "GetRandomDataError"),
+                )
+                .into(),
+            )
         }
     }
 
     pub type HasDataByIdError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::my_service::HasDataByIdExn> for
-        ::std::result::Result<::std::primitive::bool, HasDataByIdError>
-    {
-        fn from(e: crate::services::my_service::HasDataByIdExn) -> Self {
-            match e {
-                crate::services::my_service::HasDataByIdExn::Success(res) => {
-                    ::std::result::Result::Ok(res)
+
+    pub(crate) enum HasDataByIdReader {}
+
+    impl ::fbthrift::help::DeserializeExn for HasDataByIdReader {
+        type Success = ::std::primitive::bool;
+        type Error = HasDataByIdError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Bool, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::option::Option::None;
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Bool, 0i32), false) => {
+                        once = true;
+                        alt = ::std::option::Option::Some(::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?));
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "HasDataByIdError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
                 }
-                crate::services::my_service::HasDataByIdExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(HasDataByIdError::ApplicationException(aexn)),
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            alt.ok_or_else(||
+                ::fbthrift::ApplicationException::new(
+                    ::fbthrift::ApplicationExceptionErrorCode::MissingResult,
+                    format!("Empty union {}", "HasDataByIdError"),
+                )
+                .into(),
+            )
         }
     }
 
     pub type GetDataByIdError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::my_service::GetDataByIdExn> for
-        ::std::result::Result<::std::string::String, GetDataByIdError>
-    {
-        fn from(e: crate::services::my_service::GetDataByIdExn) -> Self {
-            match e {
-                crate::services::my_service::GetDataByIdExn::Success(res) => {
-                    ::std::result::Result::Ok(res)
+
+    pub(crate) enum GetDataByIdReader {}
+
+    impl ::fbthrift::help::DeserializeExn for GetDataByIdReader {
+        type Success = ::std::string::String;
+        type Error = GetDataByIdError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::String, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::option::Option::None;
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::String, 0i32), false) => {
+                        once = true;
+                        alt = ::std::option::Option::Some(::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?));
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "GetDataByIdError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
                 }
-                crate::services::my_service::GetDataByIdExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(GetDataByIdError::ApplicationException(aexn)),
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            alt.ok_or_else(||
+                ::fbthrift::ApplicationException::new(
+                    ::fbthrift::ApplicationExceptionErrorCode::MissingResult,
+                    format!("Empty union {}", "GetDataByIdError"),
+                )
+                .into(),
+            )
         }
     }
 
     pub type PutDataByIdError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::my_service::PutDataByIdExn> for
-        ::std::result::Result<(), PutDataByIdError>
-    {
-        fn from(e: crate::services::my_service::PutDataByIdExn) -> Self {
-            match e {
-                crate::services::my_service::PutDataByIdExn::Success(res) => {
-                    ::std::result::Result::Ok(res)
+
+    pub(crate) enum PutDataByIdReader {}
+
+    impl ::fbthrift::help::DeserializeExn for PutDataByIdReader {
+        type Success = ();
+        type Error = PutDataByIdError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Void, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::result::Result::Ok(());
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Void, 0i32), false) => {
+                        once = true;
+                        alt = ::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?);
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "PutDataByIdError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
                 }
-                crate::services::my_service::PutDataByIdExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(PutDataByIdError::ApplicationException(aexn)),
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            ::std::result::Result::Ok(alt)
         }
     }
 
     pub type LobDataByIdError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::my_service::LobDataByIdExn> for
-        ::std::result::Result<(), LobDataByIdError>
-    {
-        fn from(e: crate::services::my_service::LobDataByIdExn) -> Self {
-            match e {
-                crate::services::my_service::LobDataByIdExn::Success(res) => {
-                    ::std::result::Result::Ok(res)
+
+    pub(crate) enum LobDataByIdReader {}
+
+    impl ::fbthrift::help::DeserializeExn for LobDataByIdReader {
+        type Success = ();
+        type Error = LobDataByIdError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Void, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::result::Result::Ok(());
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Void, 0i32), false) => {
+                        once = true;
+                        alt = ::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?);
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "LobDataByIdError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
                 }
-                crate::services::my_service::LobDataByIdExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(LobDataByIdError::ApplicationException(aexn)),
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            ::std::result::Result::Ok(alt)
         }
     }
 
     pub type StreamByIdError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::my_service::StreamByIdExn> for
-        ::std::result::Result<::futures::stream::BoxStream<'static, ::std::result::Result<crate::types::MyStruct, crate::errors::my_service::StreamByIdStreamError>>, StreamByIdError>
-    {
-        fn from(e: crate::services::my_service::StreamByIdExn) -> Self {
-            match e {
-                crate::services::my_service::StreamByIdExn::Success(res) => {
-                    use ::futures::stream::StreamExt;
-                    let stream = res;
-                    ::std::result::Result::Ok(stream.map(|res| match res {
-                        ::std::result::Result::Ok(item) => ::std::result::Result::Ok(item),
-                        ::std::result::Result::Err(exn) => exn.into(),
-                    }).boxed())
-                }
-                crate::services::my_service::StreamByIdExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(StreamByIdError::ApplicationException(aexn)),
-            }
-        }
-    }
 
-    impl ::std::convert::From<crate::services::my_service::StreamByIdResponseExn> for
-        ::std::result::Result<(), StreamByIdError>
-    {
-        fn from(e: crate::services::my_service::StreamByIdResponseExn) -> Self {
-            match e {
-                crate::services::my_service::StreamByIdResponseExn::Success(res) =>
-                    ::std::result::Result::Ok(res),
-                crate::services::my_service::StreamByIdResponseExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(StreamByIdError::ApplicationException(aexn)),
+    pub(crate) enum StreamByIdReader {}
+
+    impl ::fbthrift::help::DeserializeExn for StreamByIdReader {
+        type Success = ();
+        type Error = StreamByIdError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Stream, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::result::Result::Ok(());
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Void, 0i32), false) => {
+                        once = true;
+                        alt = ::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?);
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "StreamByIdError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
+                }
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            ::std::result::Result::Ok(alt)
         }
     }
 
     pub type StreamByIdStreamError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::my_service::StreamByIdStreamExn> for
-        ::std::result::Result<crate::types::MyStruct, StreamByIdStreamError>
-    {
-        fn from(e: crate::services::my_service::StreamByIdStreamExn) -> Self {
-            match e {
-                crate::services::my_service::StreamByIdStreamExn::Success(res) =>
-                    ::std::result::Result::Ok(res),
-                crate::services::my_service::StreamByIdStreamExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(StreamByIdStreamError::ApplicationException(aexn)),
+    pub(crate) enum StreamByIdStreamReader {}
+
+    impl ::fbthrift::help::DeserializeExn for StreamByIdStreamReader {
+        type Success = crate::types::MyStruct;
+        type Error = StreamByIdStreamError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Stream, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::option::Option::None;
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Struct, 0i32), false) => {
+                        once = true;
+                        alt = ::std::option::Option::Some(::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?));
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "StreamByIdStreamError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
+                }
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            alt.ok_or_else(||
+                ::fbthrift::ApplicationException::new(
+                    ::fbthrift::ApplicationExceptionErrorCode::MissingResult,
+                    format!("Empty union {}", "StreamByIdStreamError"),
+                )
+                .into(),
+            )
         }
     }
 
     pub type StreamByIdWithExceptionError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::my_service::StreamByIdWithExceptionExn> for
-        ::std::result::Result<::futures::stream::BoxStream<'static, ::std::result::Result<crate::types::MyStruct, crate::errors::my_service::StreamByIdWithExceptionStreamError>>, StreamByIdWithExceptionError>
-    {
-        fn from(e: crate::services::my_service::StreamByIdWithExceptionExn) -> Self {
-            match e {
-                crate::services::my_service::StreamByIdWithExceptionExn::Success(res) => {
-                    use ::futures::stream::StreamExt;
-                    let stream = res;
-                    ::std::result::Result::Ok(stream.map(|res| match res {
-                        ::std::result::Result::Ok(item) => ::std::result::Result::Ok(item),
-                        ::std::result::Result::Err(exn) => exn.into(),
-                    }).boxed())
-                }
-                crate::services::my_service::StreamByIdWithExceptionExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(StreamByIdWithExceptionError::ApplicationException(aexn)),
-            }
-        }
-    }
 
-    impl ::std::convert::From<crate::services::my_service::StreamByIdWithExceptionResponseExn> for
-        ::std::result::Result<(), StreamByIdWithExceptionError>
-    {
-        fn from(e: crate::services::my_service::StreamByIdWithExceptionResponseExn) -> Self {
-            match e {
-                crate::services::my_service::StreamByIdWithExceptionResponseExn::Success(res) =>
-                    ::std::result::Result::Ok(res),
-                crate::services::my_service::StreamByIdWithExceptionResponseExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(StreamByIdWithExceptionError::ApplicationException(aexn)),
+    pub(crate) enum StreamByIdWithExceptionReader {}
+
+    impl ::fbthrift::help::DeserializeExn for StreamByIdWithExceptionReader {
+        type Success = ();
+        type Error = StreamByIdWithExceptionError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Stream, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::result::Result::Ok(());
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Void, 0i32), false) => {
+                        once = true;
+                        alt = ::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?);
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "StreamByIdWithExceptionError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
+                }
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            ::std::result::Result::Ok(alt)
         }
     }
 
@@ -282,85 +614,238 @@ pub mod my_service {
         }
     }
 
-    impl ::std::convert::From<crate::services::my_service::StreamByIdWithExceptionStreamExn> for
-        ::std::result::Result<crate::types::MyStruct, StreamByIdWithExceptionStreamError>
-    {
+    impl ::std::convert::From<crate::services::my_service::StreamByIdWithExceptionStreamExn> for StreamByIdWithExceptionStreamError {
         fn from(e: crate::services::my_service::StreamByIdWithExceptionStreamExn) -> Self {
             match e {
-                crate::services::my_service::StreamByIdWithExceptionStreamExn::Success(res) =>
-                    ::std::result::Result::Ok(res),
                 crate::services::my_service::StreamByIdWithExceptionStreamExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(StreamByIdWithExceptionStreamError::ApplicationException(aexn)),
+                    StreamByIdWithExceptionStreamError::ApplicationException(aexn),
                 crate::services::my_service::StreamByIdWithExceptionStreamExn::e(exn) =>
-                    ::std::result::Result::Err(StreamByIdWithExceptionStreamError::e(exn)),
+                    StreamByIdWithExceptionStreamError::e(exn),
             }
+        }
+    }
+
+    pub(crate) enum StreamByIdWithExceptionStreamReader {}
+
+    impl ::fbthrift::help::DeserializeExn for StreamByIdWithExceptionStreamReader {
+        type Success = crate::types::MyStruct;
+        type Error = StreamByIdWithExceptionStreamError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Stream, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::option::Option::None;
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Struct, 0i32), false) => {
+                        once = true;
+                        alt = ::std::option::Option::Some(::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?));
+                    }
+                    ((::fbthrift::TType::Struct, 1), false) => {
+                        once = true;
+                        alt = ::std::option::Option::Some(::std::result::Result::Err(Self::Error::e(::fbthrift::Deserialize::read(p)?)));
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "StreamByIdWithExceptionStreamError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
+                }
+                p.read_field_end()?;
+            }
+            p.read_struct_end()?;
+            alt.ok_or_else(||
+                ::fbthrift::ApplicationException::new(
+                    ::fbthrift::ApplicationExceptionErrorCode::MissingResult,
+                    format!("Empty union {}", "StreamByIdWithExceptionStreamError"),
+                )
+                .into(),
+            )
         }
     }
 
     pub type StreamByIdWithResponseError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::my_service::StreamByIdWithResponseExn> for
-        ::std::result::Result<(crate::types::MyDataItem, ::futures::stream::BoxStream<'static, ::std::result::Result<crate::types::MyStruct, crate::errors::my_service::StreamByIdWithResponseStreamError>>), StreamByIdWithResponseError>
-    {
-        fn from(e: crate::services::my_service::StreamByIdWithResponseExn) -> Self {
-            match e {
-                crate::services::my_service::StreamByIdWithResponseExn::Success(res) => {
-                    use ::futures::stream::StreamExt;
-                    let (resp, stream) = res;
-                    ::std::result::Result::Ok((resp, stream.map(|res| match res {
-                        ::std::result::Result::Ok(item) => ::std::result::Result::Ok(item),
-                        ::std::result::Result::Err(exn) => exn.into(),
-                    }).boxed()))
-                }
-                crate::services::my_service::StreamByIdWithResponseExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(StreamByIdWithResponseError::ApplicationException(aexn)),
-            }
-        }
-    }
 
-    impl ::std::convert::From<crate::services::my_service::StreamByIdWithResponseResponseExn> for
-        ::std::result::Result<crate::types::MyDataItem, StreamByIdWithResponseError>
-    {
-        fn from(e: crate::services::my_service::StreamByIdWithResponseResponseExn) -> Self {
-            match e {
-                crate::services::my_service::StreamByIdWithResponseResponseExn::Success(res) =>
-                    ::std::result::Result::Ok(res),
-                crate::services::my_service::StreamByIdWithResponseResponseExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(StreamByIdWithResponseError::ApplicationException(aexn)),
+    pub(crate) enum StreamByIdWithResponseReader {}
+
+    impl ::fbthrift::help::DeserializeExn for StreamByIdWithResponseReader {
+        type Success = crate::types::MyDataItem;
+        type Error = StreamByIdWithResponseError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Stream, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::option::Option::None;
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Struct, 0i32), false) => {
+                        once = true;
+                        alt = ::std::option::Option::Some(::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?));
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "StreamByIdWithResponseError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
+                }
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            alt.ok_or_else(||
+                ::fbthrift::ApplicationException::new(
+                    ::fbthrift::ApplicationExceptionErrorCode::MissingResult,
+                    format!("Empty union {}", "StreamByIdWithResponseError"),
+                )
+                .into(),
+            )
         }
     }
 
     pub type StreamByIdWithResponseStreamError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::my_service::StreamByIdWithResponseStreamExn> for
-        ::std::result::Result<crate::types::MyStruct, StreamByIdWithResponseStreamError>
-    {
-        fn from(e: crate::services::my_service::StreamByIdWithResponseStreamExn) -> Self {
-            match e {
-                crate::services::my_service::StreamByIdWithResponseStreamExn::Success(res) =>
-                    ::std::result::Result::Ok(res),
-                crate::services::my_service::StreamByIdWithResponseStreamExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(StreamByIdWithResponseStreamError::ApplicationException(aexn)),
+    pub(crate) enum StreamByIdWithResponseStreamReader {}
+
+    impl ::fbthrift::help::DeserializeExn for StreamByIdWithResponseStreamReader {
+        type Success = crate::types::MyStruct;
+        type Error = StreamByIdWithResponseStreamError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Stream, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::option::Option::None;
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Struct, 0i32), false) => {
+                        once = true;
+                        alt = ::std::option::Option::Some(::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?));
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "StreamByIdWithResponseStreamError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
+                }
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            alt.ok_or_else(||
+                ::fbthrift::ApplicationException::new(
+                    ::fbthrift::ApplicationExceptionErrorCode::MissingResult,
+                    format!("Empty union {}", "StreamByIdWithResponseStreamError"),
+                )
+                .into(),
+            )
         }
     }
 
     pub type StartPingInteractionError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::my_service::StartPingInteractionExn> for
-        ::std::result::Result<(), StartPingInteractionError>
-    {
-        fn from(e: crate::services::my_service::StartPingInteractionExn) -> Self {
-            match e {
-                crate::services::my_service::StartPingInteractionExn::Success(res) => {
-                    ::std::result::Result::Ok(res)
+
+    pub(crate) enum StartPingInteractionReader {}
+
+    impl ::fbthrift::help::DeserializeExn for StartPingInteractionReader {
+        type Success = ();
+        type Error = StartPingInteractionError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Void, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::result::Result::Ok(());
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Void, 0i32), false) => {
+                        once = true;
+                        alt = ::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?);
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "StartPingInteractionError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
                 }
-                crate::services::my_service::StartPingInteractionExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(StartPingInteractionError::ApplicationException(aexn)),
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            ::std::result::Result::Ok(alt)
         }
     }
 
 }
+
+#[doc(inline)]
+#[allow(ambiguous_glob_reexports)]
+pub use self::my_service::*;
 

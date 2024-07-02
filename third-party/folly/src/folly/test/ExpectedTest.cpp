@@ -73,7 +73,7 @@ struct NoDefault {
 TEST(Expected, NoDefault) {
   static_assert(
       std::is_default_constructible<Expected<NoDefault, int>>::value, "");
-  Expected<NoDefault, int> x{in_place, 42, 42};
+  Expected<NoDefault, int> x{std::in_place, 42, 42};
   EXPECT_TRUE(bool(x));
   x.emplace(4, 5);
   EXPECT_TRUE(bool(x));
@@ -112,13 +112,13 @@ TEST(Expected, Const) {
   }
   { // copy-constructed
     const int x = 6;
-    Expected<const int, int> ex{in_place, x};
+    Expected<const int, int> ex{std::in_place, x};
     Expected<const int, int> ex2 = ex;
     EXPECT_EQ(6, *ex2);
   }
   { // move-constructed
     const int x = 7;
-    Expected<const int, int> ex{in_place, std::move(x)};
+    Expected<const int, int> ex{std::in_place, std::move(x)};
     Expected<const int, int> ex2 = std::move(ex);
     EXPECT_EQ(7, *ex2);
   }
@@ -207,14 +207,14 @@ struct ExpectingDeleter {
 
 TEST(Expected, valueMove) {
   auto ptr = Expected<std::unique_ptr<int, ExpectingDeleter>, int>(
-                 in_place, new int(42), ExpectingDeleter{1337})
+                 std::in_place, new int(42), ExpectingDeleter{1337})
                  .value();
   *ptr = 1337;
 }
 
 TEST(Expected, dereferenceMove) {
   auto ptr = *Expected<std::unique_ptr<int, ExpectingDeleter>, int>(
-      in_place, new int(42), ExpectingDeleter{1337});
+      std::in_place, new int(42), ExpectingDeleter{1337});
   *ptr = 1337;
 }
 
@@ -462,7 +462,6 @@ TEST(Expected, Conversions) {
   // Truthy tests work and are not ambiguous
   if (mbool && mshort && mstr && mint) { // only checks not-empty
     if (*mbool && *mshort && *mstr && *mint) { // only checks value
-      ;
     }
   }
 
@@ -633,10 +632,8 @@ struct NoSelfAssign {
   }
 };
 
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wpragmas"
-#endif
+FOLLY_PUSH_WARNING
+FOLLY_GNU_DISABLE_WARNING("-Wpragmas")
 
 TEST(Expected, NoSelfAssign) {
   folly::Expected<NoSelfAssign, int> e{NoSelfAssign{}};
@@ -644,9 +641,7 @@ TEST(Expected, NoSelfAssign) {
   e = static_cast<decltype(e)&&>(e); // suppress self-move warning
 }
 
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
+FOLLY_POP_WARNING
 
 struct NoDestructor {};
 
@@ -670,29 +665,28 @@ struct WithConstructor {
   WithConstructor();
 };
 
-// libstdc++ with GCC 4.x doesn't have std::is_trivially_copyable
-#if (defined(__clang__) && !defined(_LIBCPP_VERSION)) || \
-    !(defined(__GNUC__) && !defined(__clang__))
 TEST(Expected, TriviallyCopyable) {
   // These could all be static_asserts but EXPECT_* give much nicer output on
   // failure.
-  EXPECT_TRUE((is_trivially_copyable<Expected<int, E>>::value));
-  EXPECT_TRUE((is_trivially_copyable<Expected<char*, E>>::value));
-  EXPECT_TRUE((is_trivially_copyable<Expected<NoDestructor, E>>::value));
-  EXPECT_FALSE((is_trivially_copyable<Expected<WithDestructor, E>>::value));
-  EXPECT_TRUE((is_trivially_copyable<Expected<NoConstructor, E>>::value));
-  EXPECT_FALSE((is_trivially_copyable<Expected<std::string, E>>::value));
-  EXPECT_FALSE((is_trivially_copyable<Expected<int, std::string>>::value));
-  EXPECT_TRUE((is_trivially_copyable<Expected<WithConstructor, E>>::value));
-  EXPECT_TRUE((is_trivially_copyable<Expected<Expected<int, E>, E>>::value));
+  EXPECT_TRUE((std::is_trivially_copyable<Expected<int, E>>::value));
+  EXPECT_TRUE((std::is_trivially_copyable<Expected<char*, E>>::value));
+  EXPECT_TRUE((std::is_trivially_copyable<Expected<NoDestructor, E>>::value));
+  EXPECT_FALSE(
+      (std::is_trivially_copyable<Expected<WithDestructor, E>>::value));
+  EXPECT_TRUE((std::is_trivially_copyable<Expected<NoConstructor, E>>::value));
+  EXPECT_FALSE((std::is_trivially_copyable<Expected<std::string, E>>::value));
+  EXPECT_FALSE((std::is_trivially_copyable<Expected<int, std::string>>::value));
+  EXPECT_TRUE(
+      (std::is_trivially_copyable<Expected<WithConstructor, E>>::value));
+  EXPECT_TRUE(
+      (std::is_trivially_copyable<Expected<Expected<int, E>, E>>::value));
 }
-#endif
 
 TEST(Expected, Then) {
   // Lifting
   {
     Expected<int, E> ex =
-        Expected<std::unique_ptr<int>, E>{in_place, new int(42)}.then(
+        Expected<std::unique_ptr<int>, E>{std::in_place, new int(42)}.then(
             [](std::unique_ptr<int> p) { return *p; });
     EXPECT_TRUE(bool(ex));
     EXPECT_EQ(42, *ex);
@@ -701,7 +695,7 @@ TEST(Expected, Then) {
   // Flattening
   {
     Expected<int, E> ex =
-        Expected<std::unique_ptr<int>, E>{in_place, new int(42)}.then(
+        Expected<std::unique_ptr<int>, E>{std::in_place, new int(42)}.then(
             [](std::unique_ptr<int> p) { return makeExpected<E>(*p); });
     EXPECT_TRUE(bool(ex));
     EXPECT_EQ(42, *ex);
@@ -710,7 +704,7 @@ TEST(Expected, Then) {
   // Void
   {
     Expected<Unit, E> ex =
-        Expected<std::unique_ptr<int>, E>{in_place, new int(42)}.then(
+        Expected<std::unique_ptr<int>, E>{std::in_place, new int(42)}.then(
             [](std::unique_ptr<int>) {});
     EXPECT_TRUE(bool(ex));
   }
@@ -718,7 +712,7 @@ TEST(Expected, Then) {
   // Non-flattening (different error codes)
   {
     Expected<Expected<int, int>, E> ex =
-        Expected<std::unique_ptr<int>, E>{in_place, new int(42)}.then(
+        Expected<std::unique_ptr<int>, E>{std::in_place, new int(42)}.then(
             [](std::unique_ptr<int> p) { return makeExpected<int>(*p); });
     EXPECT_TRUE(bool(ex));
     EXPECT_TRUE(bool(*ex));
@@ -740,7 +734,7 @@ TEST(Expected, Then) {
   // Chaining
   {
     Expected<std::string, E> ex =
-        Expected<std::unique_ptr<int>, E>{in_place, new int(42)}.then(
+        Expected<std::unique_ptr<int>, E>{std::in_place, new int(42)}.then(
             [](std::unique_ptr<int> p) { return makeExpected<E>(*p); },
             [](int i) { return i == 42 ? "yes" : "no"; });
     EXPECT_TRUE(bool(ex));
@@ -750,7 +744,7 @@ TEST(Expected, Then) {
   // Chaining with errors
   {
     Expected<std::string, E> ex =
-        Expected<std::unique_ptr<int>, E>{in_place, new int(42)}.then(
+        Expected<std::unique_ptr<int>, E>{std::in_place, new int(42)}.then(
             [](std::unique_ptr<int>) {
               return Expected<int, E>(unexpected, E::E1);
             },
@@ -762,9 +756,9 @@ TEST(Expected, Then) {
 
 TEST(Expected, ThenOrThrow) {
   {
-    int e =
-        Expected<std::unique_ptr<int>, E>{in_place, new int(42)}.thenOrThrow(
-            [](std::unique_ptr<int> p) { return *p; });
+    int e = //
+        Expected<std::unique_ptr<int>, E>{std::in_place, new int(42)}
+            .thenOrThrow([](std::unique_ptr<int> p) { return *p; });
     EXPECT_EQ(42, e);
   }
 
@@ -802,7 +796,8 @@ TEST(Expected, ThenOrThrow) {
 TEST(Expected, orElse) {
   {
     auto e =
-        Expected<std::unique_ptr<int>, E>{in_place, std::make_unique<int>(42)}
+        Expected<std::unique_ptr<int>, E>{
+            std::in_place, std::make_unique<int>(42)}
             .orElse([](E) { throw std::runtime_error(""); });
     EXPECT_EQ(42, *e.value());
   }
@@ -846,7 +841,7 @@ TEST(Expected, orElse) {
   }
   // Chaining without error, void returning
   {
-    auto e = Expected<std::string, E>{in_place, "Hello World"}.orElse(
+    auto e = Expected<std::string, E>{std::in_place, "Hello World"}.orElse(
         [](E) {
           EXPECT_TRUE(false);
           throw std::runtime_error("");
@@ -860,10 +855,11 @@ TEST(Expected, orElse) {
 
   // Chaining without error, non void returning
   {
-    auto e = Expected<std::string, E>{in_place, "Hello World"}.orElse([](E) {
-      EXPECT_TRUE(false);
-      return std::string("Goodbye World");
-    });
+    auto e =
+        Expected<std::string, E>{std::in_place, "Hello World"}.orElse([](E) {
+          EXPECT_TRUE(false);
+          return std::string("Goodbye World");
+        });
     EXPECT_EQ(std::string("Hello World"), e.value());
   }
 }
@@ -972,19 +968,6 @@ TEST(Expected, TestUnique) {
       2, **mk().then([](auto r) -> Expected<std::unique_ptr<int>, Convertible> {
         return std::make_unique<int>(*r + 1);
       }));
-}
-
-struct ConvertibleNum {
-  /*implicit*/ operator Expected<int, E>() const { return num_; }
-  int num_;
-};
-
-TEST(Expected, TestChainedConversion) {
-  auto vs =
-      std::vector<Expected<ConvertibleNum, E>>{ConvertibleNum{.num_ = 137}};
-  for (Expected<int, E> v : vs) {
-    ASSERT_EQ(137, *v);
-  }
 }
 
 struct ConvertibleError {

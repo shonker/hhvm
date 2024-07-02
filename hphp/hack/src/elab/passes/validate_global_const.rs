@@ -23,7 +23,7 @@ impl Pass for ValidateGlobalConstPass {
 }
 
 fn error_if_no_typehint(env: &Env, gconst: &Gconst) {
-    if !matches!(gconst.mode, Mode::Mhhi) && matches!(gconst.type_, None) {
+    if !matches!(gconst.mode, Mode::Mhhi) && gconst.type_.is_none() {
         let Expr(_, _, expr_) = &gconst.value;
         let Id(pos, const_name) = &gconst.name;
         let ty_name = match expr_ {
@@ -60,6 +60,7 @@ mod tests {
     use nast::Hint;
     use nast::Pos;
     use oxidized::namespace_env;
+    use oxidized::namespace_env::Mode;
     use oxidized::typechecker_options::TypecheckerOptions;
 
     use super::*;
@@ -79,7 +80,7 @@ mod tests {
             type_: r#type,
             namespace: Arc::new(namespace_env::Env {
                 name: namespace,
-                ..namespace_env::Env::empty(vec![], false, false)
+                ..namespace_env::Env::empty(vec![], Mode::ForTypecheck, false)
             }),
             span: Pos::NONE,
             emit_id: None,

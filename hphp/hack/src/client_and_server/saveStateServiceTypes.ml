@@ -11,6 +11,11 @@
 Keep this in sync with saved_states.rs:dump_error_files *)
 type saved_state_errors = Relative_path.Set.t
 
+type old_issues = {
+  old_errors: saved_state_errors;
+  old_warnings: Warnings_saved_state.t;
+}
+
 type save_state_result = { dep_table_edges_added: int }
 
 type save_naming_result = {

@@ -33,7 +33,6 @@
 #include <thrift/conformance/Utils.h>
 #include <thrift/conformance/if/gen-cpp2/RPCConformanceService.h>
 #include <thrift/lib/cpp2/async/Sink.h>
-#include <thrift/lib/cpp2/server/BaseThriftServer.h>
 #include <thrift/lib/cpp2/server/ThriftServer.h>
 #include <thrift/lib/cpp2/util/ScopedServerInterfaceThread.h>
 
@@ -212,6 +211,74 @@ class ConformanceVerificationServer
             *testCase_.serverInstruction()->sinkBasic_ref()->bufferSize())};
   }
 
+  apache::thrift::ResponseAndSinkConsumer<Response, Request, Response>
+  sinkInitialResponse(std::unique_ptr<Request> req) override {
+    serverResult_.sinkInitialResponse_ref().emplace().request() = *req;
+
+    return {
+        *testCase_.serverInstruction()
+             ->sinkInitialResponse_ref()
+             ->initialResponse(),
+        apache::thrift::SinkConsumer<Request, Response>{
+            [&](folly::coro::AsyncGenerator<Request&&> gen)
+                -> folly::coro::Task<Response> {
+              while (auto item = co_await gen.next()) {
+                serverResult_.sinkInitialResponse_ref()
+                    ->sinkPayloads()
+                    ->push_back(std::move(*item));
+              }
+              co_return *testCase_.serverInstruction()
+                  ->sinkInitialResponse_ref()
+                  ->finalResponse();
+            },
+            static_cast<uint64_t>(*testCase_.serverInstruction()
+                                       ->sinkInitialResponse_ref()
+                                       ->bufferSize())}};
+  }
+
+  apache::thrift::SinkConsumer<Request, Response> sinkDeclaredException(
+      std::unique_ptr<Request> req) override {
+    auto& result = serverResult_.sinkDeclaredException_ref().emplace();
+    result.request() = *req;
+    return {
+        [&](folly::coro::AsyncGenerator<Request&&> gen)
+            -> folly::coro::Task<Response> {
+          try {
+            std::ignore = co_await gen.next();
+            throw std::logic_error("Publisher didn't throw");
+          } catch (const UserException& e) {
+            result.userException() = e;
+            throw;
+          } catch (...) {
+            throw std::logic_error(fmt::format(
+                "Publisher threw undeclared exception: {}",
+                folly::exception_wrapper(std::current_exception()).what()));
+          }
+        },
+        static_cast<uint64_t>(*testCase_.serverInstruction()
+                                   ->sinkDeclaredException_ref()
+                                   ->bufferSize())};
+  }
+
+  apache::thrift::SinkConsumer<Request, Response> sinkUndeclaredException(
+      std::unique_ptr<Request> req) override {
+    auto& result = serverResult_.sinkUndeclaredException_ref().emplace();
+    result.request() = *req;
+    return {
+        [&](folly::coro::AsyncGenerator<Request&&> gen)
+            -> folly::coro::Task<Response> {
+          try {
+            std::ignore = co_await gen.next();
+            throw std::logic_error("Publisher didn't throw");
+          } catch (const TApplicationException& e) {
+            result.exceptionMessage() = e.getMessage();
+            throw;
+          }
+        },
+        static_cast<uint64_t>(*testCase_.serverInstruction()
+                                   ->sinkUndeclaredException_ref()
+                                   ->bufferSize())};
+  }
   // =================== Interactions ===================
   class BasicInteraction : public BasicInteractionIf {
    public:
@@ -304,7 +371,8 @@ class ConformanceVerificationServer
 void createClient(
     std::string_view serviceName, std::string ipAddress, std::string port) {
   auto client = create_rpc_conformance_setup_service_client_(serviceName);
-  client->semifuture_createRPCConformanceServiceClient(ipAddress, port);
+  folly::coro::blockingWait(
+      client->co_createRPCConformanceServiceClient(ipAddress, port));
 }
 
 class RPCClientConformanceTest : public testing::Test {
@@ -383,7 +451,7 @@ class RPCClientConformanceTest : public testing::Test {
 
     // End test if client was unable to fetch test case
     if (!getTestReceived) {
-      return testing::AssertionFailure();
+      return testing::AssertionFailure() << "client failed to fetch test case";
     }
 
     // Wait for result from client
@@ -392,7 +460,7 @@ class RPCClientConformanceTest : public testing::Test {
 
     // End test if result was not received
     if (actualClientResult.hasException()) {
-      return testing::AssertionFailure();
+      return testing::AssertionFailure() << actualClientResult.exception();
     }
 
     auto& expectedClientResult = *testCase_.rpc_ref()->clientTestResult();
@@ -404,7 +472,7 @@ class RPCClientConformanceTest : public testing::Test {
 
     auto& actualServerResult = handler_->serverResult();
     auto& expectedServerResult = *testCase_.rpc_ref()->serverTestResult();
-    if (actualServerResult != expectedServerResult) {
+    if (!equal(actualServerResult, expectedServerResult)) {
       return testing::AssertionFailure()
           << "\nExpected server result: " << jsonify(expectedServerResult)
           << "\nActual server result: " << jsonify(actualServerResult);

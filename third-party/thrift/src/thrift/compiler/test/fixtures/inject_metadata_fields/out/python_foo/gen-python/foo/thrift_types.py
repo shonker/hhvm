@@ -15,28 +15,31 @@ import thrift.python.exceptions as _fbthrift_python_exceptions
 
 class Fields(metaclass=_fbthrift_python_types.StructMeta):
     _fbthrift_SPEC = (
-        (
+        _fbthrift_python_types.FieldInfo(
             100,  # id
             _fbthrift_python_types.FieldQualifier.Unqualified, # qualifier
             "injected_field",  # name
+            "injected_field",  # python name (from @python.Name annotation)
             _fbthrift_python_types.typeinfo_string,  # typeinfo
             None,  # default value
             None,  # adapter info
             False, # field type is primitive
         ),
-        (
+        _fbthrift_python_types.FieldInfo(
             101,  # id
             _fbthrift_python_types.FieldQualifier.Optional, # qualifier
             "injected_structured_annotation_field",  # name
+            "injected_structured_annotation_field",  # python name (from @python.Name annotation)
             _fbthrift_python_types.typeinfo_string,  # typeinfo
             None,  # default value
             None,  # adapter info
             False, # field type is primitive
         ),
-        (
+        _fbthrift_python_types.FieldInfo(
             102,  # id
             _fbthrift_python_types.FieldQualifier.Optional, # qualifier
             "injected_unstructured_annotation_field",  # name
+            "injected_unstructured_annotation_field",  # python name (from @python.Name annotation)
             _fbthrift_python_types.typeinfo_string,  # typeinfo
             None,  # default value
             None,  # adapter info
@@ -84,6 +87,7 @@ _fbthrift_all_enums = [
 
 def _fbthrift_metadata__struct_Fields():
     return foo.thrift_metadata.gen_metadata_struct_Fields()
+
 
 _fbthrift_all_structs = [
     Fields,

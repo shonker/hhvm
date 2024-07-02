@@ -31,7 +31,7 @@ class MyRootServiceInfoHolder : public apache::thrift::ServiceInfoHolder {
    apache::thrift::ServiceRequestInfoMap const& requestInfoMap() const override;
    static apache::thrift::ServiceRequestInfoMap staticRequestInfoMap();
 };
-} // cpp2
+} // namespace cpp2
 
 namespace apache::thrift {
 template <>
@@ -54,7 +54,7 @@ class ServiceHandler<::cpp2::MyRoot> : public apache::thrift::ServerInterface {
   virtual folly::coro::Task<void> co_do_root();
   virtual folly::coro::Task<void> co_do_root(apache::thrift::RequestParams params);
 #endif
-  virtual void async_tm_do_root(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback);
+  virtual void async_tm_do_root(apache::thrift::HandlerCallbackPtr<void> callback);
  private:
   static ::cpp2::MyRootServiceInfoHolder __fbthrift_serviceInfoHolder;
   std::atomic<apache::thrift::detail::si::InvocationType> __fbthrift_invocation_do_root{apache::thrift::detail::si::InvocationType::AsyncTm};
@@ -64,7 +64,7 @@ class ServiceHandler<::cpp2::MyRoot> : public apache::thrift::ServerInterface {
 
 namespace cpp2 {
 using MyRootSvIf [[deprecated("Use apache::thrift::ServiceHandler<MyRoot> instead")]] = ::apache::thrift::ServiceHandler<MyRoot>;
-} // cpp2
+} // namespace cpp2
 namespace cpp2 {
 class MyRootSvNull : public ::apache::thrift::ServiceHandler<MyRoot> {
  public:
@@ -102,4 +102,4 @@ class MyRootAsyncProcessor : public ::apache::thrift::GeneratedAsyncProcessorBas
   ~MyRootAsyncProcessor() override {}
 };
 
-} // cpp2
+} // namespace cpp2

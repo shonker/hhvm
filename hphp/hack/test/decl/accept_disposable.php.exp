@@ -58,11 +58,12 @@
              php_std_lib = false; support_dynamic_type = false };
            sm_attributes = []; sm_sort_text = None }
          ];
-       sc_user_attributes = []; sc_enum_type = None; sc_docs_url = None }));
+       sc_user_attributes = []; sc_enum_type = None; sc_docs_url = None;
+       sc_package_override = None }));
   ("\\f",
    (Shallow_decl_defs.Fun
       { Typing_defs.fe_deprecated = None; fe_module = None;
-        fe_internal = false;
+        fe_package_override = None; fe_internal = false;
         fe_type =
         (Rwitness_from_decl ([9:10-11]),
          (Tfun
@@ -73,7 +74,8 @@
                  (Rhint ([9:35-41]), (Tapply (([9:35-41], "\\Handle"), [])));
                  fp_flags =
                  { Typing_defs_flags.FunParam.accept_disposable = true;
-                   inout = false; has_default = false; readonly = false };
+                   inout = false; has_default = false; readonly = false;
+                   ignore_readonly_error = false };
                  fp_def_value = None }
                 ];
               ft_implicit_params = { capability = (CapDefaults [9:10-11]) };

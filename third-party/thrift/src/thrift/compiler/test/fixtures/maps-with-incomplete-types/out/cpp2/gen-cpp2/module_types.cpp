@@ -33,7 +33,7 @@ void TccStructTraits<::apache::thrift::test::A>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace apache { namespace thrift { namespace test {
+namespace apache::thrift::test {
 
 std::string_view A::__fbthrift_get_field_name(::apache::thrift::FieldOrdinal ord) {
   if (ord == ::apache::thrift::FieldOrdinal{0}) { return {}; }
@@ -64,7 +64,7 @@ A& A::operator=([[maybe_unused]] A&& other) noexcept {
 
 
 A::A(apache::thrift::FragileConstructor, std::unordered_map<::std::int32_t, ::apache::thrift::test::B> some_map__arg) :
-    __fbthrift_field_some_map(std::move(some_map__arg)) {
+    __fbthrift_field_some_map(std::move(some_map__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -117,7 +117,7 @@ static_assert(
         std::unordered_map<::std::int32_t, ::apache::thrift::test::B>>,
     "inconsistent use of json option");
 
-}}} // apache::thrift::test
+} // namespace apache::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -140,7 +140,7 @@ void TccStructTraits<::apache::thrift::test::B>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace apache { namespace thrift { namespace test {
+namespace apache::thrift::test {
 
 std::string_view B::__fbthrift_get_field_name(::apache::thrift::FieldOrdinal ord) {
   if (ord == ::apache::thrift::FieldOrdinal{0}) { return {}; }
@@ -152,7 +152,7 @@ std::string_view B::__fbthrift_get_class_name() {
 
 
 B::B(apache::thrift::FragileConstructor, ::std::int32_t field__arg) :
-    __fbthrift_field_field(std::move(field__arg)) {
+    __fbthrift_field_field(std::move(field__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -195,11 +195,11 @@ template uint32_t B::serializedSize<>(apache::thrift::CompactProtocolWriter cons
 template uint32_t B::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // apache::thrift::test
+} // namespace apache::thrift::test
 
-namespace apache { namespace thrift { namespace test { namespace {
+namespace apache::thrift::test { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}}}} // apache::thrift::test
+}} // namespace apache::thrift::test
 namespace apache::thrift::detail::annotation {
 }

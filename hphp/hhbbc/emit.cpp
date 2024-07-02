@@ -49,6 +49,8 @@
 #include "hphp/runtime/vm/type-alias-emitter.h"
 #include "hphp/runtime/vm/unit-emitter.h"
 
+#include "hphp/util/configs/eval.h"
+
 namespace HPHP::HHBBC {
 
 TRACE_SET_MOD(hhbbc_emit);
@@ -505,10 +507,9 @@ EmitBcInfo emit_bytecode(EmitUnitState& euState, UnitEmitter& ue, FuncEmitter& f
     case Op::opcode: {                                           \
       if (Op::opcode == Op::Nop) break;                          \
       OpInfo<bc::opcode> data{inst.opcode};                      \
-      if (RuntimeOption::EnableIntrinsicsExtension) {            \
+      if (Cfg::Eval::EnableIntrinsicsExtension) {            \
         if (Op::opcode == Op::FCallFuncD &&                      \
-            inst.FCallFuncD.str2->fsame(                         \
-              s_hhbbc_fail_verification.get())) {                \
+            inst.FCallFuncD.str2 == s_hhbbc_fail_verification.get()) {\
           fe.emitOp(Op::CheckProp);                              \
           fe.emitInt32(                                          \
             ue.mergeLitstr(inst.FCallFuncD.str2));               \
@@ -1215,13 +1216,13 @@ void emit_typealias(UnitEmitter& ue, const php::TypeAlias& alias) {
   auto const te = ue.newTypeAliasEmitter(alias.name->toCppString());
 
   te->init(
-      std::get<0>(alias.srcInfo.loc),
-      std::get<1>(alias.srcInfo.loc),
-      alias.attrs,
-      alias.value,
-      alias.kind,
-      alias.typeStructure,
-      alias.resolvedTypeStructure
+    std::get<0>(alias.srcInfo.loc),
+    std::get<1>(alias.srcInfo.loc),
+    alias.attrs,
+    alias.value,
+    alias.kind,
+    Array::attach(const_cast<ArrayData*>(alias.typeStructure)),
+    Array::attach(const_cast<ArrayData*>(alias.resolvedTypeStructure))
   );
   te->setUserAttributes(alias.userAttrs);
 }

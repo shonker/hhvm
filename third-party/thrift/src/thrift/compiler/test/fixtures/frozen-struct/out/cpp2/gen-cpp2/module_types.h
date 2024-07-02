@@ -92,7 +92,7 @@ APACHE_THRIFT_DEFINE_ACCESSOR(boxed_field);
 } // namespace apache
 
 // BEGIN declare_enums
-namespace some { namespace ns {
+namespace some::ns {
 
 enum class EnumB {
   EMPTY = 1,
@@ -100,7 +100,7 @@ enum class EnumB {
 
 
 
-}} // some::ns
+} // namespace some::ns
 
 namespace std {
 template<> struct hash<::some::ns::EnumB> :
@@ -137,14 +137,14 @@ template <> struct TEnumTraits<::some::ns::EnumB> {
 
 // END declare_enums
 // BEGIN forward_declare
-namespace some { namespace ns {
+namespace some::ns {
 class ModuleA;
 class ModuleB;
 namespace detail {
 class DirectlyAdapted;
 } // namespace detail
 class CppRef;
-}} // some::ns
+} // namespace some::ns
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -160,7 +160,7 @@ struct is_cpp_ref_field_optional<::some::ns::CppRef,::apache::thrift::type::fiel
 
 // BEGIN hash_and_equal_to
 // END hash_and_equal_to
-namespace some { namespace ns {
+namespace some::ns {
 using ::apache::thrift::detail::operator!=;
 using ::apache::thrift::detail::operator>;
 using ::apache::thrift::detail::operator<=;
@@ -221,6 +221,8 @@ class ModuleA final  {
  public:
   using __fbthrift_cpp2_type = ModuleA;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -635,6 +637,8 @@ class ModuleB final  {
   using __fbthrift_cpp2_type = ModuleB;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -838,6 +842,8 @@ class DirectlyAdapted final  {
   using __fbthrift_cpp2_type = DirectlyAdapted;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -997,6 +1003,8 @@ class CppRef final  {
  public:
   using __fbthrift_cpp2_type = CppRef;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -1255,4 +1263,4 @@ unsigned long CppRef::read(Protocol_* iprot) {
 }
 
 
-}} // some::ns
+} // namespace some::ns

@@ -16,7 +16,7 @@ module TUtils = Typing_utils
 module TGenConstraint = Typing_generic_constraint
 module Subst = Decl_subst
 module MakeType = Typing_make_type
-module Cls = Decl_provider.Class
+module Cls = Folded_class
 module KindDefs = Typing_kinding_defs
 module Kinding = Typing_kinding
 module SN = Naming_special_names
@@ -295,11 +295,28 @@ let rec localize ~(ety_env : expand_env) env (dty : decl_ty) =
   | Tmixed -> ((env, None), MakeType.mixed r)
   | Tthis ->
     let ty =
-      map_reason ety_env.this_ty ~f:(function
-          | Reason.Rnone -> r
-          | Reason.Rexpr_dep_type (_, pos, s) ->
-            Reason.Rexpr_dep_type (r, pos, s)
-          | reason -> Reason.Rinstantiate (reason, SN.Typehints.this, r))
+      map_reason ety_env.this_ty ~f:(function reason ->
+          if Reason.Predicates.is_none reason then
+            r
+          else (
+            match Reason.Predicates.unpack_expr_dep_type_opt reason with
+            | Some (_, pos, s) -> Reason.expr_dep_type (r, pos, s)
+            | None -> Reason.instantiate (reason, SN.Typehints.this, r)
+          ))
+    in
+    (* When refining `as this`, insert a like type for generic or non-final
+     * classes, because generics are not checked at runtime *)
+    let ty =
+      if ety_env.ish_weakening then
+        match Env.get_self_class env with
+        | Decl_entry.Found tc ->
+          if Cls.final tc && List.is_empty (Cls.tparams tc) then
+            ty
+          else
+            MakeType.locl_like (Reason.pessimised_this (Reason.to_pos r)) ty
+        | _ -> ty
+      else
+        ty
     in
     ((env, None), ty)
   | Tvec_or_dict (tk, tv) ->
@@ -343,7 +360,14 @@ let rec localize ~(ety_env : expand_env) env (dty : decl_ty) =
       match SMap.find_opt x ety_env.substs with
       | Some x_ty ->
         let (env, x_ty) = Env.expand_type env x_ty in
-        let r_inst = Reason.Rinstantiate (get_reason x_ty, x, r) in
+        let r_inst =
+          let rp = get_reason x_ty in
+          if not @@ TypecheckerOptions.using_extended_reasons env.genv.tcopt
+          then
+            Reason.instantiate (rp, x, r)
+          else
+            rp
+        in
         begin
           match (targs, get_node x_ty) with
           | (_ :: _, Tclass (((_, name) as id), _, [])) ->
@@ -476,6 +500,15 @@ let rec localize ~(ety_env : expand_env) env (dty : decl_ty) =
         let lty =
           set_origin_and_cache origin_opt env ty_err_opt lty (Some shp_def_pos)
         in
+        let lty =
+          Typing_helpers.Prov.(
+            update lty ~env ~f:(fun into ->
+                flow
+                  ~into
+                  ~from:
+                    (Typing_reason.localize
+                    @@ Typing_defs.get_reason typedef_info.td_type)))
+        in
         ((env, ty_err_opt), lty)
       | Decl_entry.DoesNotExist
       | Decl_entry.NotYetAvailable ->
@@ -546,7 +579,10 @@ let rec localize ~(ety_env : expand_env) env (dty : decl_ty) =
         | _ -> false
       in
       let allow_abstract_tconst = allow_abstract_tconst root_ty in
-      let ((env, e1), root_ty) = localize ~ety_env env root_ty in
+      let ((env, e1), root_ty) =
+        (* We don't want to put `~` on this::TC, so set ish_weakening to false *)
+        localize ~ety_env:{ ety_env with ish_weakening = false } env root_ty
+      in
       let ((env, e2), ty) =
         TUtils.expand_typeconst ety_env env root_ty id ~allow_abstract_tconst
       in
@@ -564,11 +600,13 @@ let rec localize ~(ety_env : expand_env) env (dty : decl_ty) =
          * the expression dependent type was derived from.
          *)
         let reason =
-          match get_reason root_ty with
-          | Reason.Rexpr_dep_type (_, p, e) -> Reason.Rexpr_dep_type (r, p, e)
-          | _ -> r
+          match
+            Reason.Predicates.unpack_expr_dep_type_opt (get_reason root_ty)
+          with
+          | Some (_, p, e) -> Reason.expr_dep_type (r, p, e)
+          | None -> r
         in
-        Reason.Rtype_access (expand_reason, [(reason, taccess_string)])
+        Reason.type_access (expand_reason, [(reason, taccess_string)])
       in
       let ty = map_reason ty ~f:elaborate_reason in
       ((env, ty_err_opt), ty))
@@ -804,10 +842,20 @@ and localize_class_instantiation
             | Decl_entry.Found None ->
               ( (env, None),
                 MakeType.arraykey
-                  (Reason.Rimplicit_upper_bound (pos, "arraykey")) )
+                  (Reason.implicit_upper_bound (pos, "arraykey")) )
             | Decl_entry.Found (Some ty) -> localize ~ety_env env ty
           in
-          (env, mk (r, Tnewtype (name, [], cstr)))
+          let enum_ty = mk (r, Tnewtype (name, [], cstr)) in
+          let r_dyn = r in
+          let enum_ty =
+            if ety_env.ish_weakening then
+              MakeType.intersection
+                r_dyn
+                [MakeType.locl_like r_dyn enum_ty; MakeType.arraykey r_dyn]
+            else
+              enum_ty
+          in
+          (env, enum_ty)
     else
       let tparams = Cls.tparams class_info in
       let nkinds = KindDefs.Simple.named_kinds_of_decl_tparams tparams in
@@ -833,7 +881,7 @@ and localize_class_instantiation
               "Internal error: module must exist for class to be not visible"
         in
         let new_r =
-          Reason.Ropaque_type_from_module (Cls.pos class_info, callee_module, r)
+          Reason.opaque_type_from_module (Cls.pos class_info, callee_module, r)
         in
         let cstr = MakeType.mixed new_r in
         (* If the class supports dynamic, reveal this in the newtype *)
@@ -951,7 +999,7 @@ and localize_cstr_ty ~ety_env env ty tp_name =
   let (env, ty) = localize ~ety_env env ty in
   let ty =
     map_reason ty ~f:(fun r ->
-        Reason.Rcstr_on_generics (Reason.to_pos r, tp_name))
+        Reason.cstr_on_generics (Reason.to_pos r, tp_name))
   in
   (env, ty)
 
@@ -1321,7 +1369,14 @@ let localize_targ_with_kind
   | (hint_pos, _) ->
     let ty = Decl_hint.hint env.decl_env hint in
     if check_well_kinded then
-      Kinding.Simple.check_well_kinded ~in_signature:false env ty nkind;
+      Kinding.Simple.check_well_kinded
+        ~in_signature:false
+        ~in_typeconst:false
+        ~in_typehint:true
+        ~in_targ:false
+        env
+        ty
+        nkind;
     let (env, ty) =
       localize_no_subst_and_kind
         env
@@ -1455,7 +1510,7 @@ let localize_targs_with_kinds
           Env.fresh_type_reason
             env
             use_pos
-            (Reason.Rtype_variable_generics (use_pos, snd kind_name, use_name))
+            (Reason.type_variable_generics (use_pos, snd kind_name, use_name))
         in
         Typing_log.log_tparam_instantiation env use_pos (snd kind_name) tvar;
         ((env, None), (tvar, wildcard_hint))
@@ -1534,7 +1589,8 @@ let localize_targs
 (* Performs no substitutions of generics and initializes Tthis to
  * Env.get_self env
  *)
-let localize_no_subst_ env ~wildcard_action ~on_error ?report_cycle ty =
+let localize_no_subst_
+    env ~wildcard_action ~ish_weakening ~on_error ?report_cycle ty =
   let ety_env =
     {
       empty_expand_env with
@@ -1542,6 +1598,7 @@ let localize_no_subst_ env ~wildcard_action ~on_error ?report_cycle ty =
         Typing_defs.Type_expansions.empty_w_cycle_report ~report_cycle;
       on_error;
       wildcard_action;
+      ish_weakening;
     }
   in
   localize env ty ~ety_env
@@ -1557,17 +1614,22 @@ let localize_hint_no_subst env ~ignore_errors ?report_cycle h =
       else
         Some (Typing_error.Reasons_callback.invalid_type_hint pos))
     ~wildcard_action:Wildcard_illegal
+    ~ish_weakening:false
     ?report_cycle
     h
 
-let localize_hint_for_refinement env h =
-  let (pos, _) = h in
-  let h = Decl_hint.hint env.decl_env h in
-  localize_no_subst_
-    env
-    ~on_error:(Some (Typing_error.Reasons_callback.invalid_type_hint pos))
-    ~wildcard_action:Wildcard_fresh_generic
-    h
+let localize_hint_for_refinement env hint =
+  let (pos, _) = hint in
+  let h = Decl_hint.hint env.decl_env hint in
+  let ((env, ty_err_opt), hint_ty) =
+    localize_no_subst_
+      env
+      ~on_error:(Some (Typing_error.Reasons_callback.invalid_type_hint pos))
+      ~wildcard_action:Wildcard_fresh_generic
+      ~ish_weakening:(Env.get_tcopt env |> TypecheckerOptions.pessimise_builtins)
+      h
+  in
+  ((env, ty_err_opt), hint_ty)
 
 let localize_hint_for_lambda env h =
   let (pos, _) = h in
@@ -1576,6 +1638,7 @@ let localize_hint_for_lambda env h =
     env
     ~on_error:(Some (Typing_error.Reasons_callback.invalid_type_hint pos))
     ~wildcard_action:Wildcard_fresh_tyvar
+    ~ish_weakening:false
     h
 
 let localize_no_subst env ~ignore_errors ty =
@@ -1589,6 +1652,7 @@ let localize_no_subst env ~ignore_errors ty =
           (Typing_error.Reasons_callback.invalid_type_hint
              (Pos_or_decl.unsafe_to_raw_pos @@ get_pos ty)))
     ~wildcard_action:Wildcard_illegal
+    ~ish_weakening:false
     ty
 
 let localize_targs_and_check_constraints
@@ -1641,7 +1705,7 @@ let localize_and_add_generic_parameters_with_bounds
       env ({ tp_name = (pos, name); tp_constraints = cstrl; _ } : decl_tparam) =
     (* TODO(T70068435) This may have to be touched when adding support for constraints on HK
        types *)
-    let tparam_ty = mk (Reason.Rwitness_from_decl pos, Tgeneric (name, [])) in
+    let tparam_ty = mk (Reason.witness_from_decl pos, Tgeneric (name, [])) in
     List.map_env_ty_err_opt
       env
       cstrl

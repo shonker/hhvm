@@ -34,7 +34,7 @@ struct TccStructTraits<::a::different::ns::AStructB> {
 } // namespace thrift
 } // namespace apache
 
-namespace a { namespace different { namespace ns {
+namespace a::different::ns {
 
 template <class Protocol_>
 void AStruct::readNoXfer(Protocol_* iprot) {
@@ -279,8 +279,8 @@ uint32_t AStructB::write(Protocol_* prot_) const {
       xfer += ::apache::thrift::detail::pm::protocol_methods<::apache::thrift::type_class::structure, ::a::different::ns::AStruct>::write(*prot_, *this->__fbthrift_field_FieldA);
     } else {
       xfer += prot_->writeStructBegin("AStruct");
-      xfer += prot_->writeStructEnd();
       xfer += prot_->writeFieldStop();
+      xfer += prot_->writeStructEnd();
     }
     xfer += prot_->writeFieldEnd();
   }
@@ -303,4 +303,4 @@ extern template uint32_t AStructB::serializedSize<>(apache::thrift::SimpleJSONPr
 extern template uint32_t AStructB::serializedSizeZC<>(apache::thrift::SimpleJSONProtocolWriter const*) const;
 
 
-}}} // a::different::ns
+} // namespace a::different::ns

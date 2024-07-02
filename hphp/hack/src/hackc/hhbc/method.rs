@@ -4,26 +4,22 @@
 // LICENSE file in the "hack" directory of this source tree.
 
 use bitflags::bitflags;
-use ffi::Vector;
-use hhvm_types_ffi::ffi::Attr;
 use serde::Serialize;
 
-use crate::Attribute;
-use crate::Body;
-use crate::Coeffects;
+use crate::BodyImpl;
 use crate::MethodName;
 use crate::Visibility;
 
-#[derive(Debug, Serialize)]
+pub type Method = MethodImpl<crate::BcRepr>;
+
+/// A Hack method contained within a Class.
+#[derive(Debug, Clone, Serialize)]
 #[repr(C)]
-pub struct Method {
-    pub attributes: Vector<Attribute>,
+pub struct MethodImpl<R> {
     pub visibility: Visibility,
     pub name: MethodName,
-    pub body: Body,
-    pub coeffects: Coeffects,
+    pub body: BodyImpl<R>,
     pub flags: MethodFlags,
-    pub attrs: Attr,
 }
 
 bitflags! {
@@ -37,7 +33,7 @@ bitflags! {
     }
 }
 
-impl Method {
+impl<R> MethodImpl<R> {
     pub fn is_closure_body(&self) -> bool {
         self.flags.contains(MethodFlags::IS_CLOSURE_BODY)
     }

@@ -1,6 +1,6 @@
 {{!
 
-  Copyright (c) Meta Platforms, Inc. and its affiliates.
+  Copyright (c) Meta Platforms, Inc. and affiliates.
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -166,6 +166,7 @@ struct Args_{{service:rust_name}}_{{function:name}} {
     {{field:rust_name}}: {{>lib/fieldtype}},
     {{/function:args}}
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_{{service:rust_name}}_{{function:name}} {
     #[inline]{{! No cost because there's only one caller; with luck will mitigate move cost of args. }}
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "{{service:name}}.{{function:name}}"))]
@@ -185,7 +186,11 @@ impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_{{
                 (::fbthrift::TType::Stop, _) => break,{{!
                 }}{{#function:args}}
                 ({{#field:type}}{{>lib/ttype}}{{/field:type}}, {{field:key}}) => {{!
-                    }}field_{{field:name}} = ::std::option::Option::Some({{#field:type}}{{#field:type_annotated?}}{{program:crate}}::r#impl::read{{/field:type_annotated?}}{{^field:type_annotated?}}{{>lib/read}}{{/field:type_annotated?}}{{/field:type}}(p)?),{{!
+                    }}field_{{field:name}} = ::std::option::Option::Some({{!
+                    }}{{#field:has_adapter?}}{{>lib/adapter/qualified}}::from_thrift_field::<fbthrift::metadata::NoThriftAnnotations>({{/field:has_adapter?}}{{!
+                    }}{{#field:type}}{{#field:type_annotation?}}{{>lib/annfieldread}}{{/field:type_annotation?}}{{^field:type_annotation?}}{{>lib/read}}{{/field:type_annotation?}}{{/field:type}}(p)?{{!
+                    }}{{#field:has_adapter?}}, {{field:key}})?{{/field:has_adapter?}}{{!
+                    }}),{{!
                 }}{{/function:args}}
                 (fty, _) => p.skip(fty)?,
             }
@@ -249,7 +254,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -298,40 +303,34 @@ where
                 let (interaction_handler, res) = res;
                 {{/type:void?}}{{/function:return_type}}
                 let interaction_processor = ::std::sync::Arc::new({{function:interaction_name}}Processor::<P, ::std::boxed::Box<dyn {{function:interaction_name}}>, R, RS>::new(interaction_handler));
-                reply_state.lock().unwrap().set_interaction_processor(interaction_processor)?;
+                reply_state.set_interaction_processor(interaction_processor)?;
                 {{/function:creates_interaction?}}
-                {{program:crate}}::services::{{service:snake}}::{{function:upcamel}}Exn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err({{program:crate}}::services::{{service:snake}}::{{function:upcamel}}Exn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "{{function:rust_name}}",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                 {{!TODO: Remove this once debug for stream is implemented.}}
                 {{^function:stream?}}
                 ::tracing::info!(method = "{{service:name}}.{{function:name}}", exception = ?exn);
                 {{/function:stream?}}
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("{{service:name}}.{{function:name}}", exn);
                 ::tracing::error!(method = "{{service:name}}.{{function:name}}", panic = ?aexn);
-                {{program:crate}}::services::{{service:snake}}::{{function:upcamel}}Exn::ApplicationException(aexn)
+                ::std::result::Result::Err({{program:crate}}::services::{{service:snake}}::{{function:upcamel}}Exn::ApplicationException(aexn))
             }
         };
         {{^function:stream?}}
 
-        let env = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
+        let env = ::fbthrift::help::serialize_result_envelope::<P, R, {{program:crate}}::services::{{service:snake}}::{{function:upcamel}}Exn>(
             "{{function:name}}",
             METHOD_NAME.as_cstr(),
             _seqid,
             req_ctxt,
             &mut ctx_stack,
-            res
+            res,
         )?;
-        reply_state.lock().unwrap().send_reply(env);
+        reply_state.send_reply(env);
         Ok(())
         {{/function:stream?}}
         {{#function:stream?}}
@@ -339,13 +338,13 @@ where
         use ::futures::StreamExt as _;
 
         let (response, stream) = match res {
-            {{program:crate}}::services::{{service:snake}}::{{function:upcamel}}Exn::Success(res) => {
+            ::std::result::Result::Ok(res) => {
                 {{#function:stream_has_first_response?}}
                 let (response, stream) = res;
-                let response = {{program:crate}}::services::{{service:snake}}::{{function:upcamel}}ResponseExn::Success(response);
+                let response = ::std::result::Result::Ok(response);
                 {{/function:stream_has_first_response?}}{{!
                 }}{{^function:stream_has_first_response?}}
-                let response = {{program:crate}}::services::{{service:snake}}::{{function:upcamel}}ResponseExn::Success(());
+                let response = ::std::result::Result::Ok(());
                 let stream = res;
                 {{/function:stream_has_first_response?}}
 
@@ -353,18 +352,12 @@ where
                     .catch_unwind()
                     .map(|item| {
                         match item {
-                            ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
-                                let item = {{program:crate}}::services::{{service:snake}}::{{function:upcamel}}StreamExn::Success(res);
-                                match ::fbthrift::help::serialize_stream_item::<P, _>(item) {
-                                    Ok(payload) => ::fbthrift::SerializedStreamElement::Success(payload),
-                                    Err(err) => {
-                                        tracing::error!(?err, method="{{service:name}}.{{function:name}}", "Failed to serialize success response");
-                                        ::fbthrift::SerializedStreamElement::SerializationError(err)
-                                    },
-                                }
-                            }
-                            ::std::result::Result::Ok(::std::result::Result::Err({{program:crate}}::services::{{service:snake}}::{{function:upcamel}}StreamExn::Success(_))) => {
-                                panic!("{} attempted to return success via error", "{{function:rust_name}}");
+                            ::std::result::Result::Ok(::std::result::Result::Ok(success)) => {
+                                let payload = ::fbthrift::help::serialize_stream_item::<P, {{program:crate}}::services::{{service:snake}}::{{function:upcamel}}StreamExn>(
+                                    ::std::result::Result::Ok(success),
+                                    "{{function:name}}",
+                                );
+                                ::fbthrift::SerializedStreamElement::Success(payload)
                             }
                             ::std::result::Result::Ok(::std::result::Result::Err({{program:crate}}::services::{{service:snake}}::{{function:upcamel}}StreamExn::ApplicationException(aexn))) => {
                                 tracing::info!(?aexn, method="{{service:name}}.{{function:name}}", "Streaming ApplicationException");
@@ -373,13 +366,11 @@ where
                             {{#function:stream_exceptions?}}
                             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                                 tracing::debug!(?exn, method="{{service:name}}.{{function:name}}", "Streaming declared exception");
-                                match ::fbthrift::help::serialize_stream_item::<P, _>(exn) {
-                                    Ok(payload) => ::fbthrift::SerializedStreamElement::DeclaredException(payload),
-                                    Err(err) => {
-                                        tracing::error!(?err, method="{{service:name}}.{{function:name}}", "Failed to serialize declared exception return");
-                                        ::fbthrift::SerializedStreamElement::SerializationError(err)
-                                    }
-                                }
+                                let payload = ::fbthrift::help::serialize_stream_item::<P, {{program:crate}}::services::{{service:snake}}::{{function:upcamel}}StreamExn>(
+                                    ::std::result::Result::Err(exn),
+                                    "{{function:name}}",
+                                );
+                                ::fbthrift::SerializedStreamElement::DeclaredException(payload)
                             }
                             {{/function:stream_exceptions?}}
                             ::std::result::Result::Err(exn) => {
@@ -393,28 +384,19 @@ where
                     .boxed();
                 (response, Some(stream))
             },
-            {{#function:exceptions}}
-            {{program:crate}}::services::{{service:snake}}::{{function:upcamel}}Exn::{{field:rust_name}}(exn) => {
-                let response = {{program:crate}}::services::{{service:snake}}::{{function:upcamel}}ResponseExn::{{field:rust_name}}(exn);
-                (response, None)
-            },
-            {{/function:exceptions}}
-            {{program:crate}}::services::{{service:snake}}::{{function:upcamel}}Exn::ApplicationException(aexn)=> {
-                let response = {{program:crate}}::services::{{service:snake}}::{{function:upcamel}}ResponseExn::ApplicationException(aexn);
-                (response, None)
-            },
+            ::std::result::Result::Err(exn) => (::std::result::Result::Err(exn), None),
         };
 
-        let response = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
-                    "{{function:name}}",
-                    METHOD_NAME.as_cstr(),
-                    _seqid,
-                    req_ctxt,
-                    &mut ctx_stack,
-                    response
-                )?;
+        let response = ::fbthrift::help::serialize_result_envelope::<P, R, {{program:crate}}::services::{{service:snake}}::{{function:upcamel}}Exn>(
+            "{{function:name}}",
+            METHOD_NAME.as_cstr(),
+            _seqid,
+            req_ctxt,
+            &mut ctx_stack,
+            response,
+        )?;
 
-        let _ = reply_state.lock().unwrap().send_stream_reply(response, stream, P::PROTOCOL_ID);
+        let _ = reply_state.send_stream_reply(response, stream, P::PROTOCOL_ID);
         Ok(())
         {{/function:stream?}}
     }{{!
@@ -472,7 +454,7 @@ where
         _p: &mut P::Deserializer,
         _req: ::fbthrift::ProtocolDecoded<P>,
         _req_ctxt: &R,
-        _reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        _reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         match idx {{>lib/block}}{{!
@@ -569,7 +551,7 @@ where
         &self,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
     ) -> ::anyhow::Result<()> {
         use ::fbthrift::{ProtocolReader as _, ServiceProcessor as _};
         let mut p = P::deserializer(req.clone());

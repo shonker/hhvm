@@ -380,12 +380,12 @@ std::pair<const StringData*, const StringData*> Func::getMethCallerNames(
 // FuncId manipulation.
 
 FuncId::Int Func::maxFuncIdNum() {
-  return s_nextFuncId.load(std::memory_order_relaxed);
+  return s_nextFuncId.load(std::memory_order_acquire);
 }
 
 #ifdef USE_LOWPTR
 void Func::setNewFuncId() {
-  s_nextFuncId.fetch_add(1, std::memory_order_relaxed);
+  s_nextFuncId.fetch_add(1, std::memory_order_acq_rel);
   s_funcid_counter->increment();
 }
 
@@ -401,7 +401,7 @@ bool Func::isFuncIdValid(FuncId id) {
 #else
 void Func::setNewFuncId() {
   assertx(m_funcId.isInvalid());
-  m_funcId = {s_nextFuncId.fetch_add(1, std::memory_order_relaxed)};
+  m_funcId = {s_nextFuncId.fetch_add(1, std::memory_order_acq_rel)};
   s_funcid_counter->increment();
 
   s_funcVec.ensureSize(m_funcId.toInt() + 1);
@@ -727,7 +727,7 @@ Func::SharedData::SharedData(BCPtr bc, Offset bclen,
   m_allFlags.m_isUntrustedReturnType = false;
   m_allFlags.m_isMemoizeWrapper = false;
   m_allFlags.m_isMemoizeWrapperLSB = false;
-  m_allFlags.m_memoizeICType = Func::MemoizeICType::NoIC;
+  m_allFlags.m_memoizeICType = Func::MemoizeICType::MakeICInaccessible;
   m_allFlags.m_isPhpLeafFn = isPhpLeafFn;
   m_allFlags.m_hasReifiedGenerics = false;
   m_allFlags.m_hasParamsWithMultiUBs = false;
@@ -888,7 +888,7 @@ Func* Func::load(const StringData* name) {
 
 namespace {
 void handleModuleBoundaryViolation(const Func* callee, const Func* caller) {
-  if (!callee || !caller) return;
+  if (!RO::EvalEnforceModules || !callee || !caller) return;
   if (will_symbol_raise_module_boundary_violation(callee, caller)) {
     raiseModuleBoundaryViolation(nullptr, callee, caller->moduleName());
   }

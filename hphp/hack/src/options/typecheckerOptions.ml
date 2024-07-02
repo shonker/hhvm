@@ -94,12 +94,11 @@ let timeout t = t.GlobalOptions.tco_timeout
 
 let disallow_invalid_arraykey t = t.GlobalOptions.tco_disallow_invalid_arraykey
 
-let disallow_byref_dynamic_calls t =
-  t.GlobalOptions.tco_disallow_byref_dynamic_calls
-
-let disallow_byref_calls t = t.GlobalOptions.tco_disallow_byref_calls
-
 let log_levels t = t.GlobalOptions.log_levels
+
+let class_pointer_level t flag =
+  SMap.find_opt flag t.GlobalOptions.class_pointer_levels
+  |> Option.value ~default:0
 
 let remote_old_decls_no_limit t = t.GlobalOptions.tco_remote_old_decls_no_limit
 
@@ -143,7 +142,7 @@ let disallow_unresolved_type_variables t =
 
 let custom_error_config t = t.GlobalOptions.tco_custom_error_config
 
-let const_static_props t = t.GlobalOptions.tco_const_static_props
+let const_static_props t = t.GlobalOptions.po.ParserOptions.const_static_props
 
 let const_attribute t = t.GlobalOptions.tco_const_attribute
 
@@ -154,7 +153,7 @@ let error_php_lambdas t = t.GlobalOptions.tco_error_php_lambdas
 let disallow_discarded_nullable_awaitables t =
   t.GlobalOptions.tco_disallow_discarded_nullable_awaitables
 
-let is_systemlib t = t.GlobalOptions.tco_is_systemlib
+let is_systemlib t = t.GlobalOptions.po.ParserOptions.is_systemlib
 
 let higher_kinded_types t = t.GlobalOptions.tco_higher_kinded_types
 
@@ -170,7 +169,7 @@ let set_skip_check_under_dynamic t =
   GlobalOptions.{ t with tco_skip_check_under_dynamic = true }
 
 let interpret_soft_types_as_like_types t =
-  t.GlobalOptions.po_interpret_soft_types_as_like_types
+  t.GlobalOptions.po.ParserOptions.interpret_soft_types_as_like_types
 
 let enable_strict_string_concat_interp t =
   t.GlobalOptions.tco_enable_strict_string_concat_interp
@@ -178,10 +177,13 @@ let enable_strict_string_concat_interp t =
 let ignore_unsafe_cast t = t.GlobalOptions.tco_ignore_unsafe_cast
 
 let set_tco_no_parser_readonly_check t b =
-  GlobalOptions.{ t with tco_no_parser_readonly_check = b }
+  let po =
+    { t.GlobalOptions.po with ParserOptions.no_parser_readonly_check = b }
+  in
+  GlobalOptions.{ t with po }
 
 let tco_no_parser_readonly_check t =
-  t.GlobalOptions.tco_no_parser_readonly_check
+  t.GlobalOptions.po.ParserOptions.no_parser_readonly_check
 
 let set_tco_enable_expression_trees t b =
   GlobalOptions.{ t with tco_enable_expression_trees = b }
@@ -215,7 +217,7 @@ let strict_value_equality t = t.GlobalOptions.tco_strict_value_equality
 
 let enforce_sealed_subclasses t = t.GlobalOptions.tco_enforce_sealed_subclasses
 
-let everything_sdt t = t.GlobalOptions.tco_everything_sdt
+let everything_sdt t = t.GlobalOptions.po.ParserOptions.everything_sdt
 
 let implicit_inherit_sdt t = t.GlobalOptions.tco_implicit_inherit_sdt
 
@@ -266,6 +268,9 @@ let allow_all_files_for_module_declarations t =
 let allowed_files_for_module_declarations t =
   t.GlobalOptions.tco_allowed_files_for_module_declarations
 
+let allowed_files_for_ignore_readonly t =
+  t.GlobalOptions.tco_allowed_files_for_ignore_readonly
+
 let record_fine_grained_dependencies t =
   t.GlobalOptions.tco_record_fine_grained_dependencies
 
@@ -306,3 +311,22 @@ let tco_log_exhaustivity_check t = t.GlobalOptions.tco_log_exhaustivity_check
 let tco_sticky_quarantine t = t.GlobalOptions.tco_sticky_quarantine
 
 let tco_lsp_invalidation t = t.GlobalOptions.tco_lsp_invalidation
+
+let tco_extended_reasons t = t.GlobalOptions.tco_extended_reasons
+
+let using_extended_reasons t = Option.is_some @@ tco_extended_reasons t
+
+let yolo_extended_reasons t =
+  Option.value_map (tco_extended_reasons t) ~default:false ~f:(function
+      | GlobalOptions.Yolo -> true
+      | _ -> false)
+
+let enable_abstract_method_optional_parameters t =
+  t.GlobalOptions.tco_enable_abstract_method_optional_parameters
+
+let hack_warnings t = t.GlobalOptions.hack_warnings
+
+let package_v2 t = t.GlobalOptions.tco_package_v2
+
+let package_v2_bypass_package_check_for_class_const t =
+  t.GlobalOptions.tco_package_v2_bypass_package_check_for_class_const

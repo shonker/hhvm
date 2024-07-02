@@ -111,6 +111,8 @@ namespace HPHP {
   O(Clone,           NA,               ONE(CV),         ONE(CV),    NF) \
   O(Exit,            NA,               ONE(CV),         ONE(CV),    TF) \
   O(Fatal,           ONE(OA(FatalOp)), ONE(CV),         NOV,        TF) \
+  O(StaticAnalysisError,                                                \
+                     NA,               NOV,             NOV,        TF) \
   O(Enter,           ONE(BA),          NOV,             NOV,        CF_TF) \
   O(Jmp,             ONE(BA),          NOV,             NOV,        CF_TF) \
   O(JmpZ,            ONE(BA),          ONE(CV),         NOV,        CF) \
@@ -199,12 +201,10 @@ namespace HPHP {
                                        FCALL(1, 1),     FCALL,      CF) \
   O(FCallObjMethodD, FOUR(FCA,SA,OA(ObjMethodOp),SA),                   \
                                        FCALL(0, 1),     FCALL,      CF) \
-  O(IterInit,        TWO(ITA,BA),      ONE(CV),         NOV,        CF) \
-  O(LIterInit,       THREE(ITA,LA,BA), NOV,             NOV,        CF) \
-  O(IterNext,        TWO(ITA,BA),      NOV,             NOV,        CF) \
-  O(LIterNext,       THREE(ITA,LA,BA), NOV,             NOV,        CF) \
+  O(IterBase,        NA,               ONE(CV),         ONE(CV),    NF) \
+  O(IterInit,        THREE(ITA,LA,BA), NOV,             NOV,        CF) \
+  O(IterNext,        THREE(ITA,LA,BA), NOV,             NOV,        CF) \
   O(IterFree,        ONE(IA),          NOV,             NOV,        NF) \
-  O(LIterFree,       TWO(IA,LA),       NOV,             NOV,        NF) \
   O(Incl,            NA,               ONE(CV),         ONE(CV),    NF) \
   O(InclOnce,        NA,               ONE(CV),         ONE(CV),    NF) \
   O(Req,             NA,               ONE(CV),         ONE(CV),    NF) \
@@ -248,10 +248,8 @@ namespace HPHP {
   O(WHResult,        NA,               ONE(CV),         ONE(CV),    NF) \
   O(SetImplicitContextByValue,                                          \
                      NA,               ONE(CV),         ONE(CV),    NF) \
-  O(VerifyImplicitContextState,                                         \
-                     NA,               NOV,             NOV,        NF) \
-  O(CreateSpecialImplicitContext,                                       \
-                     NA,               TWO(CV,CV),      ONE(CV),    NF) \
+  O(GetInaccessibleImplicitContext,                                     \
+                     NA,               NOV,             ONE(CV),    NF) \
   O(Await,           NA,               ONE(CV),         ONE(CV),    CF) \
   O(AwaitAll,        ONE(LAR),         NOV,             ONE(CV),    CF) \
   O(Idx,             NA,               THREE(CV,CV,CV), ONE(CV),    NF) \

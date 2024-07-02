@@ -29,11 +29,23 @@ impl<'a> Reason<'a> {
         Reason::Rinstantiate(args)
     }
 
+    pub fn rev_pos(&self) -> Option<&'a Pos<'a>> {
+        match self {
+            T_::Rflow(r) => r.0.rev_pos(),
+            T_::RprjSymm(r) => r.1.rev_pos(),
+            T_::RprjAsymmLeft(r) => r.1.rev_pos(),
+            T_::RprjAsymmRight(r) => r.1.rev_pos(),
+            T_::Rrev(r) => r.pos(),
+            _ => self.pos(),
+        }
+    }
+
     pub fn pos(&self) -> Option<&'a Pos<'a>> {
         use T_::*;
         match self {
             Rnone => None,
             Rinvalid => None,
+            RmissingField => None,
             Rwitness(p)
             | RwitnessFromDecl(p)
             | Ridx((p, _))
@@ -72,8 +84,8 @@ impl<'a> Reason<'a> {
             | RnullsafeOp(p)
             | RtconstNoCstr((p, _))
             | Rpredicated((p, _))
-            | Ris(p)
-            | Ras(p)
+            | RisRefinement(p)
+            | RasRefinement(p)
             | Requal(p)
             | RvarrayOrDarrayKey(p)
             | RvecOrDictKey(p)
@@ -82,7 +94,7 @@ impl<'a> Reason<'a> {
             | RdynamicCall(p)
             | RdynamicConstruct(p)
             | RidxDict(p)
-            | RsetElement(p)
+            | RidxSetElement(p)
             | RmissingOptionalField((p, _))
             | RunsetField((p, _))
             | Rregex(p)
@@ -120,6 +132,7 @@ impl<'a> Reason<'a> {
             | RpessimisedInout(p)
             | RpessimisedReturn(p)
             | RpessimisedProp(p)
+            | RpessimisedThis(p)
             | RunsafeCast(p)
             | Rpattern(p) => Some(p),
             RlostInfo((_, r, _))
@@ -131,6 +144,11 @@ impl<'a> Reason<'a> {
             | RinvariantGeneric((r, _)) => r.pos(),
             RopaqueTypeFromModule((p, _, _)) => Some(p),
             RdynamicCoercion(r) => r.pos(),
+            Rflow(r) => r.0.pos(),
+            RprjSymm(r) => r.1.pos(),
+            RprjAsymmLeft(r) => r.1.pos(),
+            RprjAsymmRight(r) => r.1.pos(),
+            Rrev(r) => r.rev_pos(),
         }
     }
 }
@@ -140,6 +158,7 @@ impl<'a> std::fmt::Debug for T_<'a> {
         use T_::*;
         match self {
             Rnone => f.debug_tuple("Rnone").finish(),
+            RmissingField => f.debug_tuple("RmissingField").finish(),
             Rwitness(p) => f.debug_tuple("Rwitness").field(p).finish(),
             RwitnessFromDecl(p) => f.debug_tuple("RwitnessFromDecl").field(p).finish(),
             Ridx((p, t)) => f.debug_tuple("Ridx").field(p).field(t).finish(),
@@ -201,8 +220,8 @@ impl<'a> std::fmt::Debug for T_<'a> {
             RnullsafeOp(p) => f.debug_tuple("RnullsafeOp").field(p).finish(),
             RtconstNoCstr(p) => f.debug_tuple("RtconstNoCstr").field(p).finish(),
             Rpredicated(p) => f.debug_tuple("Rpredicated").field(p).finish(),
-            Ris(p) => f.debug_tuple("Ris").field(p).finish(),
-            Ras(p) => f.debug_tuple("Ras").field(p).finish(),
+            RisRefinement(p) => f.debug_tuple("RisRefinement").field(p).finish(),
+            RasRefinement(p) => f.debug_tuple("RasRefinement").field(p).finish(),
             Requal(p) => f.debug_tuple("Requal").field(p).finish(),
             RvarrayOrDarrayKey(p) => f.debug_tuple("RvarrayOrDarrayKey").field(p).finish(),
             RvecOrDictKey(p) => f.debug_tuple("RvecOrDictKey").field(p).finish(),
@@ -211,7 +230,7 @@ impl<'a> std::fmt::Debug for T_<'a> {
             RdynamicCall(p) => f.debug_tuple("RdynamicCall").field(p).finish(),
             RdynamicConstruct(p) => f.debug_tuple("RdynamicConstruct").field(p).finish(),
             RidxDict(p) => f.debug_tuple("RidxDict").field(p).finish(),
-            RsetElement(p) => f.debug_tuple("RsetElement").field(p).finish(),
+            RidxSetElement(p) => f.debug_tuple("RsetElement").field(p).finish(),
             RmissingOptionalField(p) => f.debug_tuple("RmissingOptionalField").field(p).finish(),
             RunsetField(p) => f.debug_tuple("RunsetField").field(p).finish(),
             RcontravariantGeneric(p) => f.debug_tuple("RcontravariantGeneric").field(p).finish(),
@@ -267,9 +286,15 @@ impl<'a> std::fmt::Debug for T_<'a> {
             RpessimisedInout(p) => f.debug_tuple("RpessimisedInout").field(p).finish(),
             RpessimisedReturn(p) => f.debug_tuple("RpessimisedReturn").field(p).finish(),
             RpessimisedProp(p) => f.debug_tuple("RpessimisedProp").field(p).finish(),
+            RpessimisedThis(p) => f.debug_tuple("RpessimisedThis").field(p).finish(),
             RunsafeCast(p) => f.debug_tuple("RunsafeCast").field(p).finish(),
             Rinvalid => f.debug_tuple("Rinvalid").finish(),
             Rpattern(p) => f.debug_tuple("Rpattern").field(p).finish(),
+            Rflow(p) => f.debug_tuple("Rflow").field(p).finish(),
+            Rrev(p) => f.debug_tuple("Rrev").field(p).finish(),
+            RprjSymm(p) => f.debug_tuple("RprjSymm").field(p).finish(),
+            RprjAsymmLeft(p) => f.debug_tuple("RprjAsymmLeft").field(p).finish(),
+            RprjAsymmRight(p) => f.debug_tuple("RprjAsymmRight").field(p).finish(),
         }
     }
 }

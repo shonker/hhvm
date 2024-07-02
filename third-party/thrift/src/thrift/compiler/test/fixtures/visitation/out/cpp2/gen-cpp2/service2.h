@@ -25,7 +25,7 @@ namespace apache { namespace thrift {
   namespace transport { class THeader; }
 }}
 
-namespace test_cpp2 { namespace cpp_reflection {
+namespace test_cpp2::cpp_reflection {
 class service2;
 class service2AsyncProcessor;
 
@@ -34,7 +34,7 @@ class service2ServiceInfoHolder : public apache::thrift::ServiceInfoHolder {
    apache::thrift::ServiceRequestInfoMap const& requestInfoMap() const override;
    static apache::thrift::ServiceRequestInfoMap staticRequestInfoMap();
 };
-}} // test_cpp2::cpp_reflection
+} // namespace test_cpp2::cpp_reflection
 
 namespace apache::thrift {
 template <>
@@ -57,7 +57,7 @@ class ServiceHandler<::test_cpp2::cpp_reflection::service2> : public apache::thr
   virtual folly::coro::Task<void> co_methodA();
   virtual folly::coro::Task<void> co_methodA(apache::thrift::RequestParams params);
 #endif
-  virtual void async_tm_methodA(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback);
+  virtual void async_tm_methodA(apache::thrift::HandlerCallbackPtr<void> callback);
   virtual void sync_methodB(::std::int32_t /*x*/, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> /*y*/, double /*z*/);
   [[deprecated("Use sync_methodB instead")]] virtual void methodB(::std::int32_t /*x*/, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> /*y*/, double /*z*/);
   virtual folly::Future<folly::Unit> future_methodB(::std::int32_t p_x, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_y, double p_z);
@@ -66,7 +66,7 @@ class ServiceHandler<::test_cpp2::cpp_reflection::service2> : public apache::thr
   virtual folly::coro::Task<void> co_methodB(::std::int32_t p_x, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_y, double p_z);
   virtual folly::coro::Task<void> co_methodB(apache::thrift::RequestParams params, ::std::int32_t p_x, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_y, double p_z);
 #endif
-  virtual void async_tm_methodB(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback, ::std::int32_t p_x, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_y, double p_z);
+  virtual void async_tm_methodB(apache::thrift::HandlerCallbackPtr<void> callback, ::std::int32_t p_x, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_y, double p_z);
   virtual ::std::int32_t sync_methodC();
   [[deprecated("Use sync_methodC instead")]] virtual ::std::int32_t methodC();
   virtual folly::Future<::std::int32_t> future_methodC();
@@ -75,7 +75,7 @@ class ServiceHandler<::test_cpp2::cpp_reflection::service2> : public apache::thr
   virtual folly::coro::Task<::std::int32_t> co_methodC();
   virtual folly::coro::Task<::std::int32_t> co_methodC(apache::thrift::RequestParams params);
 #endif
-  virtual void async_tm_methodC(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback);
+  virtual void async_tm_methodC(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback);
   virtual ::std::int32_t sync_methodD(::std::int32_t /*i*/, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> /*j*/, double /*k*/);
   [[deprecated("Use sync_methodD instead")]] virtual ::std::int32_t methodD(::std::int32_t /*i*/, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> /*j*/, double /*k*/);
   virtual folly::Future<::std::int32_t> future_methodD(::std::int32_t p_i, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_j, double p_k);
@@ -84,7 +84,7 @@ class ServiceHandler<::test_cpp2::cpp_reflection::service2> : public apache::thr
   virtual folly::coro::Task<::std::int32_t> co_methodD(::std::int32_t p_i, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_j, double p_k);
   virtual folly::coro::Task<::std::int32_t> co_methodD(apache::thrift::RequestParams params, ::std::int32_t p_i, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_j, double p_k);
 #endif
-  virtual void async_tm_methodD(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback, ::std::int32_t p_i, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_j, double p_k);
+  virtual void async_tm_methodD(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback, ::std::int32_t p_i, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_j, double p_k);
   virtual void sync_methodE(::test_cpp2::cpp_reflection::struct2& /*_return*/);
   [[deprecated("Use sync_methodE instead")]] virtual void methodE(::test_cpp2::cpp_reflection::struct2& /*_return*/);
   virtual folly::Future<std::unique_ptr<::test_cpp2::cpp_reflection::struct2>> future_methodE();
@@ -93,7 +93,7 @@ class ServiceHandler<::test_cpp2::cpp_reflection::service2> : public apache::thr
   virtual folly::coro::Task<std::unique_ptr<::test_cpp2::cpp_reflection::struct2>> co_methodE();
   virtual folly::coro::Task<std::unique_ptr<::test_cpp2::cpp_reflection::struct2>> co_methodE(apache::thrift::RequestParams params);
 #endif
-  virtual void async_tm_methodE(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::test_cpp2::cpp_reflection::struct2>>> callback);
+  virtual void async_tm_methodE(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::test_cpp2::cpp_reflection::struct2>> callback);
   virtual void sync_methodF(::test_cpp2::cpp_reflection::struct2& /*_return*/, ::std::int32_t /*l*/, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> /*m*/, double /*n*/);
   [[deprecated("Use sync_methodF instead")]] virtual void methodF(::test_cpp2::cpp_reflection::struct2& /*_return*/, ::std::int32_t /*l*/, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> /*m*/, double /*n*/);
   virtual folly::Future<std::unique_ptr<::test_cpp2::cpp_reflection::struct2>> future_methodF(::std::int32_t p_l, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_m, double p_n);
@@ -102,7 +102,7 @@ class ServiceHandler<::test_cpp2::cpp_reflection::service2> : public apache::thr
   virtual folly::coro::Task<std::unique_ptr<::test_cpp2::cpp_reflection::struct2>> co_methodF(::std::int32_t p_l, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_m, double p_n);
   virtual folly::coro::Task<std::unique_ptr<::test_cpp2::cpp_reflection::struct2>> co_methodF(apache::thrift::RequestParams params, ::std::int32_t p_l, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_m, double p_n);
 #endif
-  virtual void async_tm_methodF(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::test_cpp2::cpp_reflection::struct2>>> callback, ::std::int32_t p_l, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_m, double p_n);
+  virtual void async_tm_methodF(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::test_cpp2::cpp_reflection::struct2>> callback, ::std::int32_t p_l, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_m, double p_n);
  private:
   static ::test_cpp2::cpp_reflection::service2ServiceInfoHolder __fbthrift_serviceInfoHolder;
   std::atomic<apache::thrift::detail::si::InvocationType> __fbthrift_invocation_methodA{apache::thrift::detail::si::InvocationType::AsyncTm};
@@ -115,10 +115,10 @@ class ServiceHandler<::test_cpp2::cpp_reflection::service2> : public apache::thr
 
 } // namespace apache::thrift
 
-namespace test_cpp2 { namespace cpp_reflection {
+namespace test_cpp2::cpp_reflection {
 using service2SvIf [[deprecated("Use apache::thrift::ServiceHandler<service2> instead")]] = ::apache::thrift::ServiceHandler<service2>;
-}} // test_cpp2::cpp_reflection
-namespace test_cpp2 { namespace cpp_reflection {
+} // namespace test_cpp2::cpp_reflection
+namespace test_cpp2::cpp_reflection {
 class service2SvNull : public ::apache::thrift::ServiceHandler<service2> {
  public:
   void methodA() override;
@@ -200,4 +200,4 @@ class service2AsyncProcessor : public ::apache::thrift::GeneratedAsyncProcessorB
   ~service2AsyncProcessor() override {}
 };
 
-}} // test_cpp2::cpp_reflection
+} // namespace test_cpp2::cpp_reflection

@@ -11,7 +11,7 @@ module Codes = Lints_codes.Codes
 open Lints_core
 module Lints = Lints_core
 
-let quickfix ~can_be_captured ~original_pos ~replacement_pos =
+let quickfix { Typing_warning.can_be_captured; original_pos; replacement_pos } =
   let path = Pos.filename (Pos.to_absolute original_pos) in
   let lines = Errors.read_lines path in
   let content = String.concat ~sep:"\n" lines in
@@ -66,89 +66,6 @@ let bad_virtualized_method p =
     p
     "`__bool` methods should return `bool`. They show that an expression tree type can be used in a boolean expression."
 
-let non_equatable_comparison p ret ty1 ty2 =
-  Lints.add Codes.non_equatable_comparison Lint_warning p
-  @@ Printf.sprintf
-       "Invalid comparison: This expression will always return %s.\nA value of type %s can never be equal to a value of type %s"
-       (string_of_bool ret |> Markdown_lite.md_codify)
-       (Markdown_lite.md_codify ty1)
-       (Markdown_lite.md_codify ty2)
-
-let invalid_contains_check p trv_val_ty val_ty =
-  Lints.add Codes.invalid_contains_check Lint_warning p
-  @@ Printf.sprintf
-       "Invalid `C\\contains` check: This call will always return `false`.\nA `Traversable<%s>` cannot contain a value of type %s"
-       trv_val_ty
-       (Markdown_lite.md_codify val_ty)
-
-let invalid_contains_key_check p trv_key_ty key_ty =
-  Lints.add Codes.invalid_contains_check Lint_warning p
-  @@ Printf.sprintf
-       "Invalid `C\\contains_key` check: This call will always return `false`.\nA `KeyedTraversable<%s, ...>` cannot contain a key of type %s"
-       trv_key_ty
-       (Markdown_lite.md_codify key_ty)
-
-let is_always_true ~check_status p lhs_ty rhs_ty =
-  let lhs_ty = Markdown_lite.md_codify lhs_ty in
-  let rhs_ty = Markdown_lite.md_codify rhs_ty in
-  Lints.add
-    Codes.is_always_true
-    ~check_status:(Some check_status)
-    Lint_warning
-    p
-    (Printf.sprintf
-       "This `is` check is always `true`. The expression on the left has type %s which is a subtype of %s."
-       lhs_ty
-       rhs_ty)
-
-let is_always_false ~check_status p lhs_ty rhs_ty =
-  let lhs_ty = Markdown_lite.md_codify lhs_ty in
-  let rhs_ty = Markdown_lite.md_codify rhs_ty in
-  Lints.add
-    Codes.is_always_false
-    ~check_status:(Some check_status)
-    Lint_warning
-    p
-    (Printf.sprintf
-       "This `is` check is always `false`. The expression on the left has type %s which shares no values with %s."
-       lhs_ty
-       rhs_ty)
-
-let as_always_succeeds
-    ~check_status ~can_be_captured ~as_pos ~child_expr_pos lhs_ty rhs_ty =
-  let lhs_ty = Markdown_lite.md_codify lhs_ty in
-  let rhs_ty = Markdown_lite.md_codify rhs_ty in
-  let autofix =
-    Some
-      (quickfix
-         ~can_be_captured
-         ~original_pos:as_pos
-         ~replacement_pos:child_expr_pos)
-  in
-  Lints.add
-    ~autofix
-    ~check_status:(Some check_status)
-    Codes.as_always_succeeds
-    Lint_warning
-    as_pos
-    (Printf.sprintf
-       "This `as` assertion will always succeed and hence is redundant. The expression on the left has a type %s which is a subtype of %s."
-       lhs_ty
-       rhs_ty)
-
-let as_always_fails ~check_status p lhs_ty rhs_ty =
-  let lhs_ty = Markdown_lite.md_codify lhs_ty in
-  let rhs_ty = Markdown_lite.md_codify rhs_ty in
-  Lints.add
-    Codes.as_always_fails
-    ~check_status:(Some check_status)
-    Lint_warning
-    p
-    (Printf.sprintf
-       "This `as` assertion will always fail and lead to an exception at runtime. The expression on the left has type %s which shares no values with %s."
-       lhs_ty
-       rhs_ty)
-
 let class_overrides_all_trait_methods pos class_name trait_name =
   Lints.add
     Codes.class_overrides_all_trait_methods
@@ -172,22 +89,6 @@ let trait_requires_class_that_overrides_method
        (Utils.strip_ns class_name |> Markdown_lite.md_codify)
        (Utils.strip_ns trait_name |> Markdown_lite.md_codify)
        (Utils.strip_ns class_name |> Markdown_lite.md_codify))
-
-let invalid_disjointness_check p name ty1 ty2 =
-  Lints.add Codes.invalid_disjointness_check Lint_warning p
-  @@ Printf.sprintf
-       "This call to '%s' will always return the same value, because type %s is disjoint from type %s."
-       name
-       ty1
-       ty2
-
-let invalid_disjointness_check_dynamic p name ty1 ty2 =
-  Lints.add Codes.invalid_disjointness_check Lint_warning p
-  @@ Printf.sprintf
-       "Non-dynamic calls to '%s' will always return the same value, because type %s is disjoint from type %s."
-       name
-       ty1
-       ty2
 
 let invalid_switch_case_value_type
     (case_value_p : Ast_defs.pos) case_value_ty scrutinee_ty =
@@ -218,58 +119,6 @@ let missing_override_attribute
   in
 
   Lints.add ~autofix Codes.missing_override_attribute Lint_error name_pos @@ msg
-
-let sketchy_null_check pos name kind =
-  let name = Option.value name ~default:"$x" in
-  Lints.add Codes.sketchy_null_check Lint_warning pos
-  @@ "This is a sketchy null check.\nIt detects nulls, but it will also detect many other falsy values, including `false`, `0`, `0.0`, `\"\"`, `\"0\"`, empty Containers, and more.\nIf you want to test for them, please consider doing so explicitly.\nIf you only meant to test for `null`, "
-  ^
-  match kind with
-  | `Coalesce ->
-    Printf.sprintf "use `%s ?? $default` instead of `%s ?: $default`" name name
-  | `Eq -> Printf.sprintf "use `%s is null` instead" name
-  | `Neq -> Printf.sprintf "use `%s is nonnull` instead" name
-
-let invalid_truthiness_test pos ty =
-  Lints.add Codes.invalid_truthiness_test Lint_warning pos
-  @@ Printf.sprintf
-       "Invalid condition: a value of type %s will always be truthy"
-       (Markdown_lite.md_codify ty)
-
-let invalid_truthiness_test_falsy pos ty =
-  Lints.add Codes.invalid_truthiness_test Lint_warning pos
-  @@ Printf.sprintf
-       "Invalid condition: a value of type %s will always be falsy"
-       (Markdown_lite.md_codify ty)
-
-let sketchy_truthiness_test pos ty truthiness =
-  Lints.add Codes.sketchy_truthiness_test Lint_warning pos
-  @@
-  match truthiness with
-  | `String ->
-    Printf.sprintf
-      "Sketchy condition: testing the truthiness of %s may not behave as expected.\nThe values `\"\"` and `\"0\"` are both considered falsy. To check for emptiness, use `Str\\is_empty`."
-      ty
-  | `Arraykey ->
-    Printf.sprintf
-      "Sketchy condition: testing the truthiness of %s may not behave as expected.\nThe values `0`, `\"\"`, and `\"0\"` are all considered falsy. Test for them explicitly."
-      ty
-  | `Stringish ->
-    Printf.sprintf
-      "Sketchy condition: testing the truthiness of a %s may not behave as expected.\nThe values `\"\"` and `\"0\"` are both considered falsy, but objects will be truthy even if their `__toString` returns `\"\"` or `\"0\"`.\nTo check for emptiness, convert to a string and use `Str\\is_empty`."
-      ty
-  | `XHPChild ->
-    Printf.sprintf
-      "Sketchy condition: testing the truthiness of an %s may not behave as expected.\nThe values `\"\"` and `\"0\"` are both considered falsy, but objects (including XHP elements) will be truthy even if their `__toString` returns `\"\"` or `\"0\"`."
-      ty
-  | `Traversable ->
-    (* We have a truthiness test on a value with an interface type which is a
-         subtype of Traversable, but not a subtype of Container.
-         Since the runtime value may be a falsy-when-empty Container or an
-         always-truthy Iterable/Generator, we forbid the test. *)
-    Printf.sprintf
-      "Sketchy condition: a value of type %s may be truthy even when empty.\nHack collections and arrays are falsy when empty, but user-defined Traversables will always be truthy, even when empty.\nIf you would like to only allow containers which are falsy when empty, use the `Container` or `KeyedContainer` interfaces."
-      ty
 
 let redundant_covariant pos name msg suggest =
   Lints.add Codes.redundant_generic Lint_warning pos
@@ -314,18 +163,6 @@ let nullsafe_not_needed pos =
   ^ " You can use the "
   ^ Markdown_lite.md_codify "->"
   ^ " operator instead."
-
-let invalid_attribute_value
-    pos (attr_name : string) (valid_values : string list) =
-  let valid_values = List.map valid_values ~f:Markdown_lite.md_codify in
-  Lints.add
-    Codes.bad_xhp_enum_attribute_value
-    Lint_error
-    pos
-    (Printf.sprintf
-       "Invalid value for %s, expected one of %s."
-       (Markdown_lite.md_codify attr_name)
-       (String.concat ~sep:", " valid_values))
 
 let parse_error code pos msg = Lints.add code Lint_error pos msg
 
@@ -392,9 +229,11 @@ let redundant_cast_common
   let autofix =
     Some
       (quickfix
-         ~can_be_captured
-         ~original_pos:cast_pos
-         ~replacement_pos:expr_pos)
+         {
+           Typing_warning.can_be_captured;
+           original_pos = cast_pos;
+           replacement_pos = expr_pos;
+         })
   in
   Lints.add ~check_status ~autofix code severity cast_pos msg
 
@@ -408,7 +247,7 @@ let redundant_unsafe_cast ~can_be_captured hole_pos expr_pos =
     hole_pos
     expr_pos
     code
-    Lint_error
+    Lint_advice
 
 let redundant_cast ~can_be_captured ~check_status cast cast_pos expr_pos =
   let code = Codes.redundant_cast in
@@ -433,12 +272,12 @@ let loose_unsafe_cast_lower_bound p ty_str_opt =
         Some (ty_str, p) )
     | None -> (msg, None)
   in
-  Lints.add ~autofix Codes.loose_unsafe_cast_lower_bound Lint_error p msg
+  Lints.add ~autofix Codes.loose_unsafe_cast_lower_bound Lint_advice p msg
 
 let loose_unsafe_cast_upper_bound p =
   Lints.add
     Codes.loose_unsafe_cast_upper_bound
-    Lint_error
+    Lint_advice
     p
     "HH\\FIXME\\UNSAFE_CAST output type annotation is too loose, please use a more specific type."
 
@@ -523,12 +362,3 @@ let awaitable_awaitable pos =
     ^ " You probably want to use await inside this async lambda,"
     ^ " so stack traces include the lambda position."
     ^ " If this is intentional, please annotate the return type.")
-
-let cast_non_primitive pos =
-  Lints.add
-    Codes.cast_non_primitive
-    Lint_error
-    pos
-    ("Casting a non-primitive to a primitive rarely yields a "
-    ^ "useful value. Did you mean to extract a value from this object "
-    ^ "before casting it, or to do a null-check?")

@@ -51,14 +51,21 @@ class AstGeneratorTest(unittest.TestCase):
         os.chdir(self.tmp)
         self.maxDiff = None
 
-    def run_thrift(self, file):
+    def run_thrift(
+        self, file, backcompat=True, use_hash=False, root_program_only=False
+    ):
         with resources.as_file(
             resources.files(__package__).joinpath("implicit_includes")
         ) as inc:
+            extra_args = "" if backcompat else ",no_backcompat"
+            if use_hash:
+                extra_args += ",use_hash"
+            if root_program_only:
+                extra_args += ",root_program_only"
             argsx = [
                 thrift2ast,
                 "--gen",
-                "ast:protocol=compact,source_ranges",
+                "ast:protocol=compact,source_ranges" + extra_args,
                 "-o",
                 self.tmp,
                 "-I",
@@ -328,6 +335,11 @@ class AstGeneratorTest(unittest.TestCase):
             b"foo.Annot",
         )
 
+        # Disable backcompat
+        ast = self.run_thrift("foo.thrift", backcompat=False)
+        struct = ast.definitions[1].structDef
+        self.assertFalse(struct.fields[0].attrs.structuredAnnotations)
+
     def test_source_range_map(self):
         write_file(
             "foo.thrift",
@@ -423,3 +435,80 @@ class AstGeneratorTest(unittest.TestCase):
             spans,
             {1: "foo.thrift"},
         )
+
+    def test_hash_mode(self):
+        write_file(
+            "foo.thrift",
+            textwrap.dedent(
+                """
+                struct Foo {
+                    1: i64 int = 42;
+                }
+                struct Bar {
+                    1: Foo foo;
+                }
+                """
+            ),
+        )
+
+        ast = self.run_thrift("foo.thrift", use_hash=True)
+        for v in ast.definitionsMap.values():
+            self.assertEqual(
+                v.structDef.attrs.sourceRange.programId, ast.programs[0].id
+            )
+            if v.structDef.attrs.name == "Bar":
+                self.assertEqual(
+                    ast.definitionsMap[
+                        v.structDef.fields[
+                            0
+                        ].type.name.structType.typeHashPrefixSha2_256
+                    ].structDef.attrs.name,
+                    "Foo",
+                )
+            else:
+                self.assertEqual(
+                    ast.valuesMap[v.structDef.fields[0].customDefault].i64Value, 42
+                )
+
+    def test_sharding(self):
+        files = {
+            "a.thrift": """
+            include "b.thrift"
+            include "c.thrift"
+
+            struct A {}
+            """,
+            "b.thrift": """
+            include "d.thrift"
+
+            struct B {}
+            """,
+            "c.thrift": """
+            include "d.thrift"
+
+            struct C {}
+            """,
+            "d.thrift": """
+            struct D {}
+            """,
+        }
+
+        for name, contents in files.items():
+            write_file(name, textwrap.dedent(contents))
+
+        asts = {
+            name: self.run_thrift(
+                name, backcompat=False, use_hash=True, root_program_only=True
+            )
+            for name in files
+        }
+        combined_ast = self.run_thrift("a.thrift", backcompat=False, use_hash=True)
+
+        self.assertEqual(
+            len(combined_ast.definitionsMap),
+            sum(len(ast.definitionsMap) for ast in asts.values()),
+        )
+
+        for ast in asts.values():
+            for uri, definition in ast.definitionsMap.items():
+                self.assertEqual(definition, combined_ast.definitionsMap[uri])

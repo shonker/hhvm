@@ -47,6 +47,10 @@ let get_package_for_module (info : t) (md : string) : Package.t option =
   let (_strictest_matching_glob, package_with_strictest_matching_glob) =
     SMap.fold
       (fun glob pkg ((glob', _) as acc) ->
+        (* By construction all candidate globs are at most as long as `md`.
+           If there is a candidate that's an exact match as `md`, it'll win
+           as the strictest matching glob; otherwise, we want to find the
+           longest glob that's a prefix glob of `md`. *)
         if (not @@ String.equal glob' md) && String.compare glob glob' > 0 then
           (glob, Some pkg)
         else
@@ -55,6 +59,45 @@ let get_package_for_module (info : t) (md : string) : Package.t option =
       ("", None)
   in
   package_with_strictest_matching_glob
+
+let get_package_for_file (info : t) (file : Relative_path.t) : Package.t option
+    =
+  let filepath = Relative_path.suffix file in
+  let candidates : string SMap.t =
+    SMap.filter_map
+      (fun _ pkg ->
+        List.filter_map pkg.Package.include_paths ~f:(fun (_, path) ->
+            let prefix =
+              if String.is_suffix ~suffix:"*" path then
+                String.sub path ~pos:0 ~len:(String.length path - 1)
+              else
+                path
+            in
+            if String.is_prefix ~prefix filepath then
+              Some path
+            else
+              None)
+        |> List.sort ~compare:(fun s1 s2 -> ~-(String.compare s1 s2))
+        |> List.hd)
+      info.existing_packages
+  in
+  let (_strictest_matching_path, package_with_strictest_matching_path) =
+    SMap.fold
+      (fun pkg path ((path', _) as acc) ->
+        (* By construction all candidate paths are at most as long as `filepath`.
+           If there is a candidate that's an exact match as `filepath`, it'll win
+           as the strictest matching path; otherwise, we want to find the longest path
+           that's a prefix glob of `filepath`. *)
+        if (not @@ String.equal path' filepath) && String.compare path path' > 0
+        then
+          (path, Some pkg)
+        else
+          acc)
+      candidates
+      ("", None)
+  in
+  Option.bind package_with_strictest_matching_path ~f:(fun pkg_name ->
+      SMap.find_opt pkg_name info.existing_packages)
 
 let package_exists (info : t) (pkg : string) : bool =
   SMap.mem pkg info.existing_packages

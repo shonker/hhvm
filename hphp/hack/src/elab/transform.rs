@@ -3,7 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the "hack" directory of this source tree.
 //
-// @generated SignedSource<<d2f9510af91380f6c1785e27a7592d1c>>
+// @generated SignedSource<<a6812e44d7e437b7c771ce9b1195d7e9>>
 //
 // To regenerate this file, run:
 //   hphp/hack/src/oxidized_regen.sh
@@ -576,21 +576,12 @@ impl Transform for ExpressionTree {
         match self {
             ExpressionTree {
                 class: ref mut __binding_0,
-                splices: ref mut __binding_1,
-                function_pointers: ref mut __binding_2,
-                runtime_expr: ref mut __binding_3,
-                ..
+                runtime_expr: ref mut __binding_1,
             } => {
                 {
                     __binding_0.transform(env, &mut pass.clone())
                 }
-                {
-                    __binding_1.transform(env, &mut pass.clone())
-                }
-                {
-                    __binding_2.transform(env, &mut pass.clone())
-                }
-                { __binding_3.transform(env, &mut pass.clone()) }
+                { __binding_1.transform(env, &mut pass.clone()) }
             }
         }
     }
@@ -622,6 +613,33 @@ impl Transform for As_ {
                     __binding_2.transform(env, &mut pass.clone())
                 }
                 { __binding_3.transform(env, &mut pass.clone()) }
+            }
+        }
+    }
+}
+impl Transform for EtSplice {
+    fn transform(&mut self, env: &Env, pass: &mut (impl Pass + Clone)) {
+        let mut in_pass = pass.clone();
+        if let Break(..) = pass.on_ty_et_splice_top_down(env, self) {
+            return;
+        }
+        stack_limit::maybe_grow(|| self.traverse(env, pass));
+        in_pass.on_ty_et_splice_bottom_up(env, self);
+    }
+    fn traverse(&mut self, env: &Env, pass: &mut (impl Pass + Clone)) {
+        match self {
+            EtSplice {
+                extract_client_type: ref mut __binding_0,
+                contains_await: ref mut __binding_1,
+                spliced_expr: ref mut __binding_2,
+            } => {
+                {
+                    __binding_0.transform(env, &mut pass.clone())
+                }
+                {
+                    __binding_1.transform(env, &mut pass.clone())
+                }
+                { __binding_2.transform(env, &mut pass.clone()) }
             }
         }
     }
@@ -941,6 +959,25 @@ impl Transform for XhpAttribute {
         }
     }
 }
+impl Transform for FunParamInfo {
+    fn transform(&mut self, env: &Env, pass: &mut (impl Pass + Clone)) {
+        let mut in_pass = pass.clone();
+        if let Break(..) = pass.on_ty_fun_param_info_top_down(env, self) {
+            return;
+        }
+        stack_limit::maybe_grow(|| self.traverse(env, pass));
+        in_pass.on_ty_fun_param_info_bottom_up(env, self);
+    }
+    fn traverse(&mut self, env: &Env, pass: &mut (impl Pass + Clone)) {
+        match self {
+            FunParamInfo::ParamOptional(ref mut __binding_0) => {
+                __binding_0.transform(env, &mut pass.clone())
+            }
+            FunParamInfo::ParamRequired => {}
+            FunParamInfo::ParamVariadic => {}
+        }
+    }
+}
 impl Transform for FunParam {
     fn transform(&mut self, env: &Env, pass: &mut (impl Pass + Clone)) {
         let mut in_pass = pass.clone();
@@ -955,10 +992,9 @@ impl Transform for FunParam {
             FunParam {
                 annotation: ref mut __binding_0,
                 type_hint: ref mut __binding_1,
-                is_variadic: ref mut __binding_2,
-                name: ref mut __binding_4,
-                expr: ref mut __binding_5,
-                user_attributes: ref mut __binding_8,
+                name: ref mut __binding_3,
+                info: ref mut __binding_4,
+                user_attributes: ref mut __binding_7,
                 ..
             } => {
                 {
@@ -968,15 +1004,12 @@ impl Transform for FunParam {
                     __binding_1.transform(env, &mut pass.clone())
                 }
                 {
-                    __binding_2.transform(env, &mut pass.clone())
+                    __binding_3.transform(env, &mut pass.clone())
                 }
                 {
                     __binding_4.transform(env, &mut pass.clone())
                 }
-                {
-                    __binding_5.transform(env, &mut pass.clone())
-                }
-                { __binding_8.transform(env, &mut pass.clone()) }
+                { __binding_7.transform(env, &mut pass.clone()) }
             }
         }
     }

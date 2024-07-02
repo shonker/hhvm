@@ -20,6 +20,8 @@
 #include <signal.h>
 #include <sys/types.h>
 
+#include <openssl/async.h>
+
 #include <fstream>
 #include <iostream>
 #include <list>
@@ -28,7 +30,6 @@
 
 #include <folly/SocketAddress.h>
 #include <folly/String.h>
-#include <folly/experimental/TestUtil.h>
 #include <folly/io/Cursor.h>
 #include <folly/io/async/AsyncPipe.h>
 #include <folly/io/async/AsyncSSLSocket.h>
@@ -49,14 +50,10 @@
 #include <folly/portability/GTest.h>
 #include <folly/portability/OpenSSL.h>
 #include <folly/portability/Unistd.h>
-#include <folly/ssl/Init.h>
+#include <folly/testing/TestUtil.h>
 
 #ifdef __linux__
 #include <dlfcn.h>
-#endif
-
-#if FOLLY_OPENSSL_IS_110
-#include <openssl/async.h>
 #endif
 
 using std::cerr;
@@ -523,7 +520,6 @@ TEST(AsyncSSLSocketTest, SocketWithDelay) {
   cerr << "SocketWithDelay test completed" << endl;
 }
 
-#if FOLLY_OPENSSL_HAS_ALPN
 class NextProtocolTest : public Test {
   // For matching protos
  public:
@@ -676,9 +672,6 @@ TEST_F(NextProtocolTest, AlpnNotAllowMismatchWithoutOverlap) {
   EXPECT_EQ(server->getClientAlpns(), std::vector<std::string>({"blub"}));
 }
 
-#endif
-
-#ifndef OPENSSL_NO_TLSEXT
 /**
  * 1. Client sends TLSEXT_HOSTNAME in client hello.
  * 2. Server found a match SSL_CTX and use this SSL_CTX to
@@ -858,7 +851,6 @@ TEST(AsyncSSLSocketTest, SetSupportedApplicationProtocols) {
           server.getApplicationProtocol()) == 0);
 }
 
-#endif
 /**
  * Test SSL client socket
  */
@@ -1257,7 +1249,9 @@ TEST(AsyncSSLSocketTest, SSLParseClientHelloOnePacket) {
   cursor.write<uint32_t>(0);
 
   SSL* ssl = ctx->createSSL();
-  SCOPE_EXIT { SSL_free(ssl); };
+  SCOPE_EXIT {
+    SSL_free(ssl);
+  };
   AsyncSSLSocket::UniquePtr sock(
       new AsyncSSLSocket(ctx, &eventBase, fds[0], true));
   sock->enableClientHelloParsing();
@@ -1297,7 +1291,9 @@ TEST(AsyncSSLSocketTest, SSLParseClientHelloTwoPackets) {
   cursor.write<uint32_t>(0);
 
   SSL* ssl = ctx->createSSL();
-  SCOPE_EXIT { SSL_free(ssl); };
+  SCOPE_EXIT {
+    SSL_free(ssl);
+  };
   AsyncSSLSocket::UniquePtr sock(
       new AsyncSSLSocket(ctx, &eventBase, fds[0], true));
   sock->enableClientHelloParsing();
@@ -1355,7 +1351,9 @@ TEST(AsyncSSLSocketTest, SSLParseClientHelloMultiplePackets) {
   cursor.write<uint32_t>(0);
 
   SSL* ssl = ctx->createSSL();
-  SCOPE_EXIT { SSL_free(ssl); };
+  SCOPE_EXIT {
+    SSL_free(ssl);
+  };
   AsyncSSLSocket::UniquePtr sock(
       new AsyncSSLSocket(ctx, &eventBase, fds[0], true));
   sock->enableClientHelloParsing();
@@ -1988,11 +1986,6 @@ TEST(AsyncSSLSocketTest, NoClientCertHandshakeError) {
   EXPECT_LE(0, server.handshakeTime.count());
 }
 
-/**
- * Test OpenSSL 1.1.0's async functionality
- */
-#if FOLLY_OPENSSL_IS_110
-
 static void makeNonBlockingPipe(int pipefds[2]) {
   if (pipe(pipefds) != 0) {
     throw std::runtime_error("Cannot create pipe");
@@ -2295,8 +2288,6 @@ TEST(AsyncSSLSocketTest, OpenSSL110AsyncTestClosedWithCallbackPending) {
   jobEvbThread.reset();
 }
 #endif // FOLLY_SANITIZE_ADDRESS
-
-#endif // FOLLY_OPENSSL_IS_110
 
 TEST(AsyncSSLSocketTest, LoadCertFromMemory) {
   using folly::ssl::OpenSSLUtils;
@@ -2654,11 +2645,7 @@ static int newCloseCb(SSL* ssl, SSL_SESSION*) {
   return 0;
 }
 
-#if FOLLY_OPENSSL_IS_110
 static SSL_SESSION* getCloseCb(SSL* ssl, const unsigned char*, int, int*) {
-#else
-static SSL_SESSION* getCloseCb(SSL* ssl, unsigned char*, int, int*) {
-#endif
   AsyncSSLSocket::getFromSSL(ssl)->closeNow();
   return nullptr;
 } // namespace
@@ -2741,13 +2728,8 @@ TEST(AsyncSSLSocketTest, ConnEOFErrorString) {
   socket->close();
 
   handshakeCallback.waitForHandshake();
-#if FOLLY_OPENSSL_IS_110
   EXPECT_NE(
       handshakeCallback.errorString_.find("Network error"), std::string::npos);
-#else
-  EXPECT_NE(
-      handshakeCallback.errorString_.find("Connection EOF"), std::string::npos);
-#endif
 }
 
 TEST(AsyncSSLSocketTest, ConnOpenSSLErrorString) {
@@ -2773,13 +2755,9 @@ TEST(AsyncSSLSocketTest, ConnOpenSSLErrorString) {
   EXPECT_NE(
       handshakeCallback.errorString_.find("ENCRYPTED_LENGTH_TOO_LONG"),
       std::string::npos);
-#elif FOLLY_OPENSSL_IS_110
-  EXPECT_NE(
-      handshakeCallback.errorString_.find("packet length too long"),
-      std::string::npos);
 #else
   EXPECT_NE(
-      handshakeCallback.errorString_.find("unknown protocol"),
+      handshakeCallback.errorString_.find("packet length too long"),
       std::string::npos);
 #endif
 }

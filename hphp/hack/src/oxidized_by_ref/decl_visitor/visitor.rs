@@ -3,7 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the "hack" directory of this source tree.
 //
-// @generated SignedSource<<6e16454c4f867e94a817bbf559cbf1b4>>
+// @generated SignedSource<<8dc7ff79a0b758ff9a6b9ae13f840e35>>
 //
 // To regenerate this file, run:
 //   hphp/hack/src/oxidized_regen.sh
@@ -93,6 +93,9 @@ pub trait Visitor<'a> {
     fn visit_fun_type(&mut self, p: &'a FunType<'a>) {
         p.recurse(self.object())
     }
+    fn visit_type_predicate(&mut self, p: &'a TypePredicate<'a>) {
+        p.recurse(self.object())
+    }
     fn visit_neg_type(&mut self, p: &'a NegType<'a>) {
         p.recurse(self.object())
     }
@@ -165,6 +168,9 @@ pub trait Visitor<'a> {
     fn visit_blame(&mut self, p: &'a Blame<'a>) {
         p.recurse(self.object())
     }
+    fn visit_prj_symm(&mut self, p: &'a PrjSymm<'a>) {
+        p.recurse(self.object())
+    }
     fn visit_t_(&mut self, p: &'a T_<'a>) {
         p.recurse(self.object())
     }
@@ -204,13 +210,16 @@ pub trait Visitor<'a> {
     fn visit_class_const_kind(&mut self, p: &'a ClassConstKind) {
         p.recurse(self.object())
     }
-    fn visit_type_predicate(&mut self, p: &'a TypePredicate) {
-        p.recurse(self.object())
-    }
     fn visit_arg_position(&mut self, p: &'a ArgPosition) {
         p.recurse(self.object())
     }
     fn visit_blame_source(&mut self, p: &'a BlameSource) {
+        p.recurse(self.object())
+    }
+    fn visit_field_kind(&mut self, p: &'a FieldKind) {
+        p.recurse(self.object())
+    }
+    fn visit_prj_asymm(&mut self, p: &'a PrjAsymm) {
         p.recurse(self.object())
     }
     fn visit_tag(&mut self, p: &'a Tag) {

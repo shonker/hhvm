@@ -115,8 +115,7 @@ void t_json_generator::generate_program() {
   f_out_.open(fname.c_str());
   indent(f_out_) << "{" << endl;
   indent_up();
-  indent(f_out_) << "\"__fbthrift\": {\"@"
-                 << "generated\": 0}," << endl;
+  indent(f_out_) << "\"__fbthrift\": {\"@" << "generated\": 0}," << endl;
   indent(f_out_) << "\"thrift_module\" : \"" << module_name << "\"";
 
   if (!program_->consts().empty()) {
@@ -231,27 +230,28 @@ string t_json_generator::type_to_string(const t_type* type) {
     type = type->get_true_type();
   }
 
-  if (type->is_base_type()) {
-    t_base_type::t_base tbase = ((t_base_type*)type)->get_base();
+  if (type->is_primitive_type()) {
+    t_primitive_type::t_primitive tbase =
+        ((t_primitive_type*)type)->primitive_type();
     switch (tbase) {
-      case t_base_type::TYPE_VOID:
+      case t_primitive_type::TYPE_VOID:
         return "VOID";
-      case t_base_type::TYPE_STRING:
-      case t_base_type::TYPE_BINARY:
+      case t_primitive_type::TYPE_STRING:
+      case t_primitive_type::TYPE_BINARY:
         return "STRING";
-      case t_base_type::TYPE_BOOL:
+      case t_primitive_type::TYPE_BOOL:
         return "BOOL";
-      case t_base_type::TYPE_BYTE:
+      case t_primitive_type::TYPE_BYTE:
         return "BYTE";
-      case t_base_type::TYPE_I16:
+      case t_primitive_type::TYPE_I16:
         return "I16";
-      case t_base_type::TYPE_I32:
+      case t_primitive_type::TYPE_I32:
         return "I32";
-      case t_base_type::TYPE_I64:
+      case t_primitive_type::TYPE_I64:
         return "I64";
-      case t_base_type::TYPE_DOUBLE:
+      case t_primitive_type::TYPE_DOUBLE:
         return "DOUBLE";
-      case t_base_type::TYPE_FLOAT:
+      case t_primitive_type::TYPE_FLOAT:
         return "FLOAT";
     }
   } else if (type->is_enum()) {
@@ -288,7 +288,7 @@ string t_json_generator::type_to_spec_args(const t_type* ttype) {
     ttype = ttype->get_true_type();
   }
 
-  if (ttype->is_base_type()) {
+  if (ttype->is_primitive_type()) {
     return "null";
   } else if (
       ttype->is_struct() || ttype->is_exception() || ttype->is_service() ||
@@ -347,8 +347,7 @@ void t_json_generator::print_type(const t_type* ttype) {
 }
 
 void t_json_generator::print_name(const string& name) {
-  f_out_ << indent() << "\"name\" : "
-         << "\"" << name << "\"," << endl;
+  f_out_ << indent() << "\"name\" : " << "\"" << name << "\"," << endl;
 }
 
 /**
@@ -573,8 +572,8 @@ void t_json_generator::generate_enum(const t_enum* tenum) {
     // approach of compartmentalization, but may be backwards-incompatible.
     // Adding annotations as a separate top-level enum list/map would go
     // against this general approach.
-    indent(f_out_) << "\"" << (*val_iter)->get_name() << "\""
-                   << " : " << (*val_iter)->get_value();
+    indent(f_out_) << "\"" << (*val_iter)->get_name() << "\"" << " : "
+                   << (*val_iter)->get_value();
   }
   f_out_ << endl;
   indent_down();

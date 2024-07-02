@@ -8,7 +8,7 @@
 
 #pragma once
 
-#include <fizz/crypto/signature/Signature.h>
+#include <fizz/backend/openssl/OpenSSL.h>
 #include <fizz/extensions/tokenbinding/Types.h>
 #include <fizz/record/Types.h>
 

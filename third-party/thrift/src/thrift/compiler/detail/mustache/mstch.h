@@ -28,9 +28,11 @@ SOFTWARE.
 */
 #pragma once
 
+#include <cstddef>
 #include <functional>
 #include <map>
 #include <memory>
+#include <optional>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -46,17 +48,67 @@ namespace internal {
 template <class N>
 class object_t {
  public:
-  const N& at(const std::string& name) const {
-    cache_[name] = (methods_.at(name))();
-    return cache_[name];
-  }
+  const N& at(const std::string& name) const { return methods_.at(name)(); }
 
   bool has(const std::string& name) const {
     return (methods_.find(name) != methods_.end());
   }
 
  protected:
-  void register_method(std::string name, std::function<N()> method) {
+  // Volatile (uncached) methods are re-invoked every time their value is needed
+  // during a template evaluation.
+  //
+  // This is potentially useful if mutating state during evaluation, but has a
+  // performance cost. There are usually better ways to express such logic.
+  template <typename F>
+  std::enable_if_t<std::is_same_v<std::invoke_result_t<F>, N>>
+  register_volatile_method(std::string name, F method) {
+    do_register_method(
+        std::move(name),
+        [method = std::move(method),
+         uncache = std::optional<N>()]() mutable -> const N& {
+          uncache = method();
+          return *uncache;
+        });
+  }
+
+  // Cached methods are invoked at most once on the same object.
+  template <typename F>
+  std::enable_if_t<std::is_same_v<std::invoke_result_t<F>, N>>
+  register_cached_method(std::string name, F method) {
+    do_register_method(
+        std::move(name),
+        [method = std::move(method),
+         cache = std::optional<N>()]() mutable -> const N& {
+          if (!cache) {
+            cache = method();
+          }
+          return *cache;
+        });
+  }
+
+  template <class S>
+  void register_volatile_methods(
+      S* s, const std::unordered_map<std::string, N (S::*)()>& methods) {
+    for (const auto& method : methods) {
+      register_volatile_method(std::move(method.first), [s, m = method.second] {
+        return (s->*m)();
+      });
+    }
+  }
+
+  template <class S>
+  void register_cached_methods(
+      S* s, const std::unordered_map<std::string, N (S::*)()>& methods) {
+    for (const auto& method : methods) {
+      register_cached_method(std::move(method.first), [s, m = method.second] {
+        return (s->*m)();
+      });
+    }
+  }
+
+ private:
+  void do_register_method(std::string name, std::function<const N&()> method) {
     auto result = methods_.emplace(std::move(name), std::move(method));
     if (!result.second) {
       throw std::runtime_error(
@@ -64,18 +116,7 @@ class object_t {
     }
   }
 
-  template <class S>
-  void register_methods(
-      S* s, const std::unordered_map<std::string, N (S::*)()>& methods) {
-    for (const auto& method : methods) {
-      register_method(
-          method.first, [s, m = method.second]() { return (s->*m)(); });
-    }
-  }
-
- private:
-  std::unordered_map<std::string, std::function<N()>> methods_;
-  mutable std::unordered_map<std::string, N> cache_;
+  std::unordered_map<std::string, std::function<const N&()>> methods_;
 };
 
 template <class T, class N>
@@ -100,7 +141,7 @@ class is_fun {
 };
 
 template <class N>
-using node_renderer = std::function<std::string(const N& n)>;
+using node_renderer = std::function<void(const N& n)>;
 
 template <class N>
 class lambda_t {
@@ -119,13 +160,13 @@ class lambda_t {
           return renderer(f(text));
         }) {}
 
-  std::string operator()(
+  void operator()(
       node_renderer<N> renderer, const std::string& text = "") const {
-    return fun(renderer, text);
+    fun(renderer, text);
   }
 
  private:
-  std::function<std::string(node_renderer<N> renderer, const std::string&)> fun;
+  std::function<void(node_renderer<N> renderer, const std::string&)> fun;
 };
 
 template <typename Node>
@@ -147,6 +188,14 @@ struct node : internal::node_base<node> {
 
   using base::base;
   /* implicit */ node(std::string_view sv) : base(std::string(sv)) {}
+  /* implicit */ node(std::size_t i);
+
+  // Equivalent to the int constructor brought in by `using base::base`, but
+  // having this here forces integer callers which are neither int nor size_t to
+  // intentionally convert to one or the other. Without the following line,
+  // calls like node(int64_t) would silently disambiguate to the size_t
+  // constructor, which is potentially surprising.
+  /* implicit */ node(int i) : base(i) {}
 
   template <typename... Visitor>
   decltype(auto) visit(Visitor&&... visitor) {

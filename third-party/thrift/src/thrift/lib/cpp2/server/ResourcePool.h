@@ -68,8 +68,17 @@ class ResourcePool : public IResourcePoolAcceptor {
     return std::nullopt;
   }
 
-  // Access tp executor as shared pointer if it exists.
-  std::optional<std::shared_ptr<folly::Executor>> sharedPtrExecutor() {
+  std::optional<folly::Executor::KeepAlive<folly::Executor>>
+  keepAliveExecutor() {
+    if (executor_) {
+      return folly::getKeepAliveToken(*executor_);
+    }
+    return std::nullopt;
+  }
+
+  // Deprecated: use keepAliveExecutor if possible.
+  std::optional<std::shared_ptr<folly::Executor>>
+  sharedPtrExecutor_deprecated() {
     if (executor_) {
       return executor_;
     }
@@ -112,11 +121,13 @@ class ResourcePool : public IResourcePoolAcceptor {
       std::unique_ptr<RequestPileInterface>&& requestPile,
       std::shared_ptr<folly::Executor> executor,
       std::unique_ptr<ConcurrencyControllerInterface>&& concurrencyController,
-      std::string_view name);
+      std::string_view name,
+      bool joinExecutorOnStop);
 
   std::unique_ptr<RequestPileInterface> requestPile_;
   std::shared_ptr<folly::Executor> executor_;
   std::unique_ptr<ConcurrencyControllerInterface> concurrencyController_;
   std::string name_;
+  const bool joinExecutorOnStop_;
 };
 } // namespace apache::thrift

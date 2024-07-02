@@ -383,6 +383,7 @@ pub fn emit_impl_locals(input: TokenStream, opcodes: &[OpcodeData]) -> Result<To
                         iter_id: _,
                         key_id: #key,
                         val_id: #val,
+                        flags: _,
                     });
                     match_parts.push(quote!(#mstr));
                 }
@@ -449,7 +450,7 @@ pub fn emit_impl_locals(input: TokenStream, opcodes: &[OpcodeData]) -> Result<To
 
 fn convert_imm_type(imm: &ImmType) -> TokenStream {
     match imm {
-        ImmType::AA => quote!(AdataId),
+        ImmType::AA => quote!(TypedValue),
         ImmType::ARR(sub) => {
             let sub_ty = convert_imm_type(sub);
             quote!(Vector<#sub_ty>)
@@ -736,7 +737,7 @@ mod tests {
                     TestOneImm(crate::BytesId),
                     TestTwoImm(crate::BytesId, crate::BytesId),
                     TestThreeImm(crate::BytesId, crate::BytesId, crate::BytesId),
-                    TestAA(AdataId),
+                    TestAA(TypedValue),
                     TestARR(Vector<crate::BytesId>),
                     TestBA(Label),
                     TestBA2([Label; 2]),
@@ -895,7 +896,7 @@ mod tests {
                 &opcode_test_data::test_opcodes(),
             ),
             quote!(
-                pub fn test_aa(arr1: AdataId) -> InstrSeq {
+                pub fn test_aa(arr1: TypedValue) -> InstrSeq {
                     instr(Instruct::Opcode(Opcode::TestAA(arr1)))
                 }
                 pub fn test_lar(locrange: LocalRange) -> InstrSeq {

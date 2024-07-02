@@ -8,61 +8,175 @@ pub mod my_root {
 
     pub type DoRootError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::my_root::DoRootExn> for
-        ::std::result::Result<(), DoRootError>
-    {
-        fn from(e: crate::services::my_root::DoRootExn) -> Self {
-            match e {
-                crate::services::my_root::DoRootExn::Success(res) => {
-                    ::std::result::Result::Ok(res)
+
+    pub(crate) enum DoRootReader {}
+
+    impl ::fbthrift::help::DeserializeExn for DoRootReader {
+        type Success = ();
+        type Error = DoRootError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Void, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::result::Result::Ok(());
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Void, 0i32), false) => {
+                        once = true;
+                        alt = ::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?);
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "DoRootError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
                 }
-                crate::services::my_root::DoRootExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(DoRootError::ApplicationException(aexn)),
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            ::std::result::Result::Ok(alt)
         }
     }
 
 }
+
+#[doc(inline)]
+#[allow(ambiguous_glob_reexports)]
+pub use self::my_root::*;
 
 /// Error definitions for `MyNode`.
 pub mod my_node {
 
     pub type DoMidError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::my_node::DoMidExn> for
-        ::std::result::Result<(), DoMidError>
-    {
-        fn from(e: crate::services::my_node::DoMidExn) -> Self {
-            match e {
-                crate::services::my_node::DoMidExn::Success(res) => {
-                    ::std::result::Result::Ok(res)
+
+    pub(crate) enum DoMidReader {}
+
+    impl ::fbthrift::help::DeserializeExn for DoMidReader {
+        type Success = ();
+        type Error = DoMidError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Void, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::result::Result::Ok(());
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Void, 0i32), false) => {
+                        once = true;
+                        alt = ::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?);
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "DoMidError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
                 }
-                crate::services::my_node::DoMidExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(DoMidError::ApplicationException(aexn)),
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            ::std::result::Result::Ok(alt)
         }
     }
 
 }
+
+#[doc(inline)]
+#[allow(ambiguous_glob_reexports)]
+pub use self::my_node::*;
 
 /// Error definitions for `MyLeaf`.
 pub mod my_leaf {
 
     pub type DoLeafError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::my_leaf::DoLeafExn> for
-        ::std::result::Result<(), DoLeafError>
-    {
-        fn from(e: crate::services::my_leaf::DoLeafExn) -> Self {
-            match e {
-                crate::services::my_leaf::DoLeafExn::Success(res) => {
-                    ::std::result::Result::Ok(res)
+
+    pub(crate) enum DoLeafReader {}
+
+    impl ::fbthrift::help::DeserializeExn for DoLeafReader {
+        type Success = ();
+        type Error = DoLeafError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Void, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::result::Result::Ok(());
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Void, 0i32), false) => {
+                        once = true;
+                        alt = ::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?);
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "DoLeafError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
                 }
-                crate::services::my_leaf::DoLeafExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(DoLeafError::ApplicationException(aexn)),
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            ::std::result::Result::Ok(alt)
         }
     }
 
 }
+
+#[doc(inline)]
+#[allow(ambiguous_glob_reexports)]
+pub use self::my_leaf::*;
 

@@ -45,7 +45,7 @@ std::string_view Foo::__fbthrift_get_class_name() {
 
 
 Foo::Foo(apache::thrift::FragileConstructor, ::std::int32_t field__arg) :
-    field(std::move(field__arg)) {
+    field(std::move(field__arg)) { 
 }
 
 
@@ -85,11 +85,11 @@ template uint32_t Foo::serializedSize<>(apache::thrift::CompactProtocolWriter co
 template uint32_t Foo::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace cpp2 { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}} // cpp2
+}} // namespace cpp2
 namespace apache::thrift::detail::annotation {
 }

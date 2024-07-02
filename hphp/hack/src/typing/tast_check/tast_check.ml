@@ -32,6 +32,17 @@ let select_logger_handlers ctx =
   in
   List.fold ~init:[] ~f:add_handler logger_handlers
 
+let warning_checks =
+  [
+    (module Is_check : Handler.Warning.S);
+    (module Sketchy_null_check);
+    (module Disjoint_types);
+    (module Cast_non_primitive);
+    (module Truthiness_test);
+    (module Equality_check);
+    (module Duplicate_properties);
+  ]
+
 let visitor ctx =
   (* Handlers that are not TAST checks to produce errors, but are used for
      telemetry that processes TASTs. *)
@@ -43,8 +54,17 @@ let visitor ctx =
     else
       Some handler
   in
+
+  let warning_handlers =
+    List.filter_map warning_checks ~f:(fun (module M) ->
+        if Typing_warning_utils.code_is_enabled tcopt M.error_code then
+          Some (M.handler ~as_lint:false)
+        else
+          None)
+  in
   let handlers =
     irregular_handlers
+    @ warning_handlers
     @ List.filter_map
         ~f:Fn.id
         [
@@ -55,7 +75,14 @@ let visitor ctx =
           Some Tautology_check.handler;
           Some Enforceable_hint_check.handler;
           Some Const_write_check.handler;
-          Some Switch_check.handler;
+          (if tcopt.GlobalOptions.tco_strict_switch then
+            Some Strict_switch_check.handler
+          else
+            Some Switch_check.handler);
+          (if tcopt.GlobalOptions.tco_strict_switch then
+            Some Strict_switch_int_literal_check.handler
+          else
+            None);
           Some Void_return_check.handler;
           Some Rvalue_check.handler;
           Some Callconv_check.handler;
@@ -78,6 +105,7 @@ let visitor ctx =
           Some Readonly_check.handler;
           Some Meth_caller_check.handler;
           Some Expression_tree_check.handler;
+          Some Xhp_attr_value.handler;
           hierarchy_check Class_const_origin_check.handler;
           (if TypecheckerOptions.global_access_check_enabled tcopt then
             Some Global_access_check.handler

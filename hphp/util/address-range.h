@@ -218,8 +218,7 @@ struct RangeState {
       // Need to add more mapping.
       if (newUse > mapFrontier) return nullptr;
       if (low_use.compare_exchange_weak(oldUse, newUse,
-                                        std::memory_order_release,
-                                        std::memory_order_acquire)) {
+                                        std::memory_order_acq_rel)) {
         return reinterpret_cast<void*>(aligned);
       }
     } while (true);
@@ -235,8 +234,7 @@ struct RangeState {
       // Need to add more mapping.
       if (newUse < mapFrontier) return nullptr;
       if (high_use.compare_exchange_weak(oldUse, newUse,
-                                         std::memory_order_release,
-                                         std::memory_order_acquire)) {
+                                         std::memory_order_acq_rel)) {
         return reinterpret_cast<void*>(newUse);
       }
     } while (true);
@@ -246,11 +244,11 @@ struct RangeState {
   // the operation was successful.
   bool tryFreeLow(void* ptr, size_t size) {
     auto const p = reinterpret_cast<uintptr_t>(ptr);
-    assertx(p < low_use.load(std::memory_order_relaxed));
+    assertx(p < low_use.load(std::memory_order_acquire));
     assertx(p >= low());
     uintptr_t expected = p + size;
     return low_use.compare_exchange_strong(expected, p,
-                                           std::memory_order_relaxed);
+                                           std::memory_order_acq_rel);
   }
 
   std::atomic<uintptr_t> low_use{0};

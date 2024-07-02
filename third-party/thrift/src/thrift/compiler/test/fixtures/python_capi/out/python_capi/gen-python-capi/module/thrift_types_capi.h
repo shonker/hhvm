@@ -21,6 +21,7 @@ namespace capi {
 template <>
 struct Extractor<::test::fixtures::python_capi::MyStruct>
     : public BaseExtractor<::test::fixtures::python_capi::MyStruct> {
+  static const bool kUsingMarshal = true;
   ExtractorResult<::test::fixtures::python_capi::MyStruct> operator()(PyObject* obj);
   int typeCheck(PyObject* obj);
 };
@@ -36,6 +37,7 @@ struct Extractor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Constructor<::test::fixtures::python_capi::MyStruct>
     : public BaseConstructor<::test::fixtures::python_capi::MyStruct> {
+  static const bool kUsingMarshal = true;
   PyObject* operator()(const ::test::fixtures::python_capi::MyStruct& val);
 };
 
@@ -50,6 +52,7 @@ struct Constructor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Extractor<::test::fixtures::python_capi::MyDataItem>
     : public BaseExtractor<::test::fixtures::python_capi::MyDataItem> {
+  static const bool kUsingMarshal = true;
   ExtractorResult<::test::fixtures::python_capi::MyDataItem> operator()(PyObject* obj);
   int typeCheck(PyObject* obj);
 };
@@ -65,6 +68,7 @@ struct Extractor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Constructor<::test::fixtures::python_capi::MyDataItem>
     : public BaseConstructor<::test::fixtures::python_capi::MyDataItem> {
+  static const bool kUsingMarshal = true;
   PyObject* operator()(const ::test::fixtures::python_capi::MyDataItem& val);
 };
 
@@ -79,6 +83,7 @@ struct Constructor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Extractor<::test::fixtures::python_capi::TransitiveDoubler>
     : public BaseExtractor<::test::fixtures::python_capi::TransitiveDoubler> {
+  static const bool kUsingMarshal = true;
   ExtractorResult<::test::fixtures::python_capi::TransitiveDoubler> operator()(PyObject* obj);
   int typeCheck(PyObject* obj);
 };
@@ -94,6 +99,7 @@ struct Extractor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Constructor<::test::fixtures::python_capi::TransitiveDoubler>
     : public BaseConstructor<::test::fixtures::python_capi::TransitiveDoubler> {
+  static const bool kUsingMarshal = true;
   PyObject* operator()(const ::test::fixtures::python_capi::TransitiveDoubler& val);
 };
 
@@ -108,6 +114,7 @@ struct Constructor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Extractor<::test::fixtures::python_capi::detail::DoubledPair>
     : public BaseExtractor<::test::fixtures::python_capi::detail::DoubledPair> {
+  static const bool kUsingMarshal = true;
   ExtractorResult<::test::fixtures::python_capi::detail::DoubledPair> operator()(PyObject* obj);
   int typeCheck(PyObject* obj);
 };
@@ -123,6 +130,7 @@ struct Extractor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Constructor<::test::fixtures::python_capi::detail::DoubledPair>
     : public BaseConstructor<::test::fixtures::python_capi::detail::DoubledPair> {
+  static const bool kUsingMarshal = true;
   PyObject* operator()(const ::test::fixtures::python_capi::detail::DoubledPair& val);
 };
 
@@ -137,6 +145,7 @@ struct Constructor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Extractor<::test::fixtures::python_capi::StringPair>
     : public BaseExtractor<::test::fixtures::python_capi::StringPair> {
+  static const bool kUsingMarshal = true;
   ExtractorResult<::test::fixtures::python_capi::StringPair> operator()(PyObject* obj);
   int typeCheck(PyObject* obj);
 };
@@ -152,6 +161,7 @@ struct Extractor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Constructor<::test::fixtures::python_capi::StringPair>
     : public BaseConstructor<::test::fixtures::python_capi::StringPair> {
+  static const bool kUsingMarshal = true;
   PyObject* operator()(const ::test::fixtures::python_capi::StringPair& val);
 };
 
@@ -166,6 +176,7 @@ struct Constructor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Extractor<::test::fixtures::python_capi::VapidStruct>
     : public BaseExtractor<::test::fixtures::python_capi::VapidStruct> {
+  static const bool kUsingMarshal = true;
   ExtractorResult<::test::fixtures::python_capi::VapidStruct> operator()(PyObject* obj);
   int typeCheck(PyObject* obj);
 };
@@ -181,6 +192,7 @@ struct Extractor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Constructor<::test::fixtures::python_capi::VapidStruct>
     : public BaseConstructor<::test::fixtures::python_capi::VapidStruct> {
+  static const bool kUsingMarshal = true;
   PyObject* operator()(const ::test::fixtures::python_capi::VapidStruct& val);
 };
 
@@ -195,6 +207,7 @@ struct Constructor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Extractor<::test::fixtures::python_capi::PrimitiveStruct>
     : public BaseExtractor<::test::fixtures::python_capi::PrimitiveStruct> {
+  static const bool kUsingMarshal = true;
   ExtractorResult<::test::fixtures::python_capi::PrimitiveStruct> operator()(PyObject* obj);
   int typeCheck(PyObject* obj);
 };
@@ -210,6 +223,7 @@ struct Extractor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Constructor<::test::fixtures::python_capi::PrimitiveStruct>
     : public BaseConstructor<::test::fixtures::python_capi::PrimitiveStruct> {
+  static const bool kUsingMarshal = true;
   PyObject* operator()(const ::test::fixtures::python_capi::PrimitiveStruct& val);
 };
 
@@ -224,6 +238,7 @@ struct Constructor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Extractor<::test::fixtures::python_capi::AdaptedFields>
     : public BaseExtractor<::test::fixtures::python_capi::AdaptedFields> {
+  static const bool kUsingMarshal = true;
   ExtractorResult<::test::fixtures::python_capi::AdaptedFields> operator()(PyObject* obj);
   int typeCheck(PyObject* obj);
 };
@@ -239,6 +254,7 @@ struct Extractor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Constructor<::test::fixtures::python_capi::AdaptedFields>
     : public BaseConstructor<::test::fixtures::python_capi::AdaptedFields> {
+  static const bool kUsingMarshal = true;
   PyObject* operator()(const ::test::fixtures::python_capi::AdaptedFields& val);
 };
 
@@ -253,6 +269,7 @@ struct Constructor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Extractor<::test::fixtures::python_capi::ListStruct>
     : public BaseExtractor<::test::fixtures::python_capi::ListStruct> {
+  static const bool kUsingMarshal = true;
   ExtractorResult<::test::fixtures::python_capi::ListStruct> operator()(PyObject* obj);
   int typeCheck(PyObject* obj);
 };
@@ -268,6 +285,7 @@ struct Extractor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Constructor<::test::fixtures::python_capi::ListStruct>
     : public BaseConstructor<::test::fixtures::python_capi::ListStruct> {
+  static const bool kUsingMarshal = true;
   PyObject* operator()(const ::test::fixtures::python_capi::ListStruct& val);
 };
 
@@ -282,6 +300,7 @@ struct Constructor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Extractor<::test::fixtures::python_capi::SetStruct>
     : public BaseExtractor<::test::fixtures::python_capi::SetStruct> {
+  static const bool kUsingMarshal = true;
   ExtractorResult<::test::fixtures::python_capi::SetStruct> operator()(PyObject* obj);
   int typeCheck(PyObject* obj);
 };
@@ -297,6 +316,7 @@ struct Extractor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Constructor<::test::fixtures::python_capi::SetStruct>
     : public BaseConstructor<::test::fixtures::python_capi::SetStruct> {
+  static const bool kUsingMarshal = true;
   PyObject* operator()(const ::test::fixtures::python_capi::SetStruct& val);
 };
 
@@ -311,6 +331,7 @@ struct Constructor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Extractor<::test::fixtures::python_capi::MapStruct>
     : public BaseExtractor<::test::fixtures::python_capi::MapStruct> {
+  static const bool kUsingMarshal = true;
   ExtractorResult<::test::fixtures::python_capi::MapStruct> operator()(PyObject* obj);
   int typeCheck(PyObject* obj);
 };
@@ -326,6 +347,7 @@ struct Extractor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Constructor<::test::fixtures::python_capi::MapStruct>
     : public BaseConstructor<::test::fixtures::python_capi::MapStruct> {
+  static const bool kUsingMarshal = true;
   PyObject* operator()(const ::test::fixtures::python_capi::MapStruct& val);
 };
 
@@ -340,6 +362,7 @@ struct Constructor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Extractor<::test::fixtures::python_capi::ComposeStruct>
     : public BaseExtractor<::test::fixtures::python_capi::ComposeStruct> {
+  static const bool kUsingMarshal = true;
   ExtractorResult<::test::fixtures::python_capi::ComposeStruct> operator()(PyObject* obj);
   int typeCheck(PyObject* obj);
 };
@@ -355,6 +378,7 @@ struct Extractor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Constructor<::test::fixtures::python_capi::ComposeStruct>
     : public BaseConstructor<::test::fixtures::python_capi::ComposeStruct> {
+  static const bool kUsingMarshal = true;
   PyObject* operator()(const ::test::fixtures::python_capi::ComposeStruct& val);
 };
 
@@ -369,6 +393,7 @@ struct Constructor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Extractor<::test::fixtures::python_capi::Shallot>
     : public BaseExtractor<::test::fixtures::python_capi::Shallot> {
+  static const bool kUsingMarshal = true;
   ExtractorResult<::test::fixtures::python_capi::Shallot> operator()(PyObject* obj);
   int typeCheck(PyObject* obj);
 };
@@ -384,6 +409,7 @@ struct Extractor<::apache::thrift::python::capi::ComposedStruct<
 template <>
 struct Constructor<::test::fixtures::python_capi::Shallot>
     : public BaseConstructor<::test::fixtures::python_capi::Shallot> {
+  static const bool kUsingMarshal = true;
   PyObject* operator()(const ::test::fixtures::python_capi::Shallot& val);
 };
 
@@ -393,296 +419,6 @@ struct Constructor<::apache::thrift::python::capi::ComposedStruct<
     : public BaseConstructor<::apache::thrift::python::capi::ComposedStruct<
         ::test::fixtures::python_capi::Shallot>> {
   PyObject* operator()(const ::test::fixtures::python_capi::Shallot& val);
-};
-
-template <>
-struct Extractor<::test::fixtures::python_capi::MyStructPatchStruct>
-    : public BaseExtractor<::test::fixtures::python_capi::MyStructPatchStruct> {
-  ExtractorResult<::test::fixtures::python_capi::MyStructPatchStruct> operator()(PyObject* obj);
-  int typeCheck(PyObject* obj);
-};
-
-template <>
-struct Extractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructPatchStruct>>
-    : public BaseExtractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructPatchStruct>> {
-  ExtractorResult<::test::fixtures::python_capi::MyStructPatchStruct> operator()(PyObject* obj);
-};
-
-template <>
-struct Constructor<::test::fixtures::python_capi::MyStructPatchStruct>
-    : public BaseConstructor<::test::fixtures::python_capi::MyStructPatchStruct> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyStructPatchStruct& val);
-};
-
-template <>
-struct Constructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructPatchStruct>>
-    : public BaseConstructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructPatchStruct>> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyStructPatchStruct& val);
-};
-
-template <>
-struct Extractor<::test::fixtures::python_capi::MyStructField4PatchStruct>
-    : public BaseExtractor<::test::fixtures::python_capi::MyStructField4PatchStruct> {
-  ExtractorResult<::test::fixtures::python_capi::MyStructField4PatchStruct> operator()(PyObject* obj);
-  int typeCheck(PyObject* obj);
-};
-
-template <>
-struct Extractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructField4PatchStruct>>
-    : public BaseExtractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructField4PatchStruct>> {
-  ExtractorResult<::test::fixtures::python_capi::MyStructField4PatchStruct> operator()(PyObject* obj);
-};
-
-template <>
-struct Constructor<::test::fixtures::python_capi::MyStructField4PatchStruct>
-    : public BaseConstructor<::test::fixtures::python_capi::MyStructField4PatchStruct> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyStructField4PatchStruct& val);
-};
-
-template <>
-struct Constructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructField4PatchStruct>>
-    : public BaseConstructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructField4PatchStruct>> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyStructField4PatchStruct& val);
-};
-
-template <>
-struct Extractor<::test::fixtures::python_capi::MyStructField6PatchStruct>
-    : public BaseExtractor<::test::fixtures::python_capi::MyStructField6PatchStruct> {
-  ExtractorResult<::test::fixtures::python_capi::MyStructField6PatchStruct> operator()(PyObject* obj);
-  int typeCheck(PyObject* obj);
-};
-
-template <>
-struct Extractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructField6PatchStruct>>
-    : public BaseExtractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructField6PatchStruct>> {
-  ExtractorResult<::test::fixtures::python_capi::MyStructField6PatchStruct> operator()(PyObject* obj);
-};
-
-template <>
-struct Constructor<::test::fixtures::python_capi::MyStructField6PatchStruct>
-    : public BaseConstructor<::test::fixtures::python_capi::MyStructField6PatchStruct> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyStructField6PatchStruct& val);
-};
-
-template <>
-struct Constructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructField6PatchStruct>>
-    : public BaseConstructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructField6PatchStruct>> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyStructField6PatchStruct& val);
-};
-
-template <>
-struct Extractor<::test::fixtures::python_capi::MyStructField7PatchStruct>
-    : public BaseExtractor<::test::fixtures::python_capi::MyStructField7PatchStruct> {
-  ExtractorResult<::test::fixtures::python_capi::MyStructField7PatchStruct> operator()(PyObject* obj);
-  int typeCheck(PyObject* obj);
-};
-
-template <>
-struct Extractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructField7PatchStruct>>
-    : public BaseExtractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructField7PatchStruct>> {
-  ExtractorResult<::test::fixtures::python_capi::MyStructField7PatchStruct> operator()(PyObject* obj);
-};
-
-template <>
-struct Constructor<::test::fixtures::python_capi::MyStructField7PatchStruct>
-    : public BaseConstructor<::test::fixtures::python_capi::MyStructField7PatchStruct> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyStructField7PatchStruct& val);
-};
-
-template <>
-struct Constructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructField7PatchStruct>>
-    : public BaseConstructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructField7PatchStruct>> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyStructField7PatchStruct& val);
-};
-
-template <>
-struct Extractor<::test::fixtures::python_capi::MyStructField8PatchStruct>
-    : public BaseExtractor<::test::fixtures::python_capi::MyStructField8PatchStruct> {
-  ExtractorResult<::test::fixtures::python_capi::MyStructField8PatchStruct> operator()(PyObject* obj);
-  int typeCheck(PyObject* obj);
-};
-
-template <>
-struct Extractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructField8PatchStruct>>
-    : public BaseExtractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructField8PatchStruct>> {
-  ExtractorResult<::test::fixtures::python_capi::MyStructField8PatchStruct> operator()(PyObject* obj);
-};
-
-template <>
-struct Constructor<::test::fixtures::python_capi::MyStructField8PatchStruct>
-    : public BaseConstructor<::test::fixtures::python_capi::MyStructField8PatchStruct> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyStructField8PatchStruct& val);
-};
-
-template <>
-struct Constructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructField8PatchStruct>>
-    : public BaseConstructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructField8PatchStruct>> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyStructField8PatchStruct& val);
-};
-
-template <>
-struct Extractor<::test::fixtures::python_capi::MyStructFieldPatchStruct>
-    : public BaseExtractor<::test::fixtures::python_capi::MyStructFieldPatchStruct> {
-  ExtractorResult<::test::fixtures::python_capi::MyStructFieldPatchStruct> operator()(PyObject* obj);
-  int typeCheck(PyObject* obj);
-};
-
-template <>
-struct Extractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructFieldPatchStruct>>
-    : public BaseExtractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructFieldPatchStruct>> {
-  ExtractorResult<::test::fixtures::python_capi::MyStructFieldPatchStruct> operator()(PyObject* obj);
-};
-
-template <>
-struct Constructor<::test::fixtures::python_capi::MyStructFieldPatchStruct>
-    : public BaseConstructor<::test::fixtures::python_capi::MyStructFieldPatchStruct> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyStructFieldPatchStruct& val);
-};
-
-template <>
-struct Constructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructFieldPatchStruct>>
-    : public BaseConstructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructFieldPatchStruct>> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyStructFieldPatchStruct& val);
-};
-
-template <>
-struct Extractor<::test::fixtures::python_capi::MyStructEnsureStruct>
-    : public BaseExtractor<::test::fixtures::python_capi::MyStructEnsureStruct> {
-  ExtractorResult<::test::fixtures::python_capi::MyStructEnsureStruct> operator()(PyObject* obj);
-  int typeCheck(PyObject* obj);
-};
-
-template <>
-struct Extractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructEnsureStruct>>
-    : public BaseExtractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructEnsureStruct>> {
-  ExtractorResult<::test::fixtures::python_capi::MyStructEnsureStruct> operator()(PyObject* obj);
-};
-
-template <>
-struct Constructor<::test::fixtures::python_capi::MyStructEnsureStruct>
-    : public BaseConstructor<::test::fixtures::python_capi::MyStructEnsureStruct> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyStructEnsureStruct& val);
-};
-
-template <>
-struct Constructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructEnsureStruct>>
-    : public BaseConstructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyStructEnsureStruct>> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyStructEnsureStruct& val);
-};
-
-template <>
-struct Extractor<::test::fixtures::python_capi::MyDataItemPatchStruct>
-    : public BaseExtractor<::test::fixtures::python_capi::MyDataItemPatchStruct> {
-  ExtractorResult<::test::fixtures::python_capi::MyDataItemPatchStruct> operator()(PyObject* obj);
-  int typeCheck(PyObject* obj);
-};
-
-template <>
-struct Extractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyDataItemPatchStruct>>
-    : public BaseExtractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyDataItemPatchStruct>> {
-  ExtractorResult<::test::fixtures::python_capi::MyDataItemPatchStruct> operator()(PyObject* obj);
-};
-
-template <>
-struct Constructor<::test::fixtures::python_capi::MyDataItemPatchStruct>
-    : public BaseConstructor<::test::fixtures::python_capi::MyDataItemPatchStruct> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyDataItemPatchStruct& val);
-};
-
-template <>
-struct Constructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyDataItemPatchStruct>>
-    : public BaseConstructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyDataItemPatchStruct>> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyDataItemPatchStruct& val);
-};
-
-template <>
-struct Extractor<::test::fixtures::python_capi::MyDataItemFieldPatchStruct>
-    : public BaseExtractor<::test::fixtures::python_capi::MyDataItemFieldPatchStruct> {
-  ExtractorResult<::test::fixtures::python_capi::MyDataItemFieldPatchStruct> operator()(PyObject* obj);
-  int typeCheck(PyObject* obj);
-};
-
-template <>
-struct Extractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyDataItemFieldPatchStruct>>
-    : public BaseExtractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyDataItemFieldPatchStruct>> {
-  ExtractorResult<::test::fixtures::python_capi::MyDataItemFieldPatchStruct> operator()(PyObject* obj);
-};
-
-template <>
-struct Constructor<::test::fixtures::python_capi::MyDataItemFieldPatchStruct>
-    : public BaseConstructor<::test::fixtures::python_capi::MyDataItemFieldPatchStruct> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyDataItemFieldPatchStruct& val);
-};
-
-template <>
-struct Constructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyDataItemFieldPatchStruct>>
-    : public BaseConstructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyDataItemFieldPatchStruct>> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyDataItemFieldPatchStruct& val);
-};
-
-template <>
-struct Extractor<::test::fixtures::python_capi::MyDataItemEnsureStruct>
-    : public BaseExtractor<::test::fixtures::python_capi::MyDataItemEnsureStruct> {
-  ExtractorResult<::test::fixtures::python_capi::MyDataItemEnsureStruct> operator()(PyObject* obj);
-  int typeCheck(PyObject* obj);
-};
-
-template <>
-struct Extractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyDataItemEnsureStruct>>
-    : public BaseExtractor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyDataItemEnsureStruct>> {
-  ExtractorResult<::test::fixtures::python_capi::MyDataItemEnsureStruct> operator()(PyObject* obj);
-};
-
-template <>
-struct Constructor<::test::fixtures::python_capi::MyDataItemEnsureStruct>
-    : public BaseConstructor<::test::fixtures::python_capi::MyDataItemEnsureStruct> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyDataItemEnsureStruct& val);
-};
-
-template <>
-struct Constructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyDataItemEnsureStruct>>
-    : public BaseConstructor<::apache::thrift::python::capi::ComposedStruct<
-        ::test::fixtures::python_capi::MyDataItemEnsureStruct>> {
-  PyObject* operator()(const ::test::fixtures::python_capi::MyDataItemEnsureStruct& val);
 };
 
 template <>

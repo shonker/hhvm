@@ -18,35 +18,34 @@ package thrift
 
 import (
 	"fmt"
+	"net"
+	"time"
 )
 
 type headerProtocol struct {
 	Format
-	origTransport Transport
-	trans         *HeaderTransport
+	trans *headerTransport
 
 	protoID ProtocolID
 }
 
-func NewHeaderProtocol(trans Transport) Protocol {
+func NewHeaderProtocol(conn net.Conn) (Protocol, error) {
 	p := &headerProtocol{
-		origTransport: trans,
-		protoID:       ProtocolIDCompact,
+		protoID: ProtocolIDCompact,
 	}
-	if et, ok := trans.(*HeaderTransport); ok {
-		p.trans = et
-	} else {
-		p.trans = NewHeaderTransport(trans)
+	p.trans = newHeaderTransport(conn)
+	if err := p.resetProtocol(); err != nil {
+		return nil, err
 	}
-
-	// Effectively an invariant violation.
-	if err := p.ResetProtocol(); err != nil {
-		panic(err)
-	}
-	return p
+	return p, nil
 }
 
-func (p *headerProtocol) ResetProtocol() error {
+func (p *headerProtocol) SetTimeout(timeout time.Duration) {
+	p.trans.conn.readTimeout = timeout
+	p.trans.conn.writeTimeout = timeout
+}
+
+func (p *headerProtocol) resetProtocol() error {
 	if p.Format != nil && p.protoID == p.trans.ProtocolID() {
 		return nil
 	}
@@ -69,8 +68,9 @@ func (p *headerProtocol) ResetProtocol() error {
 //
 
 func (p *headerProtocol) WriteMessageBegin(name string, typeId MessageType, seqid int32) error {
-	p.ResetProtocol()
-
+	if err := p.resetProtocol(); err != nil {
+		return err
+	}
 	// The conditions here only match on the Go client side.
 	// If we are a client, set header seq id same as msg id
 	if typeId == CALL || typeId == ONEWAY {
@@ -89,12 +89,10 @@ func (p *headerProtocol) ReadMessageBegin() (name string, typeId MessageType, se
 			return name, EXCEPTION, seqid, err
 		}
 	}
-
-	err = p.ResetProtocol()
+	err = p.resetProtocol()
 	if err != nil {
 		return name, EXCEPTION, seqid, err
 	}
-
 	// see https://github.com/apache/thrift/blob/master/doc/specs/SequenceNumbers.md
 	// TODO:  This is a bug. if we are speaking header protocol, we should be using
 	// seq id from the header. However, doing it here creates a non-backwards
@@ -111,7 +109,7 @@ func (p *headerProtocol) Skip(fieldType Type) (err error) {
 }
 
 func (p *headerProtocol) Close() error {
-	return p.origTransport.Close()
+	return p.trans.Close()
 }
 
 // Deprecated: SetSeqID() is a deprecated method.
@@ -125,18 +123,6 @@ func (p *headerProtocol) GetSeqID() uint32 {
 }
 
 // Control underlying header transport
-
-func (p *headerProtocol) SetIdentity(identity string) {
-	p.trans.SetIdentity(identity)
-}
-
-func (p *headerProtocol) Identity() string {
-	return p.trans.Identity()
-}
-
-func (p *headerProtocol) peerIdentity() string {
-	return p.trans.peerIdentity()
-}
 
 func (p *headerProtocol) SetPersistentHeader(key, value string) {
 	p.trans.SetPersistentHeader(key, value)
@@ -196,6 +182,13 @@ func (p *headerProtocol) ProtocolID() ProtocolID {
 	return p.protoID
 }
 
+func (p *headerProtocol) SetProtocolID(protoID ProtocolID) error {
+	if err := p.trans.SetProtocolID(protoID); err != nil {
+		return err
+	}
+	return p.resetProtocol()
+}
+
 // Deprecated: GetFlags() is a deprecated method.
 func (t *headerProtocol) GetFlags() HeaderFlags {
 	return t.trans.GetFlags()
@@ -209,15 +202,6 @@ func (p *headerProtocol) SetFlags(flags HeaderFlags) {
 func (p *headerProtocol) AddTransform(trans TransformID) error {
 	return p.trans.AddTransform(trans)
 }
-
-// Deprecated: HeaderProtocolIdentity is a deprecated type, temporarily introduced to ease transition to new API.
-type HeaderProtocolIdentity interface {
-	SetIdentity(identity string)
-	Identity() string
-}
-
-// Compile time interface enforcer
-var _ HeaderProtocolIdentity = (*headerProtocol)(nil)
 
 // Deprecated: HeaderProtocolSeqID is a deprecated type, temporarily introduced to ease transition to new API.
 type HeaderProtocolSeqID interface {
@@ -236,11 +220,3 @@ type HeaderProtocolFlags interface {
 
 // Compile time interface enforcer
 var _ HeaderProtocolFlags = (*headerProtocol)(nil)
-
-// Deprecated: HeaderProtocolProtocolID is a deprecated type, temporarily introduced to ease transition to new API.
-type HeaderProtocolProtocolID interface {
-	ProtocolID() ProtocolID
-}
-
-// Compile time interface enforcer
-var _ HeaderProtocolProtocolID = (*headerProtocol)(nil)

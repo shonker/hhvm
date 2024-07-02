@@ -21,8 +21,8 @@
 #include <folly/Synchronized.h>
 #include <folly/experimental/coro/Baton.h>
 #include <folly/experimental/coro/GtestHelpers.h>
-#include <folly/experimental/observer/Observer.h>
-#include <folly/experimental/observer/SimpleObservable.h>
+#include <folly/observer/Observer.h>
+#include <folly/observer/SimpleObservable.h>
 #include <folly/portability/GTest.h>
 
 #include <thrift/lib/cpp2/server/Cpp2Worker.h>
@@ -54,8 +54,7 @@ class Handler : public apache::thrift::ServiceHandler<DummyStatus>,
   }
 
   void async_eb_getStatus(
-      std::unique_ptr<apache::thrift::HandlerCallback<std::int64_t>> callback)
-      override {
+      apache::thrift::HandlerCallbackPtr<std::int64_t> callback) override {
     ThriftServer* server = callback->getRequestContext()
                                ->getConnectionContext()
                                ->getWorker()

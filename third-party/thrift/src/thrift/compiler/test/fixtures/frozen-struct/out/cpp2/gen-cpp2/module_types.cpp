@@ -49,7 +49,7 @@ void TccStructTraits<::some::ns::ModuleA>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace some { namespace ns {
+namespace some::ns {
 
 std::string_view ModuleA::__fbthrift_get_field_name(::apache::thrift::FieldOrdinal ord) {
   if (ord == ::apache::thrift::FieldOrdinal{0}) { return {}; }
@@ -96,7 +96,7 @@ ModuleA::ModuleA(apache::thrift::FragileConstructor, ::std::int32_t i32Field__ar
     __fbthrift_field_listField(std::move(listField__arg)),
     __fbthrift_field_mapField(std::move(mapField__arg)),
     __fbthrift_field_inclAField(std::move(inclAField__arg)),
-    __fbthrift_field_inclBField(std::move(inclBField__arg)) {
+    __fbthrift_field_inclBField(std::move(inclBField__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
   __isset.set(folly::index_constant<2>(), true);
@@ -198,7 +198,7 @@ static_assert(
         ::some::ns::IncludedB>,
     "inconsistent use of json option");
 
-}} // some::ns
+} // namespace some::ns
 
 namespace apache {
 namespace thrift {
@@ -221,7 +221,7 @@ void TccStructTraits<::some::ns::ModuleB>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace some { namespace ns {
+namespace some::ns {
 
 std::string_view ModuleB::__fbthrift_get_field_name(::apache::thrift::FieldOrdinal ord) {
   if (ord == ::apache::thrift::FieldOrdinal{0}) { return {}; }
@@ -234,7 +234,7 @@ std::string_view ModuleB::__fbthrift_get_class_name() {
 
 ModuleB::ModuleB(apache::thrift::FragileConstructor, ::std::int32_t i32Field__arg, ::some::ns::EnumB inclEnumB__arg) :
     __fbthrift_field_i32Field(std::move(i32Field__arg)),
-    __fbthrift_field_inclEnumB(std::move(inclEnumB__arg)) {
+    __fbthrift_field_inclEnumB(std::move(inclEnumB__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
 }
@@ -280,7 +280,7 @@ template uint32_t ModuleB::serializedSize<>(apache::thrift::CompactProtocolWrite
 template uint32_t ModuleB::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}} // some::ns
+} // namespace some::ns
 
 namespace apache {
 namespace thrift {
@@ -303,7 +303,7 @@ void TccStructTraits<::some::ns::detail::DirectlyAdapted>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace some { namespace ns {namespace detail {
+namespace some::ns {namespace detail {
 
 
 std::string_view DirectlyAdapted::__fbthrift_get_field_name(::apache::thrift::FieldOrdinal ord) {
@@ -316,7 +316,7 @@ std::string_view DirectlyAdapted::__fbthrift_get_class_name() {
 
 
 DirectlyAdapted::DirectlyAdapted(apache::thrift::FragileConstructor, ::std::int32_t field__arg) :
-    __fbthrift_field_field(std::move(field__arg)) {
+    __fbthrift_field_field(std::move(field__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -360,7 +360,7 @@ template uint32_t DirectlyAdapted::serializedSizeZC<>(apache::thrift::CompactPro
 
 
 } // namespace detail
-}} // some::ns
+} // namespace some::ns
 
 namespace apache {
 namespace thrift {
@@ -383,7 +383,7 @@ void TccStructTraits<::some::ns::CppRef>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace some { namespace ns {
+namespace some::ns {
 
 std::string_view CppRef::__fbthrift_get_field_name(::apache::thrift::FieldOrdinal ord) {
   if (ord == ::apache::thrift::FieldOrdinal{0}) { return {}; }
@@ -426,7 +426,7 @@ CppRef::CppRef(apache::thrift::FragileConstructor, ::std::shared_ptr<::std::int3
     __fbthrift_field_shared_const_field(std::move(shared_const_field__arg)),
     __fbthrift_field_opt_shared_field(std::move(opt_shared_field__arg)),
     __fbthrift_field_opt_shared_const_field(std::move(opt_shared_const_field__arg)),
-    __fbthrift_field_boxed_field(std::move(boxed_field__arg)) {
+    __fbthrift_field_boxed_field(std::move(boxed_field__arg)) { 
 }
 
 
@@ -474,11 +474,11 @@ template uint32_t CppRef::serializedSize<>(apache::thrift::CompactProtocolWriter
 template uint32_t CppRef::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}} // some::ns
+} // namespace some::ns
 
-namespace some { namespace ns { namespace {
+namespace some::ns { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}}} // some::ns
+}} // namespace some::ns
 namespace apache::thrift::detail::annotation {
 }

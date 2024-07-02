@@ -9,125 +9,94 @@ use hhbc::Method;
 use hhbc::ParamEntry;
 use ir::func::DefaultValue;
 use ir::instr::Terminator;
-use ir::CcReified;
-use ir::CcThis;
 use ir::Instr;
 use ir::LocalId;
 use log::trace;
 use newtype::IdVec;
 
 use crate::context::Context;
-use crate::convert::UnitState;
-use crate::types;
 
 /// Convert a hhbc::Function to an ir::Function
-pub(crate) fn convert_function(unit: &mut ir::Unit, src: &Function, unit_state: &UnitState) {
+pub(crate) fn convert_function(src: Function) -> ir::Function {
     trace!("--- convert_function {}", src.name.as_str());
 
-    let func = convert_body(
-        &src.body,
-        &src.attributes,
-        src.attrs,
-        &src.coeffects,
-        unit_state,
-    );
-    ir::verify::verify_func(&func, &Default::default());
+    let body = convert_body(&src.body);
+    ir::verify::verify_func(&body, &Default::default());
 
-    let function = ir::Function {
-        func,
+    ir::Function {
+        body,
         flags: src.flags,
         name: src.name,
-    };
-
-    unit.functions.push(function);
+    }
 }
 
 /// Convert a hhbc::Method to an ir::Method
-pub(crate) fn convert_method<'a>(
-    unit: &mut ir::Unit,
-    clsidx: usize,
-    src: &Method,
-    unit_state: &UnitState,
-) {
+pub(crate) fn convert_method(src: Method) -> ir::Method {
     trace!("--- convert_method {}", src.name.as_str());
 
-    let func = convert_body(
-        &src.body,
-        &src.attributes,
-        src.attrs,
-        &src.coeffects,
-        unit_state,
-    );
-    ir::verify::verify_func(&func, &Default::default());
+    let body = convert_body(&src.body);
+    ir::verify::verify_func(&body, &Default::default());
 
-    let method = ir::Method {
+    ir::Method {
         flags: src.flags,
-        func,
+        body,
         name: src.name,
         visibility: src.visibility,
-    };
-
-    unit.classes.get_mut(clsidx).unwrap().methods.push(method);
+    }
 }
 
 /// Convert a hhbc::Body to an ir::Func
-fn convert_body<'a>(
-    body: &Body,
-    attributes: &[hhbc::Attribute],
-    attrs: ir::Attr,
-    coeffects: &hhbc::Coeffects,
-    unit_state: &UnitState,
-) -> ir::Func {
+fn convert_body(body: &Body) -> ir::Func {
     let Body {
-        ref body_instrs,
-        ref decl_vars,
+        ref attributes,
+        attrs,
+        ref coeffects,
         ref doc_comment,
         is_memoize_wrapper,
         is_memoize_wrapper_lsb,
         num_iters,
-        ref params,
-        ref return_type_info,
+        ref return_type,
         ref shadowed_tparams,
         ref upper_bounds,
-        stack_depth: _,
-        ref span,
+        span,
+        repr:
+            hhbc::BcRepr {
+                ref instrs,
+                ref decl_vars,
+                ref params,
+                stack_depth: _,
+            },
     } = *body;
 
-    let shadowed_tparams: Vec<ir::ClassName> = shadowed_tparams
-        .iter()
-        .map(|s| ir::ClassName::new(*s))
-        .collect();
-
     let mut locs: IdVec<ir::LocId, ir::SrcLoc> = Default::default();
-    locs.push(ir::SrcLoc::from_span(span));
-
-    let coeffects = convert_coeffects(coeffects);
-
+    locs.push(ir::SrcLoc::from_span(&span));
     let func = ir::Func {
-        attributes: attributes.to_vec(),
+        attributes: attributes.clone(),
         attrs,
-        blocks: Default::default(),
-        coeffects,
-        doc_comment: doc_comment.clone().map(|c| c.clone().into()).into(),
-        ex_frames: Default::default(),
-        instrs: Default::default(),
+        coeffects: coeffects.clone(),
+        doc_comment: doc_comment.clone().map(|c| c.clone()),
         is_memoize_wrapper,
         is_memoize_wrapper_lsb,
-        imms: Default::default(),
-        locs,
         num_iters,
-        params: Default::default(),
-        return_type: types::convert_maybe_type(return_type_info.as_ref()),
-        shadowed_tparams,
-        loc_id: ir::LocId::from_usize(0),
-        upper_bounds: upper_bounds.clone().into(),
+        return_type: return_type.clone(),
+        shadowed_tparams: shadowed_tparams.clone(),
+        span,
+        upper_bounds: upper_bounds.clone(),
+        repr: ir::IrRepr {
+            blocks: Default::default(),
+            ex_frames: Default::default(),
+            instrs: Default::default(),
+            imms: Default::default(),
+            locs,
+            params: Default::default(),
+        },
     };
 
-    let mut ctx = Context::new(func, body_instrs, unit_state);
+    let mut ctx = Context::new(func, instrs);
 
     for e in params.as_ref() {
         let ir_param = convert_param(&mut ctx, e);
-        ctx.builder.func.params.push(ir_param);
+        ctx.builder.func.repr.params.push(ir_param);
         if let ffi::Just(dv) = e.dv.as_ref() {
             // This default value will jump to a different start than the
             // Func::ENTRY_BID.
@@ -148,7 +117,7 @@ fn convert_body<'a>(
     }
 
     let cur_bid = ctx.builder.cur_bid();
-    if !ctx.builder.func.is_terminated(cur_bid) {
+    if !ctx.builder.func.repr.is_terminated(cur_bid) {
         // This is not a valid input - but might as well do something
         // reasonable.
         ctx.emit(Instr::Terminator(Terminator::Unreachable));
@@ -157,10 +126,13 @@ fn convert_body<'a>(
     // Mark any empty blocks with 'unreachable'. These will be cleaned up
     // later but for now need to be valid IR (so they must end with a
     // terminator).
-    for bid in ctx.builder.func.block_ids() {
-        let block = ctx.builder.func.block_mut(bid);
+    for bid in ctx.builder.func.repr.block_ids() {
+        let block = ctx.builder.func.repr.block_mut(bid);
         if block.is_empty() {
-            ctx.builder.func.alloc_instr_in(bid, Instr::unreachable());
+            ctx.builder
+                .func
+                .repr
+                .alloc_instr_in(bid, Instr::unreachable());
         }
     }
 
@@ -193,26 +165,4 @@ fn convert_param(
 
     ctx.named_local_lookup.push(LocalId::Named(param.name));
     (param.clone(), default_value)
-}
-
-fn convert_coeffects(coeffects: &hhbc::Coeffects) -> ir::Coeffects {
-    ir::Coeffects {
-        static_coeffects: coeffects.static_coeffects.clone(),
-        unenforced_static_coeffects: coeffects.unenforced_static_coeffects.clone(),
-        fun_param: coeffects.fun_param.clone(),
-        cc_param: coeffects.cc_param.clone(),
-        cc_this: Vec::from_iter(coeffects.get_cc_this().iter().map(|inner| CcThis {
-            types: Vec::from_iter(inner.types.iter().copied()).into(),
-        }))
-        .into(),
-        cc_reified: Vec::from_iter(coeffects.get_cc_reified().iter().map(|inner| CcReified {
-            is_class: inner.is_class,
-            index: inner.index,
-            types: Vec::from_iter(inner.types.iter().copied()).into(),
-        }))
-        .into(),
-        closure_parent_scope: coeffects.is_closure_parent_scope(),
-        generator_this: coeffects.generator_this(),
-        caller: coeffects.caller(),
-    }
 }

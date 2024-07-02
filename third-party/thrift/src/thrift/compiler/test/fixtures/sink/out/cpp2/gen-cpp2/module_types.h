@@ -66,7 +66,7 @@ class CompatibleWithKeywordSink;
 class InitialException;
 class SinkException1;
 class SinkException2;
-} // cpp2
+} // namespace cpp2
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -127,6 +127,8 @@ class InitialResponse final  {
  public:
   using __fbthrift_cpp2_type = InitialResponse;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -283,6 +285,8 @@ class FinalResponse final  {
   using __fbthrift_cpp2_type = FinalResponse;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -438,6 +442,8 @@ class SinkPayload final  {
   using __fbthrift_cpp2_type = SinkPayload;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -592,6 +598,8 @@ class CompatibleWithKeywordSink final  {
  public:
   using __fbthrift_cpp2_type = CompatibleWithKeywordSink;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -753,6 +761,8 @@ class FOLLY_EXPORT InitialException : public virtual apache::thrift::TException 
  public:
   using __fbthrift_cpp2_type = InitialException;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -919,6 +929,8 @@ class FOLLY_EXPORT SinkException1 : public virtual apache::thrift::TException {
   using __fbthrift_cpp2_type = SinkException1;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1084,6 +1096,8 @@ class FOLLY_EXPORT SinkException2 : public virtual apache::thrift::TException {
   using __fbthrift_cpp2_type = SinkException2;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1193,4 +1207,4 @@ unsigned long SinkException2::read(Protocol_* iprot) {
 }
 
 
-} // cpp2
+} // namespace cpp2

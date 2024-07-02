@@ -182,7 +182,7 @@ template uint32_t ComplexUnion::serializedSize<>(apache::thrift::CompactProtocol
 template uint32_t ComplexUnion::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -316,7 +316,7 @@ template uint32_t ListUnion::serializedSize<>(apache::thrift::CompactProtocolWri
 template uint32_t ListUnion::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -450,7 +450,7 @@ template uint32_t DataUnion::serializedSize<>(apache::thrift::CompactProtocolWri
 template uint32_t DataUnion::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -511,7 +511,7 @@ Val& Val::operator=([[maybe_unused]] Val&& other) noexcept {
 Val::Val(apache::thrift::FragileConstructor, ::std::string strVal__arg, ::std::int32_t intVal__arg, ::cpp2::containerTypedef typedefValue__arg) :
     __fbthrift_field_strVal(std::move(strVal__arg)),
     __fbthrift_field_intVal(std::move(intVal__arg)),
-    __fbthrift_field_typedefValue(std::move(typedefValue__arg)) {
+    __fbthrift_field_typedefValue(std::move(typedefValue__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
   __isset.set(folly::index_constant<2>(), true);
@@ -568,7 +568,7 @@ template uint32_t Val::serializedSize<>(apache::thrift::CompactProtocolWriter co
 template uint32_t Val::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -714,7 +714,7 @@ static_assert(
         ::cpp2::Val>,
     "inconsistent use of json option");
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -848,7 +848,7 @@ template uint32_t VirtualComplexUnion::serializedSize<>(apache::thrift::CompactP
 template uint32_t VirtualComplexUnion::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -883,7 +883,7 @@ std::string_view NonCopyableStruct::__fbthrift_get_class_name() {
 
 
 NonCopyableStruct::NonCopyableStruct(apache::thrift::FragileConstructor, ::std::int64_t num__arg) :
-    __fbthrift_field_num(std::move(num__arg)) {
+    __fbthrift_field_num(std::move(num__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -926,7 +926,7 @@ template uint32_t NonCopyableStruct::serializedSize<>(apache::thrift::CompactPro
 template uint32_t NonCopyableStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -1029,11 +1029,11 @@ static_assert(
         ::cpp2::NonCopyableStruct>,
     "inconsistent use of json option");
 
-} // cpp2
+} // namespace cpp2
 
 namespace cpp2 { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}} // cpp2
+}} // namespace cpp2
 namespace apache::thrift::detail::annotation {
 }

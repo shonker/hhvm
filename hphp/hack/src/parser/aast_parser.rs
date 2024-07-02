@@ -17,8 +17,10 @@ use namespaces_rust as namespaces;
 use ocamlrep::FromOcamlRep;
 use ocamlrep::ToOcamlRep;
 use oxidized::aast::Program;
+use oxidized::experimental_features;
 use oxidized::file_info::Mode;
 use oxidized::namespace_env::Env as NamespaceEnv;
+use oxidized::namespace_env::Mode as NamespaceMode;
 use oxidized::pos::Pos;
 use oxidized::scoured_comments::ScouredComments;
 use parser_core_types::indexed_source_text::IndexedSourceText;
@@ -64,12 +66,12 @@ impl<'src> AastParser {
     pub fn from_text(
         env: &Env,
         indexed_source_text: &'src IndexedSourceText<'src>,
-        default_unstable_features: HashSet<rust_parser_errors::UnstableFeatures>,
+        default_unstable_features: HashSet<experimental_features::FeatureName>,
     ) -> Result<ParserResult> {
         let ns = NamespaceEnv::empty(
-            env.parser_options.po_auto_namespace_map.clone(),
-            env.codegen,
-            env.parser_options.po_disable_xhp_element_mangling,
+            env.parser_options.auto_namespace_map.clone(),
+            env.mode,
+            env.parser_options.disable_xhp_element_mangling,
         );
         Self::from_text_with_namespace_env(
             env,
@@ -83,14 +85,10 @@ impl<'src> AastParser {
         env: &Env,
         ns: Arc<NamespaceEnv>,
         indexed_source_text: &'src IndexedSourceText<'src>,
-        default_unstable_features: HashSet<rust_parser_errors::UnstableFeatures>,
+        default_unstable_features: HashSet<experimental_features::FeatureName>,
     ) -> Result<ParserResult> {
-        // TODO(T120858428): remove this check (and always verify_utf8) once
-        // we're strict everywhere!
-        if env.parser_options.po_strict_utf8 {
-            if let Some(err) = Self::verify_utf8(indexed_source_text) {
-                return Ok(err);
-            }
+        if let Some(err) = Self::verify_utf8(indexed_source_text) {
+            return Ok(err);
         }
         let start_t = Instant::now();
         let arena = Bump::new();
@@ -122,12 +120,12 @@ impl<'src> AastParser {
         language: Language,
         mode: Option<Mode>,
         tree: PositionedSyntaxTree<'src, 'arena>,
-        default_unstable_features: HashSet<rust_parser_errors::UnstableFeatures>,
+        default_unstable_features: HashSet<experimental_features::FeatureName>,
     ) -> Result<ParserResult> {
         let ns = NamespaceEnv::empty(
-            env.parser_options.po_auto_namespace_map.clone(),
-            env.codegen,
-            env.parser_options.po_disable_xhp_element_mangling,
+            env.parser_options.auto_namespace_map.clone(),
+            env.mode,
+            env.parser_options.disable_xhp_element_mangling,
         );
         Self::from_tree_with_namespace_env(
             env,
@@ -170,7 +168,7 @@ impl<'src> AastParser {
         language: Language,
         mode: Option<Mode>,
         tree: PositionedSyntaxTree<'src, 'arena>,
-        default_unstable_features: HashSet<rust_parser_errors::UnstableFeatures>,
+        default_unstable_features: HashSet<experimental_features::FeatureName>,
     ) -> Result<ParserResult> {
         let lowering_t = Instant::now();
         match language {
@@ -181,7 +179,7 @@ impl<'src> AastParser {
         let scoured_comments =
             Self::scour_comments_and_add_fixmes(env, indexed_source_text, tree.root())?;
         let mut lowerer_env = lowerer::Env::make(
-            env.codegen,
+            env.mode,
             env.quick_mode,
             env.show_all_errors,
             mode,
@@ -240,7 +238,7 @@ impl<'src> AastParser {
         indexed_source_text: &'src IndexedSourceText<'src>,
         tree: &PositionedSyntaxTree<'src, 'arena>,
         aast: Option<&mut Program<(), ()>>,
-        default_unstable_features: HashSet<rust_parser_errors::UnstableFeatures>,
+        default_unstable_features: HashSet<experimental_features::FeatureName>,
     ) -> Vec<SyntaxError> {
         let find_errors = |hhi_mode: bool| -> Vec<SyntaxError> {
             let mut errors = tree.errors().into_iter().cloned().collect::<Vec<_>>();
@@ -251,7 +249,7 @@ impl<'src> AastParser {
                 env.parser_options.clone(),
                 true, /* hhvm_compat_mode */
                 hhi_mode,
-                env.codegen,
+                env.mode,
                 env.is_systemlib,
                 default_unstable_features,
             );
@@ -260,29 +258,33 @@ impl<'src> AastParser {
 
             let mut empty_program = Program(vec![]);
             let aast = aast.unwrap_or(&mut empty_program);
-            if uses_readonly && !env.parser_options.tco_no_parser_readonly_check {
-                errors.extend(readonly_check::check_program(aast, !env.codegen));
+            if uses_readonly && !env.parser_options.no_parser_readonly_check {
+                errors.extend(readonly_check::check_program(
+                    aast,
+                    matches!(env.mode, NamespaceMode::ForTypecheck),
+                ));
             }
-            errors.extend(aast_check::check_program(aast, !env.codegen));
+            errors.extend(aast_check::check_program(aast, env.mode));
             errors.extend(modules_check::check_program(aast));
             errors.extend(expression_tree_check::check_splices(aast));
-            errors.extend(coeffects_check::check_program(aast, !env.codegen));
+            errors.extend(coeffects_check::check_program(aast, env.mode));
             errors
         };
-        if env.codegen {
-            find_errors(false /* hhi_mode */)
-        } else {
-            let first_error = tree.errors().into_iter().next();
-            match first_error {
-                None if !env.quick_mode && !env.parser_options.po_parser_errors_only => {
-                    let is_hhi = indexed_source_text
-                        .source_text()
-                        .file_path()
-                        .has_extension("hhi");
-                    find_errors(is_hhi)
+        match env.mode {
+            NamespaceMode::ForCodegen => find_errors(false /* hhi_mode */),
+            NamespaceMode::ForTypecheck => {
+                let first_error = tree.errors().into_iter().next();
+                match first_error {
+                    None if !env.quick_mode && !env.parser_options.parser_errors_only => {
+                        let is_hhi = indexed_source_text
+                            .source_text()
+                            .file_path()
+                            .has_extension("hhi");
+                        find_errors(is_hhi)
+                    }
+                    None => vec![],
+                    Some(e) => vec![e.clone()],
                 }
-                None => vec![],
-                Some(e) => vec![e.clone()],
             }
         }
     }
@@ -304,19 +306,15 @@ impl<'src> AastParser {
     ) -> (Language, Option<Mode>, ParserEnv) {
         let (language, mode) = parse_mode(source_text);
         let parser_env = ParserEnv {
-            codegen: env.codegen,
-            hhvm_compat_mode: env.codegen,
+            codegen: matches!(env.mode, NamespaceMode::ForCodegen),
+            hhvm_compat_mode: matches!(env.mode, NamespaceMode::ForCodegen),
             php5_compat_mode: env.php5_compat_mode,
-            enable_xhp_class_modifier: env.parser_options.po_enable_xhp_class_modifier,
-            disable_xhp_element_mangling: env.parser_options.po_disable_xhp_element_mangling,
-            disable_xhp_children_declarations: env
-                .parser_options
-                .po_disable_xhp_children_declarations,
+            enable_xhp_class_modifier: env.parser_options.enable_xhp_class_modifier,
+            disable_xhp_element_mangling: env.parser_options.disable_xhp_element_mangling,
+            disable_xhp_children_declarations: env.parser_options.disable_xhp_children_declarations,
             interpret_soft_types_as_like_types: env
                 .parser_options
-                .po_interpret_soft_types_as_like_types,
-            nameof_precedence: env.parser_options.po_nameof_precedence,
-            strict_utf8: env.parser_options.po_strict_utf8,
+                .interpret_soft_types_as_like_types,
         };
         (language, mode.map(Into::into), parser_env)
     }
@@ -329,8 +327,8 @@ impl<'src> AastParser {
         mode: Option<Mode>,
     ) -> Result<PositionedSyntaxTree<'src, 'arena>> {
         let quick_mode = match mode {
-            None | Some(Mode::Mhhi) => !env.codegen,
-            _ => !env.codegen && env.quick_mode,
+            None | Some(Mode::Mhhi) => matches!(env.mode, NamespaceMode::ForTypecheck),
+            _ => matches!(env.mode, NamespaceMode::ForTypecheck) && env.quick_mode,
         };
         let tree = if quick_mode {
             let (tree, errors, _state) =
@@ -355,8 +353,8 @@ impl<'src> AastParser {
                     phantom: std::marker::PhantomData,
                     indexed_source_text,
                     include_line_comments: env.include_line_comments,
-                    disable_hh_ignore_error: env.parser_options.po_disable_hh_ignore_error,
-                    allowed_decl_fixme_codes: &env.parser_options.po_allowed_decl_fixme_codes,
+                    disable_hh_ignore_error: env.parser_options.disable_hh_ignore_error,
+                    allowed_decl_fixme_codes: &env.parser_options.allowed_decl_fixme_codes,
                 };
             Ok(scourer.scour_comments(script))
         } else {

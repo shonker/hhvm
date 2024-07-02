@@ -6,9 +6,10 @@
  *
  *)
 
-(** [can_access_internal ~env ~current ~target] returns whether a symbol defined in
-  * module [current] is allowed to access an internal symbol defined in
-  * [target] under [env].
+(** [can_access_internal ~env ~current ~target target_pos] returns whether a symbol defined in
+  * module [current] is allowed to access an internal symbol defined in [target] under [env].
+  * If package_v2 is set in [env], also check that the current file is allowed to access the
+  * target file (calculated by [target_pos] according to package v1 dependency rules.
   *)
 val can_access_internal :
   env:Typing_env_types.env ->
@@ -20,23 +21,4 @@ val can_access_internal :
   | `OutsideViaTrait of Pos_or_decl.t
   ]
 
-(** [can_access_public ~env ~current ~target] returns whether a symbol defined in
-  * module [current] is allowed to access an public symbol defined in
-  * [target] under [env].
-  *)
-val can_access_public :
-  env:Typing_env_types.env ->
-  current:string option ->
-  target:string option ->
-  [ `Yes
-  | `PackageNotSatisfied of Pos.t * Pos_or_decl.t
-  | `PackageSoftIncludes of Pos.t * Pos_or_decl.t
-  ]
-
 val is_class_visible : Typing_env_types.env -> Decl_provider.class_decl -> bool
-
-val satisfies_package_deps :
-  Typing_env_types.env ->
-  Package.t option ->
-  Package.t option ->
-  (Pos.t * Package.package_relationship) option

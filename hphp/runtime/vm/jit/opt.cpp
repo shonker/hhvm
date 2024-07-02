@@ -55,14 +55,6 @@ bool doPass(IRUnit& unit, PassFN fn, DCE dce) {
   return result;
 }
 
-void removeJmpPlaceholders(IRUnit& unit) {
-  for (auto& block : rpoSortCfg(unit)) {
-    if (block->back().is(JmpPlaceholder)) {
-      unit.replace(&block->back(), Jmp, block->next());
-    }
-  }
-}
-
 void simplifyOrdStrIdx(IRUnit& unit) {
   auto blocks = poSortCfg(unit);
 
@@ -253,9 +245,7 @@ void optimize(IRUnit& unit, TransKind kind) {
 
   assertx(checkEverything(unit));
 
-  // We use JmpPlaceholders to hide specialized iterators until we use them.
-  // Any placeholders that survive irgen are just another kind of dead code.
-  doPass(unit, removeJmpPlaceholders, DCE::Full);
+  fullDCE(unit);
   printUnit(6, unit, " after initial DCE ");
   assertx(checkEverything(unit));
 
@@ -290,7 +280,9 @@ void optimize(IRUnit& unit, TransKind kind) {
 
   if (Cfg::HHIR::GlobalValueNumbering) {
     rqtrace::EventGuard trace{"OPT_GVN"};
-    doPass(unit, gvn, DCE::Full);
+    if (doPass(unit, gvn, DCE::Full)) {
+      doPass(unit, refineTmps, DCE::None);
+    }
   }
 
   while (true) {
@@ -359,12 +351,12 @@ void optimize(IRUnit& unit, TransKind kind) {
   // split, and simplify our instructions before shipping off to codegen.
   doPass(unit, cleanCfg, DCE::None);
 
-  if (!isProfiling(kind) && Cfg::HHIR::GlobalValueNumbering) {
-    rqtrace::EventGuard trace{"OPT_GVN"};
-    doPass(unit, gvn, DCE::Full);
-  }
-
   if (!isProfiling(kind)) {
+    if (Cfg::HHIR::GlobalValueNumbering) {
+      rqtrace::EventGuard trace{"OPT_GVN"};
+      doPass(unit, gvn, DCE::Full);
+    }
+
     doPass(unit, refineTmpsPass, DCE::None);
     doPass(unit, cleanCfg, DCE::None);
   }

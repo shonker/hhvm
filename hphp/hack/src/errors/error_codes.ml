@@ -167,6 +167,8 @@ module Naming = struct
     | IllegalTypedLocal [@value 2126]
     | InternalModuleLevelTrait [@value 2127]
     | ToplevelStatement [@value 2128]
+    | InvalidTypeAccessInWhere [@value 2129]
+    | AttributeOutsideAllowedFiles [@value 2130]
   (* Add new Naming codes here! Comment out when deprecating. *)
   [@@deriving enum, show { with_path = false }]
 
@@ -277,7 +279,7 @@ module NastCheck = struct
     | AttributeConflictingMemoize [@value 3100]
     | RefinementInTypeStruct [@value 3101]
     | Soft_internal_without_internal [@value 3102]
-    | Module_outside_allowed_dirs [@value 3103]
+    | CloneReturnType [@value 3104]
   (* Add new NastCheck codes here! Comment out when deprecating. *)
   [@@deriving enum, show { with_path = false }]
 
@@ -768,10 +770,25 @@ module Typing = struct
     | MatchOnUnsupportedType [@value 4479]
     | MultipleInstantiationInheritence [@value 4480]
     | InternalMethCaller [@value 4481]
+    | ClassPointerToString [@value 4482]
+    | InvalidXhpAttributeValue [@value 4483]
   (* Add new Typing codes here! Comment out when deprecating. *)
   [@@deriving enum, show { with_path = false }]
 
   let err_code = to_enum
+end
+
+module Warning = struct
+  type t =
+    | SketchyEquality [@value 12001]
+    | IsAsAlways [@value 12002]
+    | SketchyNullCheck [@value 12003]
+    | NonDisjointCheck [@value 12004]
+    | CastNonPrimitive [@value 12005]
+    | TruthinessTest [@value 12006]
+    | EqualityCheck [@value 12007]
+    | Duplicate_properties [@value 12008]
+  [@@deriving enum, show { with_path = false }]
 end
 
 (* 5xxx: reserved for FB lint *)
@@ -780,7 +797,6 @@ end
 (* 8xxx: had been used for forward/back-compat; no longer *)
 (* 9xxx: reserved for FB ai *)
 (* 10xxx: reserved for FB ai *)
-
 (* 11xxx: reserved for global access check (fbcode/hphp/hack/src/typing/tast_check/global_access_check.ml),
  * which is used to detect potential data leaks caused by global variable access.
  * 11001 represents the error when a global variable is definitely written.
@@ -788,6 +804,8 @@ end
  * 11003 represents the warning when a global variable is possibly written via function calls.
  * 11004 represents the error when a global variable is definitely read.
  *)
+(* 12xxx: reserved for warnings, see module Warning above *)
+
 module GlobalAccessCheck = struct
   type t =
     | DefiniteGlobalWrite [@value 11001]

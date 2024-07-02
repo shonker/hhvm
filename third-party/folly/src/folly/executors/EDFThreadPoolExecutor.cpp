@@ -322,6 +322,10 @@ void EDFThreadPoolExecutor::add(std::vector<Func> fs, uint64_t deadline) {
   }
 }
 
+size_t EDFThreadPoolExecutor::getTaskQueueSize() const {
+  return taskQueue_->size();
+}
+
 void EDFThreadPoolExecutor::threadRun(ThreadPtr thread) {
   this->threadPoolHook_.registerThread();
   ExecutorBlockingGuard guard{
@@ -396,7 +400,7 @@ void EDFThreadPoolExecutor::stopThreads(std::size_t numThreads) {
 
 // threadListLock_ is read (or write) locked.
 std::size_t EDFThreadPoolExecutor::getPendingTaskCountImpl() const {
-  return taskQueue_->size();
+  return getTaskQueueSize();
 }
 
 bool EDFThreadPoolExecutor::shouldStop() {
@@ -430,7 +434,9 @@ std::shared_ptr<EDFThreadPoolExecutor::Task> EDFThreadPoolExecutor::take() {
   // No tasks on the horizon, so go sleep
   numIdleThreads_.fetch_add(1, std::memory_order_seq_cst);
 
-  SCOPE_EXIT { numIdleThreads_.fetch_sub(1, std::memory_order_seq_cst); };
+  SCOPE_EXIT {
+    numIdleThreads_.fetch_sub(1, std::memory_order_seq_cst);
+  };
 
   for (;;) {
     if (FOLLY_UNLIKELY(shouldStop())) {

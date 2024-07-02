@@ -18,7 +18,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp2/op/Serializer.h",
         "line": "49",
-        "column": "1"
+        "column": "11"
       },
       "definition": {
         "simple_html": "virtual ~Serializer()",
@@ -40,5 +40,11 @@
   "brief_html": "Destructs the Serializer.",
   "groupname_html": "",
   "href": "/ref/cpp/f/class/apache/thrift/op/StdSerializer/Serializer.dtor",
-  "refid": "/ref/cpp/f/class/apache/thrift/op/StdSerializer/Serializer.dtor"
+  "refid": "/ref/cpp/f/class/apache/thrift/op/StdSerializer/Serializer.dtor",
+  "parent_links": [
+    {
+      "text_html": "StdSerializer",
+      "href": "/ref/cpp/class/apache/thrift/op/StdSerializer"
+    }
+  ]
 }

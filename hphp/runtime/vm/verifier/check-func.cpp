@@ -254,9 +254,9 @@ bool isInitialized(const State& state) {
 // assumes that this edge may get taken.
 //
 // This list should include instructions that are emitted for gotos or for iter
-// or local scope cleanup blocks. "IterFree", "LIterFree", "UnsetL", "Jmp", and
-// "Silence" are all used in these blocks. The "Ret*" ops are used for returns
-// inside loop bodies, as well. If HHBBC determines that a block is unreachable,
+// or local scope cleanup blocks. "IterFree", "UnsetL", "Jmp", and "Silence"
+// are all used in these blocks. The "Ret*" ops are used for returns inside
+// loop bodies, as well. If HHBBC determines that a block is unreachable,
 // it will replace its contents with "String ...; Fatal", which we also include.
 //
 // Some of the ops here require justification:
@@ -277,13 +277,13 @@ bool mayTakeExnEdges(Op op) {
     case Op::Jmp:
     case Op::Fatal:
     case Op::IterFree:
-    case Op::LIterFree:
     case Op::RetC:
     case Op::RetCSuspended:
     case Op::RetM:
     case Op::Silence:
     case Op::String:
     case Op::UnsetL:
+    case Op::StaticAnalysisError:
       return false;
     default:
       return true;
@@ -1071,7 +1071,7 @@ bool FuncChecker::checkIter(State* cur, PC const pc) {
   bool ok = true;
   auto op = peek_op(pc);
   auto const id = getIterId(pc);
-  if (op == Op::IterInit || op == Op::LIterInit) {
+  if (op == Op::IterInit) {
     if (cur->iters[id]) {
       error("IterInit* <%d> trying to double-initialize\n", id);
       ok = false;
@@ -1081,7 +1081,7 @@ bool FuncChecker::checkIter(State* cur, PC const pc) {
       error("Cannot access un-initialized iter %d\n", id);
       ok = false;
     }
-    if (op == Op::IterFree || op == Op::LIterFree) {
+    if (op == Op::IterFree) {
       cur->iters[id] = false;
     }
   }
@@ -1198,6 +1198,7 @@ bool FuncChecker::checkOp(State* cur, PC pc, Op op, Block* b, PC prev_pc) {
       auto new_pc = pc;
       decode_op(new_pc);
       if (decode_oa<BareThisOp>(new_pc) != BareThisOp::NeverNull) break;
+      [[fallthrough]];
     }
     case Op::BaseH: {
       // In HHBBC we can track the $this across loads into locals and pushes
@@ -1317,6 +1318,7 @@ bool FuncChecker::checkOp(State* cur, PC pc, Op op, Block* b, PC prev_pc) {
         return false;
       }
       if (op == Op::AssertRATL) break;
+      [[fallthrough]];
     }
     case Op::BaseGC:
     case Op::BaseC: {
@@ -1370,7 +1372,7 @@ bool FuncChecker::checkOp(State* cur, PC pc, Op op, Block* b, PC prev_pc) {
         ferror("{} must have a non-empty local range\n", opcodeToName(op));
         return false;
       }
-      // Fall-through
+      [[fallthrough]];
     }
     case Op::Await: {
       if (!m_func->isAsync) {
@@ -1406,6 +1408,11 @@ bool FuncChecker::checkOp(State* cur, PC pc, Op op, Block* b, PC prev_pc) {
       // fatals don't do exception handling, and the silence state is reset
       // by the runtime.
       cur->silences.clear();
+      break;
+
+    case Op::StaticAnalysisError:
+      cur->silences.clear();
+      cur->mbr_live = false;
       break;
 
     case Op::NewVec:
@@ -1473,12 +1480,6 @@ bool FuncChecker::checkOp(State* cur, PC pc, Op op, Block* b, PC prev_pc) {
       }
       break;
     }
-    case Op::VerifyImplicitContextState:
-      if (!m_func->isMemoizeWrapper && !m_func->isMemoizeWrapperLSB) {
-        ferror("VerifyImplicitContextState can only be used in memoize wrappers\n");
-        return false;
-      }
-      break;
     default:
       break;
   }
@@ -1798,7 +1799,7 @@ bool FuncChecker::checkSuccEdges(Block* b, State* cur) {
     // the fall-through path has the opposite state.
     auto const id = getIterId(b->last);
     auto const last_op = peek_op(b->last);
-    bool taken_state = last_op == OpIterNext || last_op == OpLIterNext;
+    bool taken_state = last_op == OpIterNext;
     bool save = cur->iters[id];
     cur->iters[id] = taken_state;
     if (m_errmode == kVerbose) {

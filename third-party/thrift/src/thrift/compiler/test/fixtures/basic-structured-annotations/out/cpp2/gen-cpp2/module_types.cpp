@@ -49,7 +49,7 @@ void TccStructTraits<::test::fixtures::basic-structured-annotations::runtime_ann
 } // namespace thrift
 } // namespace apache
 
-namespace test { namespace fixtures { namespace basic-structured-annotations {
+namespace test::fixtures::basic-structured-annotations {
 
 const char* runtime_annotation::__fbthrift_thrift_uri() {
   return "test.dev/fixtures/basic-structured-annotations/runtime_annotation";
@@ -101,7 +101,7 @@ template uint32_t runtime_annotation::serializedSize<>(apache::thrift::CompactPr
 template uint32_t runtime_annotation::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // test::fixtures::basic-structured-annotations
+} // namespace test::fixtures::basic-structured-annotations
 
 namespace apache {
 namespace thrift {
@@ -124,7 +124,7 @@ void TccStructTraits<::test::fixtures::basic-structured-annotations::structured_
 } // namespace thrift
 } // namespace apache
 
-namespace test { namespace fixtures { namespace basic-structured-annotations {
+namespace test::fixtures::basic-structured-annotations {
 
 const char* structured_annotation_inline::__fbthrift_thrift_uri() {
   return "test.dev/fixtures/basic-structured-annotations/structured_annotation_inline";
@@ -164,7 +164,7 @@ structured_annotation_inline& structured_annotation_inline::operator=([[maybe_un
 
 structured_annotation_inline::structured_annotation_inline(apache::thrift::FragileConstructor, ::std::int64_t count__arg, ::std::string name__arg) :
     __fbthrift_field_count(std::move(count__arg)),
-    __fbthrift_field_name(std::move(name__arg)) {
+    __fbthrift_field_name(std::move(name__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
 }
@@ -210,7 +210,7 @@ template uint32_t structured_annotation_inline::serializedSize<>(apache::thrift:
 template uint32_t structured_annotation_inline::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // test::fixtures::basic-structured-annotations
+} // namespace test::fixtures::basic-structured-annotations
 
 namespace apache {
 namespace thrift {
@@ -233,7 +233,7 @@ void TccStructTraits<::test::fixtures::basic-structured-annotations::structured_
 } // namespace thrift
 } // namespace apache
 
-namespace test { namespace fixtures { namespace basic-structured-annotations {
+namespace test::fixtures::basic-structured-annotations {
 
 const char* structured_annotation_with_default::__fbthrift_thrift_uri() {
   return "test.dev/fixtures/basic-structured-annotations/structured_annotation_with_default";
@@ -269,7 +269,7 @@ structured_annotation_with_default& structured_annotation_with_default::operator
 
 
 structured_annotation_with_default::structured_annotation_with_default(apache::thrift::FragileConstructor, ::std::string name__arg) :
-    __fbthrift_field_name(std::move(name__arg)) {
+    __fbthrift_field_name(std::move(name__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -312,7 +312,7 @@ template uint32_t structured_annotation_with_default::serializedSize<>(apache::t
 template uint32_t structured_annotation_with_default::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // test::fixtures::basic-structured-annotations
+} // namespace test::fixtures::basic-structured-annotations
 
 namespace apache {
 namespace thrift {
@@ -335,7 +335,7 @@ void TccStructTraits<::test::fixtures::basic-structured-annotations::structured_
 } // namespace thrift
 } // namespace apache
 
-namespace test { namespace fixtures { namespace basic-structured-annotations {
+namespace test::fixtures::basic-structured-annotations {
 
 const char* structured_annotation_recursive::__fbthrift_thrift_uri() {
   return "test.dev/fixtures/basic-structured-annotations/structured_annotation_recursive";
@@ -389,7 +389,7 @@ structured_annotation_recursive& structured_annotation_recursive::operator=([[ma
 structured_annotation_recursive::structured_annotation_recursive(apache::thrift::FragileConstructor, ::std::string name__arg, ::std::unique_ptr<::test::fixtures::basic-structured-annotations::structured_annotation_recursive> recurse__arg, ::test::fixtures::basic-structured-annotations::structured_annotation_forward forward__arg) :
     __fbthrift_field_name(std::move(name__arg)),
     __fbthrift_field_recurse(std::move(recurse__arg)),
-    __fbthrift_field_forward(std::move(forward__arg)) {
+    __fbthrift_field_forward(std::move(forward__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
 }
@@ -457,7 +457,7 @@ static_assert(
         ::test::fixtures::basic-structured-annotations::structured_annotation_forward>,
     "inconsistent use of json option");
 
-}}} // test::fixtures::basic-structured-annotations
+} // namespace test::fixtures::basic-structured-annotations
 
 namespace apache {
 namespace thrift {
@@ -480,7 +480,7 @@ void TccStructTraits<::test::fixtures::basic-structured-annotations::structured_
 } // namespace thrift
 } // namespace apache
 
-namespace test { namespace fixtures { namespace basic-structured-annotations {
+namespace test::fixtures::basic-structured-annotations {
 
 const char* structured_annotation_forward::__fbthrift_thrift_uri() {
   return "test.dev/fixtures/basic-structured-annotations/structured_annotation_forward";
@@ -496,7 +496,7 @@ std::string_view structured_annotation_forward::__fbthrift_get_class_name() {
 
 
 structured_annotation_forward::structured_annotation_forward(apache::thrift::FragileConstructor, ::std::int64_t count__arg) :
-    __fbthrift_field_count(std::move(count__arg)) {
+    __fbthrift_field_count(std::move(count__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -539,7 +539,7 @@ template uint32_t structured_annotation_forward::serializedSize<>(apache::thrift
 template uint32_t structured_annotation_forward::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // test::fixtures::basic-structured-annotations
+} // namespace test::fixtures::basic-structured-annotations
 
 namespace apache {
 namespace thrift {
@@ -562,7 +562,7 @@ void TccStructTraits<::test::fixtures::basic-structured-annotations::structured_
 } // namespace thrift
 } // namespace apache
 
-namespace test { namespace fixtures { namespace basic-structured-annotations {
+namespace test::fixtures::basic-structured-annotations {
 
 const char* structured_annotation_nested::__fbthrift_thrift_uri() {
   return "test.dev/fixtures/basic-structured-annotations/structured_annotation_nested";
@@ -600,7 +600,7 @@ structured_annotation_nested& structured_annotation_nested::operator=([[maybe_un
 
 structured_annotation_nested::structured_annotation_nested(apache::thrift::FragileConstructor, ::std::string name__arg, ::test::fixtures::basic-structured-annotations::structured_annotation_with_default nest__arg) :
     __fbthrift_field_name(std::move(name__arg)),
-    __fbthrift_field_nest(std::move(nest__arg)) {
+    __fbthrift_field_nest(std::move(nest__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
 }
@@ -660,7 +660,7 @@ static_assert(
         ::test::fixtures::basic-structured-annotations::structured_annotation_with_default>,
     "inconsistent use of json option");
 
-}}} // test::fixtures::basic-structured-annotations
+} // namespace test::fixtures::basic-structured-annotations
 
 namespace apache {
 namespace thrift {
@@ -683,7 +683,7 @@ void TccStructTraits<::test::fixtures::basic-structured-annotations::MyStruct>::
 } // namespace thrift
 } // namespace apache
 
-namespace test { namespace fixtures { namespace basic-structured-annotations {
+namespace test::fixtures::basic-structured-annotations {
 
 const char* MyStruct::__fbthrift_thrift_uri() {
   return "test.dev/fixtures/basic-structured-annotations/MyStruct";
@@ -729,7 +729,7 @@ MyStruct::MyStruct(apache::thrift::FragileConstructor, ::std::int64_t annotated_
     __fbthrift_field_annotated_field(std::move(annotated_field__arg)),
     __fbthrift_field_annotated_type(std::move(annotated_type__arg)),
     __fbthrift_field_annotated_recursive(std::move(annotated_recursive__arg)),
-    __fbthrift_field_annotated_nested(std::move(annotated_nested__arg)) {
+    __fbthrift_field_annotated_nested(std::move(annotated_nested__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
   __isset.set(folly::index_constant<2>(), true);
@@ -781,7 +781,7 @@ template uint32_t MyStruct::serializedSize<>(apache::thrift::CompactProtocolWrit
 template uint32_t MyStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // test::fixtures::basic-structured-annotations
+} // namespace test::fixtures::basic-structured-annotations
 
 namespace apache {
 namespace thrift {
@@ -804,7 +804,7 @@ void TccStructTraits<::test::fixtures::basic-structured-annotations::MyException
 } // namespace thrift
 } // namespace apache
 
-namespace test { namespace fixtures { namespace basic-structured-annotations {
+namespace test::fixtures::basic-structured-annotations {
 
 const char* MyException::__fbthrift_thrift_uri() {
   return "test.dev/fixtures/basic-structured-annotations/MyException";
@@ -839,7 +839,7 @@ MyException& MyException::operator=([[maybe_unused]] MyException&& other) noexce
 
 
 MyException::MyException(apache::thrift::FragileConstructor, ::std::string context__arg) :
-    __fbthrift_field_context(std::move(context__arg)) {
+    __fbthrift_field_context(std::move(context__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -882,7 +882,7 @@ template uint32_t MyException::serializedSize<>(apache::thrift::CompactProtocolW
 template uint32_t MyException::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // test::fixtures::basic-structured-annotations
+} // namespace test::fixtures::basic-structured-annotations
 
 namespace apache {
 namespace thrift {
@@ -918,7 +918,7 @@ bool TEnumTraits<::test::fixtures::basic-structured-annotations::MyUnion::Type>:
   return ::apache::thrift::detail::st::enum_find_value(name, out);
 }
 }} // apache::thrift
-namespace test { namespace fixtures { namespace basic-structured-annotations {
+namespace test::fixtures::basic-structured-annotations {
 
 const char* MyUnion::__fbthrift_thrift_uri() {
   return "test.dev/fixtures/basic-structured-annotations/MyUnion";
@@ -1020,12 +1020,12 @@ template uint32_t MyUnion::serializedSize<>(apache::thrift::CompactProtocolWrite
 template uint32_t MyUnion::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // test::fixtures::basic-structured-annotations
+} // namespace test::fixtures::basic-structured-annotations
 
-namespace test { namespace fixtures { namespace basic-structured-annotations { namespace {
+namespace test::fixtures::basic-structured-annotations { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}}}} // test::fixtures::basic-structured-annotations
+}} // namespace test::fixtures::basic-structured-annotations
 namespace apache::thrift::detail::annotation {
 template<> const std::vector<std::any>& field_annotation_values<::test::fixtures::basic-structured-annotations::MyStruct>(FieldId id) {
   switch (static_cast<int16_t>(id)) {

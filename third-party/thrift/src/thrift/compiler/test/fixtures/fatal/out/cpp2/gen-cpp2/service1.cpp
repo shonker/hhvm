@@ -61,7 +61,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::test_cpp2::cpp_reflecti
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service1>::async_tm_method1(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service1>::async_tm_method1(apache::thrift::HandlerCallbackPtr<void> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -171,7 +171,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::test_cpp2::cpp_reflecti
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service1>::async_tm_method2(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback, ::std::int32_t p_x, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_y, double p_z) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service1>::async_tm_method2(apache::thrift::HandlerCallbackPtr<void> callback, ::std::int32_t p_x, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_y, double p_z) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -280,7 +280,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service1>::async_tm_method3(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service1>::async_tm_method3(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -388,7 +388,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service1>::async_tm_method4(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback, ::std::int32_t p_i, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_j, double p_k) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service1>::async_tm_method4(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback, ::std::int32_t p_i, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_j, double p_k) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -498,7 +498,7 @@ folly::coro::Task<std::unique_ptr<::test_cpp2::cpp_reflection::struct2>> apache:
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service1>::async_tm_method5(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::test_cpp2::cpp_reflection::struct2>>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service1>::async_tm_method5(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::test_cpp2::cpp_reflection::struct2>> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -556,7 +556,7 @@ determineInvocationType:
       {
         ::test_cpp2::cpp_reflection::struct2 _return;
         sync_method5(_return);
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -610,7 +610,7 @@ folly::coro::Task<std::unique_ptr<::test_cpp2::cpp_reflection::struct2>> apache:
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service1>::async_tm_method6(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::test_cpp2::cpp_reflection::struct2>>> callback, ::std::int32_t p_l, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_m, double p_n) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service1>::async_tm_method6(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::test_cpp2::cpp_reflection::struct2>> callback, ::std::int32_t p_l, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> p_m, double p_n) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -668,7 +668,7 @@ determineInvocationType:
       {
         ::test_cpp2::cpp_reflection::struct2 _return;
         sync_method6(_return, p_l, std::move(p_m), p_n);
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -687,27 +687,27 @@ determineInvocationType:
 }
 
 
-namespace test_cpp2 { namespace cpp_reflection {
+namespace test_cpp2::cpp_reflection {
 
-void service1SvNull::method1() {
+void service1SvNull::method1() { 
   return;
 }
 
-void service1SvNull::method2(::std::int32_t /*x*/, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> /*y*/, double /*z*/) {
+void service1SvNull::method2(::std::int32_t /*x*/, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> /*y*/, double /*z*/) { 
   return;
 }
 
-::std::int32_t service1SvNull::method3() {
+::std::int32_t service1SvNull::method3() { 
   return 0;
 }
 
-::std::int32_t service1SvNull::method4(::std::int32_t /*i*/, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> /*j*/, double /*k*/) {
+::std::int32_t service1SvNull::method4(::std::int32_t /*i*/, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> /*j*/, double /*k*/) { 
   return 0;
 }
 
-void service1SvNull::method5(::test_cpp2::cpp_reflection::struct2& /*_return*/) {}
+void service1SvNull::method5(::test_cpp2::cpp_reflection::struct2& /*_return*/) {  }
 
-void service1SvNull::method6(::test_cpp2::cpp_reflection::struct2& /*_return*/, ::std::int32_t /*l*/, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> /*m*/, double /*n*/) {}
+void service1SvNull::method6(::test_cpp2::cpp_reflection::struct2& /*_return*/, ::std::int32_t /*l*/, std::unique_ptr<::test_cpp2::cpp_reflection::struct1> /*m*/, double /*n*/) {  }
 
 
 const char* service1AsyncProcessor::getServiceName() {
@@ -771,42 +771,42 @@ apache::thrift::ServiceRequestInfoMap const& service1ServiceInfoHolder::requestI
 apache::thrift::ServiceRequestInfoMap service1ServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"method1",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service1.method1",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"method2",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service1.method2",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"method3",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service1.method3",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"method4",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service1.method4",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"method5",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service1.method5",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"method6",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service1.method6",
      std::nullopt,
@@ -816,4 +816,4 @@ apache::thrift::ServiceRequestInfoMap service1ServiceInfoHolder::staticRequestIn
 
   return requestInfoMap;
 }
-}} // test_cpp2::cpp_reflection
+} // namespace test_cpp2::cpp_reflection

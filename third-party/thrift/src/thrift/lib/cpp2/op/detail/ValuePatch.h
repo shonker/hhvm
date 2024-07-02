@@ -18,6 +18,7 @@
 
 #include <utility>
 
+#include <glog/logging.h>
 #include <folly/json.h>
 #include <folly/logging/xlog.h>
 #include <thrift/lib/cpp2/op/detail/BasePatch.h>
@@ -40,7 +41,8 @@ inline constexpr bool kProtocolSupportsDynamicPatch =
     std::is_same_v<Protocol, BinaryProtocolReader> ||
     std::is_same_v<Protocol, BinaryProtocolWriter> ||
     std::is_same_v<Protocol, CompactProtocolReader> ||
-    std::is_same_v<Protocol, CompactProtocolWriter>;
+    std::is_same_v<Protocol, CompactProtocolWriter> ||
+    std::is_same_v<Protocol, protocol::detail::ObjectWriter>;
 
 /// A patch adapter that only supports 'assign',
 /// which is the minimum any patch should support.
@@ -108,6 +110,7 @@ class AssignPatch : public BaseAssignPatch<Patch, AssignPatch<Patch>> {
       other.apply(*p);
     } else {
       dynPatch_ = std::move(other.dynPatch_);
+      DCHECK(dynPatch_.value().members());
     }
   }
 
@@ -126,18 +129,34 @@ class AssignPatch : public BaseAssignPatch<Patch, AssignPatch<Patch>> {
       return op::decode<type::struct_t<Patch>>(prot, data_);
     }
 
-    auto result = protocol::detail::parseValue(prot, protocol::T_STRUCT);
-    data_ = protocol::fromValueStruct<type::struct_t<Patch>>(result);
-    if (data_.assign()) {
-      dynPatch_.reset();
-    } else {
-      dynPatch_ = std::move(result.as_object());
-    }
+    createFromObject(
+        protocol::detail::parseValue(prot, TType::T_STRUCT).as_object());
+  }
+
+  bool empty() const { return !dynPatch_.has_value() && Base::empty(); }
+
+  void reset() {
+    dynPatch_.reset();
+    Base::reset();
   }
 
  private:
   using Base::data_;
   std::optional<protocol::Object> dynPatch_;
+
+  void createFromObject(protocol::Object v) {
+    data_ = protocol::fromObjectStruct<type::struct_t<Patch>>(v);
+    if (data_.assign()) {
+      dynPatch_.reset();
+    } else {
+      dynPatch_ = std::move(v);
+      Base::reset();
+      DCHECK(dynPatch_.value().members());
+    }
+  }
+
+  template <typename>
+  friend struct protocol::detail::ProtocolValueToThriftValue;
 };
 
 /// Patch for a Thrift bool.
@@ -536,7 +555,7 @@ class BinaryPatch : public BaseStringPatch<Patch, BinaryPatch<Patch>> {
   void apply(std::string& val) const {
     folly::IOBuf buf;
     apply(buf);
-    val = buf.moveToFbString().toStdString();
+    val = buf.to<std::string>();
   }
 
  private:
@@ -546,5 +565,29 @@ class BinaryPatch : public BaseStringPatch<Patch, BinaryPatch<Patch>> {
 
 } // namespace detail
 } // namespace op
+namespace protocol::detail {
+
+// When converting protocol::Object to AssignPatch, we need special logic here
+// to handle the case when protocol::Object is a dynamic patch and it might
+// contain operations other than assign.
+template <typename PatchStruct>
+struct ProtocolValueToThriftValue<type::adapted<
+    InlineAdapter<op::detail::AssignPatch<PatchStruct>>,
+    type::struct_t<PatchStruct>>> {
+  bool operator()(
+      const Object& obj, op::detail::AssignPatch<PatchStruct>& patch) {
+    patch.createFromObject(obj);
+    return true;
+  }
+  bool operator()(
+      const Value& obj, op::detail::AssignPatch<PatchStruct>& patch) {
+    if (auto p = obj.if_object()) {
+      operator()(*p, patch);
+      return true;
+    }
+    return false;
+  }
+};
+} // namespace protocol::detail
 } // namespace thrift
 } // namespace apache

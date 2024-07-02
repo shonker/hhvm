@@ -18,6 +18,8 @@ package thrift
 
 import (
 	"context"
+	"net"
+	"time"
 )
 
 type upgradeToRocketProtocol struct {
@@ -26,20 +28,29 @@ type upgradeToRocketProtocol struct {
 	headerProtocol Protocol
 }
 
-// NewUpgradeToRocketProtocol creates a protocol that upgrades from Header to Rocket protocol from a transport.
-func NewUpgradeToRocketProtocol(trans Transport) Protocol {
-	return &upgradeToRocketProtocol{
-		rocketProtocol: NewRocketProtocol(trans),
-		headerProtocol: NewHeaderProtocol(trans),
+// NewUpgradeToRocketProtocol creates a protocol that upgrades from Header to Rocket protocol from a socket.
+func NewUpgradeToRocketProtocol(conn net.Conn) (Protocol, error) {
+	rocket, err := NewRocketProtocol(conn)
+	if err != nil {
+		return nil, err
 	}
+	header, err := NewHeaderProtocol(conn)
+	if err != nil {
+		return nil, err
+	}
+	return &upgradeToRocketProtocol{
+		rocketProtocol: rocket,
+		headerProtocol: header,
+	}, nil
 }
 
-// NewUpgradeToRocketProtocol creates a protocol that upgrades from Header to Rocket protocol given both protocols.
-func NewUpgradeToRocketProtocols(rocketProtocol, headerProtocol Protocol) Protocol {
-	return &upgradeToRocketProtocol{
-		rocketProtocol: rocketProtocol,
-		headerProtocol: headerProtocol,
+func (p *upgradeToRocketProtocol) SetTimeout(timeout time.Duration) {
+	if p.Protocol == nil {
+		p.rocketProtocol.SetTimeout(timeout)
+		p.headerProtocol.SetTimeout(timeout)
+		return
 	}
+	p.Protocol.SetTimeout(timeout)
 }
 
 // WriteMessageBegin first sends a upgradeToRocket message using the HeaderProtocol.
@@ -136,4 +147,24 @@ func (p *upgradeToRocketProtocol) GetResponseHeaders() map[string]string {
 		return headers
 	}
 	return p.Protocol.GetResponseHeaders()
+}
+
+func (p *upgradeToRocketProtocol) SetProtocolID(protoID ProtocolID) error {
+	if p.Protocol == nil {
+		if err := p.headerProtocol.SetProtocolID(protoID); err != nil {
+			return err
+		}
+		return p.rocketProtocol.SetProtocolID(protoID)
+	}
+	return p.Protocol.SetProtocolID(protoID)
+}
+
+func (p *upgradeToRocketProtocol) Close() error {
+	if p.Protocol == nil {
+		if err := p.headerProtocol.Close(); err != nil {
+			return err
+		}
+		return p.rocketProtocol.Close()
+	}
+	return p.Protocol.Close()
 }

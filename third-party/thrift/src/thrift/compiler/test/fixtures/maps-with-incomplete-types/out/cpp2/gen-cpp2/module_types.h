@@ -33,10 +33,10 @@ APACHE_THRIFT_DEFINE_ACCESSOR(field);
 
 // END declare_enums
 // BEGIN forward_declare
-namespace apache { namespace thrift { namespace test {
+namespace apache::thrift::test {
 class A;
 class B;
-}}} // apache::thrift::test
+} // namespace apache::thrift::test
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -46,7 +46,7 @@ namespace apache::thrift::detail::qualifier {
 
 // BEGIN hash_and_equal_to
 // END hash_and_equal_to
-namespace apache { namespace thrift { namespace test {
+namespace apache::thrift::test {
 using ::apache::thrift::detail::operator!=;
 using ::apache::thrift::detail::operator>;
 using ::apache::thrift::detail::operator<=;
@@ -97,6 +97,8 @@ class B final  {
  public:
   using __fbthrift_cpp2_type = B;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -252,6 +254,8 @@ class A final  {
   using __fbthrift_cpp2_type = A;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -357,4 +361,4 @@ unsigned long A::read(Protocol_* iprot) {
 }
 
 
-}}} // apache::thrift::test
+} // namespace apache::thrift::test

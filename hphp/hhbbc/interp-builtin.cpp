@@ -69,6 +69,29 @@ TypeOrReduced builtin_get_class(ISS& env, const php::Func* func,
   return sval(d.cls().name());
 }
 
+TypeOrReduced builtin_class_to_classname(ISS& env, const php::Func* func,
+                                         const FCallArgs& fca) {
+  assertx(fca.numArgs() == 1);
+  auto const ty = getArg(env, func, fca, 0);
+
+  if (!ty.couldBe(BCls | BLazyCls | BStr)) return NoReduced{};
+
+  if (ty.subtypeOf(BCls)) {
+    reduce(env, bc::ClassName {});
+    return Reduced{};
+  } else if (ty.subtypeOf(BLazyCls)) {
+    if (is_specialized_lazycls(ty)) {
+      reduce(env, bc::PopC {}, bc::String { lazyclsval_of(ty) });
+      return Reduced{};
+    }
+    return TSStr;
+  } else if (ty.subtypeOf(BStr)) {
+    reduce(env);
+    return Reduced{};
+  }
+  return TStr;
+}
+
 TypeOrReduced builtin_abs(ISS& env, const php::Func* func,
                           const FCallArgs& fca) {
   assertx(fca.numArgs() == 1);
@@ -361,7 +384,7 @@ impl_builtin_type_structure(ISS& env, const php::Func* func,
       if (t.subtypeOf(BCls) && is_specialized_cls(t)) {
         auto const& dcls = dcls_of(t);
         if (!dcls.isExact()) return nullptr;
-        if (RO::EvalRaiseClassConversionNoticeSampleRate > 0) {
+        if (Cfg::Eval::RaiseClassConversionNoticeSampleRate > 0) {
           throws = TriBool::Maybe;
         }
         return dcls.cls().name();
@@ -370,7 +393,7 @@ impl_builtin_type_structure(ISS& env, const php::Func* func,
         return sval_of(t);
       }
       if (t.subtypeOf(BLazyCls) && is_specialized_lazycls(t)) {
-        if (RO::EvalRaiseClassConversionNoticeSampleRate > 0) {
+        if (Cfg::Eval::RaiseClassConversionNoticeSampleRate > 0) {
           throws = TriBool::Maybe;
         }
         return lazyclsval_of(t);
@@ -417,13 +440,13 @@ impl_builtin_type_structure(ISS& env, const php::Func* func,
       auto const str = sval_of(t);
       auto const rcls = env.index.resolve_class(str);
       if (!rcls) return TBottom;
-      return clsExact(*rcls);
+      return clsExact(*rcls, true);
     }
     if (t.subtypeOf(BLazyCls) && is_specialized_lazycls(t)) {
       auto const str = lazyclsval_of(t);
       auto const rcls = env.index.resolve_class(str);
       if (!rcls) return TBottom;
-      return clsExact(*rcls);
+      return clsExact(*rcls, true);
     }
     throws = TriBool::Maybe;
     return TCls;
@@ -549,28 +572,12 @@ TypeOrReduced builtin_type_structure_classname(ISS& env, const php::Func* func,
   return intersection_of(classname, TSStr);
 }
 
-TypeOrReduced builtin_create_special_implicit_context(ISS& env,
-                                                      const php::Func* func,
-                                                      const FCallArgs& fca) {
-  assertx(fca.numArgs() >= 1 && fca.numArgs() <= 2);
-
-  auto const type = getArg(env, func, fca, 0);
-  if (!type.subtypeOf(BInt)) return NoReduced{};
-
-  if (fca.numArgs() == 1) {
-    reduce(env, bc::Null {}, bc::CreateSpecialImplicitContext {});
-  } else {
-    if (!getArg(env, func, fca, 1).subtypeOf(BOptStr)) return NoReduced{};
-    reduce(env, bc::CreateSpecialImplicitContext {});
-  }
-  return Reduced{};
-}
-
 #define SPECIAL_BUILTINS                                                \
   X(abs, abs)                                                           \
   X(ceil, ceil)                                                         \
   X(floor, floor)                                                       \
   X(get_class, get_class)                                               \
+  X(class_to_classname, HH\\class_to_classname)                         \
   X(max2, max2)                                                         \
   X(min2, min2)                                                         \
   X(strlen, strlen)                                                     \
@@ -586,7 +593,6 @@ TypeOrReduced builtin_create_special_implicit_context(ISS& env,
   X(type_structure, HH\\type_structure)                                 \
   X(type_structure_no_throw, HH\\type_structure_no_throw)               \
   X(type_structure_classname, HH\\type_structure_classname)             \
-  X(create_special_implicit_context, HH\\ImplicitContext\\_Private\\create_special_implicit_context)   \
 
 #define X(x, y)    const StaticString s_##x(#y);
   SPECIAL_BUILTINS
@@ -597,7 +603,7 @@ bool handle_builtin(ISS& env, const php::Func* func, const FCallArgs& fca) {
     ? makeStaticString(folly::sformat("{}::{}", func->cls->name, func->name))
     : func->name;
   auto result = [&]() -> TypeOrReduced {
-#define X(x, y) if (name->fsame(s_##x.get())) return builtin_##x(env, func, fca);
+#define X(x, y) if (name == s_##x.get()) return builtin_##x(env, func, fca);
     SPECIAL_BUILTINS
     return NoReduced{};
 #undef X
@@ -621,6 +627,15 @@ bool handle_builtin(ISS& env, const php::Func* func, const FCallArgs& fca) {
 //////////////////////////////////////////////////////////////////////
 
 } // namespace
+
+const std::vector<SString>& special_builtins() {
+  static const std::vector<SString> builtins{{
+#define X(x, y) s_##x.get(),
+    SPECIAL_BUILTINS
+#undef X
+  }};
+  return builtins;
+}
 
 bool optimize_builtin(ISS& env, const php::Func* func, const FCallArgs& fca) {
   if (any(env.collect.opts & CollectionOpts::Speculating) ||

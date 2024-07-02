@@ -113,7 +113,7 @@ struct ClassData : IRExtraData {
   }
 
   std::string show() const {
-    return folly::to<std::string>(cls->name()->data());
+    return cls->name()->data();
   }
 
   bool equals(const ClassData& o) const {
@@ -520,6 +520,23 @@ struct IndexData : IRExtraData {
 };
 
 /*
+ * ClassId.
+ */
+struct ClassIdData : IRExtraData {
+  explicit ClassIdData(ClassId id) : id(id) {}
+
+  std::string show() const { return fmt::format("{}", id.id()); }
+  size_t hash() const { return std::hash<ClassId::Id>()(id.id()); }
+  size_t stableHash() const { return std::hash<ClassId::Id>()(id.id()); }
+
+  bool equals(const ClassIdData& o) const {
+    return id == o.id;
+  }
+
+  ClassId id;
+};
+
+/*
  * An index and a key used to initialized a dict-ish array element.
  */
 struct KeyedIndexData : IRExtraData {
@@ -646,55 +663,6 @@ struct IterData : IRExtraData {
   }
 
   IterArgs args;
-};
-
-struct IterTypeData : IRExtraData {
-  IterTypeData(
-    uint32_t iterId,
-    IterSpecialization type,
-    ArrayLayout layout,
-    bool baseConst,
-    bool outputKey
-  )
-    : iterId{iterId}
-    , type{type}
-    , layout{layout}
-    , baseConst{baseConst}
-    , outputKey{outputKey}
-  {
-    always_assert(type.specialized);
-  }
-
-  std::string show() const {
-    auto const type_str = HPHP::show(type);
-    auto const layout_str = layout.describe();
-    return folly::format(
-      "{}::{}::{}::{}::{}",
-      iterId, type_str, layout_str, baseConst, outputKey
-    ).str();
-  }
-
-  size_t stableHash() const {
-    return folly::hash::hash_combine(
-      std::hash<uint32_t>()(iterId),
-      std::hash<uint8_t>()(type.as_byte),
-      std::hash<uint16_t>()(layout.toUint16()),
-      std::hash<bool>()(baseConst),
-      std::hash<bool>()(outputKey)
-    );
-  }
-
-  bool equals(const IterTypeData& o) const {
-    return iterId == o.iterId && type.as_byte == o.type.as_byte &&
-           layout == o.layout && baseConst == o.baseConst &&
-           outputKey == o.outputKey;
-  }
-
-  uint32_t iterId;
-  IterSpecialization type;
-  ArrayLayout layout;
-  bool baseConst;
-  bool outputKey;
 };
 
 struct IterOffsetData : IRExtraData {
@@ -1502,31 +1470,23 @@ struct ProfileSubClsCnsData : IRExtraData {
 };
 
 struct FuncNameData : IRExtraData {
-  FuncNameData(const StringData* name, const Class* context)
+  explicit FuncNameData(const StringData* name)
     : name(name)
-    , context(context)
   {}
 
-  std::string show() const {
-    return folly::to<std::string>(
-      name->data(), ",", context ? context->name()->data() : "{no context}");
+  std::string show() const { 
+    return name->toCppString();
   }
 
   size_t hash() const { return name->hash(); }
 
-  size_t stableHash() const {
-    return folly::hash::hash_combine(
-      name->hash(),
-      context ? context->stableHash() : 0
-    );
-  }
+  size_t stableHash() const { return name->hash(); }
 
   bool equals(const FuncNameData& o) const {
-    return name == o.name && context == o.context;
+    return name == o.name;
   }
 
   const StringData* name;
-  const Class* context;
 };
 
 struct FuncNameCtxData : IRExtraData {
@@ -2988,26 +2948,22 @@ X(StLoc,                        LocalId);
 X(StLocMeta,                    LocalId);
 X(StLocRange,                   LocalIdRange);
 X(AdvanceDictPtrIter,           IterOffsetData);
+X(AdvanceKeysetPtrIter,         IterOffsetData);
 X(AdvanceVecPtrIter,            IterOffsetData);
 X(StFrameFunc,                  FuncData);
-X(CheckIter,                    IterTypeData);
-X(StIterBase,                   IterId);
-X(StIterType,                   IterTypeData);
 X(StIterPos,                    IterId);
 X(StIterEnd,                    IterId);
-X(LdIterBase,                   IterId);
 X(LdIterPos,                    IterId);
 X(LdIterEnd,                    IterId);
 X(KillIter,                     IterId);
-X(IterFree,                     IterId);
-X(IterInit,                     IterData);
-X(IterInitK,                    IterData);
-X(IterNext,                     IterData);
-X(IterNextK,                    IterData);
-X(LIterInit,                    IterData);
-X(LIterInitK,                   IterData);
-X(LIterNext,                    IterData);
-X(LIterNextK,                   IterData);
+X(IterInitArr,                  IterData);
+X(IterInitArrK,                 IterData);
+X(IterInitObj,                  IterData);
+X(IterInitObjK,                 IterData);
+X(IterNextArr,                  IterData);
+X(IterNextArrK,                 IterData);
+X(IterNextObj,                  IterData);
+X(IterNextObjK,                 IterData);
 X(ConstructInstance,            ClassData);
 X(ConstructClosure,             ClassData);
 X(InitProps,                    ClassData);
@@ -3075,8 +3031,6 @@ X(LdObjMethodS,                 FuncNameCtxData);
 X(LdObjMethodD,                 OptClassAndFuncData);
 X(ThrowMissingArg,              FuncArgData);
 X(RaiseTooManyArg,              FuncData);
-X(RaiseImplicitContextStateInvalid,
-                                FuncData);
 X(RaiseCoeffectsCallViolation,  FuncData);
 X(RaiseCoeffectsFunParamTypeViolation,
                                 ParamData);
@@ -3122,6 +3076,7 @@ X(CheckKeysetOffset,            IndexData);
 X(ProfileArrayCOW,              RDSHandleData);
 X(ProfileDictAccess,            RDSHandlePairData);
 X(ProfileKeysetAccess,          RDSHandlePairData);
+X(ProfileIterInit,              RDSHandleData);
 X(ProfileType,                  RDSHandleData);
 X(ProfileCall,                  ProfileCallTargetData);
 X(ProfileMethod,                ProfileCallTargetData);
@@ -3219,6 +3174,7 @@ X(CheckFuncNeedsCoverage,       FuncData);
 X(RecordFuncCall,               FuncData);
 X(LdClsPropAddrOrNull,          ReadonlyData);
 X(LdClsPropAddrOrRaise,         ReadonlyData);
+X(EqClassId,                    ClassIdData);
 X(LdMBase,                      AliasClassData);
 X(ThrowMustBeEnclosedInReadonly,ClassData);
 X(ThrowMustBeMutableException,  ClassData);

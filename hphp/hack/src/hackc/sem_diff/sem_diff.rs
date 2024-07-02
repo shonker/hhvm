@@ -4,9 +4,6 @@
 // LICENSE file in the "hack" directory of this source tree.
 
 use anyhow::Result;
-use hash::HashMap;
-use hhbc::Adata;
-use hhbc::AdataId;
 use hhbc::Attribute;
 use hhbc::Body;
 use hhbc::Class;
@@ -46,7 +43,6 @@ use crate::helpers::*;
 /// The "interesting" bit happens in `body::compare_bodies()`.
 pub fn sem_diff_unit(a_unit: &Unit, b_unit: &Unit) -> Result<()> {
     let Unit {
-        adata: a_adata,
         functions: a_functions,
         classes: a_classes,
         modules: a_modules,
@@ -58,11 +54,8 @@ pub fn sem_diff_unit(a_unit: &Unit, b_unit: &Unit) -> Result<()> {
         fatal: a_fatal,
         error_symbols: _,
         missing_symbols: _,
-        valid_utf8: _,
-        invalid_utf8_offset: _,
     } = a_unit;
     let Unit {
-        adata: b_adata,
         functions: b_functions,
         classes: b_classes,
         modules: b_modules,
@@ -74,22 +67,9 @@ pub fn sem_diff_unit(a_unit: &Unit, b_unit: &Unit) -> Result<()> {
         fatal: b_fatal,
         error_symbols: _,
         missing_symbols: _,
-        valid_utf8: _,
-        invalid_utf8_offset: _,
     } = b_unit;
 
     let path = CodePath::name("Unit");
-
-    // Ignore adata for now - when we use it we'll compare that the values are
-    // the same at that time (because the key names may be different).
-    let a_adata = a_adata
-        .iter()
-        .map(|Adata { id, value }| (*id, value))
-        .collect();
-    let b_adata = b_adata
-        .iter()
-        .map(|Adata { id, value }| (*id, value))
-        .collect();
 
     sem_diff_map_t(
         &path.qualified("typedefs"),
@@ -138,14 +118,14 @@ pub fn sem_diff_unit(a_unit: &Unit, b_unit: &Unit) -> Result<()> {
         &path.qualified("functions"),
         a_functions,
         b_functions,
-        |path, a, b| sem_diff_function(path, a, &a_adata, b, &b_adata),
+        sem_diff_function,
     )?;
 
     sem_diff_map_t(
         &path.qualified("classes"),
         a_classes,
         b_classes,
-        |path, a, b| sem_diff_class(path, a, &a_adata, b, &b_adata),
+        sem_diff_class,
     )?;
 
     Ok(())
@@ -174,42 +154,51 @@ fn sem_diff_attributes(path: &CodePath<'_>, a: &[Attribute], b: &[Attribute]) ->
     sem_diff_slice(path, a, b, sem_diff_attribute)
 }
 
-fn sem_diff_body<'a>(
-    path: &CodePath<'_>,
-    a: &Body,
-    a_adata: &'a HashMap<AdataId, &'a TypedValue>,
-    b: &Body,
-    b_adata: &'a HashMap<AdataId, &'a TypedValue>,
-) -> Result<()> {
+fn sem_diff_body(path: &CodePath<'_>, a: &Body, b: &Body) -> Result<()> {
     let Body {
-        body_instrs: _,
-        decl_vars: _,
+        attributes: a_attributes,
+        attrs: a_attrs,
+        coeffects: a_coeffects,
         num_iters: a_num_iters,
         is_memoize_wrapper: a_is_memoize_wrapper,
         is_memoize_wrapper_lsb: a_is_memoize_wrapper_lsb,
         upper_bounds: a_upper_bounds,
         shadowed_tparams: a_shadowed_tparams,
-        params: a_params,
-        return_type_info: a_return_type_info,
+        return_type: a_return_type,
         doc_comment: a_doc_comment,
-        stack_depth: _,
         span: a_span,
+        repr:
+            hhbc::BcRepr {
+                instrs: _,
+                decl_vars: _,
+                params: a_params,
+                stack_depth: _,
+            },
     } = a;
     let Body {
-        body_instrs: _,
-        decl_vars: _,
+        attributes: b_attributes,
+        attrs: b_attrs,
+        coeffects: b_coeffects,
         num_iters: b_num_iters,
         is_memoize_wrapper: b_is_memoize_wrapper,
         is_memoize_wrapper_lsb: b_is_memoize_wrapper_lsb,
         upper_bounds: b_upper_bounds,
         shadowed_tparams: b_shadowed_tparams,
-        params: b_params,
-        return_type_info: b_return_type_info,
+        return_type: b_return_type,
         doc_comment: b_doc_comment,
-        stack_depth: _,
         span: b_span,
+        repr:
+            hhbc::BcRepr {
+                instrs: _,
+                decl_vars: _,
+                params: b_params,
+                stack_depth: _,
+            },
     } = b;
 
+    sem_diff_attributes(&path.qualified("attributes"), a_attributes, b_attributes)?;
+    sem_diff_eq(&path.qualified("attrs"), a_attrs, b_attrs)?;
+    sem_diff_eq(&path.qualified("coeffects"), a_coeffects, b_coeffects)?;
     sem_diff_eq(&path.qualified("num_iters"), a_num_iters, b_num_iters)?;
     sem_diff_slice(
         &path.qualified("params"),
@@ -228,11 +217,7 @@ fn sem_diff_body<'a>(
         b_is_memoize_wrapper_lsb,
     )?;
     sem_diff_eq(&path.qualified("doc_comment"), a_doc_comment, b_doc_comment)?;
-    sem_diff_eq(
-        &path.qualified("return_type_info"),
-        a_return_type_info,
-        b_return_type_info,
-    )?;
+    sem_diff_eq(&path.qualified("return_type"), a_return_type, b_return_type)?;
     sem_diff_eq(
         &path.qualified("upper_bounds"),
         a_upper_bounds,
@@ -253,7 +238,7 @@ fn sem_diff_body<'a>(
     // them to be different.
 
     // This compares the instrs themselves.
-    crate::body::compare_bodies(path, a, a_adata, b, b_adata)
+    crate::body::compare_bodies(path, a, b)
 }
 
 fn sem_diff_param(path: &CodePath<'_>, a: &ParamEntry, b: &ParamEntry) -> Result<()> {
@@ -302,13 +287,7 @@ fn sem_diff_param(path: &CodePath<'_>, a: &ParamEntry, b: &ParamEntry) -> Result
     Ok(())
 }
 
-fn sem_diff_class<'a>(
-    path: &CodePath<'_>,
-    a: &Class,
-    a_adata: &'a HashMap<AdataId, &'a TypedValue>,
-    b: &Class,
-    b_adata: &'a HashMap<AdataId, &'a TypedValue>,
-) -> Result<()> {
+fn sem_diff_class(path: &CodePath<'_>, a: &Class, b: &Class) -> Result<()> {
     let Class {
         attributes: a_attributes,
         base: a_base,
@@ -409,7 +388,7 @@ fn sem_diff_class<'a>(
         &path.qualified("methods"),
         a_methods,
         b_methods,
-        |path, a, b| sem_diff_method(path, a, a_adata, b, b_adata),
+        sem_diff_method,
     )?;
 
     Ok(())
@@ -510,72 +489,41 @@ fn sem_diff_fatal(path: &CodePath<'_>, a: &Fatal, b: &Fatal) -> Result<()> {
     Ok(())
 }
 
-fn sem_diff_function<'a>(
-    path: &CodePath<'_>,
-    a: &Function,
-    a_adata: &'a HashMap<AdataId, &'a TypedValue>,
-    b: &Function,
-    b_adata: &'a HashMap<AdataId, &'a TypedValue>,
-) -> Result<()> {
+fn sem_diff_function(path: &CodePath<'_>, a: &Function, b: &Function) -> Result<()> {
     let Function {
-        attributes: a_attributes,
         name: a_name,
         body: a_body,
-        coeffects: a_coeffects,
         flags: a_flags,
-        attrs: a_attrs,
     } = a;
     let Function {
-        attributes: b_attributes,
         name: b_name,
         body: b_body,
-        coeffects: b_coeffects,
         flags: b_flags,
-        attrs: b_attrs,
     } = b;
 
     sem_diff_eq(&path.qualified("name"), a_name, b_name)?;
-    sem_diff_attributes(&path.qualified("attributes"), a_attributes, b_attributes)?;
-    sem_diff_body(&path.qualified("body"), a_body, a_adata, b_body, b_adata)?;
-    sem_diff_eq(&path.qualified("coeffects"), a_coeffects, b_coeffects)?;
+    sem_diff_body(&path.qualified("body"), a_body, b_body)?;
     sem_diff_eq(&path.qualified("flags"), a_flags, b_flags)?;
-    sem_diff_eq(&path.qualified("attrs"), a_attrs, b_attrs)?;
-
     Ok(())
 }
 
-fn sem_diff_method<'a>(
-    path: &CodePath<'_>,
-    a: &Method,
-    a_adata: &'a HashMap<AdataId, &'a TypedValue>,
-    b: &Method,
-    b_adata: &'a HashMap<AdataId, &'a TypedValue>,
-) -> Result<()> {
+fn sem_diff_method(path: &CodePath<'_>, a: &Method, b: &Method) -> Result<()> {
     let Method {
-        attributes: a_attributes,
         visibility: a_visibility,
         name: a_name,
         body: a_body,
-        coeffects: a_coeffects,
         flags: a_flags,
-        attrs: a_attrs,
     } = a;
     let Method {
-        attributes: b_attributes,
         visibility: b_visibility,
         name: b_name,
         body: b_body,
-        coeffects: b_coeffects,
         flags: b_flags,
-        attrs: b_attrs,
     } = b;
-    sem_diff_attributes(&path.qualified("attributes"), a_attributes, b_attributes)?;
     sem_diff_eq(&path.qualified("visibility"), a_visibility, b_visibility)?;
     sem_diff_eq(&path.qualified("name"), a_name, b_name)?;
-    sem_diff_body(&path.qualified("body"), a_body, a_adata, b_body, b_adata)?;
-    sem_diff_eq(&path.qualified("coeffects"), a_coeffects, b_coeffects)?;
+    sem_diff_body(&path.qualified("body"), a_body, b_body)?;
     sem_diff_eq(&path.qualified("flags"), a_flags, b_flags)?;
-    sem_diff_eq(&path.qualified("attrs"), a_attrs, b_attrs)?;
     Ok(())
 }
 

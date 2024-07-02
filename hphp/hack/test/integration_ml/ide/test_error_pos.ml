@@ -43,7 +43,7 @@ let rec create_bars acc = function
 let bar_107_foo_line_3_diagnostics =
   {|
 /bar107.php:
-File "/bar107.php", line 4, characters 10-14:
+ERROR: File "/bar107.php", line 4, characters 10-14:
 Invalid return type (Typing[4110])
   File "/bar107.php", line 3, characters 21-23:
   Expected `int`
@@ -54,7 +54,7 @@ Invalid return type (Typing[4110])
 let bar_107_foo_line_5_diagnostics =
   {|
 /bar107.php:
-File "/bar107.php", line 4, characters 10-14:
+ERROR: File "/bar107.php", line 4, characters 10-14:
 Invalid return type (Typing[4110])
   File "/bar107.php", line 3, characters 21-23:
   Expected `int`
@@ -73,7 +73,7 @@ let bar107_cleared = {|
 let bar_108_foo_line_5_diagnostics =
   {|
 /bar108.php:
-File "/bar108.php", line 4, characters 10-14:
+ERROR: File "/bar108.php", line 4, characters 10-14:
 Invalid return type (Typing[4110])
   File "/bar108.php", line 3, characters 21-23:
   Expected `int`
@@ -84,7 +84,7 @@ Invalid return type (Typing[4110])
 let bar_109_foo_line_3_diagnostics =
   {|
 /bar109.php:
-File "/bar109.php", line 4, characters 10-14:
+ERROR: File "/bar109.php", line 4, characters 10-14:
 Invalid return type (Typing[4110])
   File "/bar109.php", line 3, characters 21-23:
   Expected `int`
@@ -103,17 +103,19 @@ allowed_decl_fixme_codes = 4336
 "
 
 let test () =
+  let po =
+    ParserOptions.
+      { default with allowed_decl_fixme_codes = ISet.of_list [4336] }
+  in
   let global_opts : GlobalOptions.t =
     GlobalOptions.set
+      ~po
       ~allowed_fixme_codes_strict:(ISet.of_list [4336])
-      ~po_allowed_decl_fixme_codes:(ISet.of_list [4336])
       GlobalOptions.default
   in
   let custom_config = ServerConfig.default_config in
   let custom_config = ServerConfig.set_tc_options custom_config global_opts in
-  let custom_config =
-    ServerConfig.set_parser_options custom_config global_opts
-  in
+  let custom_config = ServerConfig.set_parser_options custom_config po in
   Test.Client.with_env ~custom_config:(Some custom_config) @@ fun env ->
   (* 200 files with errors *)
   let disk_contents = [(foo_name, foo_contents "")] in

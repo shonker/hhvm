@@ -35,12 +35,6 @@ use crate::CmpError;
 use crate::MapName;
 use crate::Result;
 
-impl MapName for hhbc::Adata {
-    fn get_name(&self) -> String {
-        self.id.to_string()
-    }
-}
-
 impl MapName for hhbc::Class {
     fn get_name(&self) -> String {
         self.name.into_string()
@@ -127,34 +121,49 @@ fn cmp_attributes(a: &[Attribute], b: &[Attribute]) -> Result {
 
 fn cmp_body(a: &Body, b: &Body) -> Result {
     let Body {
-        body_instrs: a_body_instrs,
-        decl_vars: a_decl_vars,
+        attributes: a_attributes,
+        attrs: a_attrs,
+        coeffects: a_coeffects,
         num_iters: a_num_iters,
         is_memoize_wrapper: a_is_memoize_wrapper,
         is_memoize_wrapper_lsb: a_is_memoize_wrapper_lsb,
         upper_bounds: a_upper_bounds,
         shadowed_tparams: a_shadowed_tparams,
-        params: a_params,
-        return_type_info: a_return_type_info,
+        return_type: a_return_type,
         doc_comment: a_doc_comment,
-        stack_depth: a_stack_depth,
         span: a_span,
+        repr:
+            hhbc::BcRepr {
+                instrs: a_instrs,
+                decl_vars: a_decl_vars,
+                params: a_params,
+                stack_depth: a_stack_depth,
+            },
     } = a;
     let Body {
-        body_instrs: b_body_instrs,
-        decl_vars: b_decl_vars,
+        attributes: b_attributes,
+        attrs: b_attrs,
+        coeffects: b_coeffects,
         num_iters: b_num_iters,
         is_memoize_wrapper: b_is_memoize_wrapper,
         is_memoize_wrapper_lsb: b_is_memoize_wrapper_lsb,
         upper_bounds: b_upper_bounds,
         shadowed_tparams: b_shadowed_tparams,
-        params: b_params,
-        return_type_info: b_return_type_info,
+        return_type: b_return_type,
         doc_comment: b_doc_comment,
-        stack_depth: b_stack_depth,
         span: b_span,
+        repr:
+            hhbc::BcRepr {
+                instrs: b_instrs,
+                decl_vars: b_decl_vars,
+                params: b_params,
+                stack_depth: b_stack_depth,
+            },
     } = b;
 
+    cmp_attributes(a_attributes, b_attributes).qualified("attributes")?;
+    cmp_eq(a_attrs, b_attrs).qualified("attrs")?;
+    cmp_coeffects(a_coeffects, b_coeffects).qualified("coeffects")?;
     cmp_eq(a_num_iters, b_num_iters).qualified("num_iters")?;
     cmp_slice(a_params, b_params, cmp_param).qualified("params")?;
     cmp_eq(a_is_memoize_wrapper, b_is_memoize_wrapper).qualified("is_memoize_wrapper")?;
@@ -162,25 +171,25 @@ fn cmp_body(a: &Body, b: &Body) -> Result {
         .qualified("is_memoize_wrapper_lsb")?;
     cmp_eq(a_doc_comment, b_doc_comment).qualified("doc_comment")?;
     cmp_eq(a_stack_depth, b_stack_depth).qualified("stack_depth")?;
-    cmp_eq(a_return_type_info, b_return_type_info).qualified("return_type_info")?;
+    cmp_eq(a_return_type, b_return_type).qualified("return_type")?;
     cmp_eq(a_upper_bounds, b_upper_bounds).qualified("upper_bounds")?;
     cmp_eq(a_shadowed_tparams, b_shadowed_tparams).qualified("shadowed_tparams")?;
     cmp_eq(a_span, b_span).qualified("span")?;
 
     cmp_slice(a_decl_vars, b_decl_vars, cmp_eq).qualified("decl_vars")?;
 
-    if a_body_instrs.len() != b_body_instrs.len() {
+    if a_instrs.len() != b_instrs.len() {
         bail!(
             "Mismatch in instruct lengths: {} vs {}",
-            a_body_instrs.len(),
-            b_body_instrs.len()
+            a_instrs.len(),
+            b_instrs.len()
         );
     }
 
-    for (idx, (a_instr, b_instr)) in a_body_instrs.iter().zip(b_body_instrs.iter()).enumerate() {
+    for (idx, (a_instr, b_instr)) in a_instrs.iter().zip(b_instrs.iter()).enumerate() {
         cmp_instr(a_instr, b_instr)
             .indexed(&idx.to_string())
-            .qualified("body_instrs")?;
+            .qualified("instrs")?;
     }
 
     Ok(())
@@ -584,58 +593,39 @@ fn cmp_coeffects(a: &hhbc::Coeffects, b: &hhbc::Coeffects) -> Result {
 
 fn cmp_function(a: &Function, b: &Function) -> Result {
     let Function {
-        attributes: a_attributes,
         name: a_name,
         body: a_body,
-        coeffects: a_coeffects,
         flags: a_flags,
-        attrs: a_attrs,
     } = a;
     let Function {
-        attributes: b_attributes,
         name: b_name,
         body: b_body,
-        coeffects: b_coeffects,
         flags: b_flags,
-        attrs: b_attrs,
     } = b;
 
     cmp_eq(a_name, b_name).qualified("name")?;
-    cmp_attributes(a_attributes, b_attributes).qualified("attributes")?;
     cmp_body(a_body, b_body).qualified("body")?;
-    cmp_coeffects(a_coeffects, b_coeffects).qualified("coeffects")?;
     cmp_eq(a_flags, b_flags).qualified("flags")?;
-    cmp_eq(a_attrs, b_attrs).qualified("attrs")?;
-
     Ok(())
 }
 
 fn cmp_method(a: &Method, b: &Method) -> Result {
     let Method {
-        attributes: a_attributes,
         visibility: a_visibility,
         name: a_name,
         body: a_body,
-        coeffects: a_coeffects,
         flags: a_flags,
-        attrs: a_attrs,
     } = a;
     let Method {
-        attributes: b_attributes,
         visibility: b_visibility,
         name: b_name,
         body: b_body,
-        coeffects: b_coeffects,
         flags: b_flags,
-        attrs: b_attrs,
     } = b;
-    cmp_attributes(a_attributes, b_attributes).qualified("attributes")?;
     cmp_eq(a_visibility, b_visibility).qualified("visibility")?;
     cmp_eq(a_name, b_name).qualified("name")?;
     cmp_body(a_body, b_body).qualified("body")?;
-    cmp_coeffects(a_coeffects, b_coeffects).qualified("coeffects")?;
     cmp_eq(a_flags, b_flags).qualified("flags")?;
-    cmp_eq(a_attrs, b_attrs).qualified("attrs")?;
     Ok(())
 }
 
@@ -824,7 +814,6 @@ fn cmp_typedef(a: &Typedef, b: &Typedef) -> Result {
 
 fn cmp_unit(a_unit: &Unit, b_unit: &Unit) -> Result {
     let Unit {
-        adata: a_adata,
         functions: a_functions,
         classes: a_classes,
         modules: a_modules,
@@ -836,11 +825,8 @@ fn cmp_unit(a_unit: &Unit, b_unit: &Unit) -> Result {
         fatal: a_fatal,
         missing_symbols: _,
         error_symbols: _,
-        valid_utf8: _,
-        invalid_utf8_offset: _,
     } = a_unit;
     let Unit {
-        adata: b_adata,
         functions: b_functions,
         classes: b_classes,
         modules: b_modules,
@@ -852,11 +838,7 @@ fn cmp_unit(a_unit: &Unit, b_unit: &Unit) -> Result {
         fatal: b_fatal,
         missing_symbols: _,
         error_symbols: _,
-        valid_utf8: _,
-        invalid_utf8_offset: _,
     } = b_unit;
-
-    cmp_map_t(a_adata, b_adata, cmp_eq).qualified("adata")?;
 
     cmp_map_t(a_typedefs, b_typedefs, cmp_typedef).qualified("typedefs")?;
 

@@ -87,7 +87,7 @@ MyStruct::MyStruct(apache::thrift::FragileConstructor, ::std::int64_t MyIntField
     __fbthrift_field_myEnum(std::move(myEnum__arg)),
     __fbthrift_field_oneway(std::move(oneway__arg)),
     __fbthrift_field_readonly(std::move(readonly__arg)),
-    __fbthrift_field_idempotent(std::move(idempotent__arg)) {
+    __fbthrift_field_idempotent(std::move(idempotent__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
   __isset.set(folly::index_constant<2>(), true);
@@ -161,11 +161,11 @@ static_assert(
         ::cpp2::MyDataItem>,
     "inconsistent use of json option");
 
-} // cpp2
+} // namespace cpp2
 
 namespace cpp2 { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}} // cpp2
+}} // namespace cpp2
 namespace apache::thrift::detail::annotation {
 }

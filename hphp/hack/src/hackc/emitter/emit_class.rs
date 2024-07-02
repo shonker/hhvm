@@ -99,7 +99,6 @@ fn make_86method<'d>(
     attrs.set(Attr::AttrPersistent, emitter.systemlib());
     attrs.add(Attr::from(visibility));
 
-    let attributes = vec![];
     let flags = MethodFlags::empty();
     let method_decl_vars = vec![];
     let method_return_type = None;
@@ -114,8 +113,11 @@ fn make_86method<'d>(
         method_decl_vars,
         method_is_memoize_wrapper,
         method_is_memoize_wrapper_lsb,
-        vec![],
-        vec![],
+        vec![], // upper_bounds
+        vec![], // shadowed_tparams
+        vec![], // attributes
+        attrs,
+        coeffects,
         params.into_iter().map(|p| (p, None)).collect::<Vec<_>>(),
         method_return_type,
         method_doc_comment,
@@ -125,12 +127,9 @@ fn make_86method<'d>(
 
     Ok(Method {
         body,
-        attributes: attributes.into(),
         name,
         flags,
-        coeffects,
         visibility,
-        attrs,
     })
 }
 
@@ -343,7 +342,7 @@ fn emit_reified_extends_params<'a, 'd>(
         },
         _ => {}
     }
-    let tv = TypedValue::Vec(Default::default());
+    let tv = TypedValue::vec(Default::default());
     emit_adata::typed_value_into_instr(e, tv)
 }
 
@@ -425,9 +424,8 @@ fn emit_reified_init_method<'a, 'd>(
             type_info: Just(TypeInfo::new(Just(hhbc::intern("HH\\varray")), tc)),
         }];
 
-        let body_instrs =
-            emit_reified_init_body(emitter, env, num_reified, ast_class, param_local)?;
-        let instrs = emit_pos::emit_pos_then(&ast_class.span, body_instrs);
+        let instrs = emit_reified_init_body(emitter, env, num_reified, ast_class, param_local)?;
+        let instrs = emit_pos::emit_pos_then(&ast_class.span, instrs);
         Ok(Some(make_86method(
             emitter,
             *REIFIED_INIT_METH_NAME,

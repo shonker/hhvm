@@ -1,3 +1,6 @@
+Errors:
+  [10:68-69] Type access is only valid for a class, `self`, or `this`. To relate type parameters and type constants, you likely want to use the 'with refinement' feature instead.
+  [16:21-22] Type access is only valid for a class, `self`, or `this`. To relate type parameters and type constants, you likely want to use the 'with refinement' feature instead.
 [(Class
     { c_span = [3:1-8:2]; c_annotation = (); c_mode = Mstrict; c_final = false; 
       c_is_xhp = false; c_has_xhp_keyword = false; c_kind = (Cclass Abstract); 
@@ -23,9 +26,9 @@
           m_name = ([7:28-31], "log"); m_tparams = []; m_where_constraints = [];
           m_params =
           [{ param_annotation = (this::TX); param_type_hint = ((this::TX), (Some ([7:32-40], (Haccess (([7:32-36], Hthis), [([7:38-40], "TX")]))))); 
-             param_is_variadic = false; param_pos = [7:41-43]; param_name = "$x"; 
-             param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-             param_user_attributes = []; param_visibility = None }
+             param_pos = [7:41-43]; param_name = "$x"; param_info = Param_required; 
+             param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+             param_visibility = None }
             ];
           m_ctxs = None; m_unsafe_ctxs = None; m_body = { fb_ast = [] }; 
           m_fun_kind = FSync; m_user_attributes = []; m_readonly_ret = None; 
@@ -36,7 +39,7 @@
       c_namespace =
       { Namespace_env.ns_ns_uses = <opaque>; ns_class_uses = <opaque>; 
         ns_fun_uses = <opaque>; ns_const_uses = <opaque>; ns_name = None; 
-        ns_is_codegen = false; ns_disable_xhp_element_mangling = false };
+        ns_mode = Namespace_env.ForTypecheck; ns_disable_xhp_element_mangling = false };
       c_user_attributes = [{ ua_name = ([3:16-32], "__SupportDynamicType"); ua_params = [] }]; 
       c_file_attributes = []; c_docs_url = None; c_enum = None; c_doc_comment = None; 
       c_emit_id = None; c_internal = false; c_module = None });
@@ -44,16 +47,16 @@
      { fd_namespace =
        { Namespace_env.ns_ns_uses = <opaque>; ns_class_uses = <opaque>; 
          ns_fun_uses = <opaque>; ns_const_uses = <opaque>; ns_name = None; 
-         ns_is_codegen = false; ns_disable_xhp_element_mangling = false };
+         ns_mode = Namespace_env.ForTypecheck; ns_disable_xhp_element_mangling = false };
        fd_file_attributes = []; fd_mode = Mstrict; fd_name = ([10:10-16], "\\my_gen");
        fd_fun =
        { f_span = [10:1-12:2]; f_readonly_this = None; f_annotation = (); 
          f_readonly_ret = None; f_ret = ((~TR), (Some ([10:54-56], (Habstr ("TR", [])))));
          f_params =
          [{ param_annotation = (T); param_type_hint = ((T), (Some ([10:44-45], (Habstr ("T", []))))); 
-            param_is_variadic = false; param_pos = [10:46-51]; param_name = "$left"; 
-            param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-            param_user_attributes = []; param_visibility = None }
+            param_pos = [10:46-51]; param_name = "$left"; param_info = Param_required; 
+            param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+            param_visibility = None }
            ];
          f_ctxs = None; f_unsafe_ctxs = None;
          f_body =
@@ -85,7 +88,7 @@
      { fd_namespace =
        { Namespace_env.ns_ns_uses = <opaque>; ns_class_uses = <opaque>; 
          ns_fun_uses = <opaque>; ns_const_uses = <opaque>; ns_name = None; 
-         ns_is_codegen = false; ns_disable_xhp_element_mangling = false };
+         ns_mode = Namespace_env.ForTypecheck; ns_disable_xhp_element_mangling = false };
        fd_file_attributes = []; fd_mode = Mstrict; fd_name = ([14:10-16], "\\my_log");
        fd_fun =
        { f_span = [14:1-18:2]; f_readonly_this = None; f_annotation = (); 
@@ -104,9 +107,9 @@
                     )))));
          f_params =
          [{ param_annotation = (T); param_type_hint = ((T), (Some ([14:44-45], (Habstr ("T", []))))); 
-            param_is_variadic = false; param_pos = [14:46-51]; param_name = "$left"; 
-            param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-            param_user_attributes = []; param_visibility = None }
+            param_pos = [14:46-51]; param_name = "$left"; param_info = Param_required; 
+            param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+            param_visibility = None }
            ];
          f_ctxs = None; f_unsafe_ctxs = None;
          f_body =
@@ -120,10 +123,10 @@
                             f_ret = ((~void), None);
                             f_params =
                             [{ param_annotation = (TR); param_type_hint = ((TR), (Some ([17:11-13], (Habstr ("TR", []))))); 
-                               param_is_variadic = false; param_pos = [17:14-16]; 
-                               param_name = "$x"; param_expr = None; 
-                               param_readonly = None; param_callconv = Pnormal; 
-                               param_user_attributes = []; param_visibility = None }
+                               param_pos = [17:14-16]; param_name = "$x"; 
+                               param_info = Param_required; param_readonly = None; 
+                               param_callconv = Pnormal; param_user_attributes = []; 
+                               param_visibility = None }
                               ];
                             f_ctxs = None; f_unsafe_ctxs = None;
                             f_body =
@@ -162,20 +165,20 @@
      { fd_namespace =
        { Namespace_env.ns_ns_uses = <opaque>; ns_class_uses = <opaque>; 
          ns_fun_uses = <opaque>; ns_const_uses = <opaque>; ns_name = None; 
-         ns_is_codegen = false; ns_disable_xhp_element_mangling = false };
+         ns_mode = Namespace_env.ForTypecheck; ns_disable_xhp_element_mangling = false };
        fd_file_attributes = []; fd_mode = Mstrict; fd_name = ([20:10-18], "\\my_error");
        fd_fun =
        { f_span = [20:1-27:2]; f_readonly_this = None; f_annotation = (); 
          f_readonly_ret = None; f_ret = ((void), (Some ([20:62-66], (Hprim Tvoid))));
          f_params =
          [{ param_annotation = (WithTypeConstant); param_type_hint = ((WithTypeConstant), (Some ([20:19-35], (Happly (([20:19-35], "\\WithTypeConstant"), []))))); 
-            param_is_variadic = false; param_pos = [20:36-38]; param_name = "$x"; 
-            param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-            param_user_attributes = []; param_visibility = None };
+            param_pos = [20:36-38]; param_name = "$x"; param_info = Param_required; 
+            param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+            param_visibility = None };
            { param_annotation = (WithTypeConstant); param_type_hint = ((WithTypeConstant), (Some ([20:40-56], (Happly (([20:40-56], "\\WithTypeConstant"), []))))); 
-             param_is_variadic = false; param_pos = [20:57-59]; param_name = "$y"; 
-             param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-             param_user_attributes = []; param_visibility = None }
+             param_pos = [20:57-59]; param_name = "$y"; param_info = Param_required; 
+             param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+             param_visibility = None }
            ];
          f_ctxs = None; f_unsafe_ctxs = None;
          f_body =
@@ -236,9 +239,9 @@
           m_name = ([7:28-31], "log"); m_tparams = []; m_where_constraints = [];
           m_params =
           [{ param_annotation = (dynamic); param_type_hint = ((dynamic), (Some ([7:32-40], (Haccess (([7:32-36], Hthis), [([7:38-40], "TX")]))))); 
-             param_is_variadic = false; param_pos = [7:41-43]; param_name = "$x"; 
-             param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-             param_user_attributes = []; param_visibility = None }
+             param_pos = [7:41-43]; param_name = "$x"; param_info = Param_required; 
+             param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+             param_visibility = None }
             ];
           m_ctxs = None; m_unsafe_ctxs = None; m_body = { fb_ast = [] }; 
           m_fun_kind = FSync; m_user_attributes = []; m_readonly_ret = None; 
@@ -249,7 +252,7 @@
        c_namespace =
        { Namespace_env.ns_ns_uses = <opaque>; ns_class_uses = <opaque>; 
          ns_fun_uses = <opaque>; ns_const_uses = <opaque>; ns_name = None; 
-         ns_is_codegen = false; ns_disable_xhp_element_mangling = false };
+         ns_mode = Namespace_env.ForTypecheck; ns_disable_xhp_element_mangling = false };
        c_user_attributes = [{ ua_name = ([3:16-32], "__SupportDynamicType"); ua_params = [] }]; 
        c_file_attributes = []; c_docs_url = None; c_enum = None; c_doc_comment = None; 
        c_emit_id = None; c_internal = false; c_module = None });
@@ -257,16 +260,16 @@
      { fd_namespace =
        { Namespace_env.ns_ns_uses = <opaque>; ns_class_uses = <opaque>; 
          ns_fun_uses = <opaque>; ns_const_uses = <opaque>; ns_name = None; 
-         ns_is_codegen = false; ns_disable_xhp_element_mangling = false };
+         ns_mode = Namespace_env.ForTypecheck; ns_disable_xhp_element_mangling = false };
        fd_file_attributes = []; fd_mode = Mstrict; fd_name = ([10:10-16], "\\my_gen");
        fd_fun =
        { f_span = [10:1-12:2]; f_readonly_this = None; f_annotation = (); 
          f_readonly_ret = None; f_ret = ((dynamic), (Some ([10:54-56], (Habstr ("TR", [])))));
          f_params =
          [{ param_annotation = (dynamic); param_type_hint = ((dynamic), (Some ([10:44-45], (Habstr ("T", []))))); 
-            param_is_variadic = false; param_pos = [10:46-51]; param_name = "$left"; 
-            param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-            param_user_attributes = []; param_visibility = None }
+            param_pos = [10:46-51]; param_name = "$left"; param_info = Param_required; 
+            param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+            param_visibility = None }
            ];
          f_ctxs = None; f_unsafe_ctxs = None;
          f_body =
@@ -297,7 +300,7 @@
      { fd_namespace =
        { Namespace_env.ns_ns_uses = <opaque>; ns_class_uses = <opaque>; 
          ns_fun_uses = <opaque>; ns_const_uses = <opaque>; ns_name = None; 
-         ns_is_codegen = false; ns_disable_xhp_element_mangling = false };
+         ns_mode = Namespace_env.ForTypecheck; ns_disable_xhp_element_mangling = false };
        fd_file_attributes = []; fd_mode = Mstrict; fd_name = ([14:10-16], "\\my_log");
        fd_fun =
        { f_span = [14:1-18:2]; f_readonly_this = None; f_annotation = (); 
@@ -316,9 +319,9 @@
                     )))));
          f_params =
          [{ param_annotation = (dynamic); param_type_hint = ((dynamic), (Some ([14:44-45], (Habstr ("T", []))))); 
-            param_is_variadic = false; param_pos = [14:46-51]; param_name = "$left"; 
-            param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-            param_user_attributes = []; param_visibility = None }
+            param_pos = [14:46-51]; param_name = "$left"; param_info = Param_required; 
+            param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+            param_visibility = None }
            ];
          f_ctxs = None; f_unsafe_ctxs = None; f_body = { fb_ast = [([17:3-39], (Return (Some ((dynamic), [17:10-38], Omitted))))] }; 
          f_fun_kind = FSync; f_user_attributes = [{ ua_name = ([14:10-16], "__SupportDynamicType"); ua_params = [] }]; 

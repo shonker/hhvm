@@ -17,6 +17,7 @@
 #include <string>
 #include <string_view>
 #include <utility>
+#include <openssl/sha.h>
 #include <thrift/compiler/ast/t_const.h>
 #include <thrift/compiler/ast/t_exception.h>
 #include <thrift/compiler/ast/t_program.h>
@@ -54,14 +55,15 @@ std::string uri_or_name(const t_named& node) {
 } // namespace
 
 t_type_ref schematizer::stdType(std::string_view uri) {
-  auto scope = bundle_->get_root_program()->scope();
   return t_type_ref::from_req_ptr(
-      static_cast<const t_type*>(scope->find_by_uri(uri)));
+      static_cast<const t_type*>(scope_.find_by_uri(uri)));
 }
 
 std::unique_ptr<t_const_value> schematizer::typeUri(const t_type& type) {
   auto ret = t_const_value::make_map();
-  if (!type.uri().empty()) {
+  if (opts_.use_hash) {
+    ret->add_map(val("typeHashPrefixSha2_256"), val(identify_definition(type)));
+  } else if (!type.uri().empty()) {
     ret->add_map(val("uri"), val(type.uri()));
   } else {
     ret->add_map(val("scopedName"), val(type.get_scoped_name()));
@@ -88,8 +90,8 @@ void schematizer::add_definition(
     }
   }
 
-  auto structured = node.structured_annotations();
-  if (!structured.empty()) {
+  if (auto structured = node.structured_annotations();
+      !structured.empty() && opts_.include.test(included_data::Annotations)) {
     auto annots = t_const_value::make_map();
     auto structured_annots = t_const_value::make_list();
 
@@ -109,26 +111,31 @@ void schematizer::add_definition(
       }
 
       // Double write to deprecated externed path. (T161963504)
-      auto structured_annot = annot->clone();
-      structured_annot->set_ttype(
-          stdType("facebook.com/thrift/type/StructuredAnnotation"));
-      structured_annot->add_map(val("type"), typeUri(*item.type()));
+      if (opts_.include.test(included_data::DoubleWrites)) {
+        auto structured_annot = annot->clone();
+        structured_annot->set_ttype(
+            stdType("facebook.com/thrift/type/StructuredAnnotation"));
+        structured_annot->add_map(val("type"), typeUri(*item.type()));
 
-      auto id = intern_value(
-          std::move(structured_annot), const_cast<t_program*>(program));
-      structured_annots->add_list(val(id));
+        auto id = intern_value(
+            std::move(structured_annot), const_cast<t_program*>(program));
+        structured_annots->add_list(val(id));
+      }
 
       annot->set_ttype(stdType("facebook.com/thrift/type/Annotation"));
       annots->add_map(val(uri_or_name(*item.type())), std::move(annot));
     }
 
-    definition->add_map(
-        val("structuredAnnotations"), std::move(structured_annots));
+    // Double write to deprecated externed path. (T161963504)
+    if (opts_.include.test(included_data::DoubleWrites)) {
+      definition->add_map(
+          val("structuredAnnotations"), std::move(structured_annots));
+    }
     definition->add_map(val("annotations"), std::move(annots));
   }
 
-  const auto& unstructured = node.annotations();
-  if (!unstructured.empty()) {
+  if (auto unstructured = node.annotations();
+      !unstructured.empty() && opts_.include.test(included_data::Annotations)) {
     auto annots = t_const_value::make_map();
 
     for (const auto& pair : unstructured) {
@@ -138,7 +145,7 @@ void schematizer::add_definition(
     definition->add_map(val("unstructuredAnnotations"), std::move(annots));
   }
 
-  if (node.has_doc()) {
+  if (node.has_doc() && opts_.include.test(included_data::Docs)) {
     auto docs = t_const_value::make_map();
     docs->add_map(val("contents"), val(node.doc()));
     definition->add_map(val("docs"), std::move(docs));
@@ -433,7 +440,7 @@ void schematizer::add_fields(
 std::unique_ptr<t_const_value> schematizer::gen_schema(
     const t_structured& node) {
   auto schema = t_const_value::make_map();
-  add_definition(*schema, node, node.program(), intern_value_);
+  add_definition(*schema, node, node.program(), opts_.intern_value);
   add_fields(
       this,
       node.program(),
@@ -441,7 +448,7 @@ std::unique_ptr<t_const_value> schematizer::gen_schema(
       *schema,
       "fields",
       node.fields(),
-      intern_value_);
+      opts_.intern_value);
 
   if (node.is_exception()) {
     const auto& ex = static_cast<const t_exception&>(node);
@@ -492,7 +499,7 @@ std::unique_ptr<t_const_value> schematizer::gen_full_schema(
 
 std::unique_ptr<t_const_value> schematizer::gen_schema(const t_service& node) {
   auto svc_schema = t_const_value::make_map();
-  add_definition(*svc_schema, node, node.program(), intern_value_);
+  add_definition(*svc_schema, node, node.program(), opts_.intern_value);
 
   auto functions_schema = t_const_value::make_list();
 
@@ -501,7 +508,7 @@ std::unique_ptr<t_const_value> schematizer::gen_schema(const t_service& node) {
 
   for (const auto& func : node.functions()) {
     auto func_schema = t_const_value::make_map();
-    add_definition(*func_schema, func, node.program(), intern_value_);
+    add_definition(*func_schema, func, node.program(), opts_.intern_value);
 
     add_qualifier(func_qualifier_enum, *func_schema, [&] {
       switch (func.qualifier()) {
@@ -533,12 +540,14 @@ std::unique_ptr<t_const_value> schematizer::gen_schema(const t_service& node) {
         func_schema->add_map(
             val("returnType"), gen_type(*type, node.program()));
         // Double write of return type for backwards compatibility (T161963504).
-        auto return_types_schema = t_const_value::make_list();
-        auto schema = t_const_value::make_map();
-        schema->add_map(val("thriftType"), gen_type(*type, node.program()));
-        return_types_schema->add_list(std::move(schema));
-        func_schema->add_map(
-            val("returnTypes"), std::move(return_types_schema));
+        if (opts_.include.test(included_data::DoubleWrites)) {
+          auto return_types_schema = t_const_value::make_list();
+          auto schema = t_const_value::make_map();
+          schema->add_map(val("thriftType"), gen_type(*type, node.program()));
+          return_types_schema->add_list(std::move(schema));
+          func_schema->add_map(
+              val("returnTypes"), std::move(return_types_schema));
+        }
       }
     }
 
@@ -554,7 +563,7 @@ std::unique_ptr<t_const_value> schematizer::gen_schema(const t_service& node) {
             *stream_schema,
             "exceptions",
             throws->fields(),
-            intern_value_);
+            opts_.intern_value);
       }
       auto return_type = t_const_value::make_map();
       return_type->add_map(val("streamType"), std::move(stream_schema));
@@ -571,7 +580,7 @@ std::unique_ptr<t_const_value> schematizer::gen_schema(const t_service& node) {
             *sink_schema,
             "clientExceptions",
             throws->fields(),
-            intern_value_);
+            opts_.intern_value);
       }
       sink_schema->add_map(
           val("finalResponse"),
@@ -584,7 +593,7 @@ std::unique_ptr<t_const_value> schematizer::gen_schema(const t_service& node) {
             *sink_schema,
             "serverExceptions",
             throws->fields(),
-            intern_value_);
+            opts_.intern_value);
       }
       auto return_type = t_const_value::make_map();
       return_type->add_map(val("sinkType"), std::move(sink_schema));
@@ -599,7 +608,7 @@ std::unique_ptr<t_const_value> schematizer::gen_schema(const t_service& node) {
         *param_list_schema,
         "fields",
         func.params().fields(),
-        intern_value_);
+        opts_.intern_value);
     func_schema->add_map(val("paramlist"), std::move(param_list_schema));
 
     if (func.exceptions()) {
@@ -610,7 +619,7 @@ std::unique_ptr<t_const_value> schematizer::gen_schema(const t_service& node) {
           *func_schema,
           "exceptions",
           func.exceptions()->fields(),
-          intern_value_);
+          opts_.intern_value);
     }
 
     functions_schema->add_list(std::move(func_schema));
@@ -631,13 +640,14 @@ std::unique_ptr<t_const_value> schematizer::gen_schema(const t_const& node) {
   assert(program);
 
   auto schema = t_const_value::make_map();
-  add_definition(*schema, node, program, intern_value_);
+  add_definition(*schema, node, program, opts_.intern_value);
 
   schema->add_map(val("type"), gen_type(*node.type(), program));
 
   std::unique_ptr<t_const_value> clone = node.value()->clone();
   clone->set_ttype(node.type_ref());
-  auto id = intern_value_(std::move(clone), const_cast<t_program*>(program));
+  auto id =
+      opts_.intern_value(std::move(clone), const_cast<t_program*>(program));
   schema->add_map(val("value"), val(id));
 
   return schema;
@@ -645,13 +655,13 @@ std::unique_ptr<t_const_value> schematizer::gen_schema(const t_const& node) {
 
 std::unique_ptr<t_const_value> schematizer::gen_schema(const t_enum& node) {
   auto schema = t_const_value::make_map();
-  add_definition(*schema, node, node.program(), intern_value_);
+  add_definition(*schema, node, node.program(), opts_.intern_value);
 
   auto values = t_const_value::make_list();
 
   for (const auto& value : node.values()) {
     auto value_schema = t_const_value::make_map();
-    add_definition(*value_schema, value, node.program(), intern_value_);
+    add_definition(*value_schema, value, node.program(), opts_.intern_value);
     value_schema->add_map(val("value"), val(value.get_value()));
     values->add_list(std::move(value_schema));
   }
@@ -663,7 +673,7 @@ std::unique_ptr<t_const_value> schematizer::gen_schema(const t_enum& node) {
 
 std::unique_ptr<t_const_value> schematizer::gen_schema(const t_program& node) {
   auto schema = t_const_value::make_map();
-  add_definition(*schema, node, &node, intern_value_);
+  add_definition(*schema, node, &node, opts_.intern_value);
 
   schema->add_map(val("path"), val(node.path()));
 
@@ -695,14 +705,9 @@ std::unique_ptr<t_const_value> schematizer::gen_schema(const t_program& node) {
 
 std::unique_ptr<t_const_value> schematizer::gen_schema(const t_typedef& node) {
   auto schema = t_const_value::make_map();
-  add_definition(*schema, node, node.program(), intern_value_);
+  add_definition(*schema, node, node.program(), opts_.intern_value);
   schema->add_map(val("type"), gen_type(*node.type(), node.program()));
   return schema;
-}
-
-t_program::value_id schematizer::default_intern_value(
-    std::unique_ptr<t_const_value> val, t_program* program) {
-  return program->intern_value(std::move(val));
 }
 
 std::unique_ptr<t_const_value> wrap_with_protocol_value(
@@ -743,6 +748,25 @@ std::unique_ptr<t_const_value> wrap_with_protocol_value(
     case t_const_value::CV_IDENTIFIER:
       break;
   }
+  return ret;
+}
+
+std::string schematizer::identify_definition(const t_named& node) {
+  // @lint-ignore CLANGTIDY facebook-hte-CArray
+  unsigned char hash[SHA256_DIGEST_LENGTH];
+  auto val = node.program()->path() + node.name();
+  SHA256(reinterpret_cast<const unsigned char*>(val.c_str()), val.size(), hash);
+  constexpr size_t kBytes = 16;
+  return std::string(reinterpret_cast<const char*>(hash), kBytes);
+}
+
+int64_t schematizer::identify_program(const t_program& node) {
+  // @lint-ignore CLANGTIDY facebook-hte-CArray
+  unsigned char hash[SHA256_DIGEST_LENGTH];
+  const auto& val = node.path();
+  SHA256(reinterpret_cast<const unsigned char*>(val.c_str()), val.size(), hash);
+  int64_t ret;
+  memcpy(&ret, hash, sizeof(ret));
   return ret;
 }
 

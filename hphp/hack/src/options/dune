@@ -6,6 +6,7 @@
   collections
   custom_error_types
   package_info
+  parser_options
   saved_state_rollouts
   utils_find)
  (preprocess
@@ -78,7 +79,16 @@
  (name parser_options)
  (wrapped false)
  (modules parserOptions)
- (libraries global_options)
+ (libraries collections)
+ (preprocess
+  (pps ppx_deriving.std)))
+
+(library
+ (name decl_fold_options)
+ (wrapped false)
+ (modules declFoldOptions)
+ (libraries
+   global_options)
  (preprocess
   (pps ppx_deriving.std)))
 

@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include <cstdint>
 #include <functional>
 #include <stack>
 #include <type_traits>
@@ -23,10 +24,14 @@
 
 #include <fatal/type/same_reference_as.h>
 #include <folly/CPortability.h>
+#include <folly/Conv.h>
 #include <folly/Utility.h>
+#include <folly/container/Reserve.h>
+#include <thrift/lib/cpp2/FieldRefTraits.h>
 #include <thrift/lib/cpp2/op/Encode.h>
 #include <thrift/lib/cpp2/protocol/FieldMask.h>
 #include <thrift/lib/cpp2/protocol/GetStandardProtocol.h>
+#include <thrift/lib/cpp2/protocol/detail/protocol_methods.h>
 #include <thrift/lib/cpp2/type/Any.h>
 #include <thrift/lib/cpp2/type/BaseType.h>
 #include <thrift/lib/cpp2/type/ThriftType.h>
@@ -525,38 +530,38 @@ void setMaskedDataFull(
   auto cursor = prot.getCursor();
   apache::thrift::skip(prot, arg_type);
   cursor.clone(encodedValue.data().emplace(), prot.getCursor() - cursor);
-  maskedData.full_ref() =
-      type::ValueId{apache::thrift::util::i32ToZigzag(values.size() - 1)};
+  const auto pos = folly::to<int32_t>(values.size() - 1);
+  maskedData.full_ref() = type::ValueId{apache::thrift::util::i32ToZigzag(pos)};
 }
 
-// parseValue with readMask and writeMask
+// parseValue with readMaskRef and writeMaskRef
 template <bool KeepExcludedData, typename Protocol>
 MaskedDecodeResultValue parseValueWithMask(
     Protocol& prot,
     TType arg_type,
-    MaskRef readMask,
-    MaskRef writeMask,
+    MaskRef readMaskRef,
+    MaskRef writeMaskRef,
     MaskedProtocolData& protocolData,
     bool string_to_binary = true) {
   MaskedDecodeResultValue result;
-  if (readMask.isAllMask()) { // serialize all
+  if (readMaskRef.isAllMask()) { // serialize all
     parseValueInplace(prot, arg_type, result.included, string_to_binary);
     return result;
   }
-  if (readMask.isNoneMask()) { // do not deserialize
-    if (!KeepExcludedData) { // no need to store
+  if (readMaskRef.isNoneMask()) { // do not deserialize
+    if constexpr (!KeepExcludedData) { // no need to store
       apache::thrift::skip(prot, arg_type);
       return result;
     }
-    if (writeMask.isNoneMask()) { // store the serialized data
+    if (writeMaskRef.isNoneMask()) { // store the serialized data
       setMaskedDataFull(prot, arg_type, result.excluded, protocolData);
       return result;
     }
-    if (writeMask.isAllMask()) { // no need to store
+    if (writeMaskRef.isAllMask()) { // no need to store
       apache::thrift::skip(prot, arg_type);
       return result;
     }
-    // Need to recursively store the result not in writeMask.
+    // Need to recursively store the result not in writeMaskRef.
   }
   switch (arg_type) {
     case protocol::T_STRUCT: {
@@ -570,8 +575,8 @@ MaskedDecodeResultValue parseValueWithMask(
         if (ftype == protocol::T_STOP) {
           break;
         }
-        MaskRef nextRead = readMask.get(FieldId{fid});
-        MaskRef nextWrite = writeMask.get(FieldId{fid});
+        MaskRef nextRead = readMaskRef.get(FieldId{fid});
+        MaskRef nextWrite = writeMaskRef.get(FieldId{fid});
         MaskedDecodeResultValue nestedResult =
             parseValueWithMask<KeepExcludedData>(
                 prot,
@@ -584,9 +589,11 @@ MaskedDecodeResultValue parseValueWithMask(
         if (!apache::thrift::empty(nestedResult.included)) {
           object[FieldId{fid}] = std::move(nestedResult.included);
         }
-        if (KeepExcludedData && !apache::thrift::empty(nestedResult.excluded)) {
-          result.excluded.fields_ref().ensure()[FieldId{fid}] =
-              std::move(nestedResult.excluded);
+        if constexpr (KeepExcludedData) {
+          if (!apache::thrift::empty(nestedResult.excluded)) {
+            result.excluded.fields_ref().ensure()[FieldId{fid}] =
+                std::move(nestedResult.excluded);
+          }
         }
         prot.readFieldEnd();
       }
@@ -599,12 +606,18 @@ MaskedDecodeResultValue parseValueWithMask(
       TType valType;
       uint32_t size;
       prot.readMapBegin(keyType, valType, size);
+      if (!size) {
+        prot.readMapEnd();
+        return result;
+      }
+      auto readValueIndex = buildValueIndex(readMaskRef.mask);
+      auto writeValueIndex = buildValueIndex(writeMaskRef.mask);
       for (uint32_t i = 0; i < size; i++) {
         auto keyValue = parseValue(prot, keyType, string_to_binary);
-        MaskRef nextRead =
-            readMask.get(findMapIdByValueAddress(readMask.mask, keyValue));
-        MaskRef nextWrite =
-            writeMask.get(findMapIdByValueAddress(writeMask.mask, keyValue));
+        MaskRef nextRead = readMaskRef.get(
+            getMapIdValueAddressFromIndex(readValueIndex, keyValue));
+        MaskRef nextWrite = writeMaskRef.get(
+            getMapIdValueAddressFromIndex(writeValueIndex, keyValue));
         MaskedDecodeResultValue nestedResult =
             parseValueWithMask<KeepExcludedData>(
                 prot,
@@ -617,13 +630,16 @@ MaskedDecodeResultValue parseValueWithMask(
         if (!apache::thrift::empty(nestedResult.included)) {
           map[keyValue] = std::move(nestedResult.included);
         }
-        if (KeepExcludedData && !apache::thrift::empty(nestedResult.excluded)) {
-          auto& keys = protocolData.keys().ensure();
-          keys.push_back(keyValue);
-          type::ValueId id =
-              type::ValueId{apache::thrift::util::i32ToZigzag(keys.size() - 1)};
-          result.excluded.values_ref().ensure()[id] =
-              std::move(nestedResult.excluded);
+        if constexpr (KeepExcludedData) {
+          if (!apache::thrift::empty(nestedResult.excluded)) {
+            auto& keys = protocolData.keys().ensure();
+            keys.push_back(keyValue);
+            const auto pos = folly::to<int32_t>(keys.size() - 1);
+            type::ValueId id =
+                type::ValueId{apache::thrift::util::i32ToZigzag(pos)};
+            result.excluded.values_ref().ensure()[id] =
+                std::move(nestedResult.excluded);
+          }
         }
       }
       prot.readMapEnd();
@@ -639,8 +655,8 @@ MaskedDecodeResultValue parseValueWithMask(
 template <typename Protocol, bool KeepExcludedData>
 MaskedDecodeResult parseObject(
     const folly::IOBuf& buf,
-    Mask readMask,
-    Mask writeMask,
+    const Mask& readMask,
+    const Mask& writeMask,
     bool string_to_binary = true) {
   Protocol prot;
   prot.setInput(&buf);
@@ -699,12 +715,13 @@ uint32_t serializeValue(Protocol& prot, const Value& value) {
       return prot.writeBinary(value.as_binary());
     case Value::Type::listValue: {
       TType elemType = protocol::T_I64;
-      uint32_t size = value.as_list().size();
+      const auto& listVal = value.as_list();
+      const auto size = listVal.size();
       if (size > 0) {
-        elemType = getTType(value.as_list().at(0));
+        elemType = getTType(listVal.at(0));
       }
       auto serializedSize = prot.writeListBegin(elemType, size);
-      for (const auto& val : value.as_list()) {
+      for (const auto& val : listVal) {
         ensureSameType(val, elemType);
         serializedSize += serializeValue(prot, val);
       }
@@ -714,13 +731,14 @@ uint32_t serializeValue(Protocol& prot, const Value& value) {
     case Value::Type::mapValue: {
       TType keyType = protocol::T_STRING;
       TType valueType = protocol::T_I64;
-      uint32_t size = value.as_map().size();
+      const auto& mapVal = value.as_map();
+      const auto size = mapVal.size();
       if (size > 0) {
-        keyType = getTType(value.as_map().begin()->first);
-        valueType = getTType(value.as_map().begin()->second);
+        keyType = getTType(mapVal.begin()->first);
+        valueType = getTType(mapVal.begin()->second);
       }
       auto serializedSize = prot.writeMapBegin(keyType, valueType, size);
-      for (const auto& [key, val] : value.as_map()) {
+      for (const auto& [key, val] : mapVal) {
         ensureSameType(key, keyType);
         ensureSameType(val, valueType);
         serializedSize += serializeValue(prot, key);
@@ -731,12 +749,13 @@ uint32_t serializeValue(Protocol& prot, const Value& value) {
     }
     case Value::Type::setValue: {
       TType elemType = protocol::T_I64;
-      uint32_t size = value.as_set().size();
+      const auto& setVal = value.as_set();
+      const auto size = setVal.size();
       if (size > 0) {
-        elemType = getTType(*value.as_set().begin());
+        elemType = getTType(*setVal.begin());
       }
       auto serializedSize = prot.writeSetBegin(elemType, size);
-      for (const auto& val : value.as_set()) {
+      for (const auto& val : setVal) {
         ensureSameType(val, elemType);
         serializedSize += serializeValue(prot, val);
       }
@@ -757,11 +776,13 @@ template <class Protocol>
 uint32_t serializeObject(Protocol& prot, const Object& obj) {
   uint32_t serializedSize = 0;
   serializedSize += prot.writeStructBegin("");
-  for (const auto& [fieldID, fieldVal] : *obj.members()) {
-    auto fieldType = getTType(fieldVal);
-    serializedSize += prot.writeFieldBegin("", fieldType, fieldID);
-    serializedSize += serializeValue(prot, fieldVal);
-    serializedSize += prot.writeFieldEnd();
+  if (obj.members()) {
+    for (const auto& [fieldID, fieldVal] : *obj.members()) {
+      auto fieldType = getTType(fieldVal);
+      serializedSize += prot.writeFieldBegin("", fieldType, fieldID);
+      serializedSize += serializeValue(prot, fieldVal);
+      serializedSize += prot.writeFieldEnd();
+    }
   }
   serializedSize += prot.writeFieldStop();
   serializedSize += prot.writeStructEnd();
@@ -773,9 +794,9 @@ template <class Protocol>
 void writeRawField(
     Protocol& prot,
     FieldId fieldId,
-    MaskedProtocolData& protocolData,
-    MaskedData& maskedData) {
-  auto& nestedMaskedData = maskedData.fields_ref().value()[fieldId];
+    const MaskedProtocolData& protocolData,
+    const MaskedData& maskedData) {
+  const auto& nestedMaskedData = maskedData.fields_ref().value().at(fieldId);
   // When value doesn't exist in the object, maskedData should have full field.
   if (!nestedMaskedData.full_ref()) {
     throw std::runtime_error("incompatible value and maskedData");
@@ -793,8 +814,8 @@ template <class Protocol>
 void writeRawMapValue(
     Protocol& prot,
     TType valueType,
-    MaskedProtocolData& protocolData,
-    MaskedData& maskedData) {
+    const MaskedProtocolData& protocolData,
+    const MaskedData& maskedData) {
   // When value doesn't exist in the object, maskedData should have full field.
   if (!maskedData.full_ref()) {
     throw std::runtime_error("incompatible value and maskedData");
@@ -811,8 +832,8 @@ template <class Protocol>
 void serializeObject(
     Protocol& prot,
     const Object& obj,
-    MaskedProtocolData& protocolData,
-    MaskedData& maskedData) {
+    const MaskedProtocolData& protocolData,
+    const MaskedData& maskedData) {
   if (!maskedData.fields_ref()) {
     throw std::runtime_error("incompatible value and maskedData");
   }
@@ -840,7 +861,7 @@ void serializeObject(
     if (folly::get_ptr(*maskedData.fields_ref(), fieldId) == nullptr) {
       serializeValue(prot, fieldVal);
     } else { // recursively serialize value with maskedData
-      auto& nextMaskedData = maskedData.fields_ref().value()[fieldId];
+      const auto& nextMaskedData = maskedData.fields_ref().value().at(fieldId);
       serializeValue(prot, fieldVal, protocolData, nextMaskedData);
     }
     prot.writeFieldEnd();
@@ -857,8 +878,8 @@ template <class Protocol>
 void serializeValue(
     Protocol& prot,
     const Value& value,
-    MaskedProtocolData& protocolData,
-    MaskedData& maskedData) {
+    const MaskedProtocolData& protocolData,
+    const MaskedData& maskedData) {
   switch (value.getType()) {
     case Value::Type::objectValue: {
       return serializeObject(prot, value.as_object(), protocolData, maskedData);
@@ -871,10 +892,11 @@ void serializeValue(
       TType valueType = protocol::T_I64;
 
       // compute size, keyType, and valueType
-      uint32_t size = value.as_map().size();
+      const auto& mapVal = value.as_map();
+      auto size = mapVal.size();
       if (size > 0) {
-        keyType = getTType(value.as_map().begin()->first);
-        valueType = getTType(value.as_map().begin()->second);
+        keyType = getTType(mapVal.begin()->first);
+        valueType = getTType(mapVal.begin()->second);
       }
       for (auto& [keyValueId, nestedMaskedData] : *maskedData.values_ref()) {
         const Value& key = getByValueId(*protocolData.keys(), keyValueId);
@@ -884,7 +906,7 @@ void serializeValue(
           valueType = toTType(
               *getByValueId(*protocolData.values(), valueId).wireType());
         }
-        if (folly::get_ptr(value.as_map(), key) == nullptr) {
+        if (folly::get_ptr(mapVal, key) == nullptr) {
           ++size;
         }
       }
@@ -903,16 +925,16 @@ void serializeValue(
         ensureSameType(key, keyType);
         serializeValue(prot, key);
         // no need to serialize the value
-        if (folly::get_ptr(value.as_map(), key) == nullptr) {
+        if (folly::get_ptr(mapVal, key) == nullptr) {
           writeRawMapValue(prot, valueType, protocolData, nestedMaskedData);
           continue;
         }
         // recursively serialize value with maskedData
-        const Value& val = value.as_map().at(key);
+        const Value& val = mapVal.at(key);
         ensureSameType(val, valueType);
         serializeValue(prot, val, protocolData, nestedMaskedData);
       }
-      for (const auto& [key, val] : value.as_map()) {
+      for (const auto& [key, val] : mapVal) {
         if (keys.find(key) != keys.end()) { // already serailized
           continue;
         }
@@ -944,14 +966,327 @@ type::AnyData toAny(
   return type::AnyData{data};
 }
 
-template <class Tag>
-auto deserializeBinaryProtocol(folly::IOBuf* buf) {
-  BinaryProtocolReader reader;
-  reader.setInput(buf);
-  type::native_type<Tag> t;
-  op::decode<Tag>(reader, t);
-  return t;
-}
+template <typename Tag>
+struct ProtocolValueToThriftValue;
+
+template <>
+struct ProtocolValueToThriftValue<type::bool_t> {
+  // return whether conversion succeed
+  template <typename T>
+  bool operator()(const Value& value, T& b) const {
+    if (auto p = value.if_bool()) {
+      b = *p;
+      return true;
+    }
+
+    return false;
+  }
+};
+
+template <>
+struct ProtocolValueToThriftValue<type::byte_t> {
+  template <typename T>
+  bool operator()(const Value& value, T& i) const {
+    if (auto p = value.if_byte()) {
+      i = *p;
+      return true;
+    }
+
+    return false;
+  }
+};
+
+template <>
+struct ProtocolValueToThriftValue<type::i16_t> {
+  template <typename T>
+  bool operator()(const Value& value, T& i) const {
+    if (auto p = value.if_i16()) {
+      i = *p;
+      return true;
+    }
+
+    return false;
+  }
+};
+
+template <>
+struct ProtocolValueToThriftValue<type::i32_t> {
+  template <typename T>
+  bool operator()(const Value& value, T& i) const {
+    if (auto p = value.if_i32()) {
+      i = *p;
+      return true;
+    }
+    return false;
+  }
+};
+
+template <>
+struct ProtocolValueToThriftValue<type::i64_t> {
+  template <typename T>
+  bool operator()(const Value& value, T& i) const {
+    if (auto p = value.if_i64()) {
+      i = *p;
+      return true;
+    }
+
+    return false;
+  }
+};
+
+template <>
+struct ProtocolValueToThriftValue<type::float_t> {
+  template <typename T>
+  bool operator()(const Value& value, T& f) const {
+    if (auto p = value.if_float()) {
+      f = *p;
+      return true;
+    }
+    return false;
+  }
+};
+
+template <>
+struct ProtocolValueToThriftValue<type::double_t> {
+  template <typename T>
+  bool operator()(const Value& value, T& d) const {
+    if (auto p = value.if_double()) {
+      d = *p;
+      return true;
+    }
+    return false;
+  }
+};
+
+template <>
+struct ProtocolValueToThriftValue<type::string_t> {
+  template <typename StrType>
+  bool operator()(const Value& value, StrType& s) const {
+    if (auto p = value.if_string()) {
+      s = *p;
+      return true;
+    }
+    if (auto p = value.if_binary()) {
+      s.clear();
+      folly::io::Cursor cursor{&*p};
+      while (!cursor.isAtEnd()) {
+        const auto buf = cursor.peekBytes();
+        s.append((const char*)buf.data(), buf.size());
+        cursor += buf.size();
+      }
+      return true;
+    }
+
+    return false;
+  }
+
+  bool operator()(const Value& value, std::unique_ptr<folly::IOBuf>& s) const {
+    if (auto p = value.if_string()) {
+      s = folly::IOBuf::copyBuffer(p->data(), p->size());
+      return true;
+    }
+    if (auto p = value.if_binary()) {
+      s = p->clone();
+      return true;
+    }
+
+    return false;
+  }
+
+  bool operator()(const Value& value, folly::IOBuf& s) const {
+    std::unique_ptr<folly::IOBuf> buf;
+    if (operator()(value, buf)) {
+      s = *buf;
+      return true;
+    }
+    return false;
+  }
+};
+
+// We can't distinguish string/binary type in binary/compact protocol,
+// Thus we need to handle them in the same way.
+template <>
+struct ProtocolValueToThriftValue<type::binary_t>
+    : ProtocolValueToThriftValue<type::string_t> {};
+
+template <typename T>
+struct ProtocolValueToThriftValue<type::enum_t<T>> {
+  template <typename U>
+  bool operator()(const Value& value, U& t) const {
+    if (auto p = value.if_i32()) {
+      t = static_cast<T>(*p);
+      return true;
+    }
+    return false;
+  }
+};
+
+template <typename Tag>
+struct ProtocolValueToThriftValue<type::list<Tag>> {
+  template <typename ListType>
+  bool operator()(const Value& value, ListType& list) const {
+    auto p = value.if_list();
+    if (!p) {
+      return false;
+    }
+    list.clear();
+    folly::reserve_if_available(list, p->size());
+    for (auto&& v : *p) {
+      if (!ProtocolValueToThriftValue<Tag>{}(v, list.emplace_back())) {
+        return false;
+      }
+    }
+
+    return true;
+  }
+};
+
+template <typename Tag>
+struct ProtocolValueToThriftValue<type::set<Tag>> {
+  template <typename SetType>
+  bool operator()(const Value& value, SetType& set) const {
+    type::native_type<Tag> elem;
+    auto p = value.if_set();
+
+    if (!p) {
+      return false;
+    }
+
+    set.clear();
+    folly::reserve_if_available(set, p->size());
+    for (auto&& v : *p) {
+      apache::thrift::op::clear<Tag>(elem);
+      if (!ProtocolValueToThriftValue<Tag>{}(v, elem)) {
+        return false;
+      }
+      set.emplace_hint(set.end(), std::move(elem));
+    }
+
+    return true;
+  }
+};
+
+template <typename KeyTag, typename ValueTag>
+struct ProtocolValueToThriftValue<type::map<KeyTag, ValueTag>> {
+  template <typename MapType>
+  bool operator()(const Value& value, MapType& map) const {
+    type::native_type<KeyTag> key;
+    type::native_type<ValueTag> val;
+    auto p = value.if_map();
+    if (!p) {
+      return false;
+    }
+    map.clear();
+    folly::reserve_if_available(map, p->size());
+    for (auto&& [k, v] : *p) {
+      apache::thrift::op::clear<KeyTag>(key);
+      apache::thrift::op::clear<ValueTag>(val);
+      if (!ProtocolValueToThriftValue<KeyTag>{}(k, key)) {
+        return false;
+      }
+      if (!ProtocolValueToThriftValue<ValueTag>{}(v, val)) {
+        return false;
+      }
+      map.emplace_hint(map.end(), std::move(key), std::move(val));
+    }
+    return true;
+  }
+};
+
+template <typename T, typename Tag>
+struct ProtocolValueToThriftValue<type::cpp_type<T, Tag>>
+    : ProtocolValueToThriftValue<Tag> {};
+
+template <typename Adapter, typename Tag>
+struct ProtocolValueToThriftValue<type::adapted<Adapter, Tag>> {
+  template <typename ObjectOrValue, typename U>
+  bool operator()(const ObjectOrValue& value, U& m) const {
+    // TODO: Optimize in-place adapter
+    type::native_type<Tag> orig;
+    auto ret = ProtocolValueToThriftValue<Tag>{}(value, orig);
+    m = Adapter::fromThrift(std::move(orig));
+    return ret;
+  }
+};
+
+template <typename Tag, typename Struct, int16_t FieldId>
+struct ProtocolValueToThriftValue<
+    type::field<Tag, FieldContext<Struct, FieldId>>> {
+  template <typename ObjectOrValue, typename U>
+  bool operator()(const ObjectOrValue& value, U& m, Struct&) const {
+    return ProtocolValueToThriftValue<Tag>{}(value, m);
+  }
+};
+
+template <typename Adapter, typename Tag, typename Struct, int16_t FieldId>
+struct ProtocolValueToThriftValue<
+    type::field<type::adapted<Adapter, Tag>, FieldContext<Struct, FieldId>>> {
+  using field_adapted_tag =
+      type::field<type::adapted<Adapter, Tag>, FieldContext<Struct, FieldId>>;
+  static_assert(type::is_concrete_v<field_adapted_tag>);
+
+  template <typename ObjectOrValue, typename U, typename AdapterT = Adapter>
+  constexpr adapt_detail::
+      if_not_field_adapter<AdapterT, type::native_type<Tag>, Struct, bool>
+      operator()(const ObjectOrValue& value, U& m, Struct&) const {
+    return ProtocolValueToThriftValue<type::adapted<Adapter, Tag>>{}(value, m);
+  }
+
+  template <typename ObjectOrValue, typename U, typename AdapterT = Adapter>
+  constexpr adapt_detail::
+      if_field_adapter<AdapterT, FieldId, type::native_type<Tag>, Struct, bool>
+      operator()(const ObjectOrValue& value, U& m, Struct& strct) const {
+    // TODO: Optimize in-place adapter
+    type::native_type<Tag> orig;
+    bool ret = ProtocolValueToThriftValue<Tag>{}(value, orig);
+    m = adapt_detail::fromThriftField<Adapter, FieldId>(std::move(orig), strct);
+    return ret;
+  }
+};
+
+template <class T>
+struct ProtocolValueToThriftValueStructure {
+  bool operator()(const Object& obj, T& s) const {
+    for (auto&& kv : obj) {
+      op::invoke_by_field_id<T>(
+          static_cast<FieldId>(kv.first),
+          [&](auto id) {
+            using Id = decltype(id);
+            op::get_native_type<T, Id> t;
+            if (ProtocolValueToThriftValue<op::get_field_tag<T, Id>>{}(
+                    kv.second, t, s)) {
+              using Ref = op::get_field_ref<T, Id>;
+              if constexpr (apache::thrift::detail::is_shared_or_unique_ptr_v<
+                                Ref>) {
+                op::get<Id>(s) =
+                    std::make_unique<op::get_native_type<T, Id>>(std::move(t));
+              } else {
+                op::get<Id>(s) = std::move(t);
+              }
+            }
+          },
+          [] {});
+    }
+    return true;
+  }
+  bool operator()(const Value& value, T& s) const {
+    if (auto p = value.if_object()) {
+      operator()(*p, s);
+      return true;
+    }
+    return false;
+  }
+};
+
+template <typename T>
+struct ProtocolValueToThriftValue<type::struct_t<T>>
+    : ProtocolValueToThriftValueStructure<T> {};
+template <typename T>
+struct ProtocolValueToThriftValue<type::union_t<T>>
+    : ProtocolValueToThriftValueStructure<T> {};
+template <typename T>
+struct ProtocolValueToThriftValue<type::exception_t<T>>
+    : ProtocolValueToThriftValueStructure<T> {};
 
 } // namespace detail
 } // namespace apache::thrift::protocol

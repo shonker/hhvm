@@ -61,6 +61,7 @@ type class_elt = {
 type fun_elt = {
   fe_deprecated: string option;
   fe_module: Ast_defs.id option;
+  fe_package_override: string option;
   fe_internal: bool;
   fe_type: decl_ty;
   fe_pos: Pos_or_decl.t;
@@ -152,6 +153,7 @@ type typedef_type = {
   td_attributes: user_attribute list;
   td_internal: bool;
   td_docs_url: string option;
+  td_package_override: string option;
 }
 [@@deriving eq, show]
 
@@ -224,6 +226,10 @@ type expand_env = {
   this_ty: locl_ty;
   on_error: Typing_error.Reasons_callback.t option;
   wildcard_action: wildcard_action;
+  ish_weakening: bool;
+      (** If true, for refinement hints (is/as), approximate E by ~E & arraykey to account
+       * for intish and stringish casts
+       *)
 }
 
 val empty_expand_env : expand_env

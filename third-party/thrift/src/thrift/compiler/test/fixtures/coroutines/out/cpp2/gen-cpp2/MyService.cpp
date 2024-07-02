@@ -61,7 +61,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::cpp2::MyService>::co_pi
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::MyService>::async_tm_ping(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) {
+void apache::thrift::ServiceHandler<::cpp2::MyService>::async_tm_ping(apache::thrift::HandlerCallbackPtr<void> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -172,7 +172,7 @@ folly::coro::Task<std::unique_ptr<::std::string>> apache::thrift::ServiceHandler
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::MyService>::async_tm_getRandomData(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::string>>> callback) {
+void apache::thrift::ServiceHandler<::cpp2::MyService>::async_tm_getRandomData(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::string>> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -230,7 +230,7 @@ determineInvocationType:
       {
         ::std::string _return;
         sync_getRandomData(_return);
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -282,7 +282,7 @@ folly::coro::Task<bool> apache::thrift::ServiceHandler<::cpp2::MyService>::co_ha
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::MyService>::async_tm_hasDataById(std::unique_ptr<apache::thrift::HandlerCallback<bool>> callback, ::std::int64_t p_id) {
+void apache::thrift::ServiceHandler<::cpp2::MyService>::async_tm_hasDataById(apache::thrift::HandlerCallbackPtr<bool> callback, ::std::int64_t p_id) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -356,7 +356,7 @@ determineInvocationType:
   }
 }
 
-void apache::thrift::ServiceHandler<::cpp2::MyService>::async_eb_getDataById(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::string>>> callback, ::std::int64_t /*id*/) {
+void apache::thrift::ServiceHandler<::cpp2::MyService>::async_eb_getDataById(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::string>> callback, ::std::int64_t /*id*/) {
   callback->exception(apache::thrift::detail::si::create_app_exn_unimplemented("getDataById"));
 }
 
@@ -395,7 +395,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::cpp2::MyService>::co_pu
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::MyService>::async_tm_putDataById(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback, ::std::int64_t p_id, std::unique_ptr<::std::string> p_data) {
+void apache::thrift::ServiceHandler<::cpp2::MyService>::async_tm_putDataById(apache::thrift::HandlerCallbackPtr<void> callback, ::std::int64_t p_id, std::unique_ptr<::std::string> p_data) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -473,17 +473,17 @@ determineInvocationType:
 
 namespace cpp2 {
 
-void MyServiceSvNull::ping() {
+void MyServiceSvNull::ping() { 
   return;
 }
 
-void MyServiceSvNull::getRandomData(::std::string& /*_return*/) {}
+void MyServiceSvNull::getRandomData(::std::string& /*_return*/) {  }
 
-bool MyServiceSvNull::hasDataById(::std::int64_t /*id*/) {
+bool MyServiceSvNull::hasDataById(::std::int64_t /*id*/) { 
   return 0;
 }
 
-void MyServiceSvNull::putDataById(::std::int64_t /*id*/, std::unique_ptr<::std::string> /*data*/) {
+void MyServiceSvNull::putDataById(::std::int64_t /*id*/, std::unique_ptr<::std::string> /*data*/) { 
   return;
 }
 
@@ -544,35 +544,35 @@ apache::thrift::ServiceRequestInfoMap const& MyServiceServiceInfoHolder::request
 apache::thrift::ServiceRequestInfoMap MyServiceServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"ping",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "MyService.ping",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"getRandomData",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "MyService.getRandomData",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"hasDataById",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "MyService.hasDataById",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"getDataById",
-    {true,
+    { true,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "MyService.getDataById",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"putDataById",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "MyService.putDataById",
      std::nullopt,
@@ -582,4 +582,4 @@ apache::thrift::ServiceRequestInfoMap MyServiceServiceInfoHolder::staticRequestI
 
   return requestInfoMap;
 }
-} // cpp2
+} // namespace cpp2

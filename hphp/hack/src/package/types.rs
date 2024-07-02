@@ -24,7 +24,7 @@ pub struct Package {
     pub uses: Option<NameSet>,
     pub includes: Option<NameSet>,
     pub soft_includes: Option<NameSet>,
-    pub allow_directories: Option<NameSet>,
+    pub include_paths: Option<NameSet>,
 }
 
 #[derive(Debug, Deserialize)]
@@ -73,6 +73,6 @@ impl Iterator for NameSet {
 }
 impl NameSet {
     pub fn take(&mut self, value: &Spanned<String>) -> Option<Spanned<String>> {
-        self.0.take(value)
+        self.0.swap_take(value)
     }
 }

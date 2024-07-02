@@ -37,6 +37,38 @@
   typing_check
   unit_test))
 
+(executable
+ (name server_progress_unit_tests)
+ (modules
+  server_progress_unit_tests)
+ (link_flags
+  (:standard
+   (:include ../../src/dune_config/ld-opts.sexp)))
+ (modes exe byte_complete)
+ (libraries
+  client
+  server_progress_lwt
+  server_progress_test_helpers
+  default_injector_config
+  unit_test
+  unit_test_common_setup)
+ (preprocess
+  (pps
+   lwt_ppx)))
+
+(library
+ (name server_progress_test_helpers)
+ (modules
+  server_progress_test_helpers)
+ (libraries
+  asserter
+  lwt_utils
+  server_progress
+  utils_core)
+ (preprocess
+  (pps
+   lwt_ppx)))
+
 (rule
  (alias server_tests)
  (deps %{exe:server_tests.exe})

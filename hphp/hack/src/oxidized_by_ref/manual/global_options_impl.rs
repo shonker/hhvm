@@ -42,8 +42,6 @@ const DEFAULT: GlobalOptions<'_> = GlobalOptions {
     tco_language_feature_logging: false,
     tco_timeout: 0,
     tco_disallow_invalid_arraykey: false,
-    tco_disallow_byref_dynamic_calls: false,
-    tco_disallow_byref_calls: true,
     code_agnostic_fixme: false,
     allowed_fixme_codes_strict: i_set::ISet::empty(),
     log_levels: s_map::SMap::empty(),
@@ -66,7 +64,7 @@ const DEFAULT: GlobalOptions<'_> = GlobalOptions {
     po_enable_class_level_where_clauses: false,
     po_disable_legacy_soft_typehints: true,
     po_allowed_decl_fixme_codes: i_set::ISet::empty(),
-    tco_const_static_props: false,
+    po_const_static_props: false,
     po_disable_legacy_attribute_syntax: false,
     tco_const_attribute: false,
     po_const_default_func_args: false,
@@ -139,6 +137,11 @@ const DEFAULT: GlobalOptions<'_> = GlobalOptions {
     dump_tast_hashes: false,
     dump_tasts: vec![],
     po_disallow_direct_superglobals_refs: false,
+    hack_warnings: false,
+    tco_allowed_files_for_module_declarations: vec![],
+    tco_package_v2: false,
+    tco_package_v2_bypass_package_check_for_class_const: true,
+    tco_enable_abstract_method_optional_parameters: false,
 };
 
 impl GlobalOptions<'static> {

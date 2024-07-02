@@ -72,6 +72,8 @@ errors::NameContext
 errors::Phase
 errors::NamingError
 errors::NastCheckError
+experimental_features::FeatureName
+experimental_features::FeatureStatus
 nast_check_error::Verb
 naming_error::Visibility
 naming_error::ReturnOnlyHint
@@ -87,6 +89,7 @@ file_info::Mode
 file_info::NameType
 file_info::SiKind
 map_reduce_ffi::MapReducer
+namespace_env::Mode
 naming_types::KindOfType
 naming_types::NameKind
 saved_state_rollouts::Flag
@@ -104,10 +107,13 @@ typing_defs_core::Enforcement
 typing_defs_core::FunTparamsKind
 typing_defs_core::ParamMode
 typing_defs_core::ShapeKind
-typing_defs_core::TypePredicate
 typing_defs_core::ValKind
 typing_reason::ArgPosition
 typing_reason::BlameSource
+typing_reason::Direction
+typing_reason::FieldKind
+typing_reason::PrjAsymm
+user_error::Level
 user_error::Severity
 xhp_attribute::Tag
 xhp_attribute::XhpAttribute

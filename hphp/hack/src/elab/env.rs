@@ -13,6 +13,7 @@ use oxidized::typechecker_options::TypecheckerOptions;
 pub struct ProgramSpecificOptions {
     pub is_hhi: bool,
     pub allow_module_declarations: bool,
+    pub allow_ignore_readonly: bool,
 }
 
 bitflags! {
@@ -31,6 +32,7 @@ bitflags! {
         const EVERYTHING_SDT = 1 << 11;
         const SUPPORTDYNAMIC_TYPE_HINT_ENABLED = 1 << 12;
         const NO_AUTO_DYNAMIC_ENABLED = 1 << 13;
+        const ALLOW_IGNORE_READONLY = 1 << 14;
     }
 }
 
@@ -40,11 +42,11 @@ impl Flags {
 
         flags.set(
             Self::SOFT_AS_LIKE,
-            tco.po_interpret_soft_types_as_like_types,
+            tco.po.interpret_soft_types_as_like_types,
         );
 
         flags.set(Self::HKT_ENABLED, tco.tco_higher_kinded_types);
-        flags.set(Self::IS_SYSTEMLIB, tco.tco_is_systemlib);
+        flags.set(Self::IS_SYSTEMLIB, tco.po.is_systemlib);
         flags.set(Self::LIKE_TYPE_HINTS_ENABLED, tco.tco_like_type_hints);
         flags.set(
             Self::NO_AUTO_DYNAMIC_ENABLED,
@@ -55,9 +57,9 @@ impl Flags {
             tco.tco_experimental_features
                 .contains("supportdynamic_type_hint"),
         );
-        flags.set(Self::EVERYTHING_SDT, tco.tco_everything_sdt);
+        flags.set(Self::EVERYTHING_SDT, tco.po.everything_sdt);
         flags.set(Self::CONST_ATTRIBUTE, tco.tco_const_attribute);
-        flags.set(Self::CONST_STATIC_PROPS, tco.tco_const_static_props);
+        flags.set(Self::CONST_STATIC_PROPS, tco.po.const_static_props);
         flags.set(Self::ERROR_PHP_LAMBDAS, tco.tco_error_php_lambdas);
 
         flags.set(Self::IS_HHI, pso.is_hhi);
@@ -65,6 +67,7 @@ impl Flags {
             Self::ALLOW_MODULE_DECLARATIONS,
             pso.allow_module_declarations,
         );
+        flags.set(Self::ALLOW_IGNORE_READONLY, pso.allow_ignore_readonly);
 
         flags.set(
             Self::INFER_FLOWS,
@@ -123,6 +126,10 @@ impl Env {
 
     pub fn allow_module_declarations(&self) -> bool {
         self.flags.contains(Flags::ALLOW_MODULE_DECLARATIONS)
+    }
+
+    pub fn allow_ignore_readonly(&self) -> bool {
+        self.flags.contains(Flags::ALLOW_IGNORE_READONLY)
     }
 
     pub fn hkt_enabled(&self) -> bool {

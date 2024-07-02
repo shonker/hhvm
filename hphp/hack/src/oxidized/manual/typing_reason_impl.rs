@@ -7,11 +7,23 @@ use crate::pos::Pos;
 use crate::typing_reason::*;
 
 impl Reason {
+    pub fn rev_pos(&self) -> Option<&Pos> {
+        match self {
+            T_::Rflow(r, _) => r.rev_pos(),
+            T_::RprjSymm(_, r) => r.rev_pos(),
+            T_::RprjAsymmLeft(_, r) => r.rev_pos(),
+            T_::RprjAsymmRight(_, r) => r.rev_pos(),
+            T_::Rrev(r) => r.pos(),
+            _ => self.pos(),
+        }
+    }
+
     pub fn pos(&self) -> Option<&Pos> {
         use T_::*;
         match self {
             Rnone => None,
             Rinvalid => None,
+            RmissingField => None,
             Rwitness(p)
             | RwitnessFromDecl(p)
             | Ridx(p, _)
@@ -50,8 +62,8 @@ impl Reason {
             | RnullsafeOp(p)
             | RtconstNoCstr((p, _))
             | Rpredicated(p, _)
-            | Ris(p)
-            | Ras(p)
+            | RisRefinement(p)
+            | RasRefinement(p)
             | Requal(p)
             | RvarrayOrDarrayKey(p)
             | RvecOrDictKey(p)
@@ -60,7 +72,7 @@ impl Reason {
             | RdynamicCall(p)
             | RdynamicConstruct(p)
             | RidxDict(p)
-            | RsetElement(p)
+            | RidxSetElement(p)
             | RmissingOptionalField(p, _)
             | RunsetField(p, _)
             | Rregex(p)
@@ -98,6 +110,7 @@ impl Reason {
             | RpessimisedInout(p)
             | RpessimisedReturn(p)
             | RpessimisedProp(p)
+            | RpessimisedThis(p)
             | RunsafeCast(p)
             | Rpattern(p) => Some(p),
             RlostInfo(_, r, _)
@@ -109,6 +122,11 @@ impl Reason {
             | RinvariantGeneric(r, _) => r.pos(),
             RopaqueTypeFromModule(p, _, _) => Some(p),
             RdynamicCoercion(r) => r.pos(),
+            Rflow(r, _) => r.pos(),
+            RprjSymm(_, r) => r.pos(),
+            RprjAsymmLeft(_, r) => r.pos(),
+            RprjAsymmRight(_, r) => r.pos(),
+            Rrev(r) => r.rev_pos(),
         }
     }
 }

@@ -36,7 +36,7 @@ class MyLeafServiceInfoHolder : public apache::thrift::ServiceInfoHolder {
    apache::thrift::ServiceRequestInfoMap const& requestInfoMap() const override;
    static apache::thrift::ServiceRequestInfoMap staticRequestInfoMap();
 };
-} // cpp2
+} // namespace cpp2
 
 namespace apache::thrift {
 template <>
@@ -59,7 +59,7 @@ class ServiceHandler<::cpp2::MyLeaf> : virtual public ::cpp2::MyNodeSvIf {
   virtual folly::coro::Task<void> co_do_leaf();
   virtual folly::coro::Task<void> co_do_leaf(apache::thrift::RequestParams params);
 #endif
-  virtual void async_tm_do_leaf(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback);
+  virtual void async_tm_do_leaf(apache::thrift::HandlerCallbackPtr<void> callback);
  private:
   static ::cpp2::MyLeafServiceInfoHolder __fbthrift_serviceInfoHolder;
   std::atomic<apache::thrift::detail::si::InvocationType> __fbthrift_invocation_do_leaf{apache::thrift::detail::si::InvocationType::AsyncTm};
@@ -69,7 +69,7 @@ class ServiceHandler<::cpp2::MyLeaf> : virtual public ::cpp2::MyNodeSvIf {
 
 namespace cpp2 {
 using MyLeafSvIf [[deprecated("Use apache::thrift::ServiceHandler<MyLeaf> instead")]] = ::apache::thrift::ServiceHandler<MyLeaf>;
-} // cpp2
+} // namespace cpp2
 namespace cpp2 {
 class MyLeafSvNull : public ::apache::thrift::ServiceHandler<MyLeaf>, virtual public ::apache::thrift::ServiceHandler<::cpp2::MyNode> {
  public:
@@ -108,4 +108,4 @@ class MyLeafAsyncProcessor : public ::cpp2::MyNodeAsyncProcessor {
   ~MyLeafAsyncProcessor() override {}
 };
 
-} // cpp2
+} // namespace cpp2

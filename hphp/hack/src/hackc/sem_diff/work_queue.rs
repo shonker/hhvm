@@ -4,12 +4,9 @@
 // LICENSE file in the "hack" directory of this source tree.
 
 use ffi::Maybe;
-use hash::HashMap;
 use hash::HashSet;
-use hhbc::AdataId;
 use hhbc::Local;
 use hhbc::ParamEntry;
-use hhbc::TypedValue;
 use log::trace;
 
 use crate::body::Body;
@@ -28,25 +25,24 @@ impl<'a> WorkQueue<'a> {
         &mut self,
         value_builder: &mut ValueBuilder<'a>,
         a: &'a Body<'a>,
-        a_adata: &'a HashMap<AdataId, &'a TypedValue>,
         b: &'a Body<'a>,
-        b_adata: &'a HashMap<AdataId, &'a TypedValue>,
     ) {
-        let mut a_state = State::new(a, "A", a_adata);
-        let mut b_state = State::new(b, "B", b_adata);
+        let mut a_state = State::new(a, "A");
+        let mut b_state = State::new(b, "B");
 
         // Also need to handle entrypoints for defaults!
         for (idx, (ParamEntry { dv: dv_a, .. }, ParamEntry { dv: dv_b, .. })) in a
             .hhbc_body
+            .repr
             .params
             .iter()
-            .zip(b.hhbc_body.params.iter())
+            .zip(b.hhbc_body.repr.params.iter())
             .enumerate()
         {
             // Initialize parameter values
             let value = value_builder.alloc();
 
-            let local = Local::from_usize(idx);
+            let local = Local::new(idx);
             a_state.local_set(&local, value);
             b_state.local_set(&local, value);
 

@@ -88,13 +88,6 @@ walkable!(CeVisibility => {
     Self::Internal(m) => [m],
 });
 
-#[derive(Clone, Debug, Eq, EqModuloPos, Hash, PartialEq, Serialize, Deserialize)]
-#[derive(ToOcamlRep, FromOcamlRep)]
-pub enum IfcFunDecl {
-    FDPolicied(Option<Symbol>),
-    FDInferFlows,
-}
-
 // The OCaml type `tshape_field_name` includes positions, but ignores those
 // positions in its `ord` implementation. We can't do the same, though: Rust
 // hash tables require impls of Hash and Eq to agree, and our Hash impl must
@@ -151,6 +144,7 @@ walkable!(UserAttributeParam);
 pub struct UserAttribute<P> {
     pub name: Positioned<TypeName, P>,
     pub params: Box<[UserAttributeParam]>,
+    pub raw_val: Option<String>,
 }
 
 impl<P> UserAttribute<P> {
@@ -605,6 +599,7 @@ walkable!(ConstDecl<R> => [ty]);
 pub struct FunElt<R: Reason> {
     pub deprecated: Option<Bytes>,
     pub module: Option<Positioned<ModuleName, R::Pos>>,
+    pub package_override: Option<String>,
     /// Top-level functions have limited visibilities
     pub internal: bool,
     pub ty: Ty<R>,
@@ -685,6 +680,7 @@ pub struct TypedefType<R: Reason> {
     pub attributes: Box<[UserAttribute<R::Pos>]>,
     pub internal: bool,
     pub docs_url: Option<String>,
+    pub package_override: Option<String>,
 }
 
 walkable!(TypedefType<R> => [tparams, as_constraint, super_constraint, ty]);

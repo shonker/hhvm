@@ -339,7 +339,7 @@ FOLLY_NODISCARD std::optional<ResponseRpcError> processFirstResponseHelper(
         ResponseRpcErrorCode::UNKNOWN,
         fmt::format(
             "Invalid response payload envelope: {}",
-            folly::exceptionStr(std::current_exception()).toStdString()),
+            folly::exceptionStr(folly::current_exception()).toStdString()),
         metadata);
   }
   return {};
@@ -415,9 +415,14 @@ RocketThriftRequest::RocketThriftRequest(
     server::ServerConfigs& serverConfigs,
     RequestRpcMetadata&& metadata,
     Cpp2ConnContext& connContext,
+    ServiceInterceptorsStorage serviceInterceptorsStorage,
     folly::EventBase& evb,
     RocketServerFrameContext&& context)
-    : ThriftRequestCore(serverConfigs, std::move(metadata), connContext),
+    : ThriftRequestCore(
+          serverConfigs,
+          std::move(metadata),
+          connContext,
+          std::move(serviceInterceptorsStorage)),
       evb_(evb),
       context_(std::move(context)) {
   detail::onRocketThriftRequestReceived(
@@ -428,7 +433,7 @@ RocketThriftRequest::RocketThriftRequest(
 }
 
 ThriftServerRequestResponse::ThriftServerRequestResponse(
-    CreateWithColocationParams colocationParams,
+    ColocatedConstructionParams colocationParams,
     folly::EventBase& evb,
     server::ServerConfigs& serverConfigs,
     RequestRpcMetadata&& metadata,
@@ -443,6 +448,7 @@ ThriftServerRequestResponse::ThriftServerRequestResponse(
           serverConfigs,
           std::move(metadata),
           connContext,
+          std::move(colocationParams.data),
           evb,
           std::move(context)),
       version_(version),
@@ -508,7 +514,7 @@ void ThriftServerRequestResponse::closeConnection(
 }
 
 ThriftServerRequestFnf::ThriftServerRequestFnf(
-    CreateWithColocationParams colocationParams,
+    ColocatedConstructionParams colocationParams,
     folly::EventBase& evb,
     server::ServerConfigs& serverConfigs,
     RequestRpcMetadata&& metadata,
@@ -522,6 +528,7 @@ ThriftServerRequestFnf::ThriftServerRequestFnf(
           serverConfigs,
           std::move(metadata),
           connContext,
+          std::move(colocationParams.data),
           evb,
           std::move(context)),
       onComplete_(std::move(onComplete)) {
@@ -565,7 +572,7 @@ void ThriftServerRequestFnf::closeConnection(
 }
 
 ThriftServerRequestStream::ThriftServerRequestStream(
-    CreateWithColocationParams colocationParams,
+    ColocatedConstructionParams colocationParams,
     folly::EventBase& evb,
     server::ServerConfigs& serverConfigs,
     RequestRpcMetadata&& metadata,
@@ -581,6 +588,7 @@ ThriftServerRequestStream::ThriftServerRequestStream(
           serverConfigs,
           std::move(metadata),
           connContext,
+          std::move(colocationParams.data),
           evb,
           std::move(context)),
       version_(version),
@@ -597,6 +605,7 @@ ThriftServerRequestStream::ThriftServerRequestStream(
   if (auto compressionConfig = getCompressionConfig()) {
     clientCallback_->setCompressionConfig(*compressionConfig);
   }
+  clientCallback_->setRpcMethodName(getMethodName());
   scheduleTimeouts();
 }
 
@@ -682,7 +691,7 @@ void ThriftServerRequestStream::closeConnection(
 }
 
 ThriftServerRequestSink::ThriftServerRequestSink(
-    CreateWithColocationParams colocationParams,
+    ColocatedConstructionParams colocationParams,
     folly::EventBase& evb,
     server::ServerConfigs& serverConfigs,
     RequestRpcMetadata&& metadata,
@@ -698,6 +707,7 @@ ThriftServerRequestSink::ThriftServerRequestSink(
           serverConfigs,
           std::move(metadata),
           connContext,
+          std::move(colocationParams.data),
           evb,
           std::move(context)),
       version_(version),

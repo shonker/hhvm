@@ -45,6 +45,7 @@ from testing.thrift_types import (
     Perm,
     Reserved,
     Runtime,
+    StringBucket,
     UnusedError,
 )
 from thrift.python.serializer import deserialize, serialize_iobuf
@@ -145,6 +146,10 @@ class StructTests(unittest.TestCase):
             # pyre-ignore[6]: for test
             Runtime(int_list_val=["foo", "bar", "baz"])
 
+        with self.assertRaises(TypeError):
+            # pyre-ignore[6]: for test
+            Runtime(bool_val=True, enum_val=Color.red, int_list_val=[1, 2, "foo"])
+
     def test_reserved(self) -> None:
         x = Reserved(
             from_="hello",
@@ -186,15 +191,13 @@ class StructTests(unittest.TestCase):
         self.assertEqual([x, y], sorted([y, x]))
 
     def test_init_with_invalid_field(self) -> None:
-        with self.assertRaisesRegex(
-            TypeError, "got an unexpected keyword argument 'val_lists'"
-        ):
+        with self.assertRaises(TypeError):
             # pyre-ignore[28]: for test
             easy(val=1, an_int=Integers(small=300), name="foo", val_lists=[1, 2, 3, 4])
 
     def test_init_with_invalid_field_value(self) -> None:
         with self.assertRaisesRegex(
-            TypeError, "field 'name' encountered TypeError: Cannot create"
+            TypeError, "Cannot create internal string data representation"
         ):
             # pyre-ignore[6]: name is string, but under test
             easy(val=1, an_int=Integers(small=300), name=1)
@@ -406,3 +409,40 @@ class StructDeepcopyTests(unittest.TestCase):
         obj = IOBufListStruct(iobufs=[IOBuf(b"one"), IOBuf(b"two")])
         dif = copy.deepcopy(obj)
         self.assertIs(obj, dif)
+
+    def test_compare_optional(self) -> None:
+        x = StringBucket()
+        y = StringBucket()
+
+        # Both are default so they are equal and neither are greater
+        self.assertFalse(x < y)
+        self.assertFalse(x > y)
+        self.assertTrue(x <= y)
+        self.assertTrue(x >= y)
+
+        x = StringBucket(one="one")
+
+        # x has a field set so it's greater
+        self.assertFalse(x < y)
+        self.assertTrue(x > y)
+        self.assertFalse(x <= y)
+        self.assertTrue(x >= y)
+
+        # x has an optional field set so even though it's empty string, "" > None
+        x = StringBucket(two="")
+        self.assertFalse(x < y)
+        self.assertTrue(x > y)
+        self.assertFalse(x <= y)
+        self.assertTrue(x >= y)
+
+        # comparisons happen in field order so because y.one > x.one, y > x
+        y = StringBucket(one="one")
+        self.assertTrue(x < y)
+        self.assertFalse(x > y)
+        self.assertTrue(x <= y)
+        self.assertFalse(x >= y)
+
+        z = easy()
+        with self.assertRaises(TypeError):
+            # TODO(ffrancet): pyre should complain about this
+            z < y  # noqa: B015

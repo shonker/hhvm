@@ -336,7 +336,7 @@ APACHE_THRIFT_DEFINE_ACCESSOR(__field);
 } // namespace apache
 
 // BEGIN declare_enums
-namespace apache { namespace thrift { namespace fixtures { namespace types {
+namespace apache::thrift::fixtures::types {
 
 enum class has_bitwise_ops {
   none = 0,
@@ -393,7 +393,7 @@ enum class MyForwardRefEnum {
 
 
 
-}}}} // apache::thrift::fixtures::types
+} // namespace apache::thrift::fixtures::types
 
 namespace std {
 template<> struct hash<::apache::thrift::fixtures::types::has_bitwise_ops> :
@@ -478,7 +478,7 @@ template <> struct TEnumTraits<::apache::thrift::fixtures::types::MyForwardRefEn
 
 // END declare_enums
 // BEGIN forward_declare
-namespace apache { namespace thrift { namespace fixtures { namespace types {
+namespace apache::thrift::fixtures::types {
 class empty_struct;
 class decorated_struct;
 class ContainerStruct;
@@ -518,7 +518,7 @@ class AllocatorAware;
 class AllocatorAware2;
 class TypedefStruct;
 class StructWithDoubleUnderscores;
-}}}} // apache::thrift::fixtures::types
+} // namespace apache::thrift::fixtures::types
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -547,7 +547,7 @@ template<> struct equal_to<typename ::apache::thrift::fixtures::types::decorated
 };
 } // std
 // END hash_and_equal_to
-namespace apache { namespace thrift { namespace fixtures { namespace types {
+namespace apache::thrift::fixtures::types {
 using AdaptedListDep = detail::AdaptedListDep;
 
 using ::apache::thrift::detail::operator!=;
@@ -563,7 +563,7 @@ typedef ::apache::thrift::fixtures::types::TBinary TBinary_8623;
 typedef ::std::int32_t i32_9314;
 typedef ::std::vector<::std::int32_t> list_i32_9187;
 typedef ::std::map<::std::int32_t, ::std::int32_t> map_i32_i32_9565;
-typedef folly::sorted_vector_map<::std::int32_t, ::std::string> map_i32_string_1261;
+typedef ::std::map<::std::int32_t, ::std::string> map_i32_string_1261;
 typedef ::std::set<::std::int32_t> set_i32_7070;
 typedef folly::sorted_vector_set<::std::int32_t> set_i32_7194;
 typedef ::std::string string_5252;
@@ -611,6 +611,8 @@ class empty_struct final  {
  public:
   using __fbthrift_cpp2_type = empty_struct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -706,6 +708,8 @@ class decorated_struct final  {
  public:
   using __fbthrift_cpp2_type = decorated_struct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -877,6 +881,8 @@ class ContainerStruct final  {
   using __fbthrift_cpp2_type = ContainerStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -885,7 +891,7 @@ class ContainerStruct final  {
 
   // FragileConstructor for use in initialization lists only.
   [[deprecated("This constructor is deprecated")]]
-  ContainerStruct(apache::thrift::FragileConstructor, ::std::vector<::std::int32_t> fieldA__arg, std::list<::std::int32_t> fieldB__arg, std::deque<::std::int32_t> fieldC__arg, folly::fbvector<::std::int32_t> fieldD__arg, folly::small_vector<::std::int32_t> fieldE__arg, ::apache::thrift::fixtures::types::set_i32_7194 fieldF__arg, ::apache::thrift::fixtures::types::map_i32_string_1261 fieldG__arg, ::apache::thrift::fixtures::types::SomeMap fieldH__arg);
+  ContainerStruct(apache::thrift::FragileConstructor, ::std::vector<::std::int32_t> fieldA__arg, std::list<::std::int32_t> fieldB__arg, std::deque<::std::int32_t> fieldC__arg, folly::fbvector<::std::int32_t> fieldD__arg, folly::small_vector<::std::int32_t> fieldE__arg, ::apache::thrift::fixtures::types::set_i32_7194 fieldF__arg, folly::sorted_vector_map<::std::int32_t, ::std::string> fieldG__arg, ::apache::thrift::fixtures::types::SomeMap fieldH__arg);
 
   ContainerStruct(ContainerStruct&&) noexcept;
 
@@ -910,7 +916,7 @@ class ContainerStruct final  {
  private:
   ::apache::thrift::fixtures::types::set_i32_7194 __fbthrift_field_fieldF;
  private:
-  ::apache::thrift::fixtures::types::map_i32_string_1261 __fbthrift_field_fieldG;
+  folly::sorted_vector_map<::std::int32_t, ::std::string> __fbthrift_field_fieldG;
  private:
   ::apache::thrift::fixtures::types::SomeMap __fbthrift_field_fieldH;
  private:
@@ -1161,42 +1167,42 @@ class ContainerStruct final  {
     return {static_cast<T&&>(this->__fbthrift_field_fieldF), __isset.at(5), __isset.bit(5)};
   }
 
-  template <typename..., typename T = ::apache::thrift::fixtures::types::map_i32_string_1261>
+  template <typename..., typename T = folly::sorted_vector_map<::std::int32_t, ::std::string>>
   FOLLY_ERASE ::apache::thrift::field_ref<const T&> fieldG_ref() const& {
     return {this->__fbthrift_field_fieldG, __isset.at(6), __isset.bit(6)};
   }
 
-  template <typename..., typename T = ::apache::thrift::fixtures::types::map_i32_string_1261>
+  template <typename..., typename T = folly::sorted_vector_map<::std::int32_t, ::std::string>>
   FOLLY_ERASE ::apache::thrift::field_ref<const T&&> fieldG_ref() const&& {
     return {static_cast<const T&&>(this->__fbthrift_field_fieldG), __isset.at(6), __isset.bit(6)};
   }
 
-  template <typename..., typename T = ::apache::thrift::fixtures::types::map_i32_string_1261>
+  template <typename..., typename T = folly::sorted_vector_map<::std::int32_t, ::std::string>>
   FOLLY_ERASE ::apache::thrift::field_ref<T&> fieldG_ref() & {
     return {this->__fbthrift_field_fieldG, __isset.at(6), __isset.bit(6)};
   }
 
-  template <typename..., typename T = ::apache::thrift::fixtures::types::map_i32_string_1261>
+  template <typename..., typename T = folly::sorted_vector_map<::std::int32_t, ::std::string>>
   FOLLY_ERASE ::apache::thrift::field_ref<T&&> fieldG_ref() && {
     return {static_cast<T&&>(this->__fbthrift_field_fieldG), __isset.at(6), __isset.bit(6)};
   }
 
-  template <typename..., typename T = ::apache::thrift::fixtures::types::map_i32_string_1261>
+  template <typename..., typename T = folly::sorted_vector_map<::std::int32_t, ::std::string>>
   FOLLY_ERASE ::apache::thrift::field_ref<const T&> fieldG() const& {
     return {this->__fbthrift_field_fieldG, __isset.at(6), __isset.bit(6)};
   }
 
-  template <typename..., typename T = ::apache::thrift::fixtures::types::map_i32_string_1261>
+  template <typename..., typename T = folly::sorted_vector_map<::std::int32_t, ::std::string>>
   FOLLY_ERASE ::apache::thrift::field_ref<const T&&> fieldG() const&& {
     return {static_cast<const T&&>(this->__fbthrift_field_fieldG), __isset.at(6), __isset.bit(6)};
   }
 
-  template <typename..., typename T = ::apache::thrift::fixtures::types::map_i32_string_1261>
+  template <typename..., typename T = folly::sorted_vector_map<::std::int32_t, ::std::string>>
   FOLLY_ERASE ::apache::thrift::field_ref<T&> fieldG() & {
     return {this->__fbthrift_field_fieldG, __isset.at(6), __isset.bit(6)};
   }
 
-  template <typename..., typename T = ::apache::thrift::fixtures::types::map_i32_string_1261>
+  template <typename..., typename T = folly::sorted_vector_map<::std::int32_t, ::std::string>>
   FOLLY_ERASE ::apache::thrift::field_ref<T&&> fieldG() && {
     return {static_cast<T&&>(this->__fbthrift_field_fieldG), __isset.at(6), __isset.bit(6)};
   }
@@ -1294,12 +1300,12 @@ class ContainerStruct final  {
     fieldF_ref() = std::forward<T_ContainerStruct_fieldF_struct_setter>(fieldF_);
     return __fbthrift_field_fieldF;
   }
-  const ::apache::thrift::fixtures::types::map_i32_string_1261& get_fieldG() const&;
-  ::apache::thrift::fixtures::types::map_i32_string_1261 get_fieldG() &&;
+  const folly::sorted_vector_map<::std::int32_t, ::std::string>& get_fieldG() const&;
+  folly::sorted_vector_map<::std::int32_t, ::std::string> get_fieldG() &&;
 
-  template <typename T_ContainerStruct_fieldG_struct_setter = ::apache::thrift::fixtures::types::map_i32_string_1261>
+  template <typename T_ContainerStruct_fieldG_struct_setter = folly::sorted_vector_map<::std::int32_t, ::std::string>>
   [[deprecated("Use `FOO.fieldG_ref() = BAR;` instead of `FOO.set_fieldG(BAR);`")]]
-  ::apache::thrift::fixtures::types::map_i32_string_1261& set_fieldG(T_ContainerStruct_fieldG_struct_setter&& fieldG_) {
+  folly::sorted_vector_map<::std::int32_t, ::std::string>& set_fieldG(T_ContainerStruct_fieldG_struct_setter&& fieldG_) {
     fieldG_ref() = std::forward<T_ContainerStruct_fieldG_struct_setter>(fieldG_);
     return __fbthrift_field_fieldG;
   }
@@ -1383,6 +1389,8 @@ class CppTypeStruct final  {
  public:
   using __fbthrift_cpp2_type = CppTypeStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -1533,6 +1541,8 @@ class VirtualStruct  {
  public:
   using __fbthrift_cpp2_type = VirtualStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -1687,6 +1697,8 @@ class MyStructWithForwardRefEnum final  {
  public:
   using __fbthrift_cpp2_type = MyStructWithForwardRefEnum;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -1893,6 +1905,8 @@ class TrivialNumeric final  {
   using __fbthrift_cpp2_type = TrivialNumeric;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -2098,6 +2112,8 @@ class TrivialNestedWithDefault final  {
   using __fbthrift_cpp2_type = TrivialNestedWithDefault;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -2301,6 +2317,8 @@ class ComplexString final  {
  public:
   using __fbthrift_cpp2_type = ComplexString;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -2510,6 +2528,8 @@ class ComplexNestedWithDefault final  {
  public:
   using __fbthrift_cpp2_type = ComplexNestedWithDefault;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -2725,6 +2745,8 @@ class MinPadding final  {
  public:
   using __fbthrift_cpp2_type = MinPadding;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -3093,6 +3115,8 @@ class MinPaddingWithCustomType final  {
   using __fbthrift_cpp2_type = MinPaddingWithCustomType;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    true;
 
 
  public:
@@ -3440,6 +3464,8 @@ class MyDataItem final  {
   using __fbthrift_cpp2_type = MyDataItem;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -3537,6 +3563,8 @@ class MyStruct final  {
  public:
   using __fbthrift_cpp2_type = MyStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -3846,6 +3874,8 @@ class Renamed final  {
   using __fbthrift_cpp2_type = Renamed;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -3997,6 +4027,8 @@ class AnnotatedTypes final  {
  public:
   using __fbthrift_cpp2_type = AnnotatedTypes;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -4205,6 +4237,8 @@ class ForwardUsageStruct final  {
   using __fbthrift_cpp2_type = ForwardUsageStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -4343,6 +4377,8 @@ class ForwardUsageRoot final  {
  public:
   using __fbthrift_cpp2_type = ForwardUsageRoot;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -4535,6 +4571,8 @@ class ForwardUsageByRef final  {
   using __fbthrift_cpp2_type = ForwardUsageByRef;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -4671,6 +4709,8 @@ class IncompleteMap final  {
  public:
   using __fbthrift_cpp2_type = IncompleteMap;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -4821,6 +4861,8 @@ class IncompleteMapDep final  {
   using __fbthrift_cpp2_type = IncompleteMapDep;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -4913,6 +4955,8 @@ class CompleteMapDep final  {
  public:
   using __fbthrift_cpp2_type = CompleteMapDep;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -5008,6 +5052,8 @@ class CompleteMap final  {
  public:
   using __fbthrift_cpp2_type = CompleteMap;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -5160,6 +5206,8 @@ class IncompleteList final  {
   using __fbthrift_cpp2_type = IncompleteList;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -5309,6 +5357,8 @@ class IncompleteListDep final  {
   using __fbthrift_cpp2_type = IncompleteListDep;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -5401,6 +5451,8 @@ class CompleteListDep final  {
  public:
   using __fbthrift_cpp2_type = CompleteListDep;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -5496,6 +5548,8 @@ class CompleteList final  {
  public:
   using __fbthrift_cpp2_type = CompleteList;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -5648,6 +5702,8 @@ class AdaptedList final  {
   using __fbthrift_cpp2_type = AdaptedList;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    true;
 
 
  public:
@@ -5800,6 +5856,8 @@ class AdaptedListDep final  {
   using __fbthrift_cpp2_type = AdaptedListDep;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -5949,6 +6007,8 @@ class DependentAdaptedListDep final  {
   using __fbthrift_cpp2_type = DependentAdaptedListDep;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -6091,6 +6151,8 @@ class DependentAdaptedList final  {
   using __fbthrift_cpp2_type = DependentAdaptedList;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    true;
 
 
  public:
@@ -6254,6 +6316,8 @@ class AllocatorAware final  {
   using __fbthrift_cpp2_type = AllocatorAware;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
  public:
   using allocator_type = some_allocator;
@@ -6261,7 +6325,7 @@ class AllocatorAware final  {
     return __fbthrift_alloc;
   }
  private:
-  FOLLY_ATTR_NO_UNIQUE_ADDRESS allocator_type __fbthrift_alloc;
+  [[FOLLY_ATTR_NO_UNIQUE_ADDRESS]] allocator_type __fbthrift_alloc;
 
  public:
 
@@ -6736,6 +6800,8 @@ class AllocatorAware2 final  {
   using __fbthrift_cpp2_type = AllocatorAware2;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
  public:
   using allocator_type = some_allocator;
@@ -6743,7 +6809,7 @@ class AllocatorAware2 final  {
     return __fbthrift_alloc;
   }
  private:
-  FOLLY_ATTR_NO_UNIQUE_ADDRESS allocator_type __fbthrift_alloc;
+  [[FOLLY_ATTR_NO_UNIQUE_ADDRESS]] allocator_type __fbthrift_alloc;
 
  public:
 
@@ -6954,6 +7020,8 @@ class TypedefStruct final  {
  public:
   using __fbthrift_cpp2_type = TypedefStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -7210,6 +7278,8 @@ class StructWithDoubleUnderscores final  {
   using __fbthrift_cpp2_type = StructWithDoubleUnderscores;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -7314,4 +7384,4 @@ unsigned long StructWithDoubleUnderscores::read(Protocol_* iprot) {
 }
 
 
-}}}} // apache::thrift::fixtures::types
+} // namespace apache::thrift::fixtures::types

@@ -6,6 +6,7 @@
 #![recursion_limit = "100000000"]
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, unused_crate_dependencies, unused_imports, clippy::all)]
 
+
 #[doc(inline)]
 pub use :: as types;
 
@@ -84,6 +85,7 @@ pub struct MyRootProcessor<P, H, R, RS> {
 
 struct Args_MyRoot_do_root {
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_MyRoot_do_root {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "MyRoot.do_root"))]
@@ -137,7 +139,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -173,34 +175,28 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "MyRoot.do_root", "success");
-                crate::services::my_root::DoRootExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_root::DoRootExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "do_root",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                 ::tracing::info!(method = "MyRoot.do_root", exception = ?exn);
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("MyRoot.do_root", exn);
                 ::tracing::error!(method = "MyRoot.do_root", panic = ?aexn);
-                crate::services::my_root::DoRootExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::my_root::DoRootExn::ApplicationException(aexn))
             }
         };
 
-        let env = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
+        let env = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::my_root::DoRootExn>(
             "do_root",
             METHOD_NAME.as_cstr(),
             _seqid,
             req_ctxt,
             &mut ctx_stack,
-            res
+            res,
         )?;
-        reply_state.lock().unwrap().send_reply(env);
+        reply_state.send_reply(env);
         Ok(())
     }
 }
@@ -237,7 +233,7 @@ where
         _p: &mut P::Deserializer,
         _req: ::fbthrift::ProtocolDecoded<P>,
         _req_ctxt: &R,
-        _reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        _reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         match idx {
@@ -303,7 +299,7 @@ where
         &self,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
     ) -> ::anyhow::Result<()> {
         use ::fbthrift::{ProtocolReader as _, ServiceProcessor as _};
         let mut p = P::deserializer(req.clone());
@@ -345,8 +341,8 @@ where
 
     fn get_method_names(&self) -> &'static [&'static str] {
         &[
-                // from MyRoot
-                "do_root",
+            // From module.MyRoot:
+            "do_root",
         ]
     }
 
@@ -439,6 +435,7 @@ pub struct MyNodeProcessor<P, H, R, RS, SS> {
 
 struct Args_MyNode_do_mid {
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_MyNode_do_mid {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "MyNode.do_mid"))]
@@ -494,7 +491,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -530,34 +527,28 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "MyNode.do_mid", "success");
-                crate::services::my_node::DoMidExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_node::DoMidExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "do_mid",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                 ::tracing::info!(method = "MyNode.do_mid", exception = ?exn);
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("MyNode.do_mid", exn);
                 ::tracing::error!(method = "MyNode.do_mid", panic = ?aexn);
-                crate::services::my_node::DoMidExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::my_node::DoMidExn::ApplicationException(aexn))
             }
         };
 
-        let env = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
+        let env = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::my_node::DoMidExn>(
             "do_mid",
             METHOD_NAME.as_cstr(),
             _seqid,
             req_ctxt,
             &mut ctx_stack,
-            res
+            res,
         )?;
-        reply_state.lock().unwrap().send_reply(env);
+        reply_state.send_reply(env);
         Ok(())
     }
 }
@@ -596,7 +587,7 @@ where
         _p: &mut P::Deserializer,
         _req: ::fbthrift::ProtocolDecoded<P>,
         _req_ctxt: &R,
-        _reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        _reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         match idx {
@@ -665,7 +656,7 @@ where
         &self,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
     ) -> ::anyhow::Result<()> {
         use ::fbthrift::{ProtocolReader as _, ServiceProcessor as _};
         let mut p = P::deserializer(req.clone());
@@ -707,10 +698,11 @@ where
 
     fn get_method_names(&self) -> &'static [&'static str] {
         &[
-                // from MyRoot
-                "do_root",
-                // from MyNode
-                "do_mid",
+            // From module.MyNode:
+            "do_mid",
+
+            // From module.MyRoot:
+            "do_root",
         ]
     }
 
@@ -807,6 +799,7 @@ pub struct MyLeafProcessor<P, H, R, RS, SS> {
 
 struct Args_MyLeaf_do_leaf {
 }
+
 impl<P: ::fbthrift::ProtocolReader> ::fbthrift::Deserialize<P> for self::Args_MyLeaf_do_leaf {
     #[inline]
     #[::tracing::instrument(skip_all, level = "trace", name = "deserialize_args", fields(method = "MyLeaf.do_leaf"))]
@@ -862,7 +855,7 @@ where
         p: &'a mut P::Deserializer,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         use ::const_cstr::const_cstr;
@@ -898,34 +891,28 @@ where
         let res = match res {
             ::std::result::Result::Ok(::std::result::Result::Ok(res)) => {
                 ::tracing::trace!(method = "MyLeaf.do_leaf", "success");
-                crate::services::my_leaf::DoLeafExn::Success(res)
-            }
-            ::std::result::Result::Ok(::std::result::Result::Err(crate::services::my_leaf::DoLeafExn::Success(_))) => {
-                panic!(
-                    "{} attempted to return success via error",
-                    "do_leaf",
-                )
+                ::std::result::Result::Ok(res)
             }
             ::std::result::Result::Ok(::std::result::Result::Err(exn)) => {
                 ::tracing::info!(method = "MyLeaf.do_leaf", exception = ?exn);
-                exn
+                ::std::result::Result::Err(exn)
             }
             ::std::result::Result::Err(exn) => {
                 let aexn = ::fbthrift::ApplicationException::handler_panic("MyLeaf.do_leaf", exn);
                 ::tracing::error!(method = "MyLeaf.do_leaf", panic = ?aexn);
-                crate::services::my_leaf::DoLeafExn::ApplicationException(aexn)
+                ::std::result::Result::Err(crate::services::my_leaf::DoLeafExn::ApplicationException(aexn))
             }
         };
 
-        let env = ::fbthrift::help::serialize_result_envelope::<P, R, _>(
+        let env = ::fbthrift::help::serialize_result_envelope::<P, R, crate::services::my_leaf::DoLeafExn>(
             "do_leaf",
             METHOD_NAME.as_cstr(),
             _seqid,
             req_ctxt,
             &mut ctx_stack,
-            res
+            res,
         )?;
-        reply_state.lock().unwrap().send_reply(env);
+        reply_state.send_reply(env);
         Ok(())
     }
 }
@@ -964,7 +951,7 @@ where
         _p: &mut P::Deserializer,
         _req: ::fbthrift::ProtocolDecoded<P>,
         _req_ctxt: &R,
-        _reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        _reply_state: ::std::sync::Arc<RS>,
         _seqid: ::std::primitive::u32,
     ) -> ::anyhow::Result<()> {
         match idx {
@@ -1033,7 +1020,7 @@ where
         &self,
         req: ::fbthrift::ProtocolDecoded<P>,
         req_ctxt: &R,
-        reply_state: ::std::sync::Arc<::std::sync::Mutex<RS>>,
+        reply_state: ::std::sync::Arc<RS>,
     ) -> ::anyhow::Result<()> {
         use ::fbthrift::{ProtocolReader as _, ServiceProcessor as _};
         let mut p = P::deserializer(req.clone());
@@ -1075,14 +1062,14 @@ where
 
     fn get_method_names(&self) -> &'static [&'static str] {
         &[
-                // from MyRoot
-                "do_root",
-                // from MyNode
-                "do_mid",
-                // from MyRoot
-                "do_root",
-                // from MyLeaf
-                "do_leaf",
+            // From module.MyLeaf:
+            "do_leaf",
+
+            // From module.MyNode:
+            "do_mid",
+
+            // From module.MyRoot:
+            "do_root",
         ]
     }
 

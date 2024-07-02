@@ -18,7 +18,7 @@
 
 namespace quic {
 
-using PeekIterator = std::deque<StreamBuffer>::const_iterator;
+using PeekIterator = CircularDeque<StreamBuffer>::const_iterator;
 
 // The driver stores connection state in a Stream State structure
 // so use an id outside the on the wire id space
@@ -980,9 +980,11 @@ class MockQuicSocketDriver : public folly::EventBase::LoopCallback {
           stream.readCB = nullptr;
           stream.peekCB = nullptr;
           if (rcb) {
-            rcb->readError(it.first, QuicError(error.code, error.message));
+            rcb->readError(it.first,
+                           QuicError(error.code, std::string(error.message)));
           } else {
-            pcb->peekError(it.first, QuicError(error.code, error.message));
+            pcb->peekError(it.first,
+                           QuicError(error.code, std::string(error.message)));
           }
         }
         stream.readState = ERROR;
@@ -1094,7 +1096,7 @@ class MockQuicSocketDriver : public folly::EventBase::LoopCallback {
                      fmt::format("write callback not set when calling "
                                  "onConnectionWriteReady for streamId={}",
                                  id),
-                     return );
+                     return);
             auto maxStreamToWrite = maxStreamWritable(id);
             auto maxConnToWrite = maxConnWritable();
             if (!maxConnToWrite && !maxStreamToWrite) {
@@ -1194,7 +1196,6 @@ class MockQuicSocketDriver : public folly::EventBase::LoopCallback {
   }
 
   void closeImpl(folly::Optional<QuicError> errorCode) {
-
     closeConnection();
     if (errorCode) {
       quic::ApplicationErrorCode* err =
@@ -1208,6 +1209,7 @@ class MockQuicSocketDriver : public folly::EventBase::LoopCallback {
         QuicError(LocalErrorCode::NO_ERROR, "Closing socket with no error")));
     sock_->connCb_ = nullptr;
     sock_->setupCb_ = nullptr;
+    sockGood_ = false;
   }
   folly::Optional<quic::ApplicationErrorCode> getConnErrorCode() {
     return streams_[kConnectionStreamId].error;
@@ -1388,7 +1390,7 @@ class MockQuicSocketDriver : public folly::EventBase::LoopCallback {
       events_.emplace_back(std::move(cob));
       eventBase_->runAfterDelay(
           [this] {
-            ERROR_IF(events_.empty(), "no events to schedule", return );
+            ERROR_IF(events_.empty(), "no events to schedule", return);
             auto event = std::move(events_.front());
             events_.pop_front();
             event();
@@ -1458,7 +1460,7 @@ class MockQuicSocketDriver : public folly::EventBase::LoopCallback {
                          std::chrono::milliseconds(0)) {
     ERROR_IF(streams_[kConnectionStreamId].readState == CLOSED,
              "adding read event on CLOSED connection",
-             return );
+             return);
     cumulativeDelay_ += delayFromPrevious;
     runInThisLoopOrAfterDelay(
         [events = std::move(events), this, deleted = deleted_]() mutable {
@@ -1482,13 +1484,13 @@ class MockQuicSocketDriver : public folly::EventBase::LoopCallback {
               ERROR_IF(stream.readState == CLOSED,
                        fmt::format("scheduling event on CLOSED streamId={}",
                                    event.streamId),
-                       return );
+                       return);
             } else {
               ERROR_IF((event.buf && !event.buf->empty()) || event.eof,
                        fmt::format("scheduling an error event with either a "
                                    "buffer or eof on streamId={}",
                                    event.streamId),
-                       return );
+                       return);
             }
             if (event.streamId == kConnectionStreamId &&
                 event.datagramsAvailable && !event.error && datagramCB_) {
@@ -1542,7 +1544,7 @@ class MockQuicSocketDriver : public folly::EventBase::LoopCallback {
                   stream.readState = ERROR;
                 }
               } else if (stream.readState != PAUSED && stream.readBuf.front()) {
-                std::deque<StreamBuffer> fakeReadBuffer;
+                CircularDeque<StreamBuffer> fakeReadBuffer;
                 stream.readBuf.gather(stream.readBuf.chainLength());
                 auto copyBuf = stream.readBuf.front()->clone();
                 fakeReadBuffer.emplace_back(std::move(copyBuf),
@@ -1595,7 +1597,7 @@ class MockQuicSocketDriver : public folly::EventBase::LoopCallback {
     auto& connStream = streams_[kConnectionStreamId];
     ERROR_IF(connStream.writeState == CLOSED,
              "setConnectionFlowControlWindow on CLOSED connection",
-             return );
+             return);
     connStream.flowControlWindow = windowSize;
     if (pauseOrResumeWrites(connStream, kConnectionStreamId) ==
         PauseResumeResult::RESUMED) {
@@ -1619,7 +1621,7 @@ class MockQuicSocketDriver : public folly::EventBase::LoopCallback {
 
     ERROR_IF(stream.writeState == CLOSED,
              "setStreamFlowControlWindow on CLOSED connection",
-             return );
+             return);
     stream.flowControlWindow = windowSize;
     pauseOrResumeWrites(stream, streamId);
   }
@@ -1628,7 +1630,7 @@ class MockQuicSocketDriver : public folly::EventBase::LoopCallback {
     auto& stream = streams_[streamId];
     ERROR_IF(stream.writeState != OPEN,
              fmt::format("pauseWrites on not OPEN streamId={}", streamId),
-             return );
+             return);
     stream.writeState = PAUSED;
   }
 
@@ -1645,7 +1647,7 @@ class MockQuicSocketDriver : public folly::EventBase::LoopCallback {
     auto& stream = streams_[streamId];
     ERROR_IF(stream.writeState != PAUSED && !connFCEvent,
              fmt::format("resumeWrites on not PAUSED streamId={}", streamId),
-             return );
+             return);
     stream.writeState = OPEN;
     // first flush any buffered writes
     flushWrites(streamId);
@@ -1706,7 +1708,7 @@ class MockQuicSocketDriver : public folly::EventBase::LoopCallback {
       if (streamID != kConnectionStreamId && hasCB &&
           streamState.readState == OPEN && hasDataOrEOF) {
         if (streamState.peekCB) {
-          std::deque<StreamBuffer> fakeReadBuffer;
+          CircularDeque<StreamBuffer> fakeReadBuffer;
           std::unique_ptr<folly::IOBuf> copyBuf;
           std::size_t copyBufLen = 0;
           if (streamState.readBuf.chainLength() > 0) {

@@ -81,6 +81,7 @@
 #include <folly/Range.h>
 #include <folly/String.h>
 
+#include "hphp/util/configs/eval.h"
 #include "hphp/util/sha1.h"
 
 #include "hphp/runtime/base/builtin-functions.h"
@@ -1132,7 +1133,28 @@ LocalRange read_local_range(AsmState& as) {
   return LocalRange{uint32_t(firstLoc), count};
 }
 
+IterArgsFlags read_iter_args_flags(AsmState& as) {
+  auto flags = IterArgsFlags::None;
+
+  as.in.skipSpaceTab();
+  as.in.expect('<');
+
+  std::string flag;
+  while (as.in.readword(flag)) {
+    if (flag == "BaseConst") {
+      flags = flags | IterArgsFlags::BaseConst;
+      continue;
+    }
+
+    as.error("unrecognized IterArgs flag `" + flag + "'");
+  }
+  as.in.expectWs('>');
+
+  return flags;
+}
+
 IterArgs read_iter_args(AsmState& as) {
+  auto const flags = read_iter_args_flags(as);
   auto const iterInt = read_opcode_arg<int32_t>(as);
   auto const iterId = as.getIterId(iterInt);
   auto const keyId = [&]{
@@ -1150,7 +1172,7 @@ IterArgs read_iter_args(AsmState& as) {
     }
     return as.getLocalId(valStr.substr(2));
   }();
-  return IterArgs(IterArgs::Flags::None, iterId, keyId, valId);
+  return IterArgs(flags, iterId, keyId, valId);
 }
 
 FCallArgsFlags read_fcall_flags(AsmState& as, Op thisOpcode) {
@@ -3036,7 +3058,7 @@ void parse_alias(AsmState& as, AliasKind kind) {
   }
 
   auto value = [&]() {
-    if (RO::EvalTreatCaseTypesAsMixed && tis.size() > 1) {
+    if (Cfg::Eval::TreatCaseTypesAsMixed && tis.size() > 1) {
       return TypeConstraint::makeMixed();
     }
     return TypeConstraint::makeUnion(namestr, tis);

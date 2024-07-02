@@ -1523,6 +1523,7 @@ void dce(Env& env, const bc::Idx&)              { pushRemovableIfNoThrow(env); }
 void dce(Env& env, const bc::IsLateBoundCls&)   { pushRemovableIfNoThrow(env); }
 void dce(Env& env, const bc::IssetS&)           { pushRemovableIfNoThrow(env); }
 void dce(Env& env, const bc::IsTypeStructC&)    { pushRemovableIfNoThrow(env); }
+void dce(Env& env, const bc::IterBase&)         { pushRemovableIfNoThrow(env); }
 void dce(Env& env, const bc::Lt&)               { pushRemovableIfNoThrow(env); }
 void dce(Env& env, const bc::Lte&)              { pushRemovableIfNoThrow(env); }
 void dce(Env& env, const bc::Mod&)              { pushRemovableIfNoThrow(env); }
@@ -1545,7 +1546,7 @@ void dce(Env& env, const bc::LazyClassFromClass&) {
 void dce(Env& env, const bc::EnumClassLabelName&) { pushRemovableIfNoThrow(env); }
 void dce(Env& env, const bc::ClassGetC&)        { pushRemovableIfNoThrow(env); }
 void dce(Env& env, const bc::ResolveClass&)     { pushRemovableIfNoThrow(env); }
-void dce(Env& env, const bc::CreateSpecialImplicitContext&) {
+void dce(Env& env, const bc::GetInaccessibleImplicitContext&) {
   pushRemovableIfNoThrow(env);
 }
 
@@ -1626,7 +1627,6 @@ void dce(Env& env, const bc::IterFree& op) { no_dce(env, op); }
 void dce(Env& env, const bc::Jmp& op) { no_dce(env, op); }
 void dce(Env& env, const bc::JmpNZ& op) { no_dce(env, op); }
 void dce(Env& env, const bc::JmpZ& op) { no_dce(env, op); }
-void dce(Env& env, const bc::LIterFree& op) { no_dce(env, op); }
 void dce(Env& env, const bc::MemoGet& op) {
   pinLocals(env, env.states.mayReadLocalSet());
   no_dce(env, op);
@@ -1677,6 +1677,7 @@ void dce(Env& env, const bc::Silence& op) {
   no_dce(env, op);
 }
 void dce(Env& env, const bc::SSwitch& op) { no_dce(env, op); }
+void dce(Env& env, const bc::StaticAnalysisError& op) { no_dce(env, op); }
 void dce(Env& env, const bc::Switch& op) { no_dce(env, op); }
 void dce(Env& env, const bc::This& op) { no_dce(env, op); }
 void dce(Env& env, const bc::ThrowAsTypeStructException& op) {
@@ -1688,7 +1689,6 @@ void dce(Env& env, const bc::RaiseClassStringConversionNotice& op) {
 }
 void dce(Env& env, const bc::UGetCUNop& op) { no_dce(env, op); }
 void dce(Env& env, const bc::UnsetG& op) { no_dce(env, op); }
-void dce(Env& env, const bc::VerifyImplicitContextState& op) { no_dce(env, op); }
 void dce(Env& env, const bc::VerifyOutType& op) { no_dce(env, op); }
 void dce(Env& env, const bc::VerifyParamType& op) { no_dce(env, op); }
 void dce(Env& env, const bc::VerifyParamTypeTS& op) { no_dce(env, op); }
@@ -1713,23 +1713,15 @@ void dce(Env& env, const bc::YieldK& op) { no_dce(env, op); }
 void iter_dce(Env& env, const IterArgs& ita, LocalId baseId, int numPop) {
   addLocUse(env, ita.valId);
   if (ita.hasKey()) addLocUse(env, ita.keyId);
-  if (baseId != NoLocalId) addLocGen(env, baseId);
+  addLocGen(env, baseId);
   pop_inputs(env, numPop);
 }
 
 void dce(Env& env, const bc::IterInit& op) {
-  iter_dce(env, op.ita, NoLocalId, op.numPop());
-}
-
-void dce(Env& env, const bc::LIterInit& op) {
   iter_dce(env, op.ita, op.loc2, op.numPop());
 }
 
 void dce(Env& env, const bc::IterNext& op) {
-  iter_dce(env, op.ita, NoLocalId, op.numPop());
-}
-
-void dce(Env& env, const bc::LIterNext& op) {
   iter_dce(env, op.ita, op.loc2, op.numPop());
 }
 
@@ -2364,8 +2356,8 @@ void dce_perform(php::WideFunc& func, const DceActionMap& actionMap) {
           auto const& bc = b->hhbcs[p];
 
           // Sometimes parts of a minstr will be unreachable, hhbbc marks these
-          // with a fatal.
-          if (bc.op == OpFatal) break;
+          // with a StaticAnalysisError.
+          if (bc.op == OpStaticAnalysisError) break;
 
           assertx(p + 1 < b->hhbcs.size() || isMemberFinalOp(bc.op));
           adjust_member_key(b->hhbcs[p], 1);
@@ -2993,16 +2985,10 @@ bool global_dce(const Index& index, const FuncAnalysis& ai,
         switch (lastOpc.op) {
           case Op::IterInit:
             ita = lastOpc.IterInit.ita;
-            return next && lastOpc.IterInit.target2 != succId;
-          case Op::LIterInit:
-            ita = lastOpc.LIterInit.ita;
-            return next && lastOpc.LIterInit.target3 != succId;
+            return next && lastOpc.IterInit.target3 != succId;
           case Op::IterNext:
             ita = lastOpc.IterNext.ita;
-            return !next && lastOpc.IterNext.target2 == succId;
-          case Op::LIterNext:
-            ita = lastOpc.LIterNext.ita;
-            return !next && lastOpc.LIterNext.target3 == succId;
+            return !next && lastOpc.IterNext.target3 == succId;
           default:
             return false;
         }

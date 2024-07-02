@@ -16,11 +16,11 @@
 #include "hphp/runtime/base/variable-unserializer.h"
 
 #include <algorithm>
+#include <new>
 #include <utility>
 
 #include <folly/Conv.h>
 #include <folly/Range.h>
-#include <folly/lang/Launder.h>
 
 #include "hphp/runtime/base/array-init.h"
 #include "hphp/runtime/base/array-iterator.h"
@@ -49,6 +49,8 @@
 #include "hphp/runtime/vm/repo-global-data.h"
 
 #include "hphp/runtime/vm/jit/perf-counters.h"
+
+#include "hphp/util/configs/eval.h"
 
 #include "hphp/zend/zend-strtod.h"
 
@@ -618,7 +620,7 @@ void VariableUnserializer::unserializeRemainingProps(
         raise_error("Cannot access empty property");
       }
       // private or protected
-      subLen = strlen(folly::launder(kdata) + 1) + 2;
+      subLen = strlen(std::launder(kdata) + 1) + 2;
       if (UNLIKELY(subLen >= ksize)) {
         if (subLen == ksize) {
           raise_error("Cannot access empty property");
@@ -833,7 +835,7 @@ void VariableUnserializer::unserializeVariant(
           self
         );
       } else {
-        if (RO::EvalRaiseClassConversionNoticeSampleRate > 0) {
+        if (Cfg::Eval::RaiseClassConversionNoticeSampleRate > 0) {
           raise_class_to_string_conversion_notice("variable unserialization");
         }
         tvMove(
@@ -1104,7 +1106,7 @@ void VariableUnserializer::unserializeVariant(
                       raise_error("Cannot access empty property");
                     }
                     // private or protected
-                    auto subLen = strlen(folly::launder(kdata) + 1) + 2;
+                    auto subLen = strlen(std::launder(kdata) + 1) + 2;
                     if (UNLIKELY(subLen >= ksize)) {
                       if (subLen == ksize) {
                         raise_error("Cannot access empty property");
@@ -1548,7 +1550,7 @@ Array VariableUnserializer::unserializeKeyset() {
 }
 
 Array VariableUnserializer::unserializeBespokeTypeStructure() {
-  assertx(RO::EvalEmitBespokeTypeStructures);
+  assertx(Cfg::Eval::EmitBespokeTypeStructures);
 
   auto arr = unserializeDict();
   auto const ts = bespoke::TypeStructure::MakeFromVanilla(arr.get());

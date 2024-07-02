@@ -65,7 +65,7 @@ void StoreValue::set(APCHandle* v, int64_t expire_ttl, int64_t max_ttl, int64_t 
   setHandle(v);
   uint32_t mtime = time(nullptr);
   if (c_time == 0)  c_time = mtime;
-  expireRequestId.store(RequestId(), std::memory_order_relaxed);
+  expireRequestId.store(RequestId(), std::memory_order_release);
   expireTime.store(expire_ttl ? mtime + expire_ttl : 0, std::memory_order_release);
   bumpTTL.store(bump_ttl, std::memory_order_release);
   maxExpireTime.store(max_ttl ? mtime + max_ttl : 0, std::memory_order_release);
@@ -156,6 +156,11 @@ EntryInfo::Type EntryInfo::getAPCType(const APCHandle* handle) {
   not_reached();
 }
 
+size_t EntryInfo::totalSize() const {
+  return size + key.size() + 1 /* null terminator in string */ +
+    ConcurrentTableSharedStore::NodeSize + sizeof(StoreValue);
+}
+
 //////////////////////////////////////////////////////////////////////
 
 /*
@@ -207,7 +212,7 @@ struct HotCache {
    * under read/write locks like ConcurrentTableSharedStore::get/store/erase).
    */
   bool clearValue(const StoreValue& sval) {
-    return clearValueIdx(sval.hotIndex.load(std::memory_order_relaxed));
+    return clearValueIdx(sval.hotIndex.load(std::memory_order_acquire));
   }
 
   /*
@@ -318,7 +323,7 @@ bool HotCache::hasValue(const StringData* key) const {
   if (!maybeHotFast(key)) return false;
   HotMap::const_iterator it = m_hotMap->find(key);
   return it != m_hotMap->end() &&
-         it->second.load(std::memory_order_relaxed) != nullptr;
+         it->second.load(std::memory_order_acquire) != nullptr;
 }
 
 bool HotCache::get(const StringData* key, Variant& value, Idx& idx, bool pure) const {
@@ -331,7 +336,7 @@ bool HotCache::get(const StringData* key, Variant& value, Idx& idx, bool pure) c
     idx = StoreValue::kHotCacheUnknown;
     return false;
   }
-  if (auto const handle = it->second.load(std::memory_order_relaxed)) {
+  if (auto const handle = it->second.load(std::memory_order_acquire)) {
     value = handle->toLocal(pure);
     return true;
   }
@@ -345,17 +350,17 @@ bool HotCache::store(Idx idx, const StringData* key,
   if (!svar || !supportedKind(svar)) return false;
   if (idx == StoreValue::kHotCacheUnknown) {
     if (!maybeHot(key->data())) return false;
-    if (m_isFull.load(std::memory_order_relaxed)) return false;
+    if (m_isFull.load(std::memory_order_acquire)) return false;
     auto p = m_hotMap->emplace(key, svar);
     if (p.first == m_hotMap->end()) {
-      m_isFull.store(true, std::memory_order_relaxed);
+      m_isFull.store(true, std::memory_order_release);
       return false;
     }
     idx = p.first.getIndex();
   }
   assertx(idx >= 0);
-  sval->hotIndex.store(idx, std::memory_order_relaxed);
-  m_hotMap->findAt(idx)->second.store(svar, std::memory_order_relaxed);
+  sval->hotIndex.store(idx, std::memory_order_release);
+  m_hotMap->findAt(idx)->second.store(svar, std::memory_order_release);
   return true;
 }
 
@@ -363,7 +368,7 @@ bool HotCache::clearValueIdx(Idx idx) {
   if (idx == StoreValue::kHotCacheUnknown) return false;
   assertx(idx >= 0);
   auto it = m_hotMap->findAt(idx);
-  it->second.store(nullptr, std::memory_order_relaxed);
+  it->second.store(nullptr, std::memory_order_release);
   return true;
 }
 
@@ -1130,7 +1135,7 @@ ConcurrentTableSharedStore::sampleEntriesInfoBySize(uint32_t bytes) {
     auto const key = iter.first;
     StoreValue& value = iter.second;
     if (value.expired()) continue;
-    int size = sizeof(StoreValue) + strlen(key) + 1 + value.dataSize;
+    int size = NodeSize + sizeof(StoreValue) + strlen(key) + 1 + value.dataSize;
 
     if (size > next) {
       uint32_t left = size - next;

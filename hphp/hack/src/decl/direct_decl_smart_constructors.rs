@@ -36,6 +36,7 @@ use oxidized_by_ref::direct_decl_parser::Decls;
 use oxidized_by_ref::file_info::Mode;
 use oxidized_by_ref::method_flags::MethodFlags;
 use oxidized_by_ref::namespace_env::Env as NamespaceEnv;
+use oxidized_by_ref::namespace_env::Mode as NamespaceMode;
 use oxidized_by_ref::nast;
 use oxidized_by_ref::pos::Pos;
 use oxidized_by_ref::prop_flags::PropFlags;
@@ -133,6 +134,7 @@ pub struct Impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> {
     inside_no_auto_dynamic_class: bool,
     source_text_allocator: S,
     module: Option<Id<'a>>,
+    package_override: Option<&'a str>,
 }
 
 impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> DirectDeclSmartConstructors<'a, 'o, 't, S> {
@@ -172,6 +174,7 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> DirectDeclSmartConstructors<'a,
                 under_no_auto_likes: false,
                 inside_no_auto_dynamic_class: false,
                 module: None,
+                package_override: None,
             }),
             token_factory: SimpleTokenFactoryImpl::new(),
             // EndOfFile is used here as a None value (signifying "beginning of
@@ -461,7 +464,7 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> DirectDeclSmartConstructors<'a,
             Some(const_refs) => {
                 let mut elements: bump::Vec<'_, typing_defs::ClassConstRef<'_>> =
                     bumpalo::collections::Vec::with_capacity_in(const_refs.len(), self.arena);
-                elements.extend(const_refs.into_iter());
+                elements.extend(const_refs);
                 elements.sort_unstable();
                 elements.into_bump_slice()
             }
@@ -602,7 +605,7 @@ impl<'a> NamespaceBuilder<'a> {
                 fun_uses: SMap::empty(),
                 const_uses: SMap::empty(),
                 name: None,
-                is_codegen: false,
+                mode: NamespaceMode::ForTypecheck,
                 disable_xhp_element_mangling,
             }],
             elaborate_xhp_namespaces_for_facts,
@@ -854,6 +857,7 @@ pub struct UserAttributeNode<'a> {
     params: &'a [AttributeParam<'a>],
     /// This is only used for __Deprecated attribute message and CIPP parameters
     string_literal_param: Option<(&'a Pos<'a>, &'a BStr)>,
+    raw_val: Option<&'a str>,
 }
 
 mod fixed_width_token {
@@ -1135,6 +1139,7 @@ impl<'a> Node<'a> {
                 name: Id(_pos, attr_name),
                 params: [],
                 string_literal_param: None,
+                raw_val: None,
             }) => attr_name == name,
             _ => false,
         })
@@ -1153,6 +1158,7 @@ struct Attributes<'a> {
     override_: bool,
     enforceable: Option<&'a Pos<'a>>,
     accept_disposable: bool,
+    ignore_readonly_error: bool,
     dynamically_callable: bool,
     returns_disposable: bool,
     php_std_lib: bool,
@@ -1222,6 +1228,7 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> Impl<'a, 'o, 't, S> {
                 AttributeParam::String(_, s) => UAP::String(s),
                 AttributeParam::Int(i) => UAP::Int(i),
             })),
+            raw_val: attr.raw_val,
         })
     }
 
@@ -1618,6 +1625,7 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> DirectDeclSmartConstructors<'a,
             override_: false,
             enforceable: None,
             accept_disposable: false,
+            ignore_readonly_error: false,
             dynamically_callable: false,
             returns_disposable: false,
             php_std_lib: false,
@@ -1668,6 +1676,9 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> DirectDeclSmartConstructors<'a,
                     }
                     "__AcceptDisposable" => {
                         attributes.accept_disposable = true;
+                    }
+                    "__IgnoreReadonlyError" => {
+                        attributes.ignore_readonly_error = true;
                     }
                     "__DynamicallyCallable" => {
                         attributes.dynamically_callable = true;
@@ -1989,6 +2000,9 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> DirectDeclSmartConstructors<'a,
                             if attributes.accept_disposable {
                                 flags |= FunParamFlags::ACCEPT_DISPOSABLE
                             }
+                            if attributes.ignore_readonly_error {
+                                flags |= FunParamFlags::IGNORE_READONLY_ERROR
+                            }
                             if readonly {
                                 flags |= FunParamFlags::READONLY
                             }
@@ -2133,12 +2147,10 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> DirectDeclSmartConstructors<'a,
         };
 
         let ty_ = match (base_ty, type_arguments) {
-            ((_, name), &[&Ty(_, Ty_::Tfun(f))]) if name == "\\Pure" => {
-                Ty_::Tfun(self.alloc(FunType {
-                    implicit_params: extend_capability_pos(f.implicit_params),
-                    ..*f
-                }))
-            }
+            ((_, "\\Pure"), &[&Ty(_, Ty_::Tfun(f))]) => Ty_::Tfun(self.alloc(FunType {
+                implicit_params: extend_capability_pos(f.implicit_params),
+                ..*f
+            })),
             _ => Ty_::Tapply(self.alloc((base_ty, type_arguments))),
         };
 
@@ -2297,6 +2309,7 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> DirectDeclSmartConstructors<'a,
             | Ty_::Tthis => return ty,
             Ty_::Tdependent(_)
             | Ty_::Tneg(_)
+            | Ty_::Tlabel(_)
             | Ty_::Tnewtype(_)
             | Ty_::Tvar(_)
             | Ty_::TunappliedAlias(_) => panic!("unexpected decl type in constraint"),
@@ -3391,6 +3404,7 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> FlattenSmartConstructors
             attributes: user_attributes,
             internal,
             docs_url,
+            package_override: self.package_override,
         });
 
         let this = Rc::make_mut(&mut self.state);
@@ -3463,6 +3477,7 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> FlattenSmartConstructors
             attributes: user_attributes,
             internal: false,
             docs_url: None,
+            package_override: None,
         });
 
         let this = Rc::make_mut(&mut self.state);
@@ -3567,6 +3582,7 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> FlattenSmartConstructors
             attributes: user_attributes,
             internal,
             docs_url,
+            package_override: self.package_override,
         });
 
         let this = Rc::make_mut(&mut self.state);
@@ -3814,6 +3830,7 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> FlattenSmartConstructors
                         || parsed_attributes.dynamically_callable,
                     no_auto_dynamic: self.under_no_auto_dynamic,
                     no_auto_likes: parsed_attributes.no_auto_likes,
+                    package_override: self.package_override,
                 });
                 let this = Rc::make_mut(&mut self.state);
                 this.add_fun(name, fun_elt);
@@ -4445,7 +4462,7 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> FlattenSmartConstructors
             }
         }
 
-        props.extend(xhp_props.into_iter());
+        props.extend(xhp_props);
 
         if class_attributes.const_ {
             for prop in props.iter_mut() {
@@ -4510,6 +4527,7 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> FlattenSmartConstructors
             user_attributes,
             enum_type: None,
             docs_url,
+            package_override: self.package_override,
         });
         let this = Rc::make_mut(&mut self.state);
         this.add_class(name, cls);
@@ -4980,6 +4998,7 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> FlattenSmartConstructors
                 includes,
             })),
             docs_url,
+            package_override: self.package_override,
         });
         let this = Rc::make_mut(&mut self.state);
         this.add_class(key, cls);
@@ -5137,6 +5156,7 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> FlattenSmartConstructors
         user_attributes.push(self.alloc(shallow_decl_defs::UserAttribute {
             name: (name.0, "__EnumClass"),
             params: &[],
+            raw_val: None,
         }));
         // Match ordering of attributes produced by the OCaml decl parser (even
         // though it's the reverse of the syntactic ordering).
@@ -5182,6 +5202,7 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> FlattenSmartConstructors
                 includes,
             })),
             docs_url,
+            package_override: self.package_override,
         });
         let this = Rc::make_mut(&mut self.state);
         this.add_class(name.1, cls);
@@ -5313,7 +5334,6 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> FlattenSmartConstructors
         open: Self::Output,
         rparen: Self::Output,
     ) -> Self::Output {
-        let fields = fields;
         let fields_iter = fields.iter();
         let mut fields = AssocListMut::new_in(self.arena);
         for node in fields_iter {
@@ -5539,9 +5559,9 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> FlattenSmartConstructors
     fn make_constructor_call(
         &mut self,
         name: Self::Output,
-        _left_paren: Self::Output,
+        left_paren: Self::Output,
         args: Self::Output,
-        _right_paren: Self::Output,
+        right_paren: Self::Output,
     ) -> Self::Output {
         let unqualified_name = match self.expect_name(name) {
             Some(name) => name,
@@ -5593,10 +5613,18 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> FlattenSmartConstructors
             AttributeParam::String(pos, s) => Some((pos, s)),
             _ => None,
         });
+        let raw_val = self.opts.include_assignment_values.then(|| {
+            self.str_from_utf8(self.source_text.source_text().sub(
+                self.get_pos(left_paren).end_offset(),
+                self.get_pos(right_paren).start_offset() - self.get_pos(left_paren).end_offset(),
+            ))
+            .trim()
+        });
         Node::Attribute(self.alloc(UserAttributeNode {
             name,
             params,
             string_literal_param,
+            raw_val,
         }))
     }
 
@@ -6193,16 +6221,25 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> FlattenSmartConstructors
         attributes: Self::Output,
         _right_double_angle: Self::Output,
     ) -> Self::Output {
-        if self.opts.keep_user_attributes {
-            let this = Rc::make_mut(&mut self.state);
-            this.file_attributes = List::empty();
-            for attr in attributes.iter() {
-                match attr {
-                    Node::Attribute(attr) => this
-                        .file_attributes
-                        .push_front(this.user_attribute_to_decl(attr), this.arena),
-                    _ => {}
+        let keep_user_attributes = self.opts.keep_user_attributes;
+        let this = Rc::make_mut(&mut self.state);
+        this.file_attributes = List::empty();
+        for attr in attributes.iter() {
+            match attr {
+                Node::Attribute(attr) => {
+                    if attr.name.1 == naming_special_names::user_attributes::PACKAGE_OVERRIDE {
+                        if let [AttributeParam::String(_, s)] = &attr.params {
+                            this.package_override = Some(
+                                std::str::from_utf8(s).expect("Unable to parse package override"),
+                            );
+                        }
+                    }
+                    if keep_user_attributes {
+                        this.file_attributes
+                            .push_front(this.user_attribute_to_decl(attr), this.arena)
+                    }
                 }
+                _ => {}
             }
         }
         Node::Ignored(SK::FileAttributeSpecification)
@@ -6272,8 +6309,8 @@ impl<'a, 'o, 't, S: SourceTextAllocator<'t, 'a>> FlattenSmartConstructors
         _module_keyword: Self::Output,
         name: Self::Output,
         _left_brace: Self::Output,
-        exports: Self::Output,
         imports: Self::Output,
+        exports: Self::Output,
         _right_brace: Self::Output,
     ) -> Self::Output {
         if let Node::ModuleName(&(parts, pos)) = name {

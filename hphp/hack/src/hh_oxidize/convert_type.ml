@@ -105,7 +105,8 @@ let owned_builtins =
 
 let is_owned_builtin = SSet.mem owned_builtins
 
-let rec core_type ?(seen_indirection = false) (ct : core_type) : Rust_type.t =
+let rec core_type ?(seen_indirection = false) ~safe_ints (ct : core_type) :
+    Rust_type.t =
   let (is_by_box, is_by_ref) =
     match Configuration.mode () with
     | Configuration.ByBox -> (true, false)
@@ -115,11 +116,12 @@ let rec core_type ?(seen_indirection = false) (ct : core_type) : Rust_type.t =
   | Ptyp_var "ty" when is_by_ref ->
     rust_ref (lifetime "a") (rust_type "Ty" [lifetime "a"] [])
   | Ptyp_var name -> convert_type_name name |> rust_type_var
-  | Ptyp_alias (_, name) -> rust_type (convert_type_name name) [] []
-  | Ptyp_tuple tys -> tuple tys
+  | Ptyp_alias (_, { txt = name; _ }) ->
+    rust_type (convert_type_name name) [] []
+  | Ptyp_tuple tys -> tuple ~safe_ints tys
   | Ptyp_arrow _ -> raise (Skip_type_decl "it contains an arrow type")
   | Ptyp_constr ({ txt = Lident "list"; _ }, [arg]) when is_by_ref ->
-    let arg = core_type ~seen_indirection:true arg in
+    let arg = core_type ~seen_indirection:true ~safe_ints arg in
     rust_ref (lifetime "a") (rust_type "[]" [] [arg])
   | Ptyp_constr ({ txt = Lident "string"; _ }, []) when is_by_ref ->
     rust_ref (lifetime "a") (rust_simple_type "str")
@@ -149,7 +151,11 @@ let rec core_type ?(seen_indirection = false) (ct : core_type) : Rust_type.t =
     let id =
       match id.txt with
       | Lident "unit" -> "()"
-      | Lident "int" -> "isize"
+      | Lident "int" ->
+        if safe_ints then
+          "ocamlrep::OCamlInt"
+        else
+          "isize"
       | Lident "bool" -> "bool"
       | Lident "float" -> "f64"
       | Lident "list" -> "Vec"
@@ -196,7 +202,7 @@ let rec core_type ?(seen_indirection = false) (ct : core_type) : Rust_type.t =
       else
         []
     in
-    let args = List.map args ~f:(core_type ~seen_indirection) in
+    let args = List.map args ~f:(core_type ~seen_indirection ~safe_ints) in
 
     if should_add_rcoc id then
       rust_type "std::sync::Arc" [] [rust_type id lifetime args]
@@ -222,9 +228,11 @@ let rec core_type ?(seen_indirection = false) (ct : core_type) : Rust_type.t =
   | Ptyp_package _ -> raise (Skip_type_decl "cannot convert type Ptyp_package")
   | Ptyp_extension _ ->
     raise (Skip_type_decl "cannot convert type Ptyp_extension")
+  | Ptyp_open _ -> raise (Skip_type_decl "cannot convert type Ptyp_open")
 
-and tuple ?(seen_indirection = false) types =
-  List.map ~f:(core_type ~seen_indirection) types |> rust_type "()" []
+and tuple ?(seen_indirection = false) ~safe_ints types =
+  List.map ~f:(core_type ~seen_indirection ~safe_ints) types
+  |> rust_type "()" []
 
 let core_type = core_type ~seen_indirection:false
 

@@ -81,7 +81,7 @@ void TccStructTraits<::test::fixtures::enumstrict::MyStruct>::translateFieldName
 } // namespace thrift
 } // namespace apache
 
-namespace test { namespace fixtures { namespace enumstrict {
+namespace test::fixtures::enumstrict {
 
 std::string_view MyStruct::__fbthrift_get_field_name(::apache::thrift::FieldOrdinal ord) {
   if (ord == ::apache::thrift::FieldOrdinal{0}) { return {}; }
@@ -94,7 +94,7 @@ std::string_view MyStruct::__fbthrift_get_class_name() {
 
 MyStruct::MyStruct(apache::thrift::FragileConstructor, ::test::fixtures::enumstrict::MyEnum myEnum__arg, ::test::fixtures::enumstrict::MyBigEnum myBigEnum__arg) :
     __fbthrift_field_myEnum(std::move(myEnum__arg)),
-    __fbthrift_field_myBigEnum(std::move(myBigEnum__arg)) {
+    __fbthrift_field_myBigEnum(std::move(myBigEnum__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
 }
@@ -140,11 +140,11 @@ template uint32_t MyStruct::serializedSize<>(apache::thrift::CompactProtocolWrit
 template uint32_t MyStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // test::fixtures::enumstrict
+} // namespace test::fixtures::enumstrict
 
-namespace test { namespace fixtures { namespace enumstrict { namespace {
+namespace test::fixtures::enumstrict { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}}}} // test::fixtures::enumstrict
+}} // namespace test::fixtures::enumstrict
 namespace apache::thrift::detail::annotation {
 }

@@ -48,7 +48,11 @@ let get_full_name class_name name =
   | None -> name
   | Some class_name -> class_name ^ "::" ^ name
 
-let summarize_property class_name var =
+let pos_of_hint = function
+  | Some (p, _) when not Pos.(equal none p) -> Some p
+  | _ -> None
+
+let summarize_property ~(source_text : string option) class_name var =
   let modifiers =
     modifiers_to_list
       ~is_final:var.cv_final
@@ -60,6 +64,28 @@ let summarize_property class_name var =
   let kind = Property in
   let id = get_symbol_id kind (Some class_name) name in
   let full_name = get_full_name (Some class_name) name in
+  let detail =
+    Option.map source_text ~f:(fun source_text ->
+        let readonly =
+          if var.cv_readonly then
+            "readonly "
+          else
+            ""
+        in
+        let ty =
+          match pos_of_hint (snd var.cv_type) with
+          | Some p -> Pos.get_text_from_pos ~content:source_text p ^ " "
+          | None -> ""
+        in
+        let dollar =
+          if Option.is_some var.cv_xhp_attr then
+            ""
+          else
+            "$"
+        in
+        let name = snd var.cv_id in
+        Printf.sprintf "%s%s%s%s" readonly ty dollar name)
+  in
   {
     kind;
     name;
@@ -72,16 +98,18 @@ let summarize_property class_name var =
     children = None;
     params = None;
     docblock = None;
+    detail;
   }
 
-let maybe_summarize_property class_name ~skip var =
+let maybe_summarize_property ~(source_text : string option) class_name ~skip var
+    =
   let (_, name) = var.cv_id in
   if SSet.mem skip name then
     []
   else
-    [summarize_property class_name var]
+    [summarize_property ~source_text class_name var]
 
-let summarize_class_const class_name cc =
+let summarize_class_const ~(source_text : string option) class_name cc =
   let (pos, name) = cc.cc_id in
   let (span, modifiers) =
     match cc.cc_kind with
@@ -92,6 +120,15 @@ let summarize_class_const class_name cc =
   let kind = ClassConst in
   let id = get_symbol_id kind (Some class_name) name in
   let full_name = get_full_name (Some class_name) name in
+  let detail =
+    Option.map source_text ~f:(fun source_text ->
+        let ty : string =
+          match pos_of_hint cc.cc_type with
+          | Some p -> Pos.get_text_from_pos ~content:source_text p ^ " "
+          | _ -> ""
+        in
+        ty ^ Pos.get_text_from_pos ~content:source_text span)
+  in
   {
     kind;
     name;
@@ -104,6 +141,7 @@ let summarize_class_const class_name cc =
     children = None;
     params = None;
     docblock = None;
+    detail;
   }
 
 let modifier_of_fun_kind acc = function
@@ -116,7 +154,7 @@ let modifier_of_param_kind acc = function
   | Ast_defs.Pinout _ -> Inout :: acc
   | Ast_defs.Pnormal -> acc
 
-let summarize_typeconst class_name t =
+let summarize_class_typeconst ~(source_text : string option) class_name t =
   let (pos, name) = t.c_tconst_name in
   let kind = Typeconst in
   let id = get_symbol_id kind (Some class_name) name in
@@ -126,6 +164,10 @@ let summarize_typeconst class_name t =
     | _ -> []
   in
   let full_name = get_full_name (Some class_name) name in
+  let detail =
+    Option.map source_text ~f:(fun source_text ->
+        Pos.get_text_from_pos ~content:source_text t.c_tconst_span)
+  in
   {
     kind;
     name;
@@ -138,6 +180,7 @@ let summarize_typeconst class_name t =
     children = None;
     params = None;
     docblock = None;
+    detail;
   }
 
 let summarize_param param =
@@ -150,7 +193,10 @@ let summarize_param param =
       ~default:pos
   in
   let param_end =
-    Option.value_map param.param_expr ~f:(fun (_, p, _) -> p) ~default:pos
+    Option.value_map
+      (Aast_utils.get_param_default param)
+      ~f:(fun (_, p, _) -> p)
+      ~default:pos
   in
   let modifiers = modifier_of_param_kind [] param.param_callconv in
   let modifiers =
@@ -175,9 +221,29 @@ let summarize_param param =
     modifiers;
     params = None;
     docblock = None;
+    detail = None;
   }
 
-let summarize_method class_name m =
+let detail_of_fun
+    ~(source_text : string)
+    ~(fun_pos : Pos.t)
+    (sid : sid)
+    (body : (_, _) func_body) : string =
+  let pos =
+    let start = Pos.shrink_to_end (fst sid) in
+    let end_ =
+      match List.hd body.fb_ast with
+      | Some (stmt_pos, _) when not Pos.(equal none stmt_pos) ->
+        Pos.shrink_to_start stmt_pos
+      | _ -> Pos.shrink_to_end fun_pos
+    in
+    Pos.btw start end_
+  in
+  "function" ^ Pos.get_text_from_pos ~content:source_text pos
+  |> String.rstrip ~drop:(fun ch ->
+         Char.is_whitespace ch || Char.equal ch '{' || Char.equal ch '}')
+
+let summarize_method ~(source_text : string option) class_name m =
   let modifiers = modifier_of_fun_kind [] m.m_fun_kind in
   let modifiers =
     modifiers_to_list
@@ -192,6 +258,10 @@ let summarize_method class_name m =
   let kind = Method in
   let id = get_symbol_id kind (Some class_name) name in
   let full_name = get_full_name (Some class_name) name in
+  let detail =
+    Option.map source_text ~f:(fun source_text ->
+        detail_of_fun ~source_text ~fun_pos:m.m_span m.m_name m.m_body)
+  in
   {
     kind;
     name;
@@ -204,6 +274,7 @@ let summarize_method class_name m =
     children = None;
     params;
     docblock = None;
+    detail;
   }
 
 (* Parser synthesizes AST nodes for implicit properties (defined in constructor
@@ -222,7 +293,7 @@ let class_implicit_fields class_ =
       else
         [])
 
-let summarize_class class_ ~no_children =
+let summarize_class ~(source_text : string option) class_ ~no_children =
   let class_name = Utils.strip_ns (snd class_.c_name) in
   let class_name_pos = fst class_.c_name in
   let c_span = class_.c_span in
@@ -253,7 +324,11 @@ let summarize_class class_ ~no_children =
             List.fold_right
               ~init:acc
               ~f:List.cons
-              (maybe_summarize_property class_name ~skip:implicit_props cv))
+              (maybe_summarize_property
+                 ~source_text
+                 class_name
+                 ~skip:implicit_props
+                 cv))
           class_.c_vars
       in
       let acc =
@@ -264,28 +339,49 @@ let summarize_class class_ ~no_children =
             List.fold_right
               ~init:acc
               ~f:List.cons
-              (maybe_summarize_property class_name ~skip:implicit_props var))
+              (maybe_summarize_property
+                 ~source_text
+                 class_name
+                 ~skip:implicit_props
+                 var))
           class_.c_xhp_attrs
       in
       let acc =
         (* Summarized consts *)
+        let source_text_for_class_consts =
+          match class_.c_kind with
+          | Ast_defs.Cenum_class _ ->
+            (* The representation of enum classes in the AST is not conducive to us
+               making a sensible `details` field unless we change our approach significantly.
+               For now, skip providing `details` for enum classes.
+               The `id` field for enum class members includes the class name and tag.
+            *)
+            None
+          | _ -> source_text
+        in
         List.fold_left
           ~init:acc
-          ~f:(fun acc c -> summarize_class_const class_name c :: acc)
+          ~f:(fun acc c ->
+            summarize_class_const
+              ~source_text:source_text_for_class_consts
+              class_name
+              c
+            :: acc)
           class_.c_consts
       in
       let acc =
         (* Summarized type consts *)
         List.fold_left
           ~init:acc
-          ~f:(fun acc tc -> summarize_typeconst class_name tc :: acc)
+          ~f:(fun acc tc ->
+            summarize_class_typeconst ~source_text class_name tc :: acc)
           class_.c_typeconsts
       in
       let acc =
         (* Summarized methods *)
         List.fold_left
           ~init:acc
-          ~f:(fun acc m -> summarize_method class_name m :: acc)
+          ~f:(fun acc m -> summarize_method ~source_text class_name m :: acc)
           class_.c_methods
       in
       let sort_by_line summaries =
@@ -318,9 +414,11 @@ let summarize_class class_ ~no_children =
     children;
     params = None;
     docblock = None;
+    detail = None;
   }
 
-let summarize_typedef tdef =
+let summarize_typedef ~(source_text : string option) (tdef : _ typedef) :
+    Relative_path.t SymbolDefinition.t =
   let kind = SymbolDefinition.Typedef in
   let name = Utils.strip_ns (snd tdef.t_name) in
   let id = get_symbol_id kind None name in
@@ -328,6 +426,10 @@ let summarize_typedef tdef =
   let pos = fst tdef.t_name in
   let kind_pos = fst tdef.t_kind in
   let span = Pos.btw pos kind_pos in
+  let detail =
+    Option.map source_text ~f:(fun source_text ->
+        Pos.get_text_from_pos ~content:source_text span)
+  in
   {
     kind;
     name;
@@ -340,9 +442,10 @@ let summarize_typedef tdef =
     children = None;
     params = None;
     docblock = None;
+    detail;
   }
 
-let summarize_fun fd =
+let summarize_fun ~(source_text : string option) fd =
   let f = fd.fd_fun in
   let modifiers = modifier_of_fun_kind [] f.f_fun_kind in
   let params = Some (List.map f.f_params ~f:summarize_param) in
@@ -350,6 +453,10 @@ let summarize_fun fd =
   let name = Utils.strip_ns (snd fd.fd_name) in
   let id = get_symbol_id kind None name in
   let full_name = get_full_name None name in
+  let detail =
+    Option.map source_text ~f:(fun source_text ->
+        detail_of_fun ~source_text ~fun_pos:f.f_span fd.fd_name f.f_body)
+  in
   {
     kind;
     name;
@@ -362,9 +469,11 @@ let summarize_fun fd =
     children = None;
     params;
     docblock = None;
+    detail;
   }
 
-let summarize_gconst cst =
+let summarize_gconst ~(source_text : string option) (cst : _ gconst) :
+    Relative_path.t SymbolDefinition.t =
   let pos = fst cst.cst_name in
   let gconst_start = Option.value_map cst.cst_type ~f:fst ~default:pos in
   let (_, gconst_end, _) = cst.cst_value in
@@ -372,6 +481,11 @@ let summarize_gconst cst =
   let name = Utils.strip_ns (snd cst.cst_name) in
   let id = get_symbol_id kind None name in
   let full_name = get_full_name None name in
+  let span = Pos.btw gconst_start gconst_end in
+  let detail =
+    Option.map source_text ~f:(fun source_text ->
+        Pos.get_text_from_pos ~content:source_text span)
+  in
   {
     kind;
     name;
@@ -379,11 +493,12 @@ let summarize_gconst cst =
     class_name = None;
     id;
     pos;
-    span = Pos.btw gconst_start gconst_end;
+    span;
     modifiers = [];
     children = None;
     params = None;
     docblock = None;
+    detail;
   }
 
 let summarize_local name span =
@@ -402,6 +517,7 @@ let summarize_local name span =
     children = None;
     params = None;
     docblock = None;
+    detail = None;
   }
 
 let summarize_module_def md =
@@ -428,15 +544,26 @@ let summarize_module_def md =
     children = None;
     params = None;
     docblock;
+    detail = None;
   }
 
-let outline_ast ast =
+let outline_ast ast ~(source_text : string option) =
   let outline =
     List.filter_map ast ~f:(function
-        | Fun f -> Some (summarize_fun f)
-        | Class c -> Some (summarize_class c ~no_children:false)
-        | _ -> None)
+        | Fun f -> Some (summarize_fun ~source_text f)
+        | Class c -> Some (summarize_class ~source_text c ~no_children:false)
+        | Typedef t -> Some (summarize_typedef ~source_text t)
+        | Constant c -> Some (summarize_gconst ~source_text c)
+        | Namespace _
+        | NamespaceUse _
+        | SetNamespaceEnv _
+        | FileAttributes _
+        | Stmt _
+        | Module _
+        | SetModule _ ->
+          None)
   in
+
   List.map outline ~f:SymbolDefinition.to_absolute
 
 let should_add_docblock = function
@@ -494,14 +621,14 @@ let add_docblocks defs comments =
   in
   snd (map_def_list (add_def_docblock finder) 0 defs)
 
-let outline popt content =
+let outline popt source_text =
   let { Parser_return.ast; comments; _ } =
     let ast =
       Errors.ignore_ (fun () ->
           if Ide_parser_cache.is_enabled () then
             Ide_parser_cache.(
               with_ide_cache @@ fun () ->
-              get_ast popt Relative_path.default content)
+              get_ast popt Relative_path.default source_text)
           else
             let env =
               Parser.make_env
@@ -509,17 +636,18 @@ let outline popt content =
                 ~include_line_comments:true
                 Relative_path.default
             in
-            Parser.from_text_with_legacy env content)
+            Parser.from_text_with_legacy env source_text)
     in
     ast
   in
-  let result = outline_ast ast in
+  let result = outline_ast ast ~source_text:(Some source_text) in
   add_docblocks result comments
 
 let outline_entry_no_comments
     ~(popt : ParserOptions.t) ~(entry : Provider_context.entry) :
     string SymbolDefinition.t list =
-  Ast_provider.compute_ast ~popt ~entry |> outline_ast
+  let source_text = Provider_context.get_file_contents_if_present entry in
+  Ast_provider.compute_ast ~popt ~entry |> outline_ast ~source_text
 
 let rec print_def ~short_pos indent def =
   let {
@@ -534,6 +662,7 @@ let rec print_def ~short_pos indent def =
     docblock;
     full_name = _;
     class_name = _;
+    detail;
   } =
     def
   in
@@ -551,6 +680,7 @@ let rec print_def ~short_pos indent def =
   Printf.printf "%s  modifiers: " indent;
   List.iter modifiers ~f:(fun x -> Printf.printf "%s " (string_of_modifier x));
   Printf.printf "\n";
+  Option.iter detail ~f:(Printf.printf "%s  detail: %s\n" indent);
   Option.iter params ~f:(fun x ->
       Printf.printf "%s  params:\n" indent;
       print ~short_pos (indent ^ "    ") x);
@@ -566,3 +696,37 @@ and print ~short_pos indent defs =
 let print_def ?(short_pos = false) = print_def ~short_pos
 
 let print ?(short_pos = false) = print ~short_pos ""
+
+let summarize_method :
+    string -> ('a, 'b) Aast.method_ -> Relative_path.t SymbolDefinition.t =
+ (fun s meth -> summarize_method ~source_text:None s meth)
+
+let summarize_class :
+    ('a, 'b) Aast.class_ ->
+    no_children:bool ->
+    Relative_path.t SymbolDefinition.t =
+ fun class_ ~no_children ->
+  summarize_class ~source_text:None class_ ~no_children
+
+let summarize_fun : ('a, 'b) Aast.fun_def -> Relative_path.t SymbolDefinition.t
+    =
+ (fun fd -> summarize_fun ~source_text:None fd)
+
+let summarize_gconst (cst : _ gconst) : Relative_path.t SymbolDefinition.t =
+  summarize_gconst ~source_text:None cst
+
+let summarize_typedef (tdef : _ typedef) : Relative_path.t SymbolDefinition.t =
+  summarize_typedef ~source_text:None tdef
+
+let summarize_property class_name var =
+  summarize_property ~source_text:None class_name var
+
+let summarize_class_const :
+    string -> _ Aast.class_const -> Relative_path.t SymbolDefinition.t =
+ fun class_name c_const ->
+  summarize_class_const ~source_text:None class_name c_const
+
+let summarize_class_typeconst :
+    string -> _ Aast.class_typeconst_def -> Relative_path.t SymbolDefinition.t =
+ fun class_name tconst_def ->
+  summarize_class_typeconst ~source_text:None class_name tconst_def

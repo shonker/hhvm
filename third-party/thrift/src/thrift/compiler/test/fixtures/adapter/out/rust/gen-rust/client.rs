@@ -6,33 +6,14 @@
 #![recursion_limit = "100000000"]
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, unused_crate_dependencies, unused_imports, clippy::all)]
 
-pub mod mock;
 
 #[doc(inline)]
 pub use :: as types;
 
-pub mod errors {
-    #[doc(inline)]
-    pub use ::::errors::service;
-    #[doc(inline)]
-    #[allow(ambiguous_glob_reexports)]
-    pub use ::::errors::service::*;
-
-    #[doc(inline)]
-    pub use ::::errors::adapter_service;
-    #[doc(inline)]
-    #[allow(ambiguous_glob_reexports)]
-    pub use ::::errors::adapter_service::*;
-}
+pub mod errors;
 
 pub(crate) use crate as client;
 pub(crate) use ::::services;
-
-// Used by Thrift-generated code to implement service inheritance.
-#[doc(hidden)]
-#[deprecated]
-pub mod dependencies {
-}
 
 
 /// Client definitions for `Service`.
@@ -102,13 +83,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::service::FuncExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::service::FuncReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::service::FuncError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -154,7 +135,7 @@ impl<'a, P: ::fbthrift::ProtocolWriter> ::fbthrift::Serialize<P> for self::Args_
     fn write(&self, p: &mut P) {
         p.write_struct_begin("args");
         p.write_field_begin("arg1", ::fbthrift::TType::String, 1i16);
-        ::fbthrift::Serialize::write(&self.arg1, p);
+        ::fbthrift::Serialize::write(&<crate::types::adapters::StringWithAdapter as ::fbthrift::adapter::ThriftAdapter>::to_thrift_field::<fbthrift::metadata::NoThriftAnnotations>(&self.arg1, 1), p);
         p.write_field_end();
         p.write_field_begin("arg2", ::fbthrift::TType::String, 2i16);
         ::fbthrift::Serialize::write(&self.arg2, p);
@@ -429,13 +410,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::adapter_service::CountExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::adapter_service::CountReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::adapter_service::CountError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -477,13 +458,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::adapter_service::AdaptedTypesExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::adapter_service::AdaptedTypesReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::adapter_service::AdaptedTypesError::ApplicationException(aexn))
+                }
             };
             res
         }

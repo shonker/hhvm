@@ -478,7 +478,7 @@ folly::exception_wrapper recv_wrapped_helper(
     }
     return folly::exception_wrapper();
   } catch (...) {
-    return folly::exception_wrapper(std::current_exception());
+    return folly::exception_wrapper(folly::current_exception());
   }
 }
 
@@ -956,9 +956,11 @@ inline void processViaExecuteRequest(
     // mark oneway
     if (notOnewayOrWildcard &&
         !serverRequest.request()->getShouldStartProcessing()) {
+      // eventBase declared here to ensure computed before std::move below
+      auto eventBase = detail::ServerRequestHelper::eventBase(serverRequest);
       HandlerCallbackBase::releaseRequest(
           detail::ServerRequestHelper::request(std::move(serverRequest)),
-          detail::ServerRequestHelper::eventBase(serverRequest));
+          eventBase);
       return;
     }
 
@@ -1314,13 +1316,14 @@ EncodedStreamError encode_stream_exception(folly::exception_wrapper ew) {
     constexpr size_t kQueueAppenderGrowth = 4096;
     prot.setOutput(&queue, kQueueAppenderGrowth);
     TApplicationException ex(ew.what().toStdString());
-    exceptionMetadataBase.what_utf8() = ex.what();
     apache::thrift::detail::serializeExceptionBody(&prot, &ex);
     PayloadAppUnknownExceptionMetdata aue;
     aue.errorClassification().ensure().blame() = Blame;
     exceptionMetadata.appUnknownException_ref() = std::move(aue);
   }
 
+  exceptionMetadataBase.name_utf8() = ew.class_name();
+  exceptionMetadataBase.what_utf8() = ew.what();
   exceptionMetadataBase.metadata() = std::move(exceptionMetadata);
   StreamPayloadMetadata streamPayloadMetadata;
   PayloadMetadata payloadMetadata;
@@ -1453,10 +1456,14 @@ folly::exception_wrapper decode_stream_exception(folly::exception_wrapper ew) {
         TApplicationException::TApplicationExceptionType exType{
             TApplicationException::UNKNOWN};
         auto code = streamRpcError.code();
-        if (code &&
-            (code.value() == StreamRpcErrorCode::CREDIT_TIMEOUT ||
-             code.value() == StreamRpcErrorCode::CHUNK_TIMEOUT)) {
-          exType = TApplicationException::TIMEOUT;
+        if (code) {
+          if (code.value() == StreamRpcErrorCode::CREDIT_TIMEOUT ||
+              code.value() == StreamRpcErrorCode::CHUNK_TIMEOUT) {
+            exType = TApplicationException::TIMEOUT;
+          } else if (
+              code.value() == StreamRpcErrorCode::SERVER_CLOSING_CONNECTION) {
+            exType = TApplicationException::INTERRUPTION;
+          }
         }
         hijacked = TApplicationException(
             exType, streamRpcError.what_utf8().value_or(""));
@@ -1545,7 +1552,7 @@ apache::thrift::detail::SinkConsumerImpl toSinkConsumerImpl(
               std::move(finalResponse)),
           {}));
     } catch (...) {
-      ew = folly::exception_wrapper(std::current_exception());
+      ew = folly::exception_wrapper(folly::current_exception());
     }
     co_return folly::Try<StreamPayload>(ap::encode_stream_exception<
                                         ErrorBlame::SERVER,
@@ -1579,11 +1586,11 @@ folly::Future<T> future(
 }
 
 using CallbackBase = HandlerCallbackBase;
-using CallbackBasePtr = std::unique_ptr<CallbackBase>;
+using CallbackBasePtr = CallbackBase::Ptr;
 template <typename T>
 using Callback = HandlerCallback<T>;
 template <typename T>
-using CallbackPtr = std::unique_ptr<Callback<T>>;
+using CallbackPtr = HandlerCallbackPtr<T>;
 
 class AsyncTmPrep {
   ServerInterface* si_;

@@ -61,7 +61,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::cpp2::MyRoot>::co_do_ro
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::MyRoot>::async_tm_do_root(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) {
+void apache::thrift::ServiceHandler<::cpp2::MyRoot>::async_tm_do_root(apache::thrift::HandlerCallbackPtr<void> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -139,7 +139,7 @@ determineInvocationType:
 
 namespace cpp2 {
 
-void MyRootSvNull::do_root() {
+void MyRootSvNull::do_root() { 
   return;
 }
 
@@ -180,7 +180,7 @@ apache::thrift::ServiceRequestInfoMap const& MyRootServiceInfoHolder::requestInf
 apache::thrift::ServiceRequestInfoMap MyRootServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"do_root",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "MyRoot.do_root",
      std::nullopt,
@@ -190,4 +190,4 @@ apache::thrift::ServiceRequestInfoMap MyRootServiceInfoHolder::staticRequestInfo
 
   return requestInfoMap;
 }
-} // cpp2
+} // namespace cpp2

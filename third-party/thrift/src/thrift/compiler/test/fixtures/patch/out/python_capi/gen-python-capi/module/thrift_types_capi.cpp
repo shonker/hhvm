@@ -33,6 +33,9 @@ bool ensure_module_imported() {
   static constexpr std::int16_t _fbthrift__MyDataWithCustomDefault__tuple_pos[2] = {
     1, 2
   };
+  static constexpr std::int16_t _fbthrift__MyStruct__tuple_pos[33] = {
+    32, 31, 30, 29, 28, 27, 26, 25, 24, 23, 22, 21, 20, 19, 18, 17, 16, 15, 14, 13, 12, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1, 33
+  };
   static constexpr std::int16_t _fbthrift__Recursive__tuple_pos[1] = {
     1
   };
@@ -437,37 +440,162 @@ PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
 
 ExtractorResult<::test::fixtures::patch::MyStruct>
 Extractor<::test::fixtures::patch::MyStruct>::operator()(PyObject* obj) {
-  if (!ensure_module_imported()) {
-    DCHECK(PyErr_Occurred() != nullptr);
-    return extractorError<::test::fixtures::patch::MyStruct>(
-      "Module test.fixtures.patch.module import error");
+  int tCheckResult = typeCheck(obj);
+  if (tCheckResult != 1) {
+      if (tCheckResult == 0) {
+        PyErr_SetString(PyExc_TypeError, "Not a MyStruct");
+      }
+      return extractorError<::test::fixtures::patch::MyStruct>(
+          "Marshal error: MyStruct");
   }
-  std::unique_ptr<folly::IOBuf> val(
-      extract__test__fixtures__patch__module__MyStruct(obj));
-  if (!val) {
-    CHECK(PyErr_Occurred());
-    return extractorError<::test::fixtures::patch::MyStruct>(
-        "Thrift serialize error: MyStruct");
-  }
-  return detail::deserialize_iobuf<::test::fixtures::patch::MyStruct>(std::move(val));
+  StrongRef fbThriftData(getThriftData(obj));
+  return Extractor<::apache::thrift::python::capi::ComposedStruct<
+      ::test::fixtures::patch::MyStruct>>{}(*fbThriftData);
 }
-
 
 ExtractorResult<::test::fixtures::patch::MyStruct>
 Extractor<::apache::thrift::python::capi::ComposedStruct<
-    ::test::fixtures::patch::MyStruct>>::operator()(PyObject* fbthrift_data) {
-  if (!ensure_module_imported()) {
-    DCHECK(PyErr_Occurred() != nullptr);
-    return extractorError<::test::fixtures::patch::MyStruct>(
-      "Module test.fixtures.patch.module import error");
+    ::test::fixtures::patch::MyStruct>>::operator()(PyObject* fbThriftData) {
+  ::test::fixtures::patch::MyStruct cpp;
+  std::optional<std::string_view> error;
+  Extractor<bool>{}.extractInto(
+      cpp.boolVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[0]),
+      error);
+  Extractor<int8_t>{}.extractInto(
+      cpp.byteVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[1]),
+      error);
+  Extractor<int16_t>{}.extractInto(
+      cpp.i16Val_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[2]),
+      error);
+  Extractor<int32_t>{}.extractInto(
+      cpp.i32Val_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[3]),
+      error);
+  Extractor<int64_t>{}.extractInto(
+      cpp.i64Val_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[4]),
+      error);
+  Extractor<float>{}.extractInto(
+      cpp.floatVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[5]),
+      error);
+  Extractor<double>{}.extractInto(
+      cpp.doubleVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[6]),
+      error);
+  Extractor<Bytes>{}.extractInto(
+      cpp.stringVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[7]),
+      error);
+  Extractor<folly::IOBuf>{}.extractInto(
+      cpp.binaryVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[8]),
+      error);
+  Extractor<::apache::thrift::python::capi::ComposedEnum<::test::fixtures::patch::MyEnum>>{}.extractInto(
+      cpp.enumVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[9]),
+      error);
+  Extractor<::apache::thrift::python::capi::ComposedStruct<::test::fixtures::patch::MyData>>{}.extractInto(
+      cpp.structVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[10]),
+      error);
+  Extractor<::apache::thrift::python::capi::ComposedStruct<::test::fixtures::patch::MyUnion>>{}.extractInto(
+      cpp.unionVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[11]),
+      error);
+  Extractor<::apache::thrift::python::capi::ComposedStruct<::test::fixtures::patch::LateDefStruct>>{}.extractInto(
+      cpp.lateStructVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[12]),
+      error);
+  Extractor<bool>{}.extractInto(
+      cpp.optBoolVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[13]),
+      error);
+  Extractor<int8_t>{}.extractInto(
+      cpp.optByteVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[14]),
+      error);
+  Extractor<int16_t>{}.extractInto(
+      cpp.optI16Val_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[15]),
+      error);
+  Extractor<int32_t>{}.extractInto(
+      cpp.optI32Val_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[16]),
+      error);
+  Extractor<int64_t>{}.extractInto(
+      cpp.optI64Val_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[17]),
+      error);
+  Extractor<float>{}.extractInto(
+      cpp.optFloatVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[18]),
+      error);
+  Extractor<double>{}.extractInto(
+      cpp.optDoubleVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[19]),
+      error);
+  Extractor<Bytes>{}.extractInto(
+      cpp.optStringVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[20]),
+      error);
+  Extractor<folly::IOBuf>{}.extractInto(
+      cpp.optBinaryVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[21]),
+      error);
+  Extractor<::apache::thrift::python::capi::ComposedEnum<::test::fixtures::patch::MyEnum>>{}.extractInto(
+      cpp.optEnumVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[22]),
+      error);
+  Extractor<::apache::thrift::python::capi::ComposedStruct<::test::fixtures::patch::MyData>>{}.extractInto(
+      cpp.optStructVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[23]),
+      error);
+  Extractor<::apache::thrift::python::capi::ComposedStruct<::test::fixtures::patch::LateDefStruct>>{}.extractInto(
+      cpp.optLateStructVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[24]),
+      error);
+  Extractor<list<int16_t>>{}.extractInto(
+      cpp.optListVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[25]),
+      error);
+  Extractor<set<Bytes>>{}.extractInto(
+      cpp.optSetVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[26]),
+      error);
+  Extractor<map<Bytes, Bytes>>{}.extractInto(
+      cpp.optMapVal_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[27]),
+      error);
+  Extractor<list<map<Bytes, int32_t>>>{}.extractInto(
+      cpp.listMap_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[28]),
+      error);
+  Extractor<map<Bytes, map<Bytes, int32_t>>>{}.extractInto(
+      cpp.mapMap_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[29]),
+      error);
+  Extractor<int32_t>{}.extractInto(
+      cpp.i32WithCustomDefault_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[30]),
+      error);
+  Extractor<::apache::thrift::python::capi::ComposedStruct<::test::fixtures::patch::MyDataWithCustomDefault>>{}.extractInto(
+      cpp.structWithCustomDefault_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[31]),
+      error);
+  Extractor<::apache::thrift::python::capi::ComposedStruct<::test::fixtures::patch::MyData>>{}.extractInto(
+      cpp.structWithFieldCustomDefault_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__MyStruct__tuple_pos[32]),
+      error);
+  if (error) {
+    return folly::makeUnexpected(*error);
   }
-  auto obj = StrongRef(init__test__fixtures__patch__module__MyStruct(fbthrift_data));
-  if (!obj) {
-      return extractorError<::test::fixtures::patch::MyStruct>(
-          "Init from fbthrift error: MyStruct");
-  }
-  return Extractor<::test::fixtures::patch::MyStruct>{}(*obj);
+  return cpp;
 }
+
 
 int Extractor<::test::fixtures::patch::MyStruct>::typeCheck(PyObject* obj) {
   if (!ensure_module_imported()) {
@@ -490,24 +618,457 @@ PyObject* Constructor<::test::fixtures::patch::MyStruct>::operator()(
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyStruct(
-      detail::serialize_to_iobuf(val));
-  if (!ptr) {
-    CHECK(PyErr_Occurred());
+  Constructor<::apache::thrift::python::capi::ComposedStruct<
+        ::test::fixtures::patch::MyStruct>> ctor;
+  StrongRef fbthrift_data(ctor(val));
+  if (!fbthrift_data) {
+    return nullptr;
   }
-  return ptr;
+  return init__test__fixtures__patch__module__MyStruct(*fbthrift_data);
 }
-
 
 PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
         ::test::fixtures::patch::MyStruct>>::operator()(
-    const ::test::fixtures::patch::MyStruct& val) {
-  auto obj = StrongRef(Constructor<::test::fixtures::patch::MyStruct>{}(val));
-  if (!obj) {
+    [[maybe_unused]] const ::test::fixtures::patch::MyStruct& val) {
+  StrongRef fbthrift_data(createStructTuple(33));
+  StrongRef _fbthrift__boolVal(
+    Constructor<bool>{}
+    .constructFrom(val.boolVal_ref()));
+  if (!_fbthrift__boolVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[0],
+          *_fbthrift__boolVal) == -1) {
     return nullptr;
   }
-  return getThriftData(*obj);
+  StrongRef _fbthrift__byteVal(
+    Constructor<int8_t>{}
+    .constructFrom(val.byteVal_ref()));
+  if (!_fbthrift__byteVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[1],
+          *_fbthrift__byteVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__i16Val(
+    Constructor<int16_t>{}
+    .constructFrom(val.i16Val_ref()));
+  if (!_fbthrift__i16Val ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[2],
+          *_fbthrift__i16Val) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__i32Val(
+    Constructor<int32_t>{}
+    .constructFrom(val.i32Val_ref()));
+  if (!_fbthrift__i32Val ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[3],
+          *_fbthrift__i32Val) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__i64Val(
+    Constructor<int64_t>{}
+    .constructFrom(val.i64Val_ref()));
+  if (!_fbthrift__i64Val ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[4],
+          *_fbthrift__i64Val) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__floatVal(
+    Constructor<float>{}
+    .constructFrom(val.floatVal_ref()));
+  if (!_fbthrift__floatVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[5],
+          *_fbthrift__floatVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__doubleVal(
+    Constructor<double>{}
+    .constructFrom(val.doubleVal_ref()));
+  if (!_fbthrift__doubleVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[6],
+          *_fbthrift__doubleVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__stringVal(
+    Constructor<Bytes>{}
+    .constructFrom(val.stringVal_ref()));
+  if (!_fbthrift__stringVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[7],
+          *_fbthrift__stringVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__binaryVal(
+    Constructor<folly::IOBuf>{}
+    .constructFrom(val.binaryVal_ref()));
+  if (!_fbthrift__binaryVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[8],
+          *_fbthrift__binaryVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__enumVal(
+    Constructor<::apache::thrift::python::capi::ComposedEnum<::test::fixtures::patch::MyEnum>>{}
+    .constructFrom(val.enumVal_ref()));
+  if (!_fbthrift__enumVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[9],
+          *_fbthrift__enumVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__structVal(
+    Constructor<::apache::thrift::python::capi::ComposedStruct<::test::fixtures::patch::MyData>>{}
+    .constructFrom(val.structVal_ref()));
+  if (!_fbthrift__structVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[10],
+          *_fbthrift__structVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__unionVal(
+    Constructor<::apache::thrift::python::capi::ComposedStruct<::test::fixtures::patch::MyUnion>>{}
+    .constructFrom(val.unionVal_ref()));
+  if (!_fbthrift__unionVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[11],
+          *_fbthrift__unionVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__lateStructVal(
+    Constructor<::apache::thrift::python::capi::ComposedStruct<::test::fixtures::patch::LateDefStruct>>{}
+    .constructFrom(val.lateStructVal_ref()));
+  if (!_fbthrift__lateStructVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[12],
+          *_fbthrift__lateStructVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__optBoolVal(
+    Constructor<bool>{}
+    .constructFrom(val.optBoolVal_ref()));
+  if (_fbthrift__optBoolVal.isNone()) {
+    Py_INCREF(Py_None);
+    PyTuple_SET_ITEM(
+      *fbthrift_data,
+      _fbthrift__MyStruct__tuple_pos[13],
+      Py_None);
+  } else
+  if (!_fbthrift__optBoolVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[13],
+          *_fbthrift__optBoolVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__optByteVal(
+    Constructor<int8_t>{}
+    .constructFrom(val.optByteVal_ref()));
+  if (_fbthrift__optByteVal.isNone()) {
+    Py_INCREF(Py_None);
+    PyTuple_SET_ITEM(
+      *fbthrift_data,
+      _fbthrift__MyStruct__tuple_pos[14],
+      Py_None);
+  } else
+  if (!_fbthrift__optByteVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[14],
+          *_fbthrift__optByteVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__optI16Val(
+    Constructor<int16_t>{}
+    .constructFrom(val.optI16Val_ref()));
+  if (_fbthrift__optI16Val.isNone()) {
+    Py_INCREF(Py_None);
+    PyTuple_SET_ITEM(
+      *fbthrift_data,
+      _fbthrift__MyStruct__tuple_pos[15],
+      Py_None);
+  } else
+  if (!_fbthrift__optI16Val ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[15],
+          *_fbthrift__optI16Val) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__optI32Val(
+    Constructor<int32_t>{}
+    .constructFrom(val.optI32Val_ref()));
+  if (_fbthrift__optI32Val.isNone()) {
+    Py_INCREF(Py_None);
+    PyTuple_SET_ITEM(
+      *fbthrift_data,
+      _fbthrift__MyStruct__tuple_pos[16],
+      Py_None);
+  } else
+  if (!_fbthrift__optI32Val ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[16],
+          *_fbthrift__optI32Val) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__optI64Val(
+    Constructor<int64_t>{}
+    .constructFrom(val.optI64Val_ref()));
+  if (_fbthrift__optI64Val.isNone()) {
+    Py_INCREF(Py_None);
+    PyTuple_SET_ITEM(
+      *fbthrift_data,
+      _fbthrift__MyStruct__tuple_pos[17],
+      Py_None);
+  } else
+  if (!_fbthrift__optI64Val ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[17],
+          *_fbthrift__optI64Val) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__optFloatVal(
+    Constructor<float>{}
+    .constructFrom(val.optFloatVal_ref()));
+  if (_fbthrift__optFloatVal.isNone()) {
+    Py_INCREF(Py_None);
+    PyTuple_SET_ITEM(
+      *fbthrift_data,
+      _fbthrift__MyStruct__tuple_pos[18],
+      Py_None);
+  } else
+  if (!_fbthrift__optFloatVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[18],
+          *_fbthrift__optFloatVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__optDoubleVal(
+    Constructor<double>{}
+    .constructFrom(val.optDoubleVal_ref()));
+  if (_fbthrift__optDoubleVal.isNone()) {
+    Py_INCREF(Py_None);
+    PyTuple_SET_ITEM(
+      *fbthrift_data,
+      _fbthrift__MyStruct__tuple_pos[19],
+      Py_None);
+  } else
+  if (!_fbthrift__optDoubleVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[19],
+          *_fbthrift__optDoubleVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__optStringVal(
+    Constructor<Bytes>{}
+    .constructFrom(val.optStringVal_ref()));
+  if (_fbthrift__optStringVal.isNone()) {
+    Py_INCREF(Py_None);
+    PyTuple_SET_ITEM(
+      *fbthrift_data,
+      _fbthrift__MyStruct__tuple_pos[20],
+      Py_None);
+  } else
+  if (!_fbthrift__optStringVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[20],
+          *_fbthrift__optStringVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__optBinaryVal(
+    Constructor<folly::IOBuf>{}
+    .constructFrom(val.optBinaryVal_ref()));
+  if (_fbthrift__optBinaryVal.isNone()) {
+    Py_INCREF(Py_None);
+    PyTuple_SET_ITEM(
+      *fbthrift_data,
+      _fbthrift__MyStruct__tuple_pos[21],
+      Py_None);
+  } else
+  if (!_fbthrift__optBinaryVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[21],
+          *_fbthrift__optBinaryVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__optEnumVal(
+    Constructor<::apache::thrift::python::capi::ComposedEnum<::test::fixtures::patch::MyEnum>>{}
+    .constructFrom(val.optEnumVal_ref()));
+  if (_fbthrift__optEnumVal.isNone()) {
+    Py_INCREF(Py_None);
+    PyTuple_SET_ITEM(
+      *fbthrift_data,
+      _fbthrift__MyStruct__tuple_pos[22],
+      Py_None);
+  } else
+  if (!_fbthrift__optEnumVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[22],
+          *_fbthrift__optEnumVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__optStructVal(
+    Constructor<::apache::thrift::python::capi::ComposedStruct<::test::fixtures::patch::MyData>>{}
+    .constructFrom(val.optStructVal_ref()));
+  if (_fbthrift__optStructVal.isNone()) {
+    Py_INCREF(Py_None);
+    PyTuple_SET_ITEM(
+      *fbthrift_data,
+      _fbthrift__MyStruct__tuple_pos[23],
+      Py_None);
+  } else
+  if (!_fbthrift__optStructVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[23],
+          *_fbthrift__optStructVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__optLateStructVal(
+    Constructor<::apache::thrift::python::capi::ComposedStruct<::test::fixtures::patch::LateDefStruct>>{}
+    .constructFrom(val.optLateStructVal_ref()));
+  if (_fbthrift__optLateStructVal.isNone()) {
+    Py_INCREF(Py_None);
+    PyTuple_SET_ITEM(
+      *fbthrift_data,
+      _fbthrift__MyStruct__tuple_pos[24],
+      Py_None);
+  } else
+  if (!_fbthrift__optLateStructVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[24],
+          *_fbthrift__optLateStructVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__optListVal(
+    Constructor<list<int16_t>>{}
+    .constructFrom(val.optListVal_ref()));
+  if (_fbthrift__optListVal.isNone()) {
+    Py_INCREF(Py_None);
+    PyTuple_SET_ITEM(
+      *fbthrift_data,
+      _fbthrift__MyStruct__tuple_pos[25],
+      Py_None);
+  } else
+  if (!_fbthrift__optListVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[25],
+          *_fbthrift__optListVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__optSetVal(
+    Constructor<set<Bytes>>{}
+    .constructFrom(val.optSetVal_ref()));
+  if (_fbthrift__optSetVal.isNone()) {
+    Py_INCREF(Py_None);
+    PyTuple_SET_ITEM(
+      *fbthrift_data,
+      _fbthrift__MyStruct__tuple_pos[26],
+      Py_None);
+  } else
+  if (!_fbthrift__optSetVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[26],
+          *_fbthrift__optSetVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__optMapVal(
+    Constructor<map<Bytes, Bytes>>{}
+    .constructFrom(val.optMapVal_ref()));
+  if (_fbthrift__optMapVal.isNone()) {
+    Py_INCREF(Py_None);
+    PyTuple_SET_ITEM(
+      *fbthrift_data,
+      _fbthrift__MyStruct__tuple_pos[27],
+      Py_None);
+  } else
+  if (!_fbthrift__optMapVal ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[27],
+          *_fbthrift__optMapVal) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__listMap(
+    Constructor<list<map<Bytes, int32_t>>>{}
+    .constructFrom(val.listMap_ref()));
+  if (!_fbthrift__listMap ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[28],
+          *_fbthrift__listMap) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__mapMap(
+    Constructor<map<Bytes, map<Bytes, int32_t>>>{}
+    .constructFrom(val.mapMap_ref()));
+  if (!_fbthrift__mapMap ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[29],
+          *_fbthrift__mapMap) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__i32WithCustomDefault(
+    Constructor<int32_t>{}
+    .constructFrom(val.i32WithCustomDefault_ref()));
+  if (!_fbthrift__i32WithCustomDefault ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[30],
+          *_fbthrift__i32WithCustomDefault) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__structWithCustomDefault(
+    Constructor<::apache::thrift::python::capi::ComposedStruct<::test::fixtures::patch::MyDataWithCustomDefault>>{}
+    .constructFrom(val.structWithCustomDefault_ref()));
+  if (!_fbthrift__structWithCustomDefault ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[31],
+          *_fbthrift__structWithCustomDefault) == -1) {
+    return nullptr;
+  }
+  StrongRef _fbthrift__structWithFieldCustomDefault(
+    Constructor<::apache::thrift::python::capi::ComposedStruct<::test::fixtures::patch::MyData>>{}
+    .constructFrom(val.structWithFieldCustomDefault_ref()));
+  if (!_fbthrift__structWithFieldCustomDefault ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__MyStruct__tuple_pos[32],
+          *_fbthrift__structWithFieldCustomDefault) == -1) {
+    return nullptr;
+  }
+  return std::move(fbthrift_data).release();
 }
+
 
 ExtractorResult<::test::fixtures::patch::LateDefStruct>
 Extractor<::test::fixtures::patch::LateDefStruct>::operator()(PyObject* obj) {
@@ -1005,11 +1566,11 @@ Extractor<::test::fixtures::patch::MyDataPatchStruct>::operator()(PyObject* obj)
       "Module test.fixtures.patch.module import error");
   }
   std::unique_ptr<folly::IOBuf> val(
-      extract__test__fixtures__patch__module__MyDataPatch(obj));
+      extract__test__fixtures__patch__module__MyDataPatchStructInternalDoNotUse(obj));
   if (!val) {
     CHECK(PyErr_Occurred());
     return extractorError<::test::fixtures::patch::MyDataPatchStruct>(
-        "Thrift serialize error: MyDataPatch");
+        "Thrift serialize error: MyDataPatchStructInternalDoNotUse");
   }
   return detail::deserialize_iobuf_to_adapted<
       ::test::fixtures::patch::MyDataPatchStruct, ::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::MyDataPatchStruct>
@@ -1025,10 +1586,10 @@ Extractor<::apache::thrift::python::capi::ComposedStruct<
     return extractorError<::test::fixtures::patch::MyDataPatchStruct>(
       "Module test.fixtures.patch.module import error");
   }
-  auto obj = StrongRef(init__test__fixtures__patch__module__MyDataPatch(fbthrift_data));
+  auto obj = StrongRef(init__test__fixtures__patch__module__MyDataPatchStructInternalDoNotUse(fbthrift_data));
   if (!obj) {
       return extractorError<::test::fixtures::patch::MyDataPatchStruct>(
-          "Init from fbthrift error: MyDataPatch");
+          "Init from fbthrift error: MyDataPatchStructInternalDoNotUse");
   }
   return Extractor<::test::fixtures::patch::MyDataPatchStruct>{}(*obj);
 }
@@ -1039,10 +1600,10 @@ int Extractor<::test::fixtures::patch::MyDataPatchStruct>::typeCheck(PyObject* o
       "Module test.fixtures.patch.module import error");
   }
   int result =
-      can_extract__test__fixtures__patch__module__MyDataPatch(obj);
+      can_extract__test__fixtures__patch__module__MyDataPatchStructInternalDoNotUse(obj);
   if (result < 0) {
     ::folly::python::handlePythonError(
-      "Unexpected type check error: MyDataPatch");
+      "Unexpected type check error: MyDataPatchStructInternalDoNotUse");
   }
   return result;
 }
@@ -1054,8 +1615,15 @@ PyObject* Constructor<::test::fixtures::patch::MyDataPatchStruct>::operator()(
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyDataPatch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::MyDataPatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::MyDataPatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyDataPatchStructInternalDoNotUse(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -1130,8 +1698,15 @@ PyObject* Constructor<::test::fixtures::patch::MyDataFieldPatchStruct>::operator
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyDataFieldPatch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::FieldPatchAdapter<::test::fixtures::patch::MyDataFieldPatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::FieldPatchAdapter<::test::fixtures::patch::MyDataFieldPatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyDataFieldPatch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -1204,8 +1779,15 @@ PyObject* Constructor<::test::fixtures::patch::MyDataEnsureStruct>::operator()(
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyDataEnsureStruct(
-      detail::serialize_to_iobuf(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyDataEnsureStruct(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -1223,6 +1805,87 @@ PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
   return getThriftData(*obj);
 }
 
+ExtractorResult<::test::fixtures::patch::MyDataSafePatch>
+Extractor<::test::fixtures::patch::MyDataSafePatch>::operator()(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::MyDataSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  std::unique_ptr<folly::IOBuf> val(
+      extract__test__fixtures__patch__module__MyDataSafePatch(obj));
+  if (!val) {
+    CHECK(PyErr_Occurred());
+    return extractorError<::test::fixtures::patch::MyDataSafePatch>(
+        "Thrift serialize error: MyDataSafePatch");
+  }
+  return detail::deserialize_iobuf<::test::fixtures::patch::MyDataSafePatch>(std::move(val));
+}
+
+
+ExtractorResult<::test::fixtures::patch::MyDataSafePatch>
+Extractor<::apache::thrift::python::capi::ComposedStruct<
+    ::test::fixtures::patch::MyDataSafePatch>>::operator()(PyObject* fbthrift_data) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::MyDataSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  auto obj = StrongRef(init__test__fixtures__patch__module__MyDataSafePatch(fbthrift_data));
+  if (!obj) {
+      return extractorError<::test::fixtures::patch::MyDataSafePatch>(
+          "Init from fbthrift error: MyDataSafePatch");
+  }
+  return Extractor<::test::fixtures::patch::MyDataSafePatch>{}(*obj);
+}
+
+int Extractor<::test::fixtures::patch::MyDataSafePatch>::typeCheck(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    ::folly::python::handlePythonError(
+      "Module test.fixtures.patch.module import error");
+  }
+  int result =
+      can_extract__test__fixtures__patch__module__MyDataSafePatch(obj);
+  if (result < 0) {
+    ::folly::python::handlePythonError(
+      "Unexpected type check error: MyDataSafePatch");
+  }
+  return result;
+}
+
+
+PyObject* Constructor<::test::fixtures::patch::MyDataSafePatch>::operator()(
+    const ::test::fixtures::patch::MyDataSafePatch& val) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return nullptr;
+  }
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyDataSafePatch(std::move(serialized));
+  if (!ptr) {
+    CHECK(PyErr_Occurred());
+  }
+  return ptr;
+}
+
+
+PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
+        ::test::fixtures::patch::MyDataSafePatch>>::operator()(
+    const ::test::fixtures::patch::MyDataSafePatch& val) {
+  auto obj = StrongRef(Constructor<::test::fixtures::patch::MyDataSafePatch>{}(val));
+  if (!obj) {
+    return nullptr;
+  }
+  return getThriftData(*obj);
+}
+
 ExtractorResult<::test::fixtures::patch::MyDataWithCustomDefaultPatchStruct>
 Extractor<::test::fixtures::patch::MyDataWithCustomDefaultPatchStruct>::operator()(PyObject* obj) {
   if (!ensure_module_imported()) {
@@ -1231,11 +1894,11 @@ Extractor<::test::fixtures::patch::MyDataWithCustomDefaultPatchStruct>::operator
       "Module test.fixtures.patch.module import error");
   }
   std::unique_ptr<folly::IOBuf> val(
-      extract__test__fixtures__patch__module__MyDataWithCustomDefaultPatch(obj));
+      extract__test__fixtures__patch__module__MyDataWithCustomDefaultPatchStructInternalDoNotUse(obj));
   if (!val) {
     CHECK(PyErr_Occurred());
     return extractorError<::test::fixtures::patch::MyDataWithCustomDefaultPatchStruct>(
-        "Thrift serialize error: MyDataWithCustomDefaultPatch");
+        "Thrift serialize error: MyDataWithCustomDefaultPatchStructInternalDoNotUse");
   }
   return detail::deserialize_iobuf_to_adapted<
       ::test::fixtures::patch::MyDataWithCustomDefaultPatchStruct, ::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::MyDataWithCustomDefaultPatchStruct>
@@ -1251,10 +1914,10 @@ Extractor<::apache::thrift::python::capi::ComposedStruct<
     return extractorError<::test::fixtures::patch::MyDataWithCustomDefaultPatchStruct>(
       "Module test.fixtures.patch.module import error");
   }
-  auto obj = StrongRef(init__test__fixtures__patch__module__MyDataWithCustomDefaultPatch(fbthrift_data));
+  auto obj = StrongRef(init__test__fixtures__patch__module__MyDataWithCustomDefaultPatchStructInternalDoNotUse(fbthrift_data));
   if (!obj) {
       return extractorError<::test::fixtures::patch::MyDataWithCustomDefaultPatchStruct>(
-          "Init from fbthrift error: MyDataWithCustomDefaultPatch");
+          "Init from fbthrift error: MyDataWithCustomDefaultPatchStructInternalDoNotUse");
   }
   return Extractor<::test::fixtures::patch::MyDataWithCustomDefaultPatchStruct>{}(*obj);
 }
@@ -1265,10 +1928,10 @@ int Extractor<::test::fixtures::patch::MyDataWithCustomDefaultPatchStruct>::type
       "Module test.fixtures.patch.module import error");
   }
   int result =
-      can_extract__test__fixtures__patch__module__MyDataWithCustomDefaultPatch(obj);
+      can_extract__test__fixtures__patch__module__MyDataWithCustomDefaultPatchStructInternalDoNotUse(obj);
   if (result < 0) {
     ::folly::python::handlePythonError(
-      "Unexpected type check error: MyDataWithCustomDefaultPatch");
+      "Unexpected type check error: MyDataWithCustomDefaultPatchStructInternalDoNotUse");
   }
   return result;
 }
@@ -1280,8 +1943,15 @@ PyObject* Constructor<::test::fixtures::patch::MyDataWithCustomDefaultPatchStruc
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyDataWithCustomDefaultPatch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::MyDataWithCustomDefaultPatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::MyDataWithCustomDefaultPatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyDataWithCustomDefaultPatchStructInternalDoNotUse(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -1356,8 +2026,15 @@ PyObject* Constructor<::test::fixtures::patch::MyDataWithCustomDefaultFieldPatch
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyDataWithCustomDefaultFieldPatch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::FieldPatchAdapter<::test::fixtures::patch::MyDataWithCustomDefaultFieldPatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::FieldPatchAdapter<::test::fixtures::patch::MyDataWithCustomDefaultFieldPatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyDataWithCustomDefaultFieldPatch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -1430,8 +2107,15 @@ PyObject* Constructor<::test::fixtures::patch::MyDataWithCustomDefaultEnsureStru
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyDataWithCustomDefaultEnsureStruct(
-      detail::serialize_to_iobuf(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyDataWithCustomDefaultEnsureStruct(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -1443,6 +2127,87 @@ PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
         ::test::fixtures::patch::MyDataWithCustomDefaultEnsureStruct>>::operator()(
     const ::test::fixtures::patch::MyDataWithCustomDefaultEnsureStruct& val) {
   auto obj = StrongRef(Constructor<::test::fixtures::patch::MyDataWithCustomDefaultEnsureStruct>{}(val));
+  if (!obj) {
+    return nullptr;
+  }
+  return getThriftData(*obj);
+}
+
+ExtractorResult<::test::fixtures::patch::MyDataWithCustomDefaultSafePatch>
+Extractor<::test::fixtures::patch::MyDataWithCustomDefaultSafePatch>::operator()(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::MyDataWithCustomDefaultSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  std::unique_ptr<folly::IOBuf> val(
+      extract__test__fixtures__patch__module__MyDataWithCustomDefaultSafePatch(obj));
+  if (!val) {
+    CHECK(PyErr_Occurred());
+    return extractorError<::test::fixtures::patch::MyDataWithCustomDefaultSafePatch>(
+        "Thrift serialize error: MyDataWithCustomDefaultSafePatch");
+  }
+  return detail::deserialize_iobuf<::test::fixtures::patch::MyDataWithCustomDefaultSafePatch>(std::move(val));
+}
+
+
+ExtractorResult<::test::fixtures::patch::MyDataWithCustomDefaultSafePatch>
+Extractor<::apache::thrift::python::capi::ComposedStruct<
+    ::test::fixtures::patch::MyDataWithCustomDefaultSafePatch>>::operator()(PyObject* fbthrift_data) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::MyDataWithCustomDefaultSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  auto obj = StrongRef(init__test__fixtures__patch__module__MyDataWithCustomDefaultSafePatch(fbthrift_data));
+  if (!obj) {
+      return extractorError<::test::fixtures::patch::MyDataWithCustomDefaultSafePatch>(
+          "Init from fbthrift error: MyDataWithCustomDefaultSafePatch");
+  }
+  return Extractor<::test::fixtures::patch::MyDataWithCustomDefaultSafePatch>{}(*obj);
+}
+
+int Extractor<::test::fixtures::patch::MyDataWithCustomDefaultSafePatch>::typeCheck(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    ::folly::python::handlePythonError(
+      "Module test.fixtures.patch.module import error");
+  }
+  int result =
+      can_extract__test__fixtures__patch__module__MyDataWithCustomDefaultSafePatch(obj);
+  if (result < 0) {
+    ::folly::python::handlePythonError(
+      "Unexpected type check error: MyDataWithCustomDefaultSafePatch");
+  }
+  return result;
+}
+
+
+PyObject* Constructor<::test::fixtures::patch::MyDataWithCustomDefaultSafePatch>::operator()(
+    const ::test::fixtures::patch::MyDataWithCustomDefaultSafePatch& val) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return nullptr;
+  }
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyDataWithCustomDefaultSafePatch(std::move(serialized));
+  if (!ptr) {
+    CHECK(PyErr_Occurred());
+  }
+  return ptr;
+}
+
+
+PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
+        ::test::fixtures::patch::MyDataWithCustomDefaultSafePatch>>::operator()(
+    const ::test::fixtures::patch::MyDataWithCustomDefaultSafePatch& val) {
+  auto obj = StrongRef(Constructor<::test::fixtures::patch::MyDataWithCustomDefaultSafePatch>{}(val));
   if (!obj) {
     return nullptr;
   }
@@ -1506,8 +2271,15 @@ PyObject* Constructor<::test::fixtures::patch::InnerUnionPatchStruct>::operator(
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__InnerUnionPatch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::UnionPatchAdapter<::test::fixtures::patch::InnerUnionPatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::UnionPatchAdapter<::test::fixtures::patch::InnerUnionPatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__InnerUnionPatch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -1582,8 +2354,15 @@ PyObject* Constructor<::test::fixtures::patch::InnerUnionFieldPatchStruct>::oper
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__InnerUnionFieldPatch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::FieldPatchAdapter<::test::fixtures::patch::InnerUnionFieldPatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::FieldPatchAdapter<::test::fixtures::patch::InnerUnionFieldPatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__InnerUnionFieldPatch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -1595,6 +2374,87 @@ PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
         ::test::fixtures::patch::InnerUnionFieldPatchStruct>>::operator()(
     const ::test::fixtures::patch::InnerUnionFieldPatchStruct& val) {
   auto obj = StrongRef(Constructor<::test::fixtures::patch::InnerUnionFieldPatchStruct>{}(val));
+  if (!obj) {
+    return nullptr;
+  }
+  return getThriftData(*obj);
+}
+
+ExtractorResult<::test::fixtures::patch::InnerUnionSafePatch>
+Extractor<::test::fixtures::patch::InnerUnionSafePatch>::operator()(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::InnerUnionSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  std::unique_ptr<folly::IOBuf> val(
+      extract__test__fixtures__patch__module__InnerUnionSafePatch(obj));
+  if (!val) {
+    CHECK(PyErr_Occurred());
+    return extractorError<::test::fixtures::patch::InnerUnionSafePatch>(
+        "Thrift serialize error: InnerUnionSafePatch");
+  }
+  return detail::deserialize_iobuf<::test::fixtures::patch::InnerUnionSafePatch>(std::move(val));
+}
+
+
+ExtractorResult<::test::fixtures::patch::InnerUnionSafePatch>
+Extractor<::apache::thrift::python::capi::ComposedStruct<
+    ::test::fixtures::patch::InnerUnionSafePatch>>::operator()(PyObject* fbthrift_data) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::InnerUnionSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  auto obj = StrongRef(init__test__fixtures__patch__module__InnerUnionSafePatch(fbthrift_data));
+  if (!obj) {
+      return extractorError<::test::fixtures::patch::InnerUnionSafePatch>(
+          "Init from fbthrift error: InnerUnionSafePatch");
+  }
+  return Extractor<::test::fixtures::patch::InnerUnionSafePatch>{}(*obj);
+}
+
+int Extractor<::test::fixtures::patch::InnerUnionSafePatch>::typeCheck(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    ::folly::python::handlePythonError(
+      "Module test.fixtures.patch.module import error");
+  }
+  int result =
+      can_extract__test__fixtures__patch__module__InnerUnionSafePatch(obj);
+  if (result < 0) {
+    ::folly::python::handlePythonError(
+      "Unexpected type check error: InnerUnionSafePatch");
+  }
+  return result;
+}
+
+
+PyObject* Constructor<::test::fixtures::patch::InnerUnionSafePatch>::operator()(
+    const ::test::fixtures::patch::InnerUnionSafePatch& val) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return nullptr;
+  }
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__InnerUnionSafePatch(std::move(serialized));
+  if (!ptr) {
+    CHECK(PyErr_Occurred());
+  }
+  return ptr;
+}
+
+
+PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
+        ::test::fixtures::patch::InnerUnionSafePatch>>::operator()(
+    const ::test::fixtures::patch::InnerUnionSafePatch& val) {
+  auto obj = StrongRef(Constructor<::test::fixtures::patch::InnerUnionSafePatch>{}(val));
   if (!obj) {
     return nullptr;
   }
@@ -1658,8 +2518,15 @@ PyObject* Constructor<::test::fixtures::patch::MyUnionPatchStruct>::operator()(
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyUnionPatch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::UnionPatchAdapter<::test::fixtures::patch::MyUnionPatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::UnionPatchAdapter<::test::fixtures::patch::MyUnionPatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyUnionPatch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -1734,8 +2601,15 @@ PyObject* Constructor<::test::fixtures::patch::MyUnionFieldPatchStruct>::operato
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyUnionFieldPatch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::FieldPatchAdapter<::test::fixtures::patch::MyUnionFieldPatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::FieldPatchAdapter<::test::fixtures::patch::MyUnionFieldPatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyUnionFieldPatch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -1753,6 +2627,87 @@ PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
   return getThriftData(*obj);
 }
 
+ExtractorResult<::test::fixtures::patch::MyUnionSafePatch>
+Extractor<::test::fixtures::patch::MyUnionSafePatch>::operator()(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::MyUnionSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  std::unique_ptr<folly::IOBuf> val(
+      extract__test__fixtures__patch__module__MyUnionSafePatch(obj));
+  if (!val) {
+    CHECK(PyErr_Occurred());
+    return extractorError<::test::fixtures::patch::MyUnionSafePatch>(
+        "Thrift serialize error: MyUnionSafePatch");
+  }
+  return detail::deserialize_iobuf<::test::fixtures::patch::MyUnionSafePatch>(std::move(val));
+}
+
+
+ExtractorResult<::test::fixtures::patch::MyUnionSafePatch>
+Extractor<::apache::thrift::python::capi::ComposedStruct<
+    ::test::fixtures::patch::MyUnionSafePatch>>::operator()(PyObject* fbthrift_data) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::MyUnionSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  auto obj = StrongRef(init__test__fixtures__patch__module__MyUnionSafePatch(fbthrift_data));
+  if (!obj) {
+      return extractorError<::test::fixtures::patch::MyUnionSafePatch>(
+          "Init from fbthrift error: MyUnionSafePatch");
+  }
+  return Extractor<::test::fixtures::patch::MyUnionSafePatch>{}(*obj);
+}
+
+int Extractor<::test::fixtures::patch::MyUnionSafePatch>::typeCheck(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    ::folly::python::handlePythonError(
+      "Module test.fixtures.patch.module import error");
+  }
+  int result =
+      can_extract__test__fixtures__patch__module__MyUnionSafePatch(obj);
+  if (result < 0) {
+    ::folly::python::handlePythonError(
+      "Unexpected type check error: MyUnionSafePatch");
+  }
+  return result;
+}
+
+
+PyObject* Constructor<::test::fixtures::patch::MyUnionSafePatch>::operator()(
+    const ::test::fixtures::patch::MyUnionSafePatch& val) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return nullptr;
+  }
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyUnionSafePatch(std::move(serialized));
+  if (!ptr) {
+    CHECK(PyErr_Occurred());
+  }
+  return ptr;
+}
+
+
+PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
+        ::test::fixtures::patch::MyUnionSafePatch>>::operator()(
+    const ::test::fixtures::patch::MyUnionSafePatch& val) {
+  auto obj = StrongRef(Constructor<::test::fixtures::patch::MyUnionSafePatch>{}(val));
+  if (!obj) {
+    return nullptr;
+  }
+  return getThriftData(*obj);
+}
+
 ExtractorResult<::test::fixtures::patch::MyStructPatchStruct>
 Extractor<::test::fixtures::patch::MyStructPatchStruct>::operator()(PyObject* obj) {
   if (!ensure_module_imported()) {
@@ -1761,11 +2716,11 @@ Extractor<::test::fixtures::patch::MyStructPatchStruct>::operator()(PyObject* ob
       "Module test.fixtures.patch.module import error");
   }
   std::unique_ptr<folly::IOBuf> val(
-      extract__test__fixtures__patch__module__MyStructPatch(obj));
+      extract__test__fixtures__patch__module__MyStructPatchStructInternalDoNotUse(obj));
   if (!val) {
     CHECK(PyErr_Occurred());
     return extractorError<::test::fixtures::patch::MyStructPatchStruct>(
-        "Thrift serialize error: MyStructPatch");
+        "Thrift serialize error: MyStructPatchStructInternalDoNotUse");
   }
   return detail::deserialize_iobuf_to_adapted<
       ::test::fixtures::patch::MyStructPatchStruct, ::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::MyStructPatchStruct>
@@ -1781,10 +2736,10 @@ Extractor<::apache::thrift::python::capi::ComposedStruct<
     return extractorError<::test::fixtures::patch::MyStructPatchStruct>(
       "Module test.fixtures.patch.module import error");
   }
-  auto obj = StrongRef(init__test__fixtures__patch__module__MyStructPatch(fbthrift_data));
+  auto obj = StrongRef(init__test__fixtures__patch__module__MyStructPatchStructInternalDoNotUse(fbthrift_data));
   if (!obj) {
       return extractorError<::test::fixtures::patch::MyStructPatchStruct>(
-          "Init from fbthrift error: MyStructPatch");
+          "Init from fbthrift error: MyStructPatchStructInternalDoNotUse");
   }
   return Extractor<::test::fixtures::patch::MyStructPatchStruct>{}(*obj);
 }
@@ -1795,10 +2750,10 @@ int Extractor<::test::fixtures::patch::MyStructPatchStruct>::typeCheck(PyObject*
       "Module test.fixtures.patch.module import error");
   }
   int result =
-      can_extract__test__fixtures__patch__module__MyStructPatch(obj);
+      can_extract__test__fixtures__patch__module__MyStructPatchStructInternalDoNotUse(obj);
   if (result < 0) {
     ::folly::python::handlePythonError(
-      "Unexpected type check error: MyStructPatch");
+      "Unexpected type check error: MyStructPatchStructInternalDoNotUse");
   }
   return result;
 }
@@ -1810,8 +2765,15 @@ PyObject* Constructor<::test::fixtures::patch::MyStructPatchStruct>::operator()(
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyStructPatch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::MyStructPatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::MyStructPatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyStructPatchStructInternalDoNotUse(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -1886,8 +2848,15 @@ PyObject* Constructor<::test::fixtures::patch::MyStructField10PatchStruct>::oper
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyStructField10Patch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::AssignPatchAdapter<::test::fixtures::patch::MyStructField10PatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::AssignPatchAdapter<::test::fixtures::patch::MyStructField10PatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyStructField10Patch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -1962,8 +2931,15 @@ PyObject* Constructor<::test::fixtures::patch::MyStructField23PatchStruct>::oper
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyStructField23Patch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::AssignPatchAdapter<::test::fixtures::patch::MyStructField23PatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::AssignPatchAdapter<::test::fixtures::patch::MyStructField23PatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyStructField23Patch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -2038,8 +3014,15 @@ PyObject* Constructor<::test::fixtures::patch::MyStructField26PatchStruct>::oper
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyStructField26Patch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::ListPatchAdapter<::test::fixtures::patch::MyStructField26PatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::ListPatchAdapter<::test::fixtures::patch::MyStructField26PatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyStructField26Patch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -2114,8 +3097,15 @@ PyObject* Constructor<::test::fixtures::patch::MyStructField27PatchStruct>::oper
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyStructField27Patch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::SetPatchAdapter<::test::fixtures::patch::MyStructField27PatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::SetPatchAdapter<::test::fixtures::patch::MyStructField27PatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyStructField27Patch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -2190,8 +3180,15 @@ PyObject* Constructor<::test::fixtures::patch::MyStructField28PatchStruct>::oper
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyStructField28Patch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::MapPatchAdapter<::test::fixtures::patch::MyStructField28PatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::MapPatchAdapter<::test::fixtures::patch::MyStructField28PatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyStructField28Patch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -2266,8 +3263,15 @@ PyObject* Constructor<::test::fixtures::patch::MyStructField29PatchStruct>::oper
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyStructField29Patch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::ListPatchAdapter<::test::fixtures::patch::MyStructField29PatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::ListPatchAdapter<::test::fixtures::patch::MyStructField29PatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyStructField29Patch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -2342,8 +3346,15 @@ PyObject* Constructor<::test::fixtures::patch::MyStructField30PatchStruct>::oper
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyStructField30Patch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::MapPatchAdapter<::test::fixtures::patch::MyStructField30PatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::MapPatchAdapter<::test::fixtures::patch::MyStructField30PatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyStructField30Patch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -2418,8 +3429,15 @@ PyObject* Constructor<::test::fixtures::patch::MyStructField30Patch1Struct>::ope
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyStructField30Patch1(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::MapPatchAdapter<::test::fixtures::patch::MyStructField30Patch1Struct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::MapPatchAdapter<::test::fixtures::patch::MyStructField30Patch1Struct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyStructField30Patch1(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -2494,8 +3512,15 @@ PyObject* Constructor<::test::fixtures::patch::MyStructFieldPatchStruct>::operat
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyStructFieldPatch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::FieldPatchAdapter<::test::fixtures::patch::MyStructFieldPatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::FieldPatchAdapter<::test::fixtures::patch::MyStructFieldPatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyStructFieldPatch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -2568,8 +3593,15 @@ PyObject* Constructor<::test::fixtures::patch::MyStructEnsureStruct>::operator()
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__MyStructEnsureStruct(
-      detail::serialize_to_iobuf(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyStructEnsureStruct(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -2587,6 +3619,87 @@ PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
   return getThriftData(*obj);
 }
 
+ExtractorResult<::test::fixtures::patch::MyStructSafePatch>
+Extractor<::test::fixtures::patch::MyStructSafePatch>::operator()(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::MyStructSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  std::unique_ptr<folly::IOBuf> val(
+      extract__test__fixtures__patch__module__MyStructSafePatch(obj));
+  if (!val) {
+    CHECK(PyErr_Occurred());
+    return extractorError<::test::fixtures::patch::MyStructSafePatch>(
+        "Thrift serialize error: MyStructSafePatch");
+  }
+  return detail::deserialize_iobuf<::test::fixtures::patch::MyStructSafePatch>(std::move(val));
+}
+
+
+ExtractorResult<::test::fixtures::patch::MyStructSafePatch>
+Extractor<::apache::thrift::python::capi::ComposedStruct<
+    ::test::fixtures::patch::MyStructSafePatch>>::operator()(PyObject* fbthrift_data) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::MyStructSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  auto obj = StrongRef(init__test__fixtures__patch__module__MyStructSafePatch(fbthrift_data));
+  if (!obj) {
+      return extractorError<::test::fixtures::patch::MyStructSafePatch>(
+          "Init from fbthrift error: MyStructSafePatch");
+  }
+  return Extractor<::test::fixtures::patch::MyStructSafePatch>{}(*obj);
+}
+
+int Extractor<::test::fixtures::patch::MyStructSafePatch>::typeCheck(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    ::folly::python::handlePythonError(
+      "Module test.fixtures.patch.module import error");
+  }
+  int result =
+      can_extract__test__fixtures__patch__module__MyStructSafePatch(obj);
+  if (result < 0) {
+    ::folly::python::handlePythonError(
+      "Unexpected type check error: MyStructSafePatch");
+  }
+  return result;
+}
+
+
+PyObject* Constructor<::test::fixtures::patch::MyStructSafePatch>::operator()(
+    const ::test::fixtures::patch::MyStructSafePatch& val) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return nullptr;
+  }
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__MyStructSafePatch(std::move(serialized));
+  if (!ptr) {
+    CHECK(PyErr_Occurred());
+  }
+  return ptr;
+}
+
+
+PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
+        ::test::fixtures::patch::MyStructSafePatch>>::operator()(
+    const ::test::fixtures::patch::MyStructSafePatch& val) {
+  auto obj = StrongRef(Constructor<::test::fixtures::patch::MyStructSafePatch>{}(val));
+  if (!obj) {
+    return nullptr;
+  }
+  return getThriftData(*obj);
+}
+
 ExtractorResult<::test::fixtures::patch::LateDefStructPatchStruct>
 Extractor<::test::fixtures::patch::LateDefStructPatchStruct>::operator()(PyObject* obj) {
   if (!ensure_module_imported()) {
@@ -2595,11 +3708,11 @@ Extractor<::test::fixtures::patch::LateDefStructPatchStruct>::operator()(PyObjec
       "Module test.fixtures.patch.module import error");
   }
   std::unique_ptr<folly::IOBuf> val(
-      extract__test__fixtures__patch__module__LateDefStructPatch(obj));
+      extract__test__fixtures__patch__module__LateDefStructPatchStructInternalDoNotUse(obj));
   if (!val) {
     CHECK(PyErr_Occurred());
     return extractorError<::test::fixtures::patch::LateDefStructPatchStruct>(
-        "Thrift serialize error: LateDefStructPatch");
+        "Thrift serialize error: LateDefStructPatchStructInternalDoNotUse");
   }
   return detail::deserialize_iobuf_to_adapted<
       ::test::fixtures::patch::LateDefStructPatchStruct, ::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::LateDefStructPatchStruct>
@@ -2615,10 +3728,10 @@ Extractor<::apache::thrift::python::capi::ComposedStruct<
     return extractorError<::test::fixtures::patch::LateDefStructPatchStruct>(
       "Module test.fixtures.patch.module import error");
   }
-  auto obj = StrongRef(init__test__fixtures__patch__module__LateDefStructPatch(fbthrift_data));
+  auto obj = StrongRef(init__test__fixtures__patch__module__LateDefStructPatchStructInternalDoNotUse(fbthrift_data));
   if (!obj) {
       return extractorError<::test::fixtures::patch::LateDefStructPatchStruct>(
-          "Init from fbthrift error: LateDefStructPatch");
+          "Init from fbthrift error: LateDefStructPatchStructInternalDoNotUse");
   }
   return Extractor<::test::fixtures::patch::LateDefStructPatchStruct>{}(*obj);
 }
@@ -2629,10 +3742,10 @@ int Extractor<::test::fixtures::patch::LateDefStructPatchStruct>::typeCheck(PyOb
       "Module test.fixtures.patch.module import error");
   }
   int result =
-      can_extract__test__fixtures__patch__module__LateDefStructPatch(obj);
+      can_extract__test__fixtures__patch__module__LateDefStructPatchStructInternalDoNotUse(obj);
   if (result < 0) {
     ::folly::python::handlePythonError(
-      "Unexpected type check error: LateDefStructPatch");
+      "Unexpected type check error: LateDefStructPatchStructInternalDoNotUse");
   }
   return result;
 }
@@ -2644,8 +3757,15 @@ PyObject* Constructor<::test::fixtures::patch::LateDefStructPatchStruct>::operat
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__LateDefStructPatch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::LateDefStructPatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::LateDefStructPatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__LateDefStructPatchStructInternalDoNotUse(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -2720,8 +3840,15 @@ PyObject* Constructor<::test::fixtures::patch::LateDefStructFieldPatchStruct>::o
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__LateDefStructFieldPatch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::FieldPatchAdapter<::test::fixtures::patch::LateDefStructFieldPatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::FieldPatchAdapter<::test::fixtures::patch::LateDefStructFieldPatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__LateDefStructFieldPatch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -2794,8 +3921,15 @@ PyObject* Constructor<::test::fixtures::patch::LateDefStructEnsureStruct>::opera
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__LateDefStructEnsureStruct(
-      detail::serialize_to_iobuf(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__LateDefStructEnsureStruct(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -2813,6 +3947,87 @@ PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
   return getThriftData(*obj);
 }
 
+ExtractorResult<::test::fixtures::patch::LateDefStructSafePatch>
+Extractor<::test::fixtures::patch::LateDefStructSafePatch>::operator()(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::LateDefStructSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  std::unique_ptr<folly::IOBuf> val(
+      extract__test__fixtures__patch__module__LateDefStructSafePatch(obj));
+  if (!val) {
+    CHECK(PyErr_Occurred());
+    return extractorError<::test::fixtures::patch::LateDefStructSafePatch>(
+        "Thrift serialize error: LateDefStructSafePatch");
+  }
+  return detail::deserialize_iobuf<::test::fixtures::patch::LateDefStructSafePatch>(std::move(val));
+}
+
+
+ExtractorResult<::test::fixtures::patch::LateDefStructSafePatch>
+Extractor<::apache::thrift::python::capi::ComposedStruct<
+    ::test::fixtures::patch::LateDefStructSafePatch>>::operator()(PyObject* fbthrift_data) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::LateDefStructSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  auto obj = StrongRef(init__test__fixtures__patch__module__LateDefStructSafePatch(fbthrift_data));
+  if (!obj) {
+      return extractorError<::test::fixtures::patch::LateDefStructSafePatch>(
+          "Init from fbthrift error: LateDefStructSafePatch");
+  }
+  return Extractor<::test::fixtures::patch::LateDefStructSafePatch>{}(*obj);
+}
+
+int Extractor<::test::fixtures::patch::LateDefStructSafePatch>::typeCheck(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    ::folly::python::handlePythonError(
+      "Module test.fixtures.patch.module import error");
+  }
+  int result =
+      can_extract__test__fixtures__patch__module__LateDefStructSafePatch(obj);
+  if (result < 0) {
+    ::folly::python::handlePythonError(
+      "Unexpected type check error: LateDefStructSafePatch");
+  }
+  return result;
+}
+
+
+PyObject* Constructor<::test::fixtures::patch::LateDefStructSafePatch>::operator()(
+    const ::test::fixtures::patch::LateDefStructSafePatch& val) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return nullptr;
+  }
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__LateDefStructSafePatch(std::move(serialized));
+  if (!ptr) {
+    CHECK(PyErr_Occurred());
+  }
+  return ptr;
+}
+
+
+PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
+        ::test::fixtures::patch::LateDefStructSafePatch>>::operator()(
+    const ::test::fixtures::patch::LateDefStructSafePatch& val) {
+  auto obj = StrongRef(Constructor<::test::fixtures::patch::LateDefStructSafePatch>{}(val));
+  if (!obj) {
+    return nullptr;
+  }
+  return getThriftData(*obj);
+}
+
 ExtractorResult<::test::fixtures::patch::RecursivePatchStruct>
 Extractor<::test::fixtures::patch::RecursivePatchStruct>::operator()(PyObject* obj) {
   if (!ensure_module_imported()) {
@@ -2821,11 +4036,11 @@ Extractor<::test::fixtures::patch::RecursivePatchStruct>::operator()(PyObject* o
       "Module test.fixtures.patch.module import error");
   }
   std::unique_ptr<folly::IOBuf> val(
-      extract__test__fixtures__patch__module__RecursivePatch(obj));
+      extract__test__fixtures__patch__module__RecursivePatchStructInternalDoNotUse(obj));
   if (!val) {
     CHECK(PyErr_Occurred());
     return extractorError<::test::fixtures::patch::RecursivePatchStruct>(
-        "Thrift serialize error: RecursivePatch");
+        "Thrift serialize error: RecursivePatchStructInternalDoNotUse");
   }
   return detail::deserialize_iobuf_to_adapted<
       ::test::fixtures::patch::RecursivePatchStruct, ::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::RecursivePatchStruct>
@@ -2841,10 +4056,10 @@ Extractor<::apache::thrift::python::capi::ComposedStruct<
     return extractorError<::test::fixtures::patch::RecursivePatchStruct>(
       "Module test.fixtures.patch.module import error");
   }
-  auto obj = StrongRef(init__test__fixtures__patch__module__RecursivePatch(fbthrift_data));
+  auto obj = StrongRef(init__test__fixtures__patch__module__RecursivePatchStructInternalDoNotUse(fbthrift_data));
   if (!obj) {
       return extractorError<::test::fixtures::patch::RecursivePatchStruct>(
-          "Init from fbthrift error: RecursivePatch");
+          "Init from fbthrift error: RecursivePatchStructInternalDoNotUse");
   }
   return Extractor<::test::fixtures::patch::RecursivePatchStruct>{}(*obj);
 }
@@ -2855,10 +4070,10 @@ int Extractor<::test::fixtures::patch::RecursivePatchStruct>::typeCheck(PyObject
       "Module test.fixtures.patch.module import error");
   }
   int result =
-      can_extract__test__fixtures__patch__module__RecursivePatch(obj);
+      can_extract__test__fixtures__patch__module__RecursivePatchStructInternalDoNotUse(obj);
   if (result < 0) {
     ::folly::python::handlePythonError(
-      "Unexpected type check error: RecursivePatch");
+      "Unexpected type check error: RecursivePatchStructInternalDoNotUse");
   }
   return result;
 }
@@ -2870,8 +4085,15 @@ PyObject* Constructor<::test::fixtures::patch::RecursivePatchStruct>::operator()
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__RecursivePatch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::RecursivePatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::RecursivePatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__RecursivePatchStructInternalDoNotUse(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -2946,8 +4168,15 @@ PyObject* Constructor<::test::fixtures::patch::RecursiveField1PatchStruct>::oper
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__RecursiveField1Patch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::AssignPatchAdapter<::test::fixtures::patch::RecursiveField1PatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::AssignPatchAdapter<::test::fixtures::patch::RecursiveField1PatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__RecursiveField1Patch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -3022,8 +4251,15 @@ PyObject* Constructor<::test::fixtures::patch::RecursiveFieldPatchStruct>::opera
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__RecursiveFieldPatch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::FieldPatchAdapter<::test::fixtures::patch::RecursiveFieldPatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::FieldPatchAdapter<::test::fixtures::patch::RecursiveFieldPatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__RecursiveFieldPatch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -3096,8 +4332,15 @@ PyObject* Constructor<::test::fixtures::patch::RecursiveEnsureStruct>::operator(
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__RecursiveEnsureStruct(
-      detail::serialize_to_iobuf(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__RecursiveEnsureStruct(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -3115,6 +4358,87 @@ PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
   return getThriftData(*obj);
 }
 
+ExtractorResult<::test::fixtures::patch::RecursiveSafePatch>
+Extractor<::test::fixtures::patch::RecursiveSafePatch>::operator()(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::RecursiveSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  std::unique_ptr<folly::IOBuf> val(
+      extract__test__fixtures__patch__module__RecursiveSafePatch(obj));
+  if (!val) {
+    CHECK(PyErr_Occurred());
+    return extractorError<::test::fixtures::patch::RecursiveSafePatch>(
+        "Thrift serialize error: RecursiveSafePatch");
+  }
+  return detail::deserialize_iobuf<::test::fixtures::patch::RecursiveSafePatch>(std::move(val));
+}
+
+
+ExtractorResult<::test::fixtures::patch::RecursiveSafePatch>
+Extractor<::apache::thrift::python::capi::ComposedStruct<
+    ::test::fixtures::patch::RecursiveSafePatch>>::operator()(PyObject* fbthrift_data) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::RecursiveSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  auto obj = StrongRef(init__test__fixtures__patch__module__RecursiveSafePatch(fbthrift_data));
+  if (!obj) {
+      return extractorError<::test::fixtures::patch::RecursiveSafePatch>(
+          "Init from fbthrift error: RecursiveSafePatch");
+  }
+  return Extractor<::test::fixtures::patch::RecursiveSafePatch>{}(*obj);
+}
+
+int Extractor<::test::fixtures::patch::RecursiveSafePatch>::typeCheck(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    ::folly::python::handlePythonError(
+      "Module test.fixtures.patch.module import error");
+  }
+  int result =
+      can_extract__test__fixtures__patch__module__RecursiveSafePatch(obj);
+  if (result < 0) {
+    ::folly::python::handlePythonError(
+      "Unexpected type check error: RecursiveSafePatch");
+  }
+  return result;
+}
+
+
+PyObject* Constructor<::test::fixtures::patch::RecursiveSafePatch>::operator()(
+    const ::test::fixtures::patch::RecursiveSafePatch& val) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return nullptr;
+  }
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__RecursiveSafePatch(std::move(serialized));
+  if (!ptr) {
+    CHECK(PyErr_Occurred());
+  }
+  return ptr;
+}
+
+
+PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
+        ::test::fixtures::patch::RecursiveSafePatch>>::operator()(
+    const ::test::fixtures::patch::RecursiveSafePatch& val) {
+  auto obj = StrongRef(Constructor<::test::fixtures::patch::RecursiveSafePatch>{}(val));
+  if (!obj) {
+    return nullptr;
+  }
+  return getThriftData(*obj);
+}
+
 ExtractorResult<::test::fixtures::patch::BarPatchStruct>
 Extractor<::test::fixtures::patch::BarPatchStruct>::operator()(PyObject* obj) {
   if (!ensure_module_imported()) {
@@ -3123,11 +4447,11 @@ Extractor<::test::fixtures::patch::BarPatchStruct>::operator()(PyObject* obj) {
       "Module test.fixtures.patch.module import error");
   }
   std::unique_ptr<folly::IOBuf> val(
-      extract__test__fixtures__patch__module__BarPatch(obj));
+      extract__test__fixtures__patch__module__BarPatchStructInternalDoNotUse(obj));
   if (!val) {
     CHECK(PyErr_Occurred());
     return extractorError<::test::fixtures::patch::BarPatchStruct>(
-        "Thrift serialize error: BarPatch");
+        "Thrift serialize error: BarPatchStructInternalDoNotUse");
   }
   return detail::deserialize_iobuf_to_adapted<
       ::test::fixtures::patch::BarPatchStruct, ::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::BarPatchStruct>
@@ -3143,10 +4467,10 @@ Extractor<::apache::thrift::python::capi::ComposedStruct<
     return extractorError<::test::fixtures::patch::BarPatchStruct>(
       "Module test.fixtures.patch.module import error");
   }
-  auto obj = StrongRef(init__test__fixtures__patch__module__BarPatch(fbthrift_data));
+  auto obj = StrongRef(init__test__fixtures__patch__module__BarPatchStructInternalDoNotUse(fbthrift_data));
   if (!obj) {
       return extractorError<::test::fixtures::patch::BarPatchStruct>(
-          "Init from fbthrift error: BarPatch");
+          "Init from fbthrift error: BarPatchStructInternalDoNotUse");
   }
   return Extractor<::test::fixtures::patch::BarPatchStruct>{}(*obj);
 }
@@ -3157,10 +4481,10 @@ int Extractor<::test::fixtures::patch::BarPatchStruct>::typeCheck(PyObject* obj)
       "Module test.fixtures.patch.module import error");
   }
   int result =
-      can_extract__test__fixtures__patch__module__BarPatch(obj);
+      can_extract__test__fixtures__patch__module__BarPatchStructInternalDoNotUse(obj);
   if (result < 0) {
     ::folly::python::handlePythonError(
-      "Unexpected type check error: BarPatch");
+      "Unexpected type check error: BarPatchStructInternalDoNotUse");
   }
   return result;
 }
@@ -3172,8 +4496,15 @@ PyObject* Constructor<::test::fixtures::patch::BarPatchStruct>::operator()(
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__BarPatch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::BarPatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::BarPatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__BarPatchStructInternalDoNotUse(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -3248,8 +4579,15 @@ PyObject* Constructor<::test::fixtures::patch::BarFieldPatchStruct>::operator()(
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__BarFieldPatch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::FieldPatchAdapter<::test::fixtures::patch::BarFieldPatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::FieldPatchAdapter<::test::fixtures::patch::BarFieldPatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__BarFieldPatch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -3322,8 +4660,15 @@ PyObject* Constructor<::test::fixtures::patch::BarEnsureStruct>::operator()(
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__BarEnsureStruct(
-      detail::serialize_to_iobuf(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__BarEnsureStruct(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -3341,6 +4686,87 @@ PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
   return getThriftData(*obj);
 }
 
+ExtractorResult<::test::fixtures::patch::BarSafePatch>
+Extractor<::test::fixtures::patch::BarSafePatch>::operator()(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::BarSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  std::unique_ptr<folly::IOBuf> val(
+      extract__test__fixtures__patch__module__BarSafePatch(obj));
+  if (!val) {
+    CHECK(PyErr_Occurred());
+    return extractorError<::test::fixtures::patch::BarSafePatch>(
+        "Thrift serialize error: BarSafePatch");
+  }
+  return detail::deserialize_iobuf<::test::fixtures::patch::BarSafePatch>(std::move(val));
+}
+
+
+ExtractorResult<::test::fixtures::patch::BarSafePatch>
+Extractor<::apache::thrift::python::capi::ComposedStruct<
+    ::test::fixtures::patch::BarSafePatch>>::operator()(PyObject* fbthrift_data) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::BarSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  auto obj = StrongRef(init__test__fixtures__patch__module__BarSafePatch(fbthrift_data));
+  if (!obj) {
+      return extractorError<::test::fixtures::patch::BarSafePatch>(
+          "Init from fbthrift error: BarSafePatch");
+  }
+  return Extractor<::test::fixtures::patch::BarSafePatch>{}(*obj);
+}
+
+int Extractor<::test::fixtures::patch::BarSafePatch>::typeCheck(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    ::folly::python::handlePythonError(
+      "Module test.fixtures.patch.module import error");
+  }
+  int result =
+      can_extract__test__fixtures__patch__module__BarSafePatch(obj);
+  if (result < 0) {
+    ::folly::python::handlePythonError(
+      "Unexpected type check error: BarSafePatch");
+  }
+  return result;
+}
+
+
+PyObject* Constructor<::test::fixtures::patch::BarSafePatch>::operator()(
+    const ::test::fixtures::patch::BarSafePatch& val) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return nullptr;
+  }
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__BarSafePatch(std::move(serialized));
+  if (!ptr) {
+    CHECK(PyErr_Occurred());
+  }
+  return ptr;
+}
+
+
+PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
+        ::test::fixtures::patch::BarSafePatch>>::operator()(
+    const ::test::fixtures::patch::BarSafePatch& val) {
+  auto obj = StrongRef(Constructor<::test::fixtures::patch::BarSafePatch>{}(val));
+  if (!obj) {
+    return nullptr;
+  }
+  return getThriftData(*obj);
+}
+
 ExtractorResult<::test::fixtures::patch::LoopPatchStruct>
 Extractor<::test::fixtures::patch::LoopPatchStruct>::operator()(PyObject* obj) {
   if (!ensure_module_imported()) {
@@ -3349,11 +4775,11 @@ Extractor<::test::fixtures::patch::LoopPatchStruct>::operator()(PyObject* obj) {
       "Module test.fixtures.patch.module import error");
   }
   std::unique_ptr<folly::IOBuf> val(
-      extract__test__fixtures__patch__module__LoopPatch(obj));
+      extract__test__fixtures__patch__module__LoopPatchStructInternalDoNotUse(obj));
   if (!val) {
     CHECK(PyErr_Occurred());
     return extractorError<::test::fixtures::patch::LoopPatchStruct>(
-        "Thrift serialize error: LoopPatch");
+        "Thrift serialize error: LoopPatchStructInternalDoNotUse");
   }
   return detail::deserialize_iobuf_to_adapted<
       ::test::fixtures::patch::LoopPatchStruct, ::apache::thrift::op::detail::AssignPatchAdapter<::test::fixtures::patch::LoopPatchStruct>
@@ -3369,10 +4795,10 @@ Extractor<::apache::thrift::python::capi::ComposedStruct<
     return extractorError<::test::fixtures::patch::LoopPatchStruct>(
       "Module test.fixtures.patch.module import error");
   }
-  auto obj = StrongRef(init__test__fixtures__patch__module__LoopPatch(fbthrift_data));
+  auto obj = StrongRef(init__test__fixtures__patch__module__LoopPatchStructInternalDoNotUse(fbthrift_data));
   if (!obj) {
       return extractorError<::test::fixtures::patch::LoopPatchStruct>(
-          "Init from fbthrift error: LoopPatch");
+          "Init from fbthrift error: LoopPatchStructInternalDoNotUse");
   }
   return Extractor<::test::fixtures::patch::LoopPatchStruct>{}(*obj);
 }
@@ -3383,10 +4809,10 @@ int Extractor<::test::fixtures::patch::LoopPatchStruct>::typeCheck(PyObject* obj
       "Module test.fixtures.patch.module import error");
   }
   int result =
-      can_extract__test__fixtures__patch__module__LoopPatch(obj);
+      can_extract__test__fixtures__patch__module__LoopPatchStructInternalDoNotUse(obj);
   if (result < 0) {
     ::folly::python::handlePythonError(
-      "Unexpected type check error: LoopPatch");
+      "Unexpected type check error: LoopPatchStructInternalDoNotUse");
   }
   return result;
 }
@@ -3398,8 +4824,15 @@ PyObject* Constructor<::test::fixtures::patch::LoopPatchStruct>::operator()(
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__LoopPatch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::AssignPatchAdapter<::test::fixtures::patch::LoopPatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::AssignPatchAdapter<::test::fixtures::patch::LoopPatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__LoopPatchStructInternalDoNotUse(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -3417,6 +4850,87 @@ PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
   return getThriftData(*obj);
 }
 
+ExtractorResult<::test::fixtures::patch::LoopSafePatch>
+Extractor<::test::fixtures::patch::LoopSafePatch>::operator()(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::LoopSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  std::unique_ptr<folly::IOBuf> val(
+      extract__test__fixtures__patch__module__LoopSafePatch(obj));
+  if (!val) {
+    CHECK(PyErr_Occurred());
+    return extractorError<::test::fixtures::patch::LoopSafePatch>(
+        "Thrift serialize error: LoopSafePatch");
+  }
+  return detail::deserialize_iobuf<::test::fixtures::patch::LoopSafePatch>(std::move(val));
+}
+
+
+ExtractorResult<::test::fixtures::patch::LoopSafePatch>
+Extractor<::apache::thrift::python::capi::ComposedStruct<
+    ::test::fixtures::patch::LoopSafePatch>>::operator()(PyObject* fbthrift_data) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::LoopSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  auto obj = StrongRef(init__test__fixtures__patch__module__LoopSafePatch(fbthrift_data));
+  if (!obj) {
+      return extractorError<::test::fixtures::patch::LoopSafePatch>(
+          "Init from fbthrift error: LoopSafePatch");
+  }
+  return Extractor<::test::fixtures::patch::LoopSafePatch>{}(*obj);
+}
+
+int Extractor<::test::fixtures::patch::LoopSafePatch>::typeCheck(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    ::folly::python::handlePythonError(
+      "Module test.fixtures.patch.module import error");
+  }
+  int result =
+      can_extract__test__fixtures__patch__module__LoopSafePatch(obj);
+  if (result < 0) {
+    ::folly::python::handlePythonError(
+      "Unexpected type check error: LoopSafePatch");
+  }
+  return result;
+}
+
+
+PyObject* Constructor<::test::fixtures::patch::LoopSafePatch>::operator()(
+    const ::test::fixtures::patch::LoopSafePatch& val) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return nullptr;
+  }
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__LoopSafePatch(std::move(serialized));
+  if (!ptr) {
+    CHECK(PyErr_Occurred());
+  }
+  return ptr;
+}
+
+
+PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
+        ::test::fixtures::patch::LoopSafePatch>>::operator()(
+    const ::test::fixtures::patch::LoopSafePatch& val) {
+  auto obj = StrongRef(Constructor<::test::fixtures::patch::LoopSafePatch>{}(val));
+  if (!obj) {
+    return nullptr;
+  }
+  return getThriftData(*obj);
+}
+
 ExtractorResult<::test::fixtures::patch::RefFieldsPatchStruct>
 Extractor<::test::fixtures::patch::RefFieldsPatchStruct>::operator()(PyObject* obj) {
   if (!ensure_module_imported()) {
@@ -3425,11 +4939,11 @@ Extractor<::test::fixtures::patch::RefFieldsPatchStruct>::operator()(PyObject* o
       "Module test.fixtures.patch.module import error");
   }
   std::unique_ptr<folly::IOBuf> val(
-      extract__test__fixtures__patch__module__RefFieldsPatch(obj));
+      extract__test__fixtures__patch__module__RefFieldsPatchStructInternalDoNotUse(obj));
   if (!val) {
     CHECK(PyErr_Occurred());
     return extractorError<::test::fixtures::patch::RefFieldsPatchStruct>(
-        "Thrift serialize error: RefFieldsPatch");
+        "Thrift serialize error: RefFieldsPatchStructInternalDoNotUse");
   }
   return detail::deserialize_iobuf_to_adapted<
       ::test::fixtures::patch::RefFieldsPatchStruct, ::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::RefFieldsPatchStruct>
@@ -3445,10 +4959,10 @@ Extractor<::apache::thrift::python::capi::ComposedStruct<
     return extractorError<::test::fixtures::patch::RefFieldsPatchStruct>(
       "Module test.fixtures.patch.module import error");
   }
-  auto obj = StrongRef(init__test__fixtures__patch__module__RefFieldsPatch(fbthrift_data));
+  auto obj = StrongRef(init__test__fixtures__patch__module__RefFieldsPatchStructInternalDoNotUse(fbthrift_data));
   if (!obj) {
       return extractorError<::test::fixtures::patch::RefFieldsPatchStruct>(
-          "Init from fbthrift error: RefFieldsPatch");
+          "Init from fbthrift error: RefFieldsPatchStructInternalDoNotUse");
   }
   return Extractor<::test::fixtures::patch::RefFieldsPatchStruct>{}(*obj);
 }
@@ -3459,10 +4973,10 @@ int Extractor<::test::fixtures::patch::RefFieldsPatchStruct>::typeCheck(PyObject
       "Module test.fixtures.patch.module import error");
   }
   int result =
-      can_extract__test__fixtures__patch__module__RefFieldsPatch(obj);
+      can_extract__test__fixtures__patch__module__RefFieldsPatchStructInternalDoNotUse(obj);
   if (result < 0) {
     ::folly::python::handlePythonError(
-      "Unexpected type check error: RefFieldsPatch");
+      "Unexpected type check error: RefFieldsPatchStructInternalDoNotUse");
   }
   return result;
 }
@@ -3474,8 +4988,15 @@ PyObject* Constructor<::test::fixtures::patch::RefFieldsPatchStruct>::operator()
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__RefFieldsPatch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::RefFieldsPatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::RefFieldsPatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__RefFieldsPatchStructInternalDoNotUse(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -3550,8 +5071,15 @@ PyObject* Constructor<::test::fixtures::patch::RefFieldsField1PatchStruct>::oper
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__RefFieldsField1Patch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::ListPatchAdapter<::test::fixtures::patch::RefFieldsField1PatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::ListPatchAdapter<::test::fixtures::patch::RefFieldsField1PatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__RefFieldsField1Patch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -3626,8 +5154,15 @@ PyObject* Constructor<::test::fixtures::patch::RefFieldsField4PatchStruct>::oper
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__RefFieldsField4Patch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::ListPatchAdapter<::test::fixtures::patch::RefFieldsField4PatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::ListPatchAdapter<::test::fixtures::patch::RefFieldsField4PatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__RefFieldsField4Patch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -3702,8 +5237,15 @@ PyObject* Constructor<::test::fixtures::patch::RefFieldsField7PatchStruct>::oper
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__RefFieldsField7Patch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::ListPatchAdapter<::test::fixtures::patch::RefFieldsField7PatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::ListPatchAdapter<::test::fixtures::patch::RefFieldsField7PatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__RefFieldsField7Patch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -3778,8 +5320,15 @@ PyObject* Constructor<::test::fixtures::patch::RefFieldsFieldPatchStruct>::opera
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__RefFieldsFieldPatch(
-      detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::FieldPatchAdapter<::test::fixtures::patch::RefFieldsFieldPatchStruct>>(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_adapted_to_iobuf<::apache::thrift::op::detail::FieldPatchAdapter<::test::fixtures::patch::RefFieldsFieldPatchStruct>>(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__RefFieldsFieldPatch(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -3852,8 +5401,15 @@ PyObject* Constructor<::test::fixtures::patch::RefFieldsEnsureStruct>::operator(
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__test__fixtures__patch__module__RefFieldsEnsureStruct(
-      detail::serialize_to_iobuf(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__RefFieldsEnsureStruct(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -3865,6 +5421,87 @@ PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
         ::test::fixtures::patch::RefFieldsEnsureStruct>>::operator()(
     const ::test::fixtures::patch::RefFieldsEnsureStruct& val) {
   auto obj = StrongRef(Constructor<::test::fixtures::patch::RefFieldsEnsureStruct>{}(val));
+  if (!obj) {
+    return nullptr;
+  }
+  return getThriftData(*obj);
+}
+
+ExtractorResult<::test::fixtures::patch::RefFieldsSafePatch>
+Extractor<::test::fixtures::patch::RefFieldsSafePatch>::operator()(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::RefFieldsSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  std::unique_ptr<folly::IOBuf> val(
+      extract__test__fixtures__patch__module__RefFieldsSafePatch(obj));
+  if (!val) {
+    CHECK(PyErr_Occurred());
+    return extractorError<::test::fixtures::patch::RefFieldsSafePatch>(
+        "Thrift serialize error: RefFieldsSafePatch");
+  }
+  return detail::deserialize_iobuf<::test::fixtures::patch::RefFieldsSafePatch>(std::move(val));
+}
+
+
+ExtractorResult<::test::fixtures::patch::RefFieldsSafePatch>
+Extractor<::apache::thrift::python::capi::ComposedStruct<
+    ::test::fixtures::patch::RefFieldsSafePatch>>::operator()(PyObject* fbthrift_data) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return extractorError<::test::fixtures::patch::RefFieldsSafePatch>(
+      "Module test.fixtures.patch.module import error");
+  }
+  auto obj = StrongRef(init__test__fixtures__patch__module__RefFieldsSafePatch(fbthrift_data));
+  if (!obj) {
+      return extractorError<::test::fixtures::patch::RefFieldsSafePatch>(
+          "Init from fbthrift error: RefFieldsSafePatch");
+  }
+  return Extractor<::test::fixtures::patch::RefFieldsSafePatch>{}(*obj);
+}
+
+int Extractor<::test::fixtures::patch::RefFieldsSafePatch>::typeCheck(PyObject* obj) {
+  if (!ensure_module_imported()) {
+    ::folly::python::handlePythonError(
+      "Module test.fixtures.patch.module import error");
+  }
+  int result =
+      can_extract__test__fixtures__patch__module__RefFieldsSafePatch(obj);
+  if (result < 0) {
+    ::folly::python::handlePythonError(
+      "Unexpected type check error: RefFieldsSafePatch");
+  }
+  return result;
+}
+
+
+PyObject* Constructor<::test::fixtures::patch::RefFieldsSafePatch>::operator()(
+    const ::test::fixtures::patch::RefFieldsSafePatch& val) {
+  if (!ensure_module_imported()) {
+    DCHECK(PyErr_Occurred() != nullptr);
+    return nullptr;
+  }
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__test__fixtures__patch__module__RefFieldsSafePatch(std::move(serialized));
+  if (!ptr) {
+    CHECK(PyErr_Occurred());
+  }
+  return ptr;
+}
+
+
+PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
+        ::test::fixtures::patch::RefFieldsSafePatch>>::operator()(
+    const ::test::fixtures::patch::RefFieldsSafePatch& val) {
+  auto obj = StrongRef(Constructor<::test::fixtures::patch::RefFieldsSafePatch>{}(val));
   if (!obj) {
     return nullptr;
   }

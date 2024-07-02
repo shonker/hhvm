@@ -76,8 +76,6 @@ struct LiveIter {
   BlockId initBlock       = NoBlockId;
   // Set whenever we see any mutation, even "safe" ones that don't affect keys.
   bool baseUpdated        = false;
-  // Set whenever the base of the iterator cannot be an iterator
-  bool baseCannotBeObject = false;
 };
 using Iter = boost::variant<DeadIter, LiveIter>;
 
@@ -604,10 +602,6 @@ struct CollectedInfo {
   bool effectFree{true};
   bool hasInvariantIterBase{false};
   CollectionOpts opts{};
-  /*
-   * See FuncAnalysisResult for details.
-   */
-  std::bitset<64> usedParams;
 
   PublicSPropMutations publicSPropMutations;
 
@@ -645,6 +639,17 @@ struct CollectedInfo {
     }
   };
   MInstrState mInstrState;
+
+  /*
+   * All blocks encountered (so far) which contain a MemoGet
+   * instruction.
+   */
+  folly::sorted_vector_set<BlockId> allMemoGets;
+  /*
+   * The union of all types used as inputs to a MemoSet instruction,
+   * and whether those types come from an effect-free function.
+   */
+  Index::ReturnType allMemoSets{TBottom, true};
 };
 
 //////////////////////////////////////////////////////////////////////

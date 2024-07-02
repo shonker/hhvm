@@ -132,13 +132,11 @@ where
         Instruct::Pseudo(Pseudo::Label(label))
         | Instruct::Opcode(
             Opcode::Enter(label)
-            | Opcode::IterInit(_, label)
-            | Opcode::IterNext(_, label)
+            | Opcode::IterInit(_, _, label)
+            | Opcode::IterNext(_, _, label)
             | Opcode::Jmp(label)
             | Opcode::JmpNZ(label)
             | Opcode::JmpZ(label)
-            | Opcode::LIterInit(_, _, label)
-            | Opcode::LIterNext(_, _, label)
             | Opcode::MemoGet(label, _),
         ) => {
             *label = f(*label);
@@ -245,7 +243,7 @@ where
             | Opcode::ContValid
             | Opcode::CreateCl(..)
             | Opcode::CreateCont
-            | Opcode::CreateSpecialImplicitContext
+            | Opcode::GetInaccessibleImplicitContext
             | Opcode::DblAsBits
             | Opcode::Dict(..)
             | Opcode::Dim(..)
@@ -286,9 +284,9 @@ where
             | Opcode::IssetG
             | Opcode::IssetL(..)
             | Opcode::IssetS
+            | Opcode::IterBase
             | Opcode::IterFree(..)
             | Opcode::Keyset(..)
-            | Opcode::LIterFree(..)
             | Opcode::LateBoundCls
             | Opcode::LazyClass(..)
             | Opcode::LazyClassFromClass
@@ -360,6 +358,7 @@ where
             | Opcode::Shl
             | Opcode::Shr
             | Opcode::Silence(..)
+            | Opcode::StaticAnalysisError
             | Opcode::String(..)
             | Opcode::Sub
             | Opcode::This
@@ -372,7 +371,6 @@ where
             | Opcode::UnsetL(..)
             | Opcode::UnsetM(..)
             | Opcode::Vec(..)
-            | Opcode::VerifyImplicitContextState
             | Opcode::VerifyOutType(..)
             | Opcode::VerifyParamType(..)
             | Opcode::VerifyParamTypeTS(..)

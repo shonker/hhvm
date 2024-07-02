@@ -14,7 +14,7 @@ use ffi::Maybe;
 use ffi::Maybe::*;
 use ffi::Vector;
 use hash::HashSet;
-use hhbc::Adata;
+use hhbc::AdataState;
 use hhbc::Attribute;
 use hhbc::Body;
 use hhbc::Class;
@@ -160,14 +160,37 @@ fn print_unit_(ctx: &Context<'_>, w: &mut dyn Write, prog: &Unit) -> Result<()> 
         )?;
     }
 
+    let mut adata = AdataState::default();
+    for body in prog.functions.iter().map(|f| &f.body).chain(
+        prog.classes
+            .iter()
+            .flat_map(|c| c.methods.iter().map(|m| &m.body)),
+    ) {
+        for instr in &body.repr.instrs {
+            use hhbc::Opcode;
+            match instr {
+                Instruct::Opcode(Opcode::Vec(a) | Opcode::Dict(a) | Opcode::Keyset(a)) => {
+                    adata.intern_value(a.clone());
+                }
+                _ => {}
+            }
+        }
+    }
+
     newline(w)?;
     print_module_use(w, &prog.module_use)?;
-    concat(w, &prog.adata, |w, a| print_adata_region(ctx, w, a))?;
-    concat(w, &prog.functions, |w, f| print_fun_def(ctx, w, f))?;
-    concat(w, &prog.classes, |w, cd| print_class_def(ctx, w, cd))?;
-    concat(w, &prog.modules, |w, cd| print_module_def(ctx, w, cd))?;
-    concat(w, &prog.constants, |w, c| print_constant(ctx, w, c))?;
-    concat(w, &prog.typedefs, |w, td| print_typedef(ctx, w, td))?;
+    concat(w, &adata.clone().finish(), |w, i, a| {
+        print_adata_region(ctx, w, i, a)
+    })?;
+    concat(w, &prog.functions, |w, _, f| {
+        print_fun_def(ctx, w, f, &adata)
+    })?;
+    concat(w, &prog.classes, |w, _, cd| {
+        print_class_def(ctx, w, cd, &adata)
+    })?;
+    concat(w, &prog.modules, |w, _, cd| print_module_def(ctx, w, cd))?;
+    concat(w, &prog.constants, |w, _, c| print_constant(ctx, w, c))?;
+    concat(w, &prog.typedefs, |w, _, td| print_typedef(ctx, w, td))?;
     print_file_attributes(ctx, w, prog.file_attributes.as_ref())?;
     print_include_region(w, &prog.symbol_refs.includes)?;
     print_symbol_ref_regions(ctx, w, &prog.symbol_refs)?;
@@ -246,9 +269,14 @@ fn print_symbol_ref_regions(
     )
 }
 
-fn print_adata_region(ctx: &Context<'_>, w: &mut dyn Write, adata: &Adata) -> Result<()> {
-    write_bytes!(w, ".adata A_{} = ", adata.id.id())?;
-    triple_quotes(w, |w| print_adata(ctx, w, &adata.value))?;
+fn print_adata_region(
+    ctx: &Context<'_>,
+    w: &mut dyn Write,
+    id: usize,
+    value: &TypedValue,
+) -> Result<()> {
+    write_bytes!(w, ".adata A_{} = ", id)?;
+    triple_quotes(w, |w| print_adata(ctx, w, value))?;
     w.write_all(b";")?;
     ctx.newline(w)
 }
@@ -265,7 +293,7 @@ fn print_typedef(ctx: &Context<'_>, w: &mut dyn Write, td: &Typedef) -> Result<(
         w,
         td.attributes.as_ref(),
         &AttrContext::Alias,
-        &td.attrs,
+        td.attrs,
     )?;
     w.write_all(td.name.as_bstr())?;
     w.write_all(b" = ")?;
@@ -294,7 +322,12 @@ where
     })
 }
 
-fn print_fun_def(ctx: &Context<'_>, w: &mut dyn Write, fun_def: &Function) -> Result<()> {
+fn print_fun_def(
+    ctx: &Context<'_>,
+    w: &mut dyn Write,
+    fun_def: &Function,
+    adata: &AdataState,
+) -> Result<()> {
     let body = &fun_def.body;
     newline(w)?;
     w.write_all(b".function ")?;
@@ -303,13 +336,13 @@ fn print_fun_def(ctx: &Context<'_>, w: &mut dyn Write, fun_def: &Function) -> Re
     print_special_and_user_attrs(
         ctx,
         w,
-        fun_def.attributes.as_ref(),
+        body.attributes.as_ref(),
         &AttrContext::Func,
-        &fun_def.attrs,
+        body.attrs,
     )?;
     print_span(w, &body.span)?;
     w.write_all(b" ")?;
-    option(w, body.return_type_info.as_ref(), |w, ti| {
+    option(w, body.return_type.as_ref(), |w, ti| {
         print_type_info(w, ti)?;
         w.write_all(b" ")
     })?;
@@ -329,7 +362,7 @@ fn print_fun_def(ctx: &Context<'_>, w: &mut dyn Write, fun_def: &Function) -> Re
     w.write_all(b" ")?;
     braces(w, |w| {
         ctx.block(w, |c, w| {
-            print_body(c, w, body, &fun_def.coeffects, &dv_labels)
+            print_body(c, w, body, &body.coeffects, &dv_labels, adata)
         })?;
         newline(w)
     })?;
@@ -413,7 +446,7 @@ fn print_property(ctx: &Context<'_>, w: &mut dyn Write, property: &Property) -> 
         w,
         property.attributes.as_ref(),
         &AttrContext::Prop,
-        &property.flags,
+        property.flags,
     )?;
     print_property_doc_comment(w, property)?;
     print_property_type_info(w, property)?;
@@ -434,7 +467,7 @@ fn print_property(ctx: &Context<'_>, w: &mut dyn Write, property: &Property) -> 
 fn print_constant(ctx: &Context<'_>, w: &mut dyn Write, c: &Constant) -> Result<()> {
     ctx.newline(w)?;
     w.write_all(b".const ")?;
-    print_special_and_user_attrs(ctx, w, &[], &AttrContext::Constant, &c.attrs)?;
+    print_special_and_user_attrs(ctx, w, &[], &AttrContext::Constant, c.attrs)?;
     w.write_all(c.name.as_bstr())?;
     match c.value.as_ref() {
         Just(TypedValue::Uninit) => w.write_all(b" = uninit")?,
@@ -493,7 +526,7 @@ fn print_enum_includes(w: &mut dyn Write, enum_includes: &[ClassName]) -> Result
     write_bytes!(w, " enum_includes ({})", fmt_separated(" ", enum_includes))
 }
 
-fn print_shadowed_tparams(w: &mut dyn Write, shadowed_tparams: &[StringId]) -> Result<()> {
+fn print_shadowed_tparams(w: &mut dyn Write, shadowed_tparams: &[ClassName]) -> Result<()> {
     write_bytes!(
         w,
         "{{{}}}",
@@ -501,7 +534,12 @@ fn print_shadowed_tparams(w: &mut dyn Write, shadowed_tparams: &[StringId]) -> R
     )
 }
 
-fn print_method_def(ctx: &Context<'_>, w: &mut dyn Write, method_def: &Method) -> Result<()> {
+fn print_method_def(
+    ctx: &Context<'_>,
+    w: &mut dyn Write,
+    method_def: &Method,
+    adata: &AdataState,
+) -> Result<()> {
     let body = &method_def.body;
     newline(w)?;
     w.write_all(b"  .method ")?;
@@ -511,19 +549,19 @@ fn print_method_def(ctx: &Context<'_>, w: &mut dyn Write, method_def: &Method) -
     print_special_and_user_attrs(
         ctx,
         w,
-        method_def.attributes.as_ref(),
+        body.attributes.as_ref(),
         &AttrContext::Func,
-        &method_def.attrs,
+        body.attrs,
     )?;
     print_span(w, &body.span)?;
     w.write_all(b" ")?;
-    option(w, body.return_type_info.as_ref(), |w, t| {
+    option(w, body.return_type.as_ref(), |w, t| {
         print_type_info(w, t)?;
         w.write_all(b" ")
     })?;
     w.write_all(method_def.name.as_bstr())?;
-    let dv_labels = find_dv_labels(&body.params);
-    print_params(ctx, w, &body.params, &dv_labels)?;
+    let dv_labels = find_dv_labels(&body.repr.params);
+    print_params(ctx, w, &body.repr.params, &dv_labels)?;
     if method_def.flags.contains(MethodFlags::IS_GENERATOR) {
         w.write_all(b" isGenerator")?;
     }
@@ -539,14 +577,19 @@ fn print_method_def(ctx: &Context<'_>, w: &mut dyn Write, method_def: &Method) -
     w.write_all(b" ")?;
     braces(w, |w| {
         ctx.block(w, |c, w| {
-            print_body(c, w, body, &method_def.coeffects, &dv_labels)
+            print_body(c, w, body, &body.coeffects, &dv_labels, adata)
         })?;
         newline(w)?;
         w.write_all(b"  ")
     })
 }
 
-fn print_class_def(ctx: &Context<'_>, w: &mut dyn Write, class_def: &Class) -> Result<()> {
+fn print_class_def(
+    ctx: &Context<'_>,
+    w: &mut dyn Write,
+    class_def: &Class,
+    adata: &AdataState,
+) -> Result<()> {
     newline(w)?;
     w.write_all(b".class ")?;
     print_upper_bounds(w, class_def.upper_bounds.as_ref())?;
@@ -556,7 +599,7 @@ fn print_class_def(ctx: &Context<'_>, w: &mut dyn Write, class_def: &Class) -> R
         w,
         class_def.attributes.as_ref(),
         &AttrContext::Class,
-        &class_def.flags,
+        class_def.flags,
     )?;
     w.write_all(class_def.name.as_bstr())?;
     w.write_all(b" ")?;
@@ -592,7 +635,7 @@ fn print_class_def(ctx: &Context<'_>, w: &mut dyn Write, class_def: &Class) -> R
             print_property(c, w, x)?;
         }
         for m in class_def.methods.as_ref() {
-            print_method_def(c, w, m)?;
+            print_method_def(c, w, m, adata)?;
         }
         Ok(())
     })?;
@@ -645,7 +688,7 @@ fn print_module_def(ctx: &Context<'_>, w: &mut dyn Write, module_def: &Module) -
         w,
         module_def.attributes.as_ref(),
         &AttrContext::Module,
-        &Attr::AttrNone,
+        Attr::AttrNone,
     )?;
     w.write_all(module_def.name.as_bstr())?;
     w.write_all(b" ")?;
@@ -724,15 +767,11 @@ fn print_adata(ctx: &Context<'_>, w: &mut dyn Write, tv: &TypedValue) -> Result<
         // TODO: The False case seems to sometimes be b:0 and sometimes i:0.  Why?
         TypedValue::Bool(false) => w.write_all(b"b:0;"),
         TypedValue::Bool(true) => w.write_all(b"b:1;"),
-        TypedValue::Vec(values) => {
-            print_adata_collection_argument(ctx, w, Adata::VEC_PREFIX, values.as_ref())
-        }
+        TypedValue::Vec(values) => print_adata_collection_argument(ctx, w, "v", values.as_ref()),
         TypedValue::Dict(entries) => {
-            print_adata_dict_collection_argument(ctx, w, Adata::DICT_PREFIX, entries.as_ref())
+            print_adata_dict_collection_argument(ctx, w, "D", entries.as_ref())
         }
-        TypedValue::Keyset(values) => {
-            print_adata_collection_argument(ctx, w, Adata::KEYSET_PREFIX, values.as_ref())
-        }
+        TypedValue::Keyset(values) => print_adata_collection_argument(ctx, w, "k", values.as_ref()),
     }
 }
 
@@ -743,14 +782,8 @@ fn print_attribute(ctx: &Context<'_>, w: &mut dyn Write, a: &Attribute) -> Resul
     } else {
         escaper::escape_bstr(unescaped)
     };
-    write_bytes!(
-        w,
-        "\"{}\"(\"\"\"{}:{}:{{",
-        escaped,
-        Adata::VEC_PREFIX,
-        a.arguments.len()
-    )?;
-    concat(w, &a.arguments, |w, arg| print_adata(ctx, w, arg))?;
+    write_bytes!(w, "\"{}\"(\"\"\"v:{}:{{", escaped, a.arguments.len())?;
+    concat(w, &a.arguments, |w, _, arg| print_adata(ctx, w, arg))?;
     w.write_all(b"}\"\"\")")
 }
 
@@ -799,6 +832,7 @@ fn print_body(
     body: &Body,
     coeffects: &Coeffects,
     dv_labels: &HashSet<Label>,
+    adata: &AdataState,
 ) -> Result<()> {
     print_doc_comment(ctx, w, body.doc_comment.as_ref())?;
     if body.is_memoize_wrapper {
@@ -813,10 +847,10 @@ fn print_body(
         ctx.newline(w)?;
         write!(w, ".numiters {};", body.num_iters)?;
     }
-    if !body.decl_vars.is_empty() {
+    if !body.repr.decl_vars.is_empty() {
         ctx.newline(w)?;
         w.write_all(b".declvars ")?;
-        concat_by(w, " ", &body.decl_vars, |w, var| {
+        concat_by(w, " ", &body.repr.decl_vars, |w, _, var| {
             let var = var.as_str().as_bytes();
             if var.iter().all(is_bareword_char) {
                 w.write_all(var)
@@ -828,20 +862,22 @@ fn print_body(
     }
     coeffects::coeffects_to_hhas(ctx, w, coeffects)?;
     let local_names: Vec<_> = body
+        .repr
         .params
         .iter()
         .map(|e| e.param.name)
-        .chain(body.decl_vars.iter().copied())
+        .chain(body.repr.decl_vars.iter().copied())
         .collect();
-    print_instructions(ctx, w, &body.body_instrs, dv_labels, &local_names)
+    print_instructions(ctx, w, &body.repr.instrs, dv_labels, &local_names, adata)
 }
 
-fn print_instructions<'a, 'b>(
+fn print_instructions(
     ctx: &Context<'_>,
     w: &mut dyn Write,
-    instrs: &'b [Instruct],
-    dv_labels: &'b HashSet<Label>,
-    local_names: &'b [StringId],
+    instrs: &[Instruct],
+    dv_labels: &HashSet<Label>,
+    local_names: &[StringId],
+    adata: &AdataState,
 ) -> Result<()> {
     let mut ctx = ctx.clone();
     for instr in instrs {
@@ -851,25 +887,25 @@ fn print_instructions<'a, 'b>(
             }
             Instruct::Pseudo(Pseudo::Label(_)) => ctx.unblock(w, |c, w| {
                 c.newline(w)?;
-                print_instr(w, instr, dv_labels, local_names)
+                print_instr(w, instr, dv_labels, local_names, adata)
             })?,
             Instruct::Pseudo(Pseudo::TryCatchBegin) => {
                 ctx.newline(w)?;
-                print_instr(w, instr, dv_labels, local_names)?;
+                print_instr(w, instr, dv_labels, local_names, adata)?;
                 ctx.indent_inc();
             }
             Instruct::Pseudo(Pseudo::TryCatchMiddle) => ctx.unblock(w, |c, w| {
                 c.newline(w)?;
-                print_instr(w, instr, dv_labels, local_names)
+                print_instr(w, instr, dv_labels, local_names, adata)
             })?,
             Instruct::Pseudo(Pseudo::TryCatchEnd) => {
                 ctx.indent_dec();
                 ctx.newline(w)?;
-                print_instr(w, instr, dv_labels, local_names)?;
+                print_instr(w, instr, dv_labels, local_names, adata)?;
             }
             _ => {
                 ctx.newline(w)?;
-                print_instr(w, instr, dv_labels, local_names)?;
+                print_instr(w, instr, dv_labels, local_names, adata)?;
             }
         }
     }
@@ -899,13 +935,13 @@ pub(crate) fn print_fcall_args(
     print_int(w, num_rets)?;
     w.write_all(b" ")?;
     quotes(w, |w| {
-        concat_by(w, "", inouts, |w, i| {
+        concat_by(w, "", inouts, |w, _, i| {
             w.write_all(if *i { b"1" } else { b"0" })
         })
     })?;
     w.write_all(b" ")?;
     quotes(w, |w| {
-        concat_by(w, "", readonly, |w, i| {
+        concat_by(w, "", readonly, |w, _, i| {
             w.write_all(if *i { b"1" } else { b"0" })
         })
     })?;
@@ -937,15 +973,17 @@ fn print_pseudo(w: &mut dyn Write, instr: &Pseudo, dv_labels: &HashSet<Label>) -
     }
 }
 
-fn print_instr<'a, 'b>(
+fn print_instr(
     w: &mut dyn Write,
-    instr: &'b Instruct,
-    dv_labels: &'b HashSet<Label>,
-    local_names: &'b [StringId],
+    instr: &Instruct,
+    dv_labels: &HashSet<Label>,
+    local_names: &[StringId],
+    adata: &AdataState,
 ) -> Result<()> {
     match instr {
         Instruct::Opcode(opcode) => {
-            crate::print_opcode::PrintOpcode::new(opcode, dv_labels, local_names).print_opcode(w)
+            crate::print_opcode::PrintOpcode::new(opcode, dv_labels, local_names)
+                .print_opcode(w, adata)
         }
         Instruct::Pseudo(pseudo) => print_pseudo(w, pseudo, dv_labels),
     }
@@ -970,7 +1008,7 @@ fn print_params(
     dv_labels: &HashSet<Label>,
 ) -> Result<()> {
     paren(w, |w| {
-        concat_by(w, ", ", params, |w, i| print_param(ctx, w, i, dv_labels))
+        concat_by(w, ", ", params, |w, _, i| print_param(ctx, w, i, dv_labels))
     })
 }
 
@@ -1044,11 +1082,11 @@ fn print_special_and_user_attrs(
     w: &mut dyn Write,
     users: &[Attribute],
     attr_ctx: &AttrContext,
-    attrs: &Attr,
+    attrs: Attr,
 ) -> Result<()> {
     if !users.is_empty() || !attrs.is_empty() {
         square(w, |w| {
-            write!(w, "{}", attrs_to_string_ffi(*attr_ctx, *attrs))?;
+            write!(w, "{}", attrs_to_string_ffi(*attr_ctx, attrs))?;
             if !users.is_empty() {
                 w.write_all(b" ")?;
             }
@@ -1060,24 +1098,28 @@ fn print_special_and_user_attrs(
 }
 
 fn print_upper_bounds(w: &mut dyn Write, ubs: impl AsRef<[UpperBound]>) -> Result<()> {
-    braces(w, |w| concat_by(w, ", ", ubs, print_upper_bound))
+    braces(w, |w| {
+        concat_by(w, ", ", ubs, |w, _, ub| print_upper_bound(w, ub))
+    })
 }
 
 fn print_upper_bound(w: &mut dyn Write, ub: &UpperBound) -> Result<()> {
     paren(w, |w| {
         write!(w, "{} as ", ub.name)?;
-        concat_by(w, ", ", &ub.bounds, print_type_info)
+        concat_by(w, ", ", &ub.bounds, |w, _, t| print_type_info(w, t))
     })
 }
 
 fn print_upper_bounds_(w: &mut dyn Write, ubs: impl AsRef<[UpperBound]>) -> Result<()> {
-    braces(w, |w| concat_by(w, ", ", ubs, print_upper_bound_))
+    braces(w, |w| {
+        concat_by(w, ", ", ubs, |w, _, ub| print_upper_bound_(w, ub))
+    })
 }
 
 fn print_upper_bound_(w: &mut dyn Write, ub: &UpperBound) -> Result<()> {
     paren(w, |w| {
         write!(w, "{} as ", ub.name)?;
-        concat_by(w, ", ", &ub.bounds, print_type_info)
+        concat_by(w, ", ", &ub.bounds, |w, _, t| print_type_info(w, t))
     })
 }
 
@@ -1133,7 +1175,7 @@ fn print_typedef_info(w: &mut dyn Write, ti: &TypeInfo) -> Result<()> {
 }
 
 fn print_typedef_info_union(w: &mut dyn Write, tis: &[TypeInfo]) -> Result<()> {
-    concat_by(w, ",", tis, print_typedef_info)
+    concat_by(w, ",", tis, |w, _, td| print_typedef_info(w, td))
 }
 
 fn print_extends(w: &mut dyn Write, base: Option<&str>) -> Result<()> {

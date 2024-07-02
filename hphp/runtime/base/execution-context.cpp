@@ -86,6 +86,7 @@
 #include "hphp/zend/zend-math.h"
 
 #include "hphp/runtime/base/bespoke-runtime.h"
+#include "hphp/runtime/ext/hh/ext_implicit_context.h"
 
 namespace HPHP {
 ///////////////////////////////////////////////////////////////////////////////
@@ -217,8 +218,8 @@ void ExecutionContext::setContentType(const String& mimetype,
 ///////////////////////////////////////////////////////////////////////////////
 // write()
 
-void ExecutionContext::write(const String& s) {
-  write(s.data(), s.size());
+void ExecutionContext::write(const String& s, bool outputHookOnly) {
+  write(s.data(), s.size(), outputHookOnly);
 }
 
 void ExecutionContext::addStdoutHook(StdoutHook* hook) {
@@ -274,7 +275,14 @@ size_t ExecutionContext::getStdoutBytesWritten() const {
   return m_stdoutBytesWritten;
 }
 
-void ExecutionContext::write(const char *s, int len) {
+void ExecutionContext::write(const char *s, int len, bool outputHookOnly) {
+  if (outputHookOnly) {
+    for (auto const hook : m_stdoutHooks) {
+      assertx(hook != nullptr);
+      (*hook)(s, len);
+    }
+    return;
+  }
   if (m_sb) {
     m_sb->append(s, len);
     if (m_out && m_out->chunk_size > 0) {
@@ -645,8 +653,7 @@ void ExecutionContext::executeFunctions(ShutdownType type) {
       Cfg::Server::PspCpuTimeoutSeconds
   );
 
-  // Implicit context should not have leaked
-  assertx(!(*ImplicitContext::activeCtx));
+  assertx((*ImplicitContext::activeCtx) == (*ImplicitContext::emptyCtx));
 
   // We mustn't destroy any callbacks until we're done with all
   // of them. So hold them in tmp.
@@ -661,8 +668,7 @@ void ExecutionContext::executeFunctions(ShutdownType type) {
       [](TypedValue v) {
         vm_call_user_func(VarNR{v}, init_null_variant,
                           RuntimeCoeffects::defaults());
-        // Implicit context should not have leaked between each call
-        assertx(!(*ImplicitContext::activeCtx));
+        assertx((*ImplicitContext::activeCtx) == (*ImplicitContext::emptyCtx));
       }
     );
     tmp.append(funcs);
@@ -1422,8 +1428,12 @@ void ExecutionContext::requestInit() {
     SystemLib::mergePersistentUnits();
   }
 
+  assertx(!ImplicitContext::emptyCtx.isInit());
+  ImplicitContext::emptyCtx.initWith(initEmptyContext().detach());
+
   assertx(!ImplicitContext::activeCtx.isInit());
-  ImplicitContext::activeCtx.initWith(nullptr);
+  ImplicitContext::activeCtx.initWith(*ImplicitContext::emptyCtx);
+  (*ImplicitContext::activeCtx)->incRefCount();
 
   profileRequestStart();
 
@@ -1613,7 +1623,7 @@ TypedValue ExecutionContext::invokeFuncImpl(const Func* f,
     // This is an explicit try-catch-rethrow rather than a SCOPE_EXIT
     // because std::uncaught_exceptions() is relatively expensive, and this
     // is very hot code.
-    *ImplicitContext::activeCtx = prev_ic;
+    ImplicitContext::setActive(Object{prev_ic});
     throw;
   }
 }
@@ -1735,15 +1745,15 @@ void ExecutionContext::resumeAsyncFunc(Resumable* resumable,
                                        ObjectData* freeObj,
                                        const TypedValue awaitResult) {
   assertx(regState() == VMRegState::CLEAN);
+  assertx(*ImplicitContext::activeCtx);
   SCOPE_EXIT { assertx(regState() == VMRegState::CLEAN); };
 
   auto fp = resumable->actRec();
-
-  *ImplicitContext::activeCtx = [&] {
+  ImplicitContext::setActive(Object{[&] {
     if (!fp->func()->isGenerator()) return frame_afwh(fp)->m_implicitContext;
     auto gen = frame_async_generator(fp);
     return gen->getWaitHandle()->m_implicitContext;
-  }();
+  }()});
 
   // We don't need to check for space for the ActRec (unlike generally
   // in normal re-entry), because the ActRec isn't on the stack.
@@ -1779,15 +1789,15 @@ void ExecutionContext::resumeAsyncFuncThrow(Resumable* resumable,
   assertx(exception);
   assertx(exception->instanceof(SystemLib::getThrowableClass()));
   assertx(regState() == VMRegState::CLEAN);
+  assertx(*ImplicitContext::activeCtx);
   SCOPE_EXIT { assertx(regState() == VMRegState::CLEAN); };
 
   auto fp = resumable->actRec();
-
-  *ImplicitContext::activeCtx = [&] {
+  ImplicitContext::setActive(Object{[&] {
     if (!fp->func()->isGenerator()) return frame_afwh(fp)->m_implicitContext;
     auto gen = frame_async_generator(fp);
     return gen->getWaitHandle()->m_implicitContext;
-  }();
+  }()});
 
   checkStack(vmStack(), fp->func(), 0);
 

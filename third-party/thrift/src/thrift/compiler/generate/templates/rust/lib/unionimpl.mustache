@@ -1,6 +1,6 @@
 {{!
 
-  Copyright (c) Meta Platforms, Inc. and its affiliates.
+  Copyright (c) Meta Platforms, Inc. and affiliates.
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -36,10 +36,17 @@ impl ::fbthrift::GetUri for self::{{struct:rust_name}} {
 }
 {{/struct:thrift_uri}}
 
+impl ::fbthrift::GetTypeNameType for self::{{struct:rust_name}} {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::UnionType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for {{struct:rust_name}}
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("{{struct:name}}");
         match self {{>lib/block}}{{!
@@ -69,6 +76,7 @@ impl<P> ::fbthrift::Deserialize<P> for {{struct:rust_name}}
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             {{#struct:fields_by_name}}

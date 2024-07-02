@@ -3,7 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the "hack" directory of this source tree.
 //
-// @generated SignedSource<<fb63995bceda13f1b120ebde1b939dcb>>
+// @generated SignedSource<<2a3963204ad120390349ed94d4c97ac0>>
 //
 // To regenerate this file, run:
 //   hphp/hack/src/oxidized_regen.sh
@@ -332,6 +332,7 @@ pub enum UserAttributeParam {
 pub struct UserAttribute {
     pub name: PosId,
     pub params: Vec<UserAttributeParam>,
+    pub raw_val: Option<String>,
 }
 
 #[derive(
@@ -471,7 +472,7 @@ pub struct FunImplicitParams {
 #[repr(C)]
 pub struct FunParam {
     #[rust_to_ocaml(attr = "hash.ignore")]
-    #[rust_to_ocaml(attr = "equal fun _ -> fun _ -> true")]
+    #[rust_to_ocaml(attr = "equal fun _ _ -> true")]
     pub pos: pos_or_decl::PosOrDecl,
     pub name: Option<String>,
     pub type_: Ty,
@@ -514,13 +515,11 @@ pub struct FunType {
 
 #[derive(
     Clone,
-    Copy,
     Debug,
     Deserialize,
     Eq,
     EqModuloPos,
     FromOcamlRep,
-    FromOcamlRepIn,
     Hash,
     NoPosHash,
     Ord,
@@ -530,12 +529,18 @@ pub struct FunType {
     ToOcamlRep
 )]
 #[rust_to_ocaml(attr = "deriving (eq, ord, hash, (show { with_path = false }))")]
-#[repr(u8)]
+#[repr(C, u8)]
 pub enum TypePredicate {
     IsBool,
+    IsInt,
+    IsString,
+    IsArraykey,
+    IsFloat,
+    IsNum,
+    IsResource,
+    IsNull,
+    IsTupleOf(Vec<TypePredicate>),
 }
-impl TrivialDrop for TypePredicate {}
-arena_deserializer::impl_deserialize_in_arena!(TypePredicate);
 
 #[derive(
     Clone,
@@ -555,8 +560,6 @@ arena_deserializer::impl_deserialize_in_arena!(TypePredicate);
 #[rust_to_ocaml(attr = "deriving (hash, (show { with_path = false }))")]
 #[repr(C, u8)]
 pub enum NegType {
-    #[rust_to_ocaml(name = "Neg_prim")]
-    NegPrim(ast_defs::Tprim),
     #[rust_to_ocaml(name = "Neg_class")]
     NegClass(PosId),
     #[rust_to_ocaml(name = "Neg_predicate")]
@@ -752,6 +755,8 @@ pub enum Ty_ {
     Tclass(PosId, Exact, Vec<Ty>),
     /// The negation of the type in neg_type
     Tneg(NegType),
+    /// The type of the label expression #ID
+    Tlabel(String),
 }
 
 #[derive(
@@ -1099,6 +1104,9 @@ pub enum ConstraintType_ {
     ThasMember(HasMember),
     #[rust_to_ocaml(name = "Thas_type_member")]
     ThasTypeMember(HasTypeMember),
+    /// Check if the given type has a class constant that is compatible with [ty]
+    #[rust_to_ocaml(name = "Thas_const")]
+    ThasConst { name: String, ty: Ty },
     #[rust_to_ocaml(name = "Tcan_index")]
     TcanIndex(CanIndex),
     #[rust_to_ocaml(name = "Tcan_traverse")]

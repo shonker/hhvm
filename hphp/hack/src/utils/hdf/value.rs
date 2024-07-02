@@ -50,6 +50,16 @@ impl Default for Value {
     }
 }
 
+impl Clone for Value {
+    fn clone(&self) -> Self {
+        let mut cloned = Self {
+            inner: ffi::hdf_new(),
+        };
+        let _ = cloned.copy(self);
+        cloned
+    }
+}
+
 /// Impl Debug using the underlying C++ Hdf pretty printer.
 impl std::fmt::Debug for Value {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -228,6 +238,14 @@ impl Value {
             Ok(names) => Ok(names),
             Err(e) => Err(e.into()),
         }
+    }
+
+    pub fn has_child_nodes(&self) -> bool {
+        ffi::hdf_has_child_nodes(&self.inner)
+    }
+
+    pub fn is_list(&self) -> bool {
+        ffi::hdf_is_list(&self.inner)
     }
 
     /// Return the string values of child nodes.
@@ -555,6 +573,38 @@ a.b.c="d;e"
         );
         assert_eq!(hdf.get_str_vec_or("none", vec![])?, empty_vec);
         assert_eq!(hdf.get_str_vec_or("foo.1", vec![])?, empty_vec);
+        Ok(())
+    }
+
+    #[test]
+    fn test_has_children_and_is_list() -> Result<()> {
+        let mut hdf = Value::default();
+        hdf.set_hdf(
+            r#"
+            foo {
+                * = zero
+                * = one
+                # This is a dangerous config because if next after this if * = three
+                # occurs foo.2 will be replaced with three
+                2 = two
+            }
+            bar.* = two
+            bar.* = three
+            bar.* = four
+        }
+        "#,
+        )?;
+
+        assert!(hdf.has_child_nodes());
+        assert!(!hdf.is_list());
+        assert!(hdf.get("foo")?.unwrap().has_child_nodes());
+        assert!(!hdf.get("foo")?.unwrap().is_list());
+        assert!(!hdf.get("foo.2")?.unwrap().has_child_nodes());
+        assert!(!hdf.get("foo.2")?.unwrap().is_list());
+        assert!(hdf.get("bar")?.unwrap().has_child_nodes());
+        assert!(hdf.get("bar")?.unwrap().is_list());
+        assert!(!hdf.get("bar.4")?.unwrap().has_child_nodes());
+        assert!(!hdf.get("bar.4")?.unwrap().is_list());
         Ok(())
     }
 }

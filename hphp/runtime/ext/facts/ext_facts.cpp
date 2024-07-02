@@ -50,6 +50,7 @@
 #include "hphp/runtime/base/watchman-connection.h"
 #include "hphp/runtime/base/watchman.h"
 #include "hphp/runtime/ext/extension.h"
+#include "hphp/runtime/ext/facts/config.h"
 #include "hphp/runtime/ext/facts/fact-extractor.h"
 #include "hphp/runtime/ext/facts/facts-store.h"
 #include "hphp/runtime/ext/facts/logging.h"
@@ -85,44 +86,6 @@ struct RepoOptionsParseExc : public std::runtime_error {
   explicit RepoOptionsParseExc(std::string msg)
       : std::runtime_error{std::move(msg)} {}
 };
-
-/**
- * Get the directory containing the given RepoOptions file. We define this to
- * be the root of the repository we're autoloading.
- */
-fs::path getRepoRoot(const RepoOptions& options) {
-  return options.dir();
-}
-
-::gid_t getGroup() {
-  // Resolve the group to a unix gid
-  if (Cfg::Autoload::DBGroup.empty()) {
-    return -1;
-  }
-  try {
-    GroupInfo grp{Cfg::Autoload::DBGroup.c_str()};
-    return grp.gr->gr_gid;
-  } catch (const Exception& e) {
-    XLOGF(
-        WARN,
-        "Can't resolve {} to a gid: {}",
-        Cfg::Autoload::DBGroup,
-        e.what());
-    return -1;
-  }
-}
-
-::mode_t getDBPerms() {
-  try {
-    ::mode_t res = std::stoi(Cfg::Autoload::DBPerms, 0, 8);
-    XLOGF(DBG0, "Converted {} to {:04o}", Cfg::Autoload::DBPerms, res);
-    return res;
-  } catch (const std::exception& e) {
-    XLOG(WARN) << "Error running std::stoi on \"Autoload.DB.Perms\": "
-               << e.what();
-    return 0644;
-  }
-}
 
 bool hasWatchedFileExtension(const std::filesystem::path& path) {
   auto ext = path.extension();
@@ -160,8 +123,9 @@ SQLiteKey getDBKey(const fs::path& root, const RepoOptions& repoOptions) {
   always_assert(!dbPath.empty());
   // Create a DB with the given permissions if none exists
   if (Cfg::Autoload::DBCanCreate) {
-    ::gid_t gid = getGroup();
-    return SQLiteKey::readWriteCreate(dbPath, gid, getDBPerms());
+    auto gid = parseDBGroup();
+    auto mode = parseDBPerms();
+    return SQLiteKey::readWriteCreate(dbPath, gid, mode);
   }
   // Use an existing DB and throw if it doesn't exist
   return SQLiteKey::readWrite(dbPath);
@@ -172,7 +136,7 @@ SQLiteKey getDBKey(const fs::path& root, const RepoOptions& repoOptions) {
  */
 struct SqliteAutoloadMapKey {
   static SqliteAutoloadMapKey get(const RepoOptions& repoOptions) {
-    auto root = getRepoRoot(repoOptions);
+    auto root = repoOptions.dir();
 
     auto queryExpr = [&]() -> folly::dynamic {
       auto const cached = repoOptions.flags().autoloadQueryObj();
@@ -282,7 +246,11 @@ struct SqliteAutoloadMapFactory final : public FactsFactory {
   std::mutex m_mutex;
 
   /**
-   * Map from root to AutoloadMap
+   * A FactsStore implements Facts API queries
+   *  - autoload queries (symbol -> file lookups)
+   *  - decl queries (details about files, symbols, methods, attributes)
+   *  - symbols with a certain attribute
+   *  - derived classes of a certain base
    */
   hphp_hash_map<SqliteAutoloadMapKey, std::shared_ptr<FactsStore>> m_stores;
 
@@ -333,7 +301,13 @@ struct FactsExtension final : Extension {
 
   void moduleShutdown() override {
     // Destroy all resources at a deterministic time to avoid SDOF
-    FactsFactory::setInstance(nullptr);
+    if (FactsFactory::getInstance() == m_data->m_factory.get()) {
+      // FactsFactory is still the one installed by this extension.
+      // Deregister it now.
+      FactsFactory::setInstance(nullptr);
+    } else {
+      // Some other extension initialized FactsFactory - leave it alone.
+    }
     m_data = {};
   }
 
@@ -385,6 +359,7 @@ std::shared_ptr<Watcher> make_watcher(const SqliteAutoloadMapKey& mapKey) {
   }
 }
 
+// Factory entry point called by autoload getFactsForRequest().
 FactsStore* SqliteAutoloadMapFactory::getForOptions(
     const RepoOptions& options) {
   auto mapKey = [&]() -> Optional<SqliteAutoloadMapKey> {
@@ -567,6 +542,18 @@ bool HHVM_FUNCTION(facts_enabled) {
   return AutoloadHandler::s_instance->getFacts() != nullptr;
 }
 
+void HHVM_FUNCTION(facts_validate, const Array& types_to_ignore) {
+  std::set<std::string> types_to_ignore_str;
+  IterateV(types_to_ignore.get(), [&](TypedValue v) {
+    types_to_ignore_str.insert(v.m_data.pstr->toCppString());
+  });
+  try {
+    Facts::getFactsOrThrow().validate(types_to_ignore_str);
+  } catch (std::logic_error& e) {
+    SystemLib::throwUnexpectedValueExceptionObject(e.what());
+  }
+}
+
 void HHVM_FUNCTION(facts_sync) {
   Facts::getFactsOrThrow().ensureUpdated();
 }
@@ -615,7 +602,16 @@ int64_t HHVM_FUNCTION(facts_schema_version) {
 }
 
 Variant HHVM_FUNCTION(facts_type_to_path, const String& typeName) {
-  auto fileRes = Facts::getFactsOrThrow().getTypeFile(typeName);
+  auto fileRes = Facts::getFactsOrThrow().getTypeFileRelative(typeName);
+  if (!fileRes) {
+    return Variant{Variant::NullInit{}};
+  } else {
+    return Variant{fileRes->m_path};
+  }
+}
+
+Variant HHVM_FUNCTION(facts_type_to_path_relative, const String& typeName) {
+  auto fileRes = Facts::getFactsOrThrow().getTypeFileRelative(typeName);
   if (!fileRes) {
     return Variant{Variant::NullInit{}};
   } else {
@@ -626,7 +622,20 @@ Variant HHVM_FUNCTION(facts_type_to_path, const String& typeName) {
 Variant HHVM_FUNCTION(
     facts_type_or_type_alias_to_path,
     const String& typeName) {
-  auto fileRes = Facts::getFactsOrThrow().getTypeOrTypeAliasFile(typeName);
+  auto fileRes =
+      Facts::getFactsOrThrow().getTypeOrTypeAliasFileRelative(typeName);
+  if (!fileRes) {
+    return Variant{Variant::NullInit{}};
+  } else {
+    return Variant{fileRes->m_path};
+  }
+}
+
+Variant HHVM_FUNCTION(
+    facts_type_or_type_alias_to_path_relative,
+    const String& typeName) {
+  auto fileRes =
+      Facts::getFactsOrThrow().getTypeOrTypeAliasFileRelative(typeName);
   if (!fileRes) {
     return Variant{Variant::NullInit{}};
   } else {
@@ -635,7 +644,18 @@ Variant HHVM_FUNCTION(
 }
 
 Variant HHVM_FUNCTION(facts_function_to_path, const String& functionName) {
-  auto fileRes = Facts::getFactsOrThrow().getFunctionFile(functionName);
+  auto fileRes = Facts::getFactsOrThrow().getFunctionFileRelative(functionName);
+  if (!fileRes) {
+    return Variant{Variant::NullInit{}};
+  } else {
+    return Variant{fileRes->m_path};
+  }
+}
+
+Variant HHVM_FUNCTION(
+    facts_function_to_path_relative,
+    const String& functionName) {
+  auto fileRes = Facts::getFactsOrThrow().getFunctionFileRelative(functionName);
   if (!fileRes) {
     return Variant{Variant::NullInit{}};
   } else {
@@ -644,7 +664,18 @@ Variant HHVM_FUNCTION(facts_function_to_path, const String& functionName) {
 }
 
 Variant HHVM_FUNCTION(facts_constant_to_path, const String& constantName) {
-  auto fileRes = Facts::getFactsOrThrow().getConstantFile(constantName);
+  auto fileRes = Facts::getFactsOrThrow().getConstantFileRelative(constantName);
+  if (!fileRes) {
+    return Variant{Variant::NullInit{}};
+  } else {
+    return Variant{fileRes->m_path};
+  }
+}
+
+Variant HHVM_FUNCTION(
+    facts_constant_to_path_relative,
+    const String& constantName) {
+  auto fileRes = Facts::getFactsOrThrow().getConstantFileRelative(constantName);
   if (!fileRes) {
     return Variant{Variant::NullInit{}};
   } else {
@@ -653,7 +684,16 @@ Variant HHVM_FUNCTION(facts_constant_to_path, const String& constantName) {
 }
 
 Variant HHVM_FUNCTION(facts_module_to_path, const String& moduleName) {
-  auto fileRes = Facts::getFactsOrThrow().getModuleFile(moduleName);
+  auto fileRes = Facts::getFactsOrThrow().getModuleFileRelative(moduleName);
+  if (!fileRes) {
+    return Variant{Variant::NullInit{}};
+  } else {
+    return Variant{fileRes->m_path};
+  }
+}
+
+Variant HHVM_FUNCTION(facts_module_to_path_relative, const String& moduleName) {
+  auto fileRes = Facts::getFactsOrThrow().getModuleFileRelative(moduleName);
   if (!fileRes) {
     return Variant{Variant::NullInit{}};
   } else {
@@ -662,7 +702,20 @@ Variant HHVM_FUNCTION(facts_module_to_path, const String& moduleName) {
 }
 
 Variant HHVM_FUNCTION(facts_type_alias_to_path, const String& typeAliasName) {
-  auto fileRes = Facts::getFactsOrThrow().getTypeAliasFile(typeAliasName);
+  auto fileRes =
+      Facts::getFactsOrThrow().getTypeAliasFileRelative(typeAliasName);
+  if (!fileRes) {
+    return Variant{Variant::NullInit{}};
+  } else {
+    return Variant{fileRes->m_path};
+  }
+}
+
+Variant HHVM_FUNCTION(
+    facts_type_alias_to_path_relative,
+    const String& typeAliasName) {
+  auto fileRes =
+      Facts::getFactsOrThrow().getTypeAliasFileRelative(typeAliasName);
   if (!fileRes) {
     return Variant{Variant::NullInit{}};
   } else {
@@ -833,18 +886,36 @@ void FactsExtension::moduleInit() {
 
 void FactsExtension::moduleRegisterNative() {
   HHVM_NAMED_FE(HH\\Facts\\enabled, HHVM_FN(facts_enabled));
+  HHVM_NAMED_FE(HH\\Facts\\validate, HHVM_FN(facts_validate));
   HHVM_NAMED_FE(HH\\Facts\\db_path, HHVM_FN(facts_db_path));
   HHVM_NAMED_FE(HH\\Facts\\schema_version, HHVM_FN(facts_schema_version));
   HHVM_NAMED_FE(HH\\Facts\\sync, HHVM_FN(facts_sync));
   HHVM_NAMED_FE(HH\\Facts\\type_to_path, HHVM_FN(facts_type_to_path));
   HHVM_NAMED_FE(
+      HH\\Facts\\type_to_path_relative, HHVM_FN(facts_type_to_path_relative));
+  HHVM_NAMED_FE(
       HH\\Facts\\type_or_type_alias_to_path,
       HHVM_FN(facts_type_or_type_alias_to_path));
+  HHVM_NAMED_FE(
+      HH\\Facts\\type_or_type_alias_to_path_relative,
+      HHVM_FN(facts_type_or_type_alias_to_path_relative));
   HHVM_NAMED_FE(HH\\Facts\\function_to_path, HHVM_FN(facts_function_to_path));
+  HHVM_NAMED_FE(
+      HH\\Facts\\function_to_path_relative,
+      HHVM_FN(facts_function_to_path_relative));
   HHVM_NAMED_FE(HH\\Facts\\constant_to_path, HHVM_FN(facts_constant_to_path));
+  HHVM_NAMED_FE(
+      HH\\Facts\\constant_to_path_relative,
+      HHVM_FN(facts_constant_to_path_relative));
   HHVM_NAMED_FE(HH\\Facts\\module_to_path, HHVM_FN(facts_module_to_path));
   HHVM_NAMED_FE(
+      HH\\Facts\\module_to_path_relative,
+      HHVM_FN(facts_module_to_path_relative));
+  HHVM_NAMED_FE(
       HH\\Facts\\type_alias_to_path, HHVM_FN(facts_type_alias_to_path));
+  HHVM_NAMED_FE(
+      HH\\Facts\\type_alias_to_path_relative,
+      HHVM_FN(facts_type_alias_to_path_relative));
 
   HHVM_NAMED_FE(HH\\Facts\\path_to_types, HHVM_FN(facts_path_to_types));
   HHVM_NAMED_FE(HH\\Facts\\path_to_functions, HHVM_FN(facts_path_to_functions));

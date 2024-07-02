@@ -22,6 +22,7 @@ impl<'a> std::fmt::Display for FmtRaw<'a> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let Self(
             UserError {
+                severity,
                 code,
                 claim: Message(pos, msg),
                 reasons,
@@ -41,7 +42,12 @@ impl<'a> std::fmt::Display for FmtRaw<'a> {
         let (line, start, end) = pos.info_pos();
         write!(
             f,
-            "{}:{}:{},{}: {} ({})",
+            "{}: {}:{}:{},{}: {} ({})",
+            Styled(
+                severity.color().bold(),
+                severity.to_all_caps_string(),
+                *is_term
+            ),
             Styled(Color::Red.bold(), filename.display(), *is_term),
             Styled(Color::Yellow.normal(), line, *is_term),
             Styled(Color::Cyan.normal(), start, *is_term),

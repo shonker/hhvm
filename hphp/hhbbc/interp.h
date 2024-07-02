@@ -39,10 +39,6 @@ namespace res { struct Func; }
 
 //////////////////////////////////////////////////////////////////////
 
-constexpr auto kReadOnlyConstant = kInvalidDataType;
-
-//////////////////////////////////////////////////////////////////////
-
 struct BlockUpdateInfo {
   BlockId fallthrough{NoBlockId};
   uint32_t unchangedBcs{0};
@@ -67,6 +63,11 @@ struct RunFlags {
    */
   LocalId retParam{NoLocalId};
   BlockUpdateInfo updateInfo;
+
+  /*
+   * See FuncAnalysisResult for details.
+   */
+  std::bitset<64> usedParams;
 
   bool noThrow{true};
 };
@@ -142,6 +143,11 @@ struct StepFlags {
   std::bitset<kMaxTrackedLocals> mayReadLocalSet;
 
   /*
+   * See FuncAnalysisResult for details.
+   */
+  std::bitset<64> usedParams;
+
+  /*
    * If this is not none, the interpreter executed a return on this
    * step, with this type.
    */
@@ -189,9 +195,13 @@ StepFlags step(Interp&, const Bytecode& op);
  *
  * If the PropagateFn is called with a nullptr State, it means that
  * the given block should be re-processed.
+ *
+ * If the block needs to be reprocessed, RollbackFn will be called to
+ * "roll-back" any states propagated to other blocks.
  */
 using PropagateFn = std::function<void (BlockId, const State*)>;
-RunFlags run(Interp&, const State& in, PropagateFn);
+using RollbackFn = std::function<void()>;
+RunFlags run(Interp&, const State& in, const PropagateFn&, const RollbackFn&);
 
 /*
  * Dispatch a bytecode to the default interpreter.
@@ -207,6 +217,12 @@ void default_dispatch(ISS&, const Bytecode&);
  * Can this call be converted to an FCallBuiltin
  */
 bool optimize_builtin(ISS& env, const php::Func* func, const FCallArgs& fca);
+
+/*
+ * Static list of all builtins which can be potentially optimized
+ * specially.
+ */
+const std::vector<SString>& special_builtins();
 
 Optional<Type>
 const_fold(ISS& env, uint32_t nArgs, uint32_t numExtraInputs,

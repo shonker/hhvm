@@ -61,7 +61,7 @@ std::string_view A::__fbthrift_get_class_name() {
 
 
 A::A(apache::thrift::FragileConstructor, ::std::int32_t useless_field__arg) :
-    __fbthrift_field_useless_field(std::move(useless_field__arg)) {
+    __fbthrift_field_useless_field(std::move(useless_field__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -104,7 +104,7 @@ template uint32_t A::serializedSize<>(apache::thrift::CompactProtocolWriter cons
 template uint32_t A::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -238,7 +238,7 @@ template uint32_t U::serializedSize<>(apache::thrift::CompactProtocolWriter cons
 template uint32_t U::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -292,7 +292,7 @@ Bang& Bang::operator=([[maybe_unused]] Bang&& other) noexcept {
 
 
 Bang::Bang(apache::thrift::FragileConstructor, ::std::string message__arg) :
-    __fbthrift_field_message(std::move(message__arg)) {
+    __fbthrift_field_message(std::move(message__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -335,11 +335,11 @@ template uint32_t Bang::serializedSize<>(apache::thrift::CompactProtocolWriter c
 template uint32_t Bang::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace cpp2 { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}} // cpp2
+}} // namespace cpp2
 namespace apache::thrift::detail::annotation {
 }

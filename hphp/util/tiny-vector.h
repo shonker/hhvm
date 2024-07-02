@@ -18,10 +18,10 @@
 
 #include <algorithm>
 #include <memory>
+#include <new>
 #include <type_traits>
 
 #include <boost/iterator/iterator_facade.hpp>
-#include <folly/lang/Launder.h>
 #include <folly/portability/Malloc.h>
 
 #include "hphp/util/alloc.h"
@@ -282,6 +282,11 @@ struct TinyVector {
     while (begin != end) emplace_back(*begin++);
   }
 
+  template <typename I>
+  void eraseTail(I begin) {
+    while (begin != end()) pop_back();
+  }
+
   void pop_back() {
     assertx(!empty());
     location(size() - 1)->~T();
@@ -402,7 +407,7 @@ private:
 
   T* location(size_t index) {
     return (index < InternalSize)
-      ? folly::launder(reinterpret_cast<T*>(&m_impl.m_vals[index]))
+      ? std::launder(reinterpret_cast<T*>(&m_impl.m_vals[index]))
       : &m_impl.m_data.ptr()->vals[index - InternalSize];
   }
 

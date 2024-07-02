@@ -127,7 +127,7 @@ class ValUnion;
 class VirtualComplexUnion;
 class NonCopyableStruct;
 class NonCopyableUnion;
-} // cpp2
+} // namespace cpp2
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -200,6 +200,8 @@ class ComplexUnion final  {
   using __fbthrift_cpp2_type = ComplexUnion;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -779,6 +781,8 @@ class ListUnion final  {
   using __fbthrift_cpp2_type = ListUnion;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1066,6 +1070,8 @@ class DataUnion final  {
   using __fbthrift_cpp2_type = DataUnion;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1357,6 +1363,8 @@ class Val final  {
   using __fbthrift_cpp2_type = Val;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1617,6 +1625,8 @@ class ValUnion final  {
   using __fbthrift_cpp2_type = ValUnion;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1904,6 +1914,8 @@ class VirtualComplexUnion  {
   using __fbthrift_cpp2_type = VirtualComplexUnion;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -2191,6 +2203,8 @@ class NonCopyableStruct final  {
   using __fbthrift_cpp2_type = NonCopyableStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -2336,6 +2350,8 @@ class NonCopyableUnion final  {
   using __fbthrift_cpp2_type = NonCopyableUnion;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -2488,7 +2504,7 @@ unsigned long NonCopyableUnion::read(Protocol_* iprot) {
 }
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache { namespace thrift {
 

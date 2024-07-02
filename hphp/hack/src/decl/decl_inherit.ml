@@ -719,6 +719,9 @@ end = struct
 
   let rev : t -> t = List.rev_map ~f:(Tuple2.map_snd ~f:List.rev)
 
+  (** Apply [f] to each parent to obtain a result and a precedence.
+    Return the result with the highest precedence.
+    If two results have the same highest precedence, return the first one. *)
   let find_map_first_with_highest_precedence
       (type res)
       (t : t)
@@ -778,13 +781,9 @@ let find_overridden_method
   let precedence : class_elt -> OverridePrecedence.t =
     OverridePrecedence.make (module Typing_defs_class_elt)
   in
-  let get_method_with_precedence parent_kind ty =
-    match parent_kind with
-    | Trait -> None
-    | Parent
-    | Requirement ->
-      get_method ty |> Option.filter ~f:is_not_private >>| fun method_ ->
-      (precedence method_, method_)
+  let get_method_with_precedence _ ty =
+    get_method ty |> Option.filter ~f:is_not_private >>| fun method_ ->
+    (precedence method_, method_)
   in
   OrderedParents.get cls
   |> OrderedParents.rev

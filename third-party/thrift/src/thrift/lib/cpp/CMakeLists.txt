@@ -83,14 +83,21 @@ target_link_libraries(
 )
 
 add_library(
+  runtime
+
+  ../cpp2/runtime/Init.cpp
+)
+target_link_libraries(
+  runtime
+  PUBLIC
+    Folly::folly
+)
+
+add_library(
   async
 
   ContextStack.cpp
   EventHandlerBase.cpp
-  async/TBinaryAsyncChannel.cpp
-  async/TFramedAsyncChannel.cpp
-  async/THttpAsyncChannel.cpp
-  async/TUnframedAsyncChannel.cpp
   server/TServerObserver.cpp
   ../cpp2/detail/EventHandlerRuntime.cpp
 )
@@ -108,6 +115,7 @@ target_link_libraries(
   async
   PUBLIC
     concurrency
+    runtime
     transport
     Boost::boost
     Folly::folly
@@ -158,6 +166,7 @@ install(
     concurrency
     transport
     async
+    runtime
     thrift
   EXPORT fbthrift-exports
   DESTINATION ${LIB_INSTALL_DIR}

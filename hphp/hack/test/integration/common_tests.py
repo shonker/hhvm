@@ -451,7 +451,7 @@ class BarebonesTests(TestCase[CommonTestDriver]):
 
         self.test_driver.check_cmd(
             [
-                "{root}foo_4.php:4:24,26: Invalid return type (Typing[4110])",
+                "ERROR: {root}foo_4.php:4:24,26: Invalid return type (Typing[4110])",
                 "  {root}foo_4.php:3:27,29: Expected `int`",
                 "  {root}foo_4.php:4:24,26: But got `string`",
             ]
@@ -474,9 +474,9 @@ class BarebonesTests(TestCase[CommonTestDriver]):
 
         self.test_driver.check_cmd(
             [
-                "{root}foo_4.php:3:19,21: Name already bound: `FOO` (Naming[2012])",
+                "ERROR: {root}foo_4.php:3:19,21: Name already bound: `FOO` (Naming[2012])",
                 "  {root}foo_3.php:7:15,17: Previous definition is here",
-                "{root}foo_4.php:4:22,22: Name already bound: `H` (Naming[2012])",
+                "ERROR: {root}foo_4.php:4:22,22: Name already bound: `H` (Naming[2012])",
                 "  {root}foo_3.php:3:18,18: Previous definition is here",
             ]
         )
@@ -503,7 +503,7 @@ class BarebonesTests(TestCase[CommonTestDriver]):
         self.test_driver.start_hh_server(changed_files=["class_1.php"])
         self.test_driver.check_cmd(
             [
-                "{root}class_3.php:5:12,19: Invalid return type (Typing[4110])",
+                "ERROR: {root}class_3.php:5:12,19: Invalid return type (Typing[4110])",
                 "  {root}class_3.php:4:28,30: Expected `int`",
                 "  {root}class_1.php:4:51,54: But got `bool`",
             ]
@@ -545,7 +545,7 @@ class CommonTests(BarebonesTests):
 
         self.test_driver.check_cmd(
             [
-                "{root}foo_2.php:4:24,26: Invalid return type (Typing[4110])",
+                "ERROR: {root}foo_2.php:4:24,26: Invalid return type (Typing[4110])",
                 "  {root}foo_2.php:3:27,29: Expected `int`",
                 "  {root}foo_2.php:4:24,26: But got `string`",
             ]
@@ -562,8 +562,8 @@ class CommonTests(BarebonesTests):
 
         self.test_driver.check_cmd(
             [
-                "{root}foo_1.php:4:20,20: Unbound name (typing): `g` (Typing[4107])",
-                "{root}foo_1.php:4:20,20: Unbound name: `g` (a global function) (Naming[2049])",
+                "ERROR: {root}foo_1.php:4:20,20: Unbound name (typing): `g` (Typing[4107])",
+                "ERROR: {root}foo_1.php:4:20,20: Unbound name: `g` (a global function) (Naming[2049])",
             ]
         )
 
@@ -578,8 +578,8 @@ class CommonTests(BarebonesTests):
         os.remove(os.path.join(self.test_driver.repo_dir, "foo_2.php"))
         self.test_driver.check_cmd(
             [
-                "{root}foo_1.php:4:20,20: Unbound name: `g` (a global function) (Naming[2049])",
-                "{root}foo_1.php:4:20,20: Unbound name (typing): `g` (Typing[4107])",
+                "ERROR: {root}foo_1.php:4:20,20: Unbound name: `g` (a global function) (Naming[2049])",
+                "ERROR: {root}foo_1.php:4:20,20: Unbound name (typing): `g` (Typing[4107])",
             ]
         )
 
@@ -594,7 +594,7 @@ class CommonTests(BarebonesTests):
 
         self.test_driver.check_cmd(
             [
-                "{root}foo_2_dup.php:3:18,18: Name already bound: `g` (Naming[2012])",
+                "ERROR: {root}foo_2_dup.php:3:18,18: Name already bound: `g` (Naming[2012])",
                 "  {root}foo_2.php:3:18,18: Previous definition is here",
             ]
         )
@@ -629,7 +629,7 @@ class CommonTests(BarebonesTests):
 
         self.test_driver.check_cmd(
             [
-                "{root}foo_1.php:4:24,26: Invalid return type (Typing[4110])",
+                "ERROR: {root}foo_1.php:4:24,26: Invalid return type (Typing[4110])",
                 "  {root}foo_1.php:3:27,32: Expected `string`",
                 "  {root}bar_2.php:3:23,25: But got `int`",
             ]
@@ -799,6 +799,32 @@ class CommonTests(BarebonesTests):
             options=["--type-at-pos-batch", "{root}foo_readonly.php:4:4"],
         )
 
+    def test_type_at_pos_batch_optional(self) -> None:
+        """
+        Test hh_client --type-at-pos-batch
+        """
+        self.test_driver.start_hh_server()
+
+        self.test_driver.check_cmd(
+            [
+                '{{"position":'
+                + '{{"file":"{root}foo_optional.php",'
+                + '"line":4,'
+                + '"character":4}}'
+                + ',"type":{{'
+                + '"src_pos":{{"filename":"{root}foo_optional.php","line":3,"char_start":23,"char_end":57}},'
+                + '"kind":"function",'
+                + '"params":[{{"callConvention":"normal","type":{{'
+                + '"src_pos":{{"filename":"{root}foo_optional.php","line":3,"char_start":33,"char_end":35}},"kind":"primitive","name":"int"}}}},'
+                + '{{"callConvention":"normal",'
+                + '"optional":true,'
+                + '"type":{{"src_pos":{{"filename":"{root}foo_optional.php","line":3,"char_start":47,"char_end":50}},"kind":"primitive","name":"bool"}}}}],'
+                + '"result":{{"src_pos":{{"filename":"{root}foo_optional.php","line":3,"char_start":54,"char_end":56}},"kind":"primitive","name":"int"}}}}'
+                + "}}"
+            ],
+            options=["--type-at-pos-batch", "{root}foo_optional.php:4:4"],
+        )
+
     def test_ide_get_definition(self) -> None:
         """
         Test hh_client --ide-get-definition
@@ -853,6 +879,7 @@ class CommonTests(BarebonesTests):
                 '  position: File "", line 1, characters 15-17:',
                 '  span: File "", line 1, character 6 - line 1, character 22:',
                 "  modifiers: ",
+                "  detail: function()",
                 "  params:",
                 "",
             ],
@@ -935,9 +962,9 @@ class CommonTests(BarebonesTests):
         self.test_driver.start_hh_server(changed_files=["foo_4.php", "foo_5.php"])
         self.test_driver.check_cmd(
             [
-                "{root}foo_4.php:3:19,21: Name already bound: `Foo` (Naming[2012])",
+                "ERROR: {root}foo_4.php:3:19,21: Name already bound: `Foo` (Naming[2012])",
                 "  {root}foo_3.php:7:15,17: Previous definition is here",
-                "{root}foo_5.php:6:28,29: No class variable `$y` in `Bar` (Typing[4090])",
+                "ERROR: {root}foo_5.php:6:28,29: No class variable `$y` in `Bar` (Typing[4090])",
                 "  {root}foo_5.php:3:19,21: Declaration of `Bar` is here",
             ]
         )
@@ -945,7 +972,7 @@ class CommonTests(BarebonesTests):
         os.remove(os.path.join(self.test_driver.repo_dir, "foo_4.php"))
         self.test_driver.check_cmd(
             [
-                "{root}foo_5.php:6:28,29: No class variable `$y` in `Bar` (Typing[4090])",
+                "ERROR: {root}foo_5.php:6:28,29: No class variable `$y` in `Bar` (Typing[4090])",
                 "  {root}foo_5.php:3:19,21: Declaration of `Bar` is here",
             ]
         )
@@ -1354,7 +1381,7 @@ class CommonTests(BarebonesTests):
 
         self.test_driver.check_cmd(
             [
-                "{root}typing_error.php:2:32,34: Invalid return type (Typing[4110])",
+                "ERROR: {root}typing_error.php:2:32,34: Invalid return type (Typing[4110])",
                 "  {root}typing_error.php:2:19,21: Expected `int`",
                 "  {root}foo_3.php:3:23,28: But got `string`",
             ],
@@ -1364,9 +1391,9 @@ class CommonTests(BarebonesTests):
 
         self.test_driver.check_cmd(
             [
-                ":2:11,14: Name already bound: `aaaa` (Naming[2012])",
+                "ERROR: :2:11,14: Name already bound: `aaaa` (Naming[2012])",
                 "  {root}typing_error.php:2:11,14: Previous definition is here",
-                ":2:32,34: Invalid return type (Typing[4110])",
+                "ERROR: :2:32,34: Invalid return type (Typing[4110])",
                 "  :2:19,21: Expected `int`",
                 "  {root}foo_3.php:3:23,28: But got `string`",
             ],

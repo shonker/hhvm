@@ -314,8 +314,6 @@ bool refinable_load_eligible(const IRInstruction& inst) {
     case LdStk:
     case LdMem:
     case LdMBase:
-    case LdIterPos:
-    case LdIterEnd:
     case LdFrameThis:
     case LdFrameCls:
       assertx(inst.hasTypeParam());
@@ -328,12 +326,6 @@ bool refinable_load_eligible(const IRInstruction& inst) {
 void clear_everything(Local& env) {
   FTRACE(3, "      clear_everything\n");
   env.state.avail.reset();
-}
-
-// Construct an immediate that represents all of an iterator's type fields.
-int64_t iter_type_immediate(const IterTypeData& data) {
-  return static_cast<uint32_t>(data.type.as_byte) << 16 |
-         static_cast<uint32_t>(data.layout.toUint16());
 }
 
 TrackedLoc* find_tracked(State& state,
@@ -542,18 +534,6 @@ Flags handle_general_effects(Local& env,
 
       case CheckMROProp:
         return handleCheck(Type::cns(true));
-
-      case CheckIter: {
-        assertx(m.inout == AEmpty);
-        assertx(m.backtrace.empty());
-        auto const meta = env.global.ainfo.find(canonicalize(m.loads));
-        if (!meta || !env.state.avail[meta->index]) return std::nullopt;
-        auto const& type = env.state.tracked[meta->index].knownType;
-        if (!type.hasConstVal(TInt)) return std::nullopt;
-        auto const value = iter_type_immediate(*inst.extra<CheckIter>());
-        auto const match = type.intVal() == value;
-        return match ? Flags{FJmpNext{}} : Flags{FJmpTaken{}};
-      }
 
       case InitSProps: {
         auto const handle = inst.extra<ClassData>()->cls->sPropInitHandle();
@@ -975,32 +955,6 @@ Flags analyze_inst(Local& env, const IRInstruction& inst) {
   case AssertStk:
     flags = handle_assert(env, inst);
     break;
-  case LdIterPos: {
-    // For pointer iters, the type of the pointee of the pos is a lower bound
-    // on the union of the types of the base's values. The same is true for the
-    // pointee type of the end.
-    //
-    // Since the end is loop-invariant, we can use its type to refine the pos
-    // and so avoid value type-checks. Here, "dropConstVal" drops the precise
-    // value of the end (for static bases) but preserves the pointee type.
-    auto const iter = inst.extra<LdIterPos>()->iterId;
-    auto const end_cls = canonicalize(AliasClass(aiter_end(inst.src(0), iter)));
-    auto const end = find_tracked(env, env.global.ainfo.find(end_cls));
-    if (end != nullptr) {
-      auto const end_type = end->knownType.dropConstVal();
-      if (end_type < inst.typeParam()) return FRefinableLoad { end_type };
-    }
-    break;
-  }
-  case StIterType: {
-    // StIterType stores an immediate to the iter's type fields. We construct a
-    // tmp to represent the immediate. (memory-effects can't do so w/o a unit.)
-    auto const extra = inst.extra<StIterType>();
-    auto const value = iter_type_immediate(*extra);
-    auto const acls = canonicalize(AliasClass(aiter_type(inst.src(0), extra->iterId)));
-    store(env, acls, env.global.unit.cns(value));
-    break;
-  }
   case EndInlining:
     if (Cfg::HHIR::InliningAssertMemoryEffects) {
       assertx(inst.src(0)->inst()->is(BeginInlining));

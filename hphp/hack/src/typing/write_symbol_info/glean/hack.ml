@@ -688,6 +688,7 @@ and MethodOverridden: sig
   and key= {
     base: MethodDeclaration.t;
     derived: MethodDeclaration.t;
+    annotation: bool option;
   }
   [@@deriving ord]
 
@@ -704,6 +705,7 @@ end = struct
   and key= {
     base: MethodDeclaration.t;
     derived: MethodDeclaration.t;
+    annotation: bool option;
   }
   [@@deriving ord]
 
@@ -711,11 +713,15 @@ end = struct
     | Id f -> Util.id f
     | Key t -> Util.key (to_json_key t)
 
-  and to_json_key {base; derived} = 
+  and to_json_key {base; derived; annotation} = 
     let fields = [
       ("base", MethodDeclaration.to_json base);
       ("derived", MethodDeclaration.to_json derived);
     ] in
+    let fields =
+      match annotation with
+      | None -> fields
+      | Some annotation -> ("annotation", JSON_Bool annotation) :: fields in
     JSON_Object fields
 
 end
@@ -1887,6 +1893,7 @@ and MethodOverrides: sig
   and key= {
     derived: MethodDeclaration.t;
     base: MethodDeclaration.t;
+    annotation: bool option;
   }
   [@@deriving ord]
 
@@ -1903,6 +1910,7 @@ end = struct
   and key= {
     derived: MethodDeclaration.t;
     base: MethodDeclaration.t;
+    annotation: bool option;
   }
   [@@deriving ord]
 
@@ -1910,11 +1918,15 @@ end = struct
     | Id f -> Util.id f
     | Key t -> Util.key (to_json_key t)
 
-  and to_json_key {derived; base} = 
+  and to_json_key {derived; base; annotation} = 
     let fields = [
       ("derived", MethodDeclaration.to_json derived);
       ("base", MethodDeclaration.to_json base);
     ] in
+    let fields =
+      match annotation with
+      | None -> fields
+      | Some annotation -> ("annotation", JSON_Bool annotation) :: fields in
     JSON_Object fields
 
 end
@@ -2551,6 +2563,88 @@ end = struct
 
   and to_json_key x = Declaration.to_json x
   and to_json_value x = Name.to_json x
+end
+
+and ThriftToHack: sig
+  type t =
+    | Id of Fact_id.t
+    | Key of key
+  [@@deriving ord]
+
+  and key= {
+    to_: Fbthrift.Declaration.t;
+    from: Declaration.t;
+  }
+  [@@deriving ord]
+
+  val to_json: t -> json
+
+  val to_json_key: key -> json
+
+end = struct
+  type t =
+    | Id of Fact_id.t
+    | Key of key
+  [@@deriving ord]
+
+  and key= {
+    to_: Fbthrift.Declaration.t;
+    from: Declaration.t;
+  }
+  [@@deriving ord]
+
+  let rec to_json = function
+    | Id f -> Util.id f
+    | Key t -> Util.key (to_json_key t)
+
+  and to_json_key {to_; from} = 
+    let fields = [
+      ("to", Fbthrift.Declaration.to_json to_);
+      ("from", Declaration.to_json from);
+    ] in
+    JSON_Object fields
+
+end
+
+and HackToThrift: sig
+  type t =
+    | Id of Fact_id.t
+    | Key of key
+  [@@deriving ord]
+
+  and key= {
+    from: Declaration.t;
+    to_: Fbthrift.Declaration.t;
+  }
+  [@@deriving ord]
+
+  val to_json: t -> json
+
+  val to_json_key: key -> json
+
+end = struct
+  type t =
+    | Id of Fact_id.t
+    | Key of key
+  [@@deriving ord]
+
+  and key= {
+    from: Declaration.t;
+    to_: Fbthrift.Declaration.t;
+  }
+  [@@deriving ord]
+
+  let rec to_json = function
+    | Id f -> Util.id f
+    | Key t -> Util.key (to_json_key t)
+
+  and to_json_key {from; to_} = 
+    let fields = [
+      ("from", Declaration.to_json from);
+      ("to", Fbthrift.Declaration.to_json to_);
+    ] in
+    JSON_Object fields
+
 end
 
 and InheritedMembers: sig

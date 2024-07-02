@@ -25,6 +25,7 @@
 #include "hphp/runtime/base/tv-refcount.h"
 #include "hphp/runtime/base/type-variant.h"
 #include "hphp/runtime/base/string-buffer.h"
+#include "hphp/runtime/base/implicit-context.h"
 #include "hphp/runtime/vm/func.h"
 #include "hphp/runtime/vm/repo-global-data.h"
 #include "hphp/runtime/vm/vm-regs.h"
@@ -52,6 +53,7 @@
 #include "hphp/runtime/ext/hh/ext_hh.h"
 #include "hphp/runtime/ext/std/ext_std_errorfunc.h"
 
+#include "hphp/util/configs/eval.h"
 #include "hphp/util/configs/hhir.h"
 #include "hphp/util/text-util.h"
 
@@ -190,50 +192,76 @@ SSATmp* is_a_impl(IRGS& env, const ParamPrep& params, bool subclassOnly) {
   auto const nparams = params.size();
   if (nparams != 2 && nparams != 3) return nullptr;
 
-  auto const obj = params[0].value;
+  auto const cls_or_obj = params[0].value;
   auto const cls = params[1].value;
-  auto const allowClass = nparams == 3 ? params[2].value : cns(env, false);
+  // Note: is_a's default value for $allowString = false while
+  // is_subclass_of's default value for $allowString = true
+  auto const allowClass = nparams == 3 ? params[2].value : cns(env, subclassOnly);
 
-  if (!obj->type().subtypeOfAny(TCls, TObj) ||
+  if (!cls_or_obj->type().subtypeOfAny(TCls, TObj) ||
       !cls->type().subtypeOfAny(TCls, TLazyCls, TStr) ||
       !allowClass->isA(TBool)) {
     return nullptr;
   }
 
-  auto const lhs = obj->isA(TObj) ? gen(env, LdObjClass, obj) : obj;
-  auto const rhs = [&] {
+  auto const lookupRhs = [&] {
     if (cls->isA(TStr)) {
-      return gen(env, LookupClsRDS, cls);
+      return gen(env, LookupCls, cls);
     }
     if (cls->isA(TLazyCls)) {
       auto const cname = gen(env, LdLazyClsName, cls);
-      return gen(env, LookupClsRDS, cname);
+      return gen(env, LookupCls, cname);
     }
     return cls;
-  }();
+  };
 
-  return cond(
-    env,
-    [&](Block* taken) {
-      return gen(env, CheckNonNull, taken, rhs);
-    },
-    [&](SSATmp* rhs) {
-      // is_a() finishes here.
-      if (!subclassOnly) return gen(env, InstanceOf, lhs, rhs);
+  auto const is_a = [&](SSATmp* lhs, SSATmp* rhsOpt) {
+    return cond(
+      env,
+      [&](Block* taken) {
+        // Note: is_a always returns false for traits
+        auto const data = AttrData { AttrTrait };
 
-      // is_subclass_of() also needs to check that LHS and RHS don't match.
-      return cond(
-        env,
-        [&](Block* match) {
-          auto const eq = gen(env, EqCls, lhs, rhs);
-          gen(env, JmpNZero, match, eq);
-        },
-        [&]{ return gen(env, InstanceOf, lhs, rhs); },
-        [&]{ return cns(env, false); }
-      );
-    },
-    [&]{ return cns(env, false); }
-  );
+        if (!cls_or_obj->isA(TObj)) {
+          gen(env, JmpNZero, taken, gen(env, ClassHasAttr, data, lhs)); 
+        }
+
+        auto const rhs = gen(env, CheckNonNull, taken, rhsOpt);
+        gen(env, JmpNZero, taken, gen(env, ClassHasAttr, data, rhs));
+
+        // is_subclass_of() also needs to check that LHS and RHS don't match.
+        if (subclassOnly) gen(env, JmpNZero, taken, gen(env, EqCls, lhs, rhs));
+
+        return rhs;
+      },
+      [&](SSATmp* rhs) { return gen(env, InstanceOf, lhs, rhs); },
+      [&]{ return cns(env, false); }
+    );
+  };
+
+  if (cls_or_obj->isA(TObj)) {
+    auto const lhs = gen(env, LdObjClass, cls_or_obj);
+    auto const rhsOpt = lookupRhs();
+    return is_a(lhs, rhsOpt);
+  } else {
+    assertx(cls_or_obj->isA(TCls));
+    // is_a always returns false if the first argument is not an object and
+    // $allow_string is false
+    return cond(
+      env,
+      [&](Block* taken) {
+        gen(env, JmpZero, taken, allowClass);
+      },
+      [&] {
+        // TODO(T168044199) admit TStr and TLazyCls and call ldCls
+        auto const lhs = cls_or_obj;
+
+        auto const rhsOpt = lookupRhs();
+        return is_a(lhs, rhsOpt);
+      },
+      [&] { return cns(env, false); }
+    );
+  }
 }
 
 SSATmp* opt_is_a(IRGS& env, const ParamPrep& params) {
@@ -452,37 +480,14 @@ SSATmp* opt_in_array(IRGS& env, const ParamPrep& params) {
 }
 
 SSATmp* opt_get_class(IRGS& env, const ParamPrep& params) {
-  auto const curCls = curClass(env);
-  auto const curName = [&] {
-    return curCls != nullptr ? cns(env, curCls->name()) : nullptr;
-  };
-  if (params.size() == 0 && RuntimeOption::EvalGetClassBadArgument == 0) {
-    return curName();
-  }
   if (params.size() != 1) return nullptr;
 
   auto const val = params[0].value;
-  auto const ty  = val->type();
-  if (ty <= TNull && RuntimeOption::EvalGetClassBadArgument == 0) {
-    return curName();
-  }
-  if (ty <= TObj) {
+  if (val->type() <= TObj) {
     auto const cls = gen(env, LdObjClass, val);
     return gen(env, LdClsName, cls);
   }
-
-  return nullptr;
-}
-
-SSATmp* opt_class_get_class_name(IRGS& env, const ParamPrep& params) {
-  if (params.size() != 1) return nullptr;
-  auto const value = params[0].value;
-  if (value->type() <= TCls) {
-    return gen(env, LdClsName, value);
-  }
-  if (value->type() <= TLazyCls) {
-    return gen(env, LdLazyClsName, value);
-  }
+  
   return nullptr;
 }
 
@@ -659,25 +664,25 @@ SSATmp* opt_array_key_cast(IRGS& env, const ParamPrep& params) {
   if (value->isA(TRes))  return gen(env, ConvResToInt, value);
   if (value->isA(TStr))  return gen(env, StrictlyIntegerConv, value);
   if (value->isA(TLazyCls))  {
-		if (RO::EvalRaiseClassConversionNoticeSampleRate > 0) {
+		if (Cfg::Eval::RaiseClassConversionNoticeSampleRate > 0) {
       std::string msg;
       // TODO(vmladenov) appears untested
       string_printf(msg, Strings::CLASS_TO_STRING_IMPLICIT, op);
       gen(env,
         RaiseNotice,
-        SampleRateData { RO::EvalRaiseClassConversionNoticeSampleRate },
+        SampleRateData { Cfg::Eval::RaiseClassConversionNoticeSampleRate },
         cns(env, makeStaticString(msg)));
     }
     return gen(env, LdLazyClsName, value);
   }
   if (value->isA(TCls))  {
-		if (RO::EvalRaiseClassConversionNoticeSampleRate > 0) {
+		if (Cfg::Eval::RaiseClassConversionNoticeSampleRate > 0) {
       std::string msg;
       // TODO(vmladenov) appears untested
       string_printf(msg, Strings::CLASS_TO_STRING_IMPLICIT, op);
       gen(env,
           RaiseNotice,
-          SampleRateData { RO::EvalRaiseClassConversionNoticeSampleRate },
+          SampleRateData { Cfg::Eval::RaiseClassConversionNoticeSampleRate },
           cns(env, makeStaticString(msg)));
     }
     return gen(env, LdClsName, value);
@@ -1249,21 +1254,8 @@ SSATmp* opt_meth_caller_get_method(IRGS& env, const ParamPrep& params) {
 
 SSATmp* opt_get_implicit_context_memo_key(IRGS& env, const ParamPrep& params) {
   if (params.size() != 0) return nullptr;
-  return cond(
-    env,
-    [&] (Block* taken) {
-      auto const ctx = gen(env, LdImplicitContext);
-      return gen(env, CheckType, TObj, taken, ctx);
-    },
-    [&] (SSATmp* ctx) {
-      auto const key = gen(env, LdImplicitContextMemoKey, ctx);
-      gen(env, IncRef, key);
-      return key;
-    },
-    [&] {
-      return cns(env, staticEmptyString());
-    }
-  );
+  auto const ctx = gen(env, LdImplicitContext);
+  return gen(env, LdImplicitContextMemoKey, ctx);
 }
 
 SSATmp* opt_class_to_classname(IRGS& env, const ParamPrep& params) {
@@ -1327,7 +1319,6 @@ const hphp_fast_string_fmap<OptEmitFn> s_opt_emit_fns{
   {"HH\\fun_get_function", opt_fun_get_function},
   {"HH\\class_meth_get_class", opt_class_meth_get_class},
   {"HH\\class_meth_get_method", opt_class_meth_get_method},
-  {"HH\\class_get_class_name", opt_class_get_class_name},
   {"HH\\BuiltinEnum::getNames", opt_enum_names},
   {"HH\\BuiltinEnum::getValues", opt_enum_values},
   {"HH\\BuiltinEnum::coerce", opt_enum_coerce},
@@ -1608,7 +1599,7 @@ SSATmp* maybeCoerceValue(
     if (!val->type().maybe(TLazyCls | TCls)) return bail();
 
     auto castW = [&] (SSATmp* val){
-      if (RO::EvalClassStringHintNoticesSampleRate > 0) {
+      if (Cfg::Eval::ClassStringHintNoticesSampleRate > 0) {
         auto tcInfo = folly::sformat(
           "argument {} passed to {}()", id + 1, func->fullName());
         std::string msg;
@@ -1616,7 +1607,7 @@ SSATmp* maybeCoerceValue(
         gen(
           env,
           RaiseNotice,
-          SampleRateData { RO::EvalClassStringHintNoticesSampleRate },
+          SampleRateData { Cfg::Eval::ClassStringHintNoticesSampleRate },
           cns(env, makeStaticString(msg))
         );
       }
@@ -1950,7 +1941,7 @@ Type builtinOutType(const Func* builtin, uint32_t i) {
     case AnnotMetaType::ArrayLike:
       return TArrLike;
     case AnnotMetaType::Classname:
-      if (!RO::EvalClassPassesClassname) {
+      if (!Cfg::Eval::ClassPassesClassname) {
         return TStr;
       }
       return TStr | TCls | TLazyCls;
@@ -2642,102 +2633,19 @@ void emitSilence(IRGS& env, Id localId, SilenceOp subop) {
 }
 
 void emitSetImplicitContextByValue(IRGS& env) {
-  auto const tv = topC(env);
-  ifThenElse(
-    env,
-    [&] (Block* taken) { gen(env, CheckType, TInitNull, taken, tv); },
-    [&] {
-      auto const prev = gen(env, LdImplicitContext);
-      gen(env, StImplicitContext, cns(env, TInitNull));
-      popC(env);
-      pushIncRef(env, prev);
-    },
-    [&] {
-      ifThenElse(
-        env,
-        [&] (Block* taken) { gen(env, CheckType, TObj, taken, tv); },
-        [&] {
-          auto const obj = gen(env, AssertType, TObj, tv);
-          auto const prev = gen(env, LdImplicitContext);
-          gen(env, StImplicitContext, obj);
-          popC(env);
-          pushIncRef(env, prev);
-          // Decref after discarding so that if we are pushing the same object back,
-          // avoid refcount going to zero
-          decRef(env, obj);
-        },
-        [&] {
-          hint(env, Block::Hint::Unlikely);
-          gen(env, AssertType, tv->type() - TObj - TInitNull, tv);
-          interpOne(env);
-        }
-      );
-    }
-  );
+  auto const ic = topC(env);
+  if (!ic->isA(TObj)) return interpOne(env);
+
+  popC(env);
+  push(env, gen(env, LdImplicitContext));
+  gen(env, StImplicitContext, ic);
 }
 
-void verifyImplicitContextState(IRGS& env, const Func* func) {
-  assertx(!func->hasCoeffectRules());
-  assertx(func->isMemoizeWrapper() || func->isMemoizeWrapperLSB());
-
-  switch (func->memoizeICType()) {
-    case Func::MemoizeICType::NoIC:
-      if (providedCoeffectsKnownStatically(func).canCall(
-          RuntimeCoeffects::leak_safe_shallow())) {
-        // We are in a memoized that can call [defaults] code or any escape
-        ifThen(
-          env,
-          [&] (Block* taken) {
-            auto const ctx = gen(env, LdImplicitContext);
-            gen(env, CheckType, TInitNull, taken, ctx);
-          },
-          [&] {
-            hint(env, Block::Hint::Unlikely);
-            gen(env, RaiseImplicitContextStateInvalid, FuncData { func });
-            return cns(env, TBottom);
-          }
-        );
-      }
-      return;
-    case Func::MemoizeICType::SoftMakeICInaccessible:
-      ifThen(
-        env,
-        [&] (Block* taken) {
-          auto const ctx = gen(env, LdImplicitContext);
-          gen(env, CheckType, TInitNull, taken, ctx);
-        },
-        [&] {
-          hint(env, Block::Hint::Unlikely);
-          gen(env, RaiseImplicitContextStateInvalid, FuncData { func });
-        }
-      );
-      return;
-    case Func::MemoizeICType::KeyedByIC:
-    case Func::MemoizeICType::MakeICInaccessible:
-      return;
-  }
-
-  not_reached();
-}
-
-void emitVerifyImplicitContextState(IRGS& env) {
-  verifyImplicitContextState(env, curFunc(env));
-}
-
-void emitCreateSpecialImplicitContext(IRGS& env) {
-  auto const memoKey = topC(env, BCSPRelOffset{0});
-  auto const type = topC(env, BCSPRelOffset{1});
-  if (!type->isA(TInt)) PUNT(CreateSpecialImplicitContext);
-  if (!memoKey->isA(TStr) && !memoKey->isA(TInitNull)) {
-    PUNT(CreateSpecialImplicitContext);
-  }
-  auto const func = curFunc(env);
-  auto const obj =
-    gen(env, CreateSpecialImplicitContext, type, memoKey, cns(env, func));
-  decRef(env, memoKey);
-  decRef(env, type);
-  discard(env, 2);
-  push(env, obj);
+void emitGetInaccessibleImplicitContext(IRGS& env) {
+    auto rdsHandleAndTypeIC = RDSHandleAndType {ImplicitContext::emptyCtx.handle(), TObj};
+    auto const src = gen(env, LdRDSAddr, rdsHandleAndTypeIC, TPtrToOther);
+    auto obj = gen(env, LdMem, TObj, src);
+    pushIncRef(env, obj);
 }
 
 //////////////////////////////////////////////////////////////////////

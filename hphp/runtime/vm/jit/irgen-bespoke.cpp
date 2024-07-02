@@ -387,14 +387,14 @@ SSATmp* extractBase(IRGS& env) {
 
 SSATmp* classConvertPuntOnRaise(IRGS& env, SSATmp* key) {
   if (key->isA(TCls)) {
-    if (RO::EvalRaiseClassConversionNoticeSampleRate > 0) {
+    if (Cfg::Eval::RaiseClassConversionNoticeSampleRate > 0) {
       // TODO(vmladenov) if punting is too slow, could gen RaiseNotice
       PUNT(BespokeClsConvert);
     }
     return gen(env, LdClsName, key);
   }
   if (key->isA(TLazyCls)) {
-    if (RO::EvalRaiseClassConversionNoticeSampleRate > 0) {
+    if (Cfg::Eval::RaiseClassConversionNoticeSampleRate > 0) {
       PUNT(BespokeClsConvert);
     }
     return gen(env, LdLazyClsName, key);
@@ -1275,12 +1275,11 @@ Optional<Location> getVanillaLocation(const IRGS& env, SrcKey sk) {
     case Op::AKExists:
     case Op::ClassGetTS:
     case Op::ColFromArray:
-    case Op::IterInit:
       return {Location::Stack{soff}};
 
     // Local iterators constrain the local base.
-    case Op::LIterInit:
-    case Op::LIterNext: {
+    case Op::IterInit:
+    case Op::IterNext: {
       auto const local = getImm(sk.pc(), localImmIdx(op)).u_LA;
       return {Location::Local{safe_cast<uint32_t>(local)}};
     }
@@ -1842,7 +1841,8 @@ void handleSink(IRGS& env, const NormalizedInstruction& ni,
 
   emitLogArrayReach(env, loc, sk);
 
-  auto const sinkLayouts = bespoke::layoutsForSink(env.profTransIDs, ni.source);
+  auto const sinkLayouts = bespoke::layoutsForSink(
+    env.profTransIDs, ni.source, type.arrSpec().layout());
 
   if (isIteratorOp(sk.op())) {
     emitVanilla(env);

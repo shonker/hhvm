@@ -58,6 +58,7 @@ module Parents = struct
       sc_user_attributes = _;
       sc_enum_type = _;
       sc_docs_url = _;
+      sc_package_override = _;
     } =
       c
     in
@@ -732,7 +733,8 @@ let diff_enum_types
 
 let diff_enum_type_options = diff_options ~diff:diff_enum_types
 
-let user_attribute_name_value { Typing_defs.ua_name = (_, name); ua_params } =
+let user_attribute_name_value { Typing_defs.ua_name = (_, name); ua_params; _ }
+    =
   (name, ua_params)
 
 let diff_user_attribute_params

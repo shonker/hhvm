@@ -90,7 +90,7 @@ enum class YourEnum {
 
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace std {
 template<> struct hash<::cpp2::YourEnum> :
@@ -139,7 +139,7 @@ namespace detail {
 class YourStruct;
 } // namespace detail
 class SecretStruct;
-} // cpp2
+} // namespace cpp2
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -200,6 +200,8 @@ class YourUnion final  {
   using __fbthrift_cpp2_type = YourUnion;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -354,6 +356,8 @@ class YourStruct final  {
   using __fbthrift_cpp2_type = YourStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    true;
 
 
  public:
@@ -938,6 +942,8 @@ class MyStructNestedAnnotation final  {
   using __fbthrift_cpp2_type = MyStructNestedAnnotation;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1098,6 +1104,8 @@ class FOLLY_EXPORT YourException : public virtual apache::thrift::TException {
   using __fbthrift_cpp2_type = YourException;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1202,6 +1210,8 @@ class SecretStruct final  {
  public:
   using __fbthrift_cpp2_type = SecretStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -1365,7 +1375,7 @@ unsigned long SecretStruct::read(Protocol_* iprot) {
 }
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache { namespace thrift {
 

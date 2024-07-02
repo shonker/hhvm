@@ -66,7 +66,9 @@ TEST_F(AsyncGeneratorTest, PartiallyConsumingSequenceDestroysObjectsInScope) {
   bool started = false;
   bool destroyed = false;
   auto makeGenerator = [&]() -> folly::coro::AsyncGenerator<int> {
-    SCOPE_EXIT { destroyed = true; };
+    SCOPE_EXIT {
+      destroyed = true;
+    };
     started = true;
     co_yield 1;
     co_yield 2;
@@ -488,7 +490,11 @@ TEST(AsyncGenerator, YieldCoError) {
       co_yield "foo";
       co_yield "bar";
       co_yield folly::coro::co_error(SomeError{});
-      CHECK(false);
+      // not enforced in opt mode yet so this code is reached in the
+      // EXPECT_DEBUG_DEATH line
+      if (folly::kIsDebug) {
+        ADD_FAILURE();
+      }
     }();
 
     auto item1 = co_await gen.next();
@@ -498,9 +504,12 @@ TEST(AsyncGenerator, YieldCoError) {
 
     try {
       (void)co_await gen.next();
-      CHECK(false);
+      ADD_FAILURE();
     } catch (const SomeError&) {
     }
+
+    EXPECT_DEBUG_DEATH(
+        co_await gen.next(), "Using generator after receiving exception.");
   }());
 }
 

@@ -1,7 +1,7 @@
 [("\\id",
   (Shallow_decl_defs.Fun
      { Typing_defs.fe_deprecated = None; fe_module = None;
-       fe_internal = false;
+       fe_package_override = None; fe_internal = false;
        fe_type =
        (Rwitness_from_decl ([31:10-12]),
         (Tfun
@@ -13,7 +13,8 @@
                  (Tapply (([31:13-19], "\\MyNamespace\\MyType"), [])));
                 fp_flags =
                 { Typing_defs_flags.FunParam.accept_disposable = false;
-                  inout = false; has_default = false; readonly = false };
+                  inout = false; has_default = false; readonly = false;
+                  ignore_readonly_error = false };
                 fp_def_value = None }
                ];
              ft_implicit_params = { capability = (CapDefaults [31:10-12]) };
@@ -34,7 +35,7 @@
   ("\\other_id",
    (Shallow_decl_defs.Fun
       { Typing_defs.fe_deprecated = None; fe_module = None;
-        fe_internal = false;
+        fe_package_override = None; fe_internal = false;
         fe_type =
         (Rwitness_from_decl ([35:10-18]),
          (Tfun
@@ -46,7 +47,8 @@
                   (Tapply (([35:19-30], "\\MyNamespace\\MyOtherType"), [])));
                  fp_flags =
                  { Typing_defs_flags.FunParam.accept_disposable = false;
-                   inout = false; has_default = false; readonly = false };
+                   inout = false; has_default = false; readonly = false;
+                   ignore_readonly_error = false };
                  fp_def_value = None }
                 ];
               ft_implicit_params = { capability = (CapDefaults [35:10-18]) };
@@ -67,7 +69,7 @@
   ("\\braced_id",
    (Shallow_decl_defs.Fun
       { Typing_defs.fe_deprecated = None; fe_module = None;
-        fe_internal = false;
+        fe_package_override = None; fe_internal = false;
         fe_type =
         (Rwitness_from_decl ([39:10-19]),
          (Tfun
@@ -79,7 +81,8 @@
                   (Tapply (([39:20-32], "\\MyNamespace\\MyBracedType"), [])));
                  fp_flags =
                  { Typing_defs_flags.FunParam.accept_disposable = false;
-                   inout = false; has_default = false; readonly = false };
+                   inout = false; has_default = false; readonly = false;
+                   ignore_readonly_error = false };
                  fp_def_value = None }
                 ];
               ft_implicit_params = { capability = (CapDefaults [39:10-19]) };

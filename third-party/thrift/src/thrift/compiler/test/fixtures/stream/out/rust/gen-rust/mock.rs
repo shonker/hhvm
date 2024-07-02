@@ -3,10 +3,11 @@
 
 //! Mock definitions for `module`.
 //!
-//! Client mocks. For every service, a struct mock::TheService that implements
+//! Client mocks. For every service, a struct TheService that implements
 //! client::TheService.
 //!
-//! As an example of the generated API, for the following thrift service:
+//! As an example of the generated API, for the following thrift service in
+//! example.thrift:
 //!
 //! ```thrift
 //! service MyService {
@@ -21,19 +22,15 @@
 //! }
 //! ```
 //!
-//! we would end up with this mock object under crate::mock::MyService:
+//! we would end up with this mock object in an `example_mocks` crate:
 //!
 //! ```
 //! # const _: &str = stringify! {
-//! impl crate::client::MyService for MyService<'mock> {...}
+//! impl example_clients::MyService for MyService<'mock> {...}
 //!
 //! pub struct MyService<'mock> {
 //!     pub myFunction: myFunction<'mock>,
 //!     // ...
-//! }
-//!
-//! impl dyn crate::client::MyService {
-//!     pub fn mock<'mock>() -> MyService<'mock>;
 //! }
 //!
 //! impl myFunction<'mock> {
@@ -49,17 +46,14 @@
 //!     // invoke closure to compute response
 //!     pub fn mock_result(
 //!         &self,
-//!         mock: impl FnMut(FunctionRequest) -> Result<FunctionResponse, crate::services::MyService::MyFunctionExn> + Send + Sync + 'mock,
+//!         mock: impl FnMut(FunctionRequest) -> Result<FunctionResponse, example_services::errors::MyFunctionExn> + Send + Sync + 'mock,
 //!     );
 //!
 //!     // return one of the function's declared exceptions
 //!     pub fn throw<E>(&self, exception: E)
 //!     where
-//!         E: Clone + Into<crate::services::MyService::MyFunctionExn> + Send + Sync + 'mock;
+//!         E: Clone + Into<example_services::errors::MyFunctionExn> + Send + Sync + 'mock;
 //! }
-//!
-//! impl From<StorageException> for MyFunctionExn {...}
-//! impl From<NotFoundException> for MyFunctionExn {...}
 //! # };
 //! ```
 //!
@@ -68,11 +62,11 @@
 //! ```
 //! # const _: &str = stringify! {
 //! use std::sync::Arc;
-//! use thrift_if::client::MyService;
+//! use example_clients::MyService;
 //!
-//! #[test]
-//! fn test_my_client() {
-//!     let mock = Arc::new(<dyn MyService>::mock());
+//! #[tokio::test]
+//! async fn test_my_client() {
+//!     let mock = Arc::new(example_mocks::new::<dyn MyService>());
 //!
 //!     // directly return a success response
 //!     let resp = FunctionResponse {...};
@@ -87,15 +81,34 @@
 //!     // or compute a Result (useful if your exceptions aren't Clone)
 //!     mock.myFunction.mock_result(|request| Err(...));
 //!
-//!     let out = do_the_thing(mock).wait().unwrap();
+//!     let out = do_the_thing(mock).await.unwrap();
 //!     assert!(out.what_i_expected());
 //! }
 //!
-//! fn do_the_thing(
+//! async fn do_the_thing(
 //!     client: Arc<dyn MyService + Send + Sync + 'static>,
-//! ) -> impl Future<Item = Out> {...}
+//! ) -> Out {...}
 //! # };
 //! ```
+
+#![recursion_limit = "100000000"]
+#![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, unused_crate_dependencies, unused_imports, clippy::all)]
+
+pub(crate) use :: as types;
+pub(crate) use :: as client;
+pub(crate) use ::::errors;
+
+pub fn new<'mock, Client>() -> Client::Mock<'mock>
+where
+    Client: ?::std::marker::Sized + DynClient,
+{
+    Client::mock()
+}
+
+pub trait DynClient {
+    type Mock<'mock>;
+    fn mock<'mock>() -> Self::Mock<'mock>;
+}
 
 pub struct PubSubStreamingService<'mock> {
     pub returnstream: r#impl::pub_sub_streaming_service::returnstream<'mock>,
@@ -110,8 +123,9 @@ pub struct PubSubStreamingService<'mock> {
     _marker: ::std::marker::PhantomData<&'mock ()>,
 }
 
-impl dyn super::client::PubSubStreamingService {
-    pub fn mock<'mock>() -> PubSubStreamingService<'mock> {
+impl crate::DynClient for dyn ::::PubSubStreamingService {
+    type Mock<'mock> = PubSubStreamingService<'mock>;
+    fn mock<'mock>() -> Self::Mock<'mock> {
         PubSubStreamingService {
             returnstream: r#impl::pub_sub_streaming_service::returnstream::unimplemented(),
             streamthrows: r#impl::pub_sub_streaming_service::streamthrows::unimplemented(),
@@ -127,7 +141,7 @@ impl dyn super::client::PubSubStreamingService {
     }
 }
 
-impl<'mock> super::client::PubSubStreamingService for PubSubStreamingService<'mock> {
+impl<'mock> ::::PubSubStreamingService for PubSubStreamingService<'mock> {
     fn returnstream(
         &self,
         arg_i32_from: ::std::primitive::i32,
@@ -211,7 +225,7 @@ pub mod r#impl {
             pub(crate) closure: ::std::sync::Mutex<::std::boxed::Box<
                 dyn ::std::ops::FnMut(::std::primitive::i32, ::std::primitive::i32) -> ::std::result::Result<
                     ::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::ReturnstreamStreamError>>,
-                    crate::errors::pub_sub_streaming_service::ReturnstreamError,
+                    ::::errors::pub_sub_streaming_service::ReturnstreamError,
                 > + ::std::marker::Send + ::std::marker::Sync + 'mock,
             >>,
         }
@@ -237,14 +251,14 @@ pub mod r#impl {
                 *closure = ::std::boxed::Box::new(move |i32_from, i32_to| ::std::result::Result::Ok(mock(i32_from, i32_to)));
             }
 
-            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::primitive::i32, ::std::primitive::i32) -> ::std::result::Result<::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::ReturnstreamStreamError>>, crate::errors::pub_sub_streaming_service::ReturnstreamError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
+            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::primitive::i32, ::std::primitive::i32) -> ::std::result::Result<::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::ReturnstreamStreamError>>, ::::errors::pub_sub_streaming_service::ReturnstreamError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
                 let mut closure = self.closure.lock().unwrap();
                 *closure = ::std::boxed::Box::new(move |i32_from, i32_to| mock(i32_from, i32_to));
             }
 
             pub fn throw<E>(&self, exception: E)
             where
-                E: ::std::convert::Into<crate::errors::pub_sub_streaming_service::ReturnstreamError>,
+                E: ::std::convert::Into<::::errors::pub_sub_streaming_service::ReturnstreamError>,
                 E: ::std::clone::Clone + ::std::marker::Send + ::std::marker::Sync + 'mock,
             {
                 let mut closure = self.closure.lock().unwrap();
@@ -256,7 +270,7 @@ pub mod r#impl {
             pub(crate) closure: ::std::sync::Mutex<::std::boxed::Box<
                 dyn ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<
                     ::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::StreamthrowsStreamError>>,
-                    crate::errors::pub_sub_streaming_service::StreamthrowsError,
+                    ::::errors::pub_sub_streaming_service::StreamthrowsError,
                 > + ::std::marker::Send + ::std::marker::Sync + 'mock,
             >>,
         }
@@ -282,14 +296,14 @@ pub mod r#impl {
                 *closure = ::std::boxed::Box::new(move |foo| ::std::result::Result::Ok(mock(foo)));
             }
 
-            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::StreamthrowsStreamError>>, crate::errors::pub_sub_streaming_service::StreamthrowsError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
+            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::StreamthrowsStreamError>>, ::::errors::pub_sub_streaming_service::StreamthrowsError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
                 let mut closure = self.closure.lock().unwrap();
                 *closure = ::std::boxed::Box::new(move |foo| mock(foo));
             }
 
             pub fn throw<E>(&self, exception: E)
             where
-                E: ::std::convert::Into<crate::errors::pub_sub_streaming_service::StreamthrowsError>,
+                E: ::std::convert::Into<::::errors::pub_sub_streaming_service::StreamthrowsError>,
                 E: ::std::clone::Clone + ::std::marker::Send + ::std::marker::Sync + 'mock,
             {
                 let mut closure = self.closure.lock().unwrap();
@@ -301,7 +315,7 @@ pub mod r#impl {
             pub(crate) closure: ::std::sync::Mutex<::std::boxed::Box<
                 dyn ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<
                     ::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::ServicethrowsStreamError>>,
-                    crate::errors::pub_sub_streaming_service::ServicethrowsError,
+                    ::::errors::pub_sub_streaming_service::ServicethrowsError,
                 > + ::std::marker::Send + ::std::marker::Sync + 'mock,
             >>,
         }
@@ -327,14 +341,14 @@ pub mod r#impl {
                 *closure = ::std::boxed::Box::new(move |foo| ::std::result::Result::Ok(mock(foo)));
             }
 
-            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::ServicethrowsStreamError>>, crate::errors::pub_sub_streaming_service::ServicethrowsError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
+            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::ServicethrowsStreamError>>, ::::errors::pub_sub_streaming_service::ServicethrowsError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
                 let mut closure = self.closure.lock().unwrap();
                 *closure = ::std::boxed::Box::new(move |foo| mock(foo));
             }
 
             pub fn throw<E>(&self, exception: E)
             where
-                E: ::std::convert::Into<crate::errors::pub_sub_streaming_service::ServicethrowsError>,
+                E: ::std::convert::Into<::::errors::pub_sub_streaming_service::ServicethrowsError>,
                 E: ::std::clone::Clone + ::std::marker::Send + ::std::marker::Sync + 'mock,
             {
                 let mut closure = self.closure.lock().unwrap();
@@ -346,7 +360,7 @@ pub mod r#impl {
             pub(crate) closure: ::std::sync::Mutex<::std::boxed::Box<
                 dyn ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<
                     ::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::Servicethrows2StreamError>>,
-                    crate::errors::pub_sub_streaming_service::Servicethrows2Error,
+                    ::::errors::pub_sub_streaming_service::Servicethrows2Error,
                 > + ::std::marker::Send + ::std::marker::Sync + 'mock,
             >>,
         }
@@ -372,14 +386,14 @@ pub mod r#impl {
                 *closure = ::std::boxed::Box::new(move |foo| ::std::result::Result::Ok(mock(foo)));
             }
 
-            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::Servicethrows2StreamError>>, crate::errors::pub_sub_streaming_service::Servicethrows2Error> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
+            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::Servicethrows2StreamError>>, ::::errors::pub_sub_streaming_service::Servicethrows2Error> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
                 let mut closure = self.closure.lock().unwrap();
                 *closure = ::std::boxed::Box::new(move |foo| mock(foo));
             }
 
             pub fn throw<E>(&self, exception: E)
             where
-                E: ::std::convert::Into<crate::errors::pub_sub_streaming_service::Servicethrows2Error>,
+                E: ::std::convert::Into<::::errors::pub_sub_streaming_service::Servicethrows2Error>,
                 E: ::std::clone::Clone + ::std::marker::Send + ::std::marker::Sync + 'mock,
             {
                 let mut closure = self.closure.lock().unwrap();
@@ -391,7 +405,7 @@ pub mod r#impl {
             pub(crate) closure: ::std::sync::Mutex<::std::boxed::Box<
                 dyn ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<
                     ::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::BoththrowsStreamError>>,
-                    crate::errors::pub_sub_streaming_service::BoththrowsError,
+                    ::::errors::pub_sub_streaming_service::BoththrowsError,
                 > + ::std::marker::Send + ::std::marker::Sync + 'mock,
             >>,
         }
@@ -417,14 +431,14 @@ pub mod r#impl {
                 *closure = ::std::boxed::Box::new(move |foo| ::std::result::Result::Ok(mock(foo)));
             }
 
-            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::BoththrowsStreamError>>, crate::errors::pub_sub_streaming_service::BoththrowsError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
+            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::BoththrowsStreamError>>, ::::errors::pub_sub_streaming_service::BoththrowsError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
                 let mut closure = self.closure.lock().unwrap();
                 *closure = ::std::boxed::Box::new(move |foo| mock(foo));
             }
 
             pub fn throw<E>(&self, exception: E)
             where
-                E: ::std::convert::Into<crate::errors::pub_sub_streaming_service::BoththrowsError>,
+                E: ::std::convert::Into<::::errors::pub_sub_streaming_service::BoththrowsError>,
                 E: ::std::clone::Clone + ::std::marker::Send + ::std::marker::Sync + 'mock,
             {
                 let mut closure = self.closure.lock().unwrap();
@@ -436,7 +450,7 @@ pub mod r#impl {
             pub(crate) closure: ::std::sync::Mutex<::std::boxed::Box<
                 dyn ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<
                     (::std::primitive::i32, ::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::ResponseandstreamstreamthrowsStreamError>>),
-                    crate::errors::pub_sub_streaming_service::ResponseandstreamstreamthrowsError,
+                    ::::errors::pub_sub_streaming_service::ResponseandstreamstreamthrowsError,
                 > + ::std::marker::Send + ::std::marker::Sync + 'mock,
             >>,
         }
@@ -462,14 +476,14 @@ pub mod r#impl {
                 *closure = ::std::boxed::Box::new(move |foo| ::std::result::Result::Ok(mock(foo)));
             }
 
-            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<(::std::primitive::i32, ::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::ResponseandstreamstreamthrowsStreamError>>), crate::errors::pub_sub_streaming_service::ResponseandstreamstreamthrowsError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
+            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<(::std::primitive::i32, ::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::ResponseandstreamstreamthrowsStreamError>>), ::::errors::pub_sub_streaming_service::ResponseandstreamstreamthrowsError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
                 let mut closure = self.closure.lock().unwrap();
                 *closure = ::std::boxed::Box::new(move |foo| mock(foo));
             }
 
             pub fn throw<E>(&self, exception: E)
             where
-                E: ::std::convert::Into<crate::errors::pub_sub_streaming_service::ResponseandstreamstreamthrowsError>,
+                E: ::std::convert::Into<::::errors::pub_sub_streaming_service::ResponseandstreamstreamthrowsError>,
                 E: ::std::clone::Clone + ::std::marker::Send + ::std::marker::Sync + 'mock,
             {
                 let mut closure = self.closure.lock().unwrap();
@@ -481,7 +495,7 @@ pub mod r#impl {
             pub(crate) closure: ::std::sync::Mutex<::std::boxed::Box<
                 dyn ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<
                     (::std::primitive::i32, ::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::ResponseandstreamservicethrowsStreamError>>),
-                    crate::errors::pub_sub_streaming_service::ResponseandstreamservicethrowsError,
+                    ::::errors::pub_sub_streaming_service::ResponseandstreamservicethrowsError,
                 > + ::std::marker::Send + ::std::marker::Sync + 'mock,
             >>,
         }
@@ -507,14 +521,14 @@ pub mod r#impl {
                 *closure = ::std::boxed::Box::new(move |foo| ::std::result::Result::Ok(mock(foo)));
             }
 
-            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<(::std::primitive::i32, ::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::ResponseandstreamservicethrowsStreamError>>), crate::errors::pub_sub_streaming_service::ResponseandstreamservicethrowsError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
+            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<(::std::primitive::i32, ::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::ResponseandstreamservicethrowsStreamError>>), ::::errors::pub_sub_streaming_service::ResponseandstreamservicethrowsError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
                 let mut closure = self.closure.lock().unwrap();
                 *closure = ::std::boxed::Box::new(move |foo| mock(foo));
             }
 
             pub fn throw<E>(&self, exception: E)
             where
-                E: ::std::convert::Into<crate::errors::pub_sub_streaming_service::ResponseandstreamservicethrowsError>,
+                E: ::std::convert::Into<::::errors::pub_sub_streaming_service::ResponseandstreamservicethrowsError>,
                 E: ::std::clone::Clone + ::std::marker::Send + ::std::marker::Sync + 'mock,
             {
                 let mut closure = self.closure.lock().unwrap();
@@ -526,7 +540,7 @@ pub mod r#impl {
             pub(crate) closure: ::std::sync::Mutex<::std::boxed::Box<
                 dyn ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<
                     (::std::primitive::i32, ::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::ResponseandstreamboththrowsStreamError>>),
-                    crate::errors::pub_sub_streaming_service::ResponseandstreamboththrowsError,
+                    ::::errors::pub_sub_streaming_service::ResponseandstreamboththrowsError,
                 > + ::std::marker::Send + ::std::marker::Sync + 'mock,
             >>,
         }
@@ -552,14 +566,14 @@ pub mod r#impl {
                 *closure = ::std::boxed::Box::new(move |foo| ::std::result::Result::Ok(mock(foo)));
             }
 
-            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<(::std::primitive::i32, ::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::ResponseandstreamboththrowsStreamError>>), crate::errors::pub_sub_streaming_service::ResponseandstreamboththrowsError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
+            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::primitive::i32) -> ::std::result::Result<(::std::primitive::i32, ::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::ResponseandstreamboththrowsStreamError>>), ::::errors::pub_sub_streaming_service::ResponseandstreamboththrowsError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
                 let mut closure = self.closure.lock().unwrap();
                 *closure = ::std::boxed::Box::new(move |foo| mock(foo));
             }
 
             pub fn throw<E>(&self, exception: E)
             where
-                E: ::std::convert::Into<crate::errors::pub_sub_streaming_service::ResponseandstreamboththrowsError>,
+                E: ::std::convert::Into<::::errors::pub_sub_streaming_service::ResponseandstreamboththrowsError>,
                 E: ::std::clone::Clone + ::std::marker::Send + ::std::marker::Sync + 'mock,
             {
                 let mut closure = self.closure.lock().unwrap();
@@ -571,7 +585,7 @@ pub mod r#impl {
             pub(crate) closure: ::std::sync::Mutex<::std::boxed::Box<
                 dyn ::std::ops::FnMut(::std::primitive::i32, ::std::primitive::i32) -> ::std::result::Result<
                     ::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::ReturnstreamFastStreamError>>,
-                    crate::errors::pub_sub_streaming_service::ReturnstreamFastError,
+                    ::::errors::pub_sub_streaming_service::ReturnstreamFastError,
                 > + ::std::marker::Send + ::std::marker::Sync + 'mock,
             >>,
         }
@@ -597,14 +611,14 @@ pub mod r#impl {
                 *closure = ::std::boxed::Box::new(move |i32_from, i32_to| ::std::result::Result::Ok(mock(i32_from, i32_to)));
             }
 
-            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::primitive::i32, ::std::primitive::i32) -> ::std::result::Result<::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::ReturnstreamFastStreamError>>, crate::errors::pub_sub_streaming_service::ReturnstreamFastError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
+            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::primitive::i32, ::std::primitive::i32) -> ::std::result::Result<::futures::stream::BoxStream<'static, ::std::result::Result<::std::primitive::i32, crate::errors::pub_sub_streaming_service::ReturnstreamFastStreamError>>, ::::errors::pub_sub_streaming_service::ReturnstreamFastError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
                 let mut closure = self.closure.lock().unwrap();
                 *closure = ::std::boxed::Box::new(move |i32_from, i32_to| mock(i32_from, i32_to));
             }
 
             pub fn throw<E>(&self, exception: E)
             where
-                E: ::std::convert::Into<crate::errors::pub_sub_streaming_service::ReturnstreamFastError>,
+                E: ::std::convert::Into<::::errors::pub_sub_streaming_service::ReturnstreamFastError>,
                 E: ::std::clone::Clone + ::std::marker::Send + ::std::marker::Sync + 'mock,
             {
                 let mut closure = self.closure.lock().unwrap();

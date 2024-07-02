@@ -127,14 +127,14 @@ pub(crate) fn lower_class(mut class: Class) -> Class {
         );
     }
 
-    for method in &mut class.methods {
+    for method in class.methods.iter_mut() {
         if method.name.is_86pinit() {
             // We want 86pinit to be 'instance' but hackc marks it as 'static'.
-            method.func.attrs -= Attr::AttrStatic;
+            method.body.attrs -= Attr::AttrStatic;
         }
         if method.flags.contains(MethodFlags::IS_CLOSURE_BODY) {
             // We want closure bodies to be 'instance' but hackc marks it as 'static'.
-            method.func.attrs -= Attr::AttrStatic;
+            method.body.attrs -= Attr::AttrStatic;
         }
     }
 
@@ -151,7 +151,7 @@ pub(crate) fn lower_class(mut class: Class) -> Class {
     // Turn class constants into properties.
     // TODO: Need to think about abstract constants. Maybe constants lookups
     // should really be function calls...
-    for constant in class.constants.drain(..) {
+    for constant in std::mem::take(&mut class.constants) {
         let Constant { name, value, attrs } = constant;
         // Mark the property as originally being a constant.
         let attributes = vec![Attribute {
@@ -168,7 +168,7 @@ pub(crate) fn lower_class(mut class: Class) -> Class {
             flags: attrs | Attr::AttrStatic,
             attributes: attributes.into(),
             visibility: Visibility::Public,
-            initial_value: value.into(),
+            initial_value: value,
             type_info,
             doc_comment: Default::default(),
         };
@@ -176,7 +176,7 @@ pub(crate) fn lower_class(mut class: Class) -> Class {
     }
 
     let dict_constraint_name = Some(ir::intern(hhbc::BUILTIN_NAME_DICT));
-    for tc in class.type_constants.drain(..) {
+    for tc in std::mem::take(&mut class.type_constants) {
         let TypeConstant {
             name,
             initializer,
@@ -210,7 +210,7 @@ pub(crate) fn lower_class(mut class: Class) -> Class {
             flags: Attr::AttrStatic,
             attributes: attributes.into(),
             visibility: Visibility::Public,
-            initial_value: initializer.into(),
+            initial_value: initializer,
             type_info,
             doc_comment: Default::default(),
         };
@@ -223,9 +223,9 @@ pub(crate) fn lower_class(mut class: Class) -> Class {
 fn create_default_closure_constructor(class: &mut Class) {
     let name = MethodName::constructor();
 
-    let func = FuncBuilder::build_func(|fb| {
-        let loc = fb.add_loc(class.src_loc.clone());
-        fb.func.loc_id = loc;
+    let body = FuncBuilder::build_func(|fb| {
+        let loc = fb.add_loc(ir::SrcLoc::from_span(&class.span));
+        fb.func.span = class.span;
 
         // '$this' parameter is implied.
 
@@ -238,7 +238,7 @@ fn create_default_closure_constructor(class: &mut Class) {
                 user_attributes: vec![].into(),
                 type_info: ir::Maybe::Just(prop.type_info.clone()),
             };
-            fb.func.params.push((param, None));
+            fb.func.repr.params.push((param, None));
 
             let lid = LocalId::Named(prop.name.as_string_id());
             let value = fb.emit(Instr::Hhbc(instr::Hhbc::CGetL(lid, loc)));
@@ -251,7 +251,7 @@ fn create_default_closure_constructor(class: &mut Class) {
 
     let method = Method {
         flags: MethodFlags::empty(),
-        func,
+        body,
         name,
         visibility: Visibility::Public,
     };
@@ -263,9 +263,9 @@ fn create_method_if_missing(class: &mut Class, name: MethodName, is_static: IsSt
         return;
     }
 
-    let func = FuncBuilder::build_func(|fb| {
-        let loc = fb.add_loc(class.src_loc.clone());
-        fb.func.loc_id = loc;
+    let body = FuncBuilder::build_func(|fb| {
+        let loc = fb.add_loc(ir::SrcLoc::from_span(&class.span));
+        fb.func.span = class.span;
         fb.func.attrs = is_static.as_attr();
         let null = fb.emit_imm(Immediate::Null);
         fb.emit(Instr::ret(null, loc));
@@ -273,7 +273,7 @@ fn create_method_if_missing(class: &mut Class, name: MethodName, is_static: IsSt
 
     let method = Method {
         flags: MethodFlags::empty(),
-        func,
+        body,
         name,
         visibility: Visibility::Private,
     };

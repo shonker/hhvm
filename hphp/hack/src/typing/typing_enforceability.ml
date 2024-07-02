@@ -10,7 +10,7 @@
 open Hh_prelude
 open Typing_defs
 open Typing_env_types
-module Cls = Decl_provider.Class
+module Cls = Folded_class
 module Env = Typing_env
 
 module FoldedContextAccess :
@@ -40,6 +40,8 @@ struct
       | TCConcrete concrete -> Some concrete.tc_type)
 
   let get_tparams = Cls.tparams
+
+  let is_final = Cls.final
 
   let get_name = Cls.name
 

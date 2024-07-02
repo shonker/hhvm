@@ -8,7 +8,6 @@ use hhbc::Method;
 use hhbc::ParamEntry;
 use log::trace;
 
-use crate::convert::UnitBuilder;
 use crate::emitter;
 use crate::pusher;
 
@@ -34,7 +33,7 @@ pub(crate) fn convert_func(mut func: ir::Func, adata: &mut AdataState) -> hhbc::
     // Compute liveness and implicit block parameters.
 
     trace!("-------------------- IR");
-    trace!("{}", ir::print::DisplayFunc::new(&func, true,));
+    trace!("{}", ir::print::DisplayFunc::new(&func, true));
     trace!("--------------------");
 
     // Start by inserting stack pushes and pops (which are normally not in the
@@ -44,18 +43,15 @@ pub(crate) fn convert_func(mut func: ir::Func, adata: &mut AdataState) -> hhbc::
 
     trace!(
         "-- after pushes:\n{}",
-        ir::print::DisplayFunc::new(&func, true,)
+        ir::print::DisplayFunc::new(&func, true)
     );
 
     // Now emit the instructions.
     trace!("-- emit instrs");
     let mut labeler = emitter::Labeler::new(&func);
-    let (body_instrs, decl_vars) = emitter::emit_func(&func, &mut labeler, adata);
+    let (instrs, decl_vars) = emitter::emit_func(&func, &mut labeler, adata);
 
-    let return_type_info = crate::types::convert(&func.return_type);
-
-    let span = func.loc(func.loc_id).to_span();
-    let params = Vec::from_iter(func.params.into_iter().map(|(param, dv)| {
+    let params = Vec::from_iter(func.repr.params.into_iter().map(|(param, dv)| {
         ParamEntry {
             param,
             dv: dv
@@ -67,91 +63,45 @@ pub(crate) fn convert_func(mut func: ir::Func, adata: &mut AdataState) -> hhbc::
         }
     }));
 
-    let doc_comment = func.doc_comment.map(|c| c.into()).into();
-    let upper_bounds = func.upper_bounds.into();
-
-    let shadowed_tparams =
-        Vec::from_iter(func.shadowed_tparams.iter().map(|name| name.as_string_id()));
-
-    let body_instrs = body_instrs.to_vec();
-    let stack_depth = stack_depth::compute_stack_depth(&params, &body_instrs).unwrap();
+    let instrs = instrs.to_vec();
+    let stack_depth = stack_depth::compute_stack_depth(&params, &instrs).unwrap();
 
     hhbc::Body {
-        body_instrs: body_instrs.into(),
-        decl_vars: decl_vars.into(),
-        doc_comment,
+        attributes: func.attributes,
+        attrs: func.attrs,
+        coeffects: func.coeffects,
+        doc_comment: func.doc_comment,
         is_memoize_wrapper: func.is_memoize_wrapper,
         is_memoize_wrapper_lsb: func.is_memoize_wrapper_lsb,
         num_iters: func.num_iters,
-        params: params.into(),
-        return_type_info,
-        shadowed_tparams: shadowed_tparams.into(),
-        upper_bounds,
-        stack_depth,
-        span,
+        return_type: func.return_type,
+        shadowed_tparams: func.shadowed_tparams,
+        upper_bounds: func.upper_bounds,
+        span: func.span,
+        repr: hhbc::BcRepr {
+            instrs: instrs.into(),
+            decl_vars: decl_vars.into(),
+            params: params.into(),
+            stack_depth,
+        },
     }
 }
 
-pub(crate) fn convert_function(unit: &mut UnitBuilder, mut function: ir::Function) {
+pub(crate) fn convert_function(function: ir::Function, adata: &mut AdataState) -> hhbc::Function {
     trace!("convert_function {}", function.name);
-    let attributes = std::mem::take(&mut function.func.attributes).into();
-    let attrs = function.func.attrs;
-    let coeffects = convert_coeffects(&function.func.coeffects);
-    let body = convert_func(function.func, &mut unit.adata_cache);
-    let hhas_func = hhbc::Function {
-        attributes,
-        body,
-        coeffects,
+    hhbc::Function {
         flags: function.flags,
         name: function.name,
-        attrs,
-    };
-    unit.functions.push(hhas_func);
-}
-
-pub(crate) fn convert_method(mut method: ir::Method, adata: &mut AdataState) -> Method {
-    trace!("convert_method {}", method.name);
-    let attrs = method.func.attrs;
-    let coeffects = convert_coeffects(&method.func.coeffects);
-    let attributes = std::mem::take(&mut method.func.attributes).into();
-    let body = convert_func(method.func, adata);
-    hhbc::Method {
-        attributes,
-        name: method.name,
-        body,
-        coeffects,
-        flags: method.flags,
-        visibility: method.visibility,
-        attrs,
+        body: convert_func(function.body, adata),
     }
 }
 
-fn convert_coeffects(coeffects: &ir::Coeffects) -> hhbc::Coeffects {
-    let static_coeffects = coeffects.static_coeffects.clone();
-    let unenforced_static_coeffects = coeffects.unenforced_static_coeffects.clone();
-    let fun_param = coeffects.fun_param.clone();
-    let cc_param = coeffects.cc_param.clone();
-    let cc_this = Vec::from_iter(coeffects.cc_this.iter().map(|inner| hhbc::CcThis {
-        types: inner.types.clone().into(),
-    }));
-    let cc_reified = Vec::from_iter(coeffects.cc_reified.iter().map(|inner| hhbc::CcReified {
-        is_class: inner.is_class,
-        index: inner.index,
-        types: inner.types.clone().into(),
-    }));
-    let closure_parent_scope = coeffects.closure_parent_scope;
-    let generator_this = coeffects.generator_this;
-    let caller = coeffects.caller;
-
-    hhbc::Coeffects::new(
-        static_coeffects.into(),
-        unenforced_static_coeffects.into(),
-        fun_param.into(),
-        cc_param.into(),
-        cc_this,
-        cc_reified,
-        closure_parent_scope,
-        generator_this,
-        caller,
-    )
+pub(crate) fn convert_method(method: ir::Method, adata: &mut AdataState) -> Method {
+    trace!("convert_method {}", method.name);
+    hhbc::Method {
+        name: method.name,
+        flags: method.flags,
+        visibility: method.visibility,
+        body: convert_func(method.body, adata),
+    }
 }

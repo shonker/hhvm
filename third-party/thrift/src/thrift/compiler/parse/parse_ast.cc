@@ -388,9 +388,9 @@ class ast_builder : public parser_actions {
     }
 
     // Make a copy of the node to hold the annotations.
-    if (const auto* tbase_type = dynamic_cast<const t_base_type*>(&type)) {
+    if (const auto* tbase_type = dynamic_cast<const t_primitive_type*>(&type)) {
       // Base types can be copy constructed.
-      auto node = std::make_unique<t_base_type>(*tbase_type);
+      auto node = std::make_unique<t_primitive_type>(*tbase_type);
       set_annotations(node.get(), std::move(annotations));
       t_type_ref result(*node, range);
       program_.add_unnamed_type(std::move(node));
@@ -485,7 +485,7 @@ class ast_builder : public parser_actions {
           limits::min(),
           limits::max());
     }
-    return value;
+    return static_cast<T>(value);
   }
 
  public:
@@ -823,7 +823,7 @@ class ast_builder : public parser_actions {
 
   t_type_ref on_type(
       source_range range,
-      const t_base_type& type,
+      const t_primitive_type& type,
       std::unique_ptr<deprecated_annotations> annotations) override {
     return new_type_ref(type, std::move(annotations), range);
   }
@@ -915,13 +915,7 @@ class ast_builder : public parser_actions {
     return t_const_value::make_identifier(name.loc, name_str, program_);
   }
 
-  std::unique_ptr<t_const_value> on_integer(
-      source_location loc, int64_t value) override {
-    if (!params_.allow_64bit_consts &&
-        (value < INT32_MIN || value > INT32_MAX)) {
-      diags_.warning(
-          loc, "64-bit constant {} may not work in all languages", value);
-    }
+  std::unique_ptr<t_const_value> on_integer(int64_t value) override {
     auto node = std::make_unique<t_const_value>();
     node->set_integer(value);
     return node;
@@ -980,7 +974,12 @@ class ast_builder : public parser_actions {
     const std::string& path = program_.path();
     auto src = sm.get_file(path);
     if (!src) {
-      diags_.error(loc, "failed to open file: {}", path);
+      diags_.report(
+          loc,
+          params_.allow_missing_includes ? diagnostic_level::warning
+                                         : diagnostic_level::error,
+          "failed to open file: {}",
+          path);
       end_parsing();
     }
     program_.set_src_range({src->start, src->start});
@@ -1029,7 +1028,12 @@ std::unique_ptr<t_program_bundle> parse_ast(
     auto path_or_error = sm.find_include_file(
         include_path, parent.path(), params.incl_searchpath);
     if (path_or_error.index() == 1) {
-      diags.error(range.begin, "{}", std::get<1>(path_or_error));
+      diags.report(
+          range.begin,
+          params.allow_missing_includes ? diagnostic_level::warning
+                                        : diagnostic_level::error,
+          "{}",
+          std::get<1>(path_or_error));
       if (!params.allow_missing_includes) {
         end_parsing();
       }

@@ -65,9 +65,15 @@ class ViaCoroutinePromiseBase {
     continuation_ = continuation;
   }
 
-  void setAsyncFrame(folly::AsyncStackFrame& frame) noexcept {
-    asyncFrame_ = &frame;
+  void setParentFrame(folly::AsyncStackFrame& parentFrame) noexcept {
+    leafFrame_.setParentFrame(parentFrame);
   }
+
+  void setReturnAddress(void* returnAddress) noexcept {
+    leafFrame_.setReturnAddress(returnAddress);
+  }
+
+  folly::AsyncStackFrame& getLeafFrame() noexcept { return leafFrame_; }
 
   void setRequestContext(
       std::shared_ptr<folly::RequestContext> context) noexcept {
@@ -76,19 +82,18 @@ class ViaCoroutinePromiseBase {
 
  protected:
   void scheduleContinuation() noexcept {
-    // Pass the coroutine's RequestContext to Executor::add(), in case the
-    // Executor implementation wants to know what runs on it (e.g. for stats).
-    RequestContextScopeGuard contextScope{context_};
-
     executor_->add([this]() noexcept { this->executeContinuation(); });
   }
 
  private:
   void executeContinuation() noexcept {
     RequestContextScopeGuard contextScope{std::move(context_)};
-    if (asyncFrame_ != nullptr) {
+    if (folly::isSuspendedLeafActive(leafFrame_)) {
+      folly::deactivateSuspendedLeaf(leafFrame_);
+    }
+    if (leafFrame_.getParentFrame()) {
       folly::resumeCoroutineWithNewAsyncStackRoot(
-          continuation_.getHandle(), *asyncFrame_);
+          continuation_.getHandle(), *leafFrame_.getParentFrame());
     } else {
       continuation_.resume();
     }
@@ -99,7 +104,7 @@ class ViaCoroutinePromiseBase {
 
   folly::Executor::KeepAlive<> executor_;
   ExtendedCoroutineHandle continuation_;
-  folly::AsyncStackFrame* asyncFrame_ = nullptr;
+  folly::AsyncStackFrame leafFrame_;
   std::shared_ptr<RequestContext> context_;
 };
 
@@ -142,16 +147,18 @@ class ViaCoroutine {
         bool IsStackAware2 = IsStackAware,
         std::enable_if_t<IsStackAware2, int> = 0>
     folly::AsyncStackFrame& getAsyncFrame() noexcept {
-      DCHECK(this->asyncFrame_ != nullptr);
-      return *this->asyncFrame_;
+      DCHECK(this->leafFrame_.getParentFrame() != nullptr);
+      return *this->leafFrame_.getParentFrame();
     }
+
+    folly::AsyncStackFrame& getLeafFrame() noexcept { return leafFrame_; }
 
     std::pair<ExtendedCoroutineHandle, AsyncStackFrame*> getErrorHandle(
         exception_wrapper& ex) override {
       auto [handle, frame] = continuation_.getErrorHandle(ex);
       setContinuation(handle);
       if (frame && IsStackAware) {
-        asyncFrame_ = frame;
+        leafFrame_.setParentFrame(*frame);
       }
       return {promise_type::getHandle(), nullptr};
     }
@@ -180,8 +187,16 @@ class ViaCoroutine {
     coro_.promise().setContinuation(continuation);
   }
 
-  void setAsyncFrame(folly::AsyncStackFrame& frame) noexcept {
-    coro_.promise().setAsyncFrame(frame);
+  void setParentFrame(folly::AsyncStackFrame& frame) noexcept {
+    coro_.promise().setParentFrame(frame);
+  }
+
+  void setReturnAddress(void* returnAddress) noexcept {
+    coro_.promise().setReturnAddress(returnAddress);
+  }
+
+  folly::AsyncStackFrame& getLeafFrame() noexcept {
+    return coro_.promise().getLeafFrame();
   }
 
   void destroy() noexcept {
@@ -241,7 +256,7 @@ class StackAwareViaIfAsyncAwaiter {
     auto& asyncFrame = promise.getAsyncFrame();
 
     viaCoroutine_.setContinuation(h);
-    viaCoroutine_.setAsyncFrame(asyncFrame);
+    viaCoroutine_.setParentFrame(asyncFrame);
 
     if constexpr (!detail::is_coroutine_handle_v<await_suspend_result_t>) {
       viaCoroutine_.saveContext();
@@ -320,8 +335,11 @@ class ViaIfAsyncAwaiter {
   // correctly captures the RequestContext to get correct behaviour in this
   // case.
 
+  // NO_INLINE is required here because we capture the return address of the
+  // calling coroutine
   template <typename Promise>
-  auto await_suspend(coroutine_handle<Promise> continuation) noexcept(noexcept(
+  FOLLY_NOINLINE auto
+  await_suspend(coroutine_handle<Promise> continuation) noexcept(noexcept(
       std::declval<Awaiter&>().await_suspend(std::declval<WrapperHandle>())))
       -> await_suspend_result_t {
     viaCoroutine_.setContinuation(continuation);
@@ -334,13 +352,17 @@ class ViaIfAsyncAwaiter {
       auto& asyncFrame = continuation.promise().getAsyncFrame();
       auto& stackRoot = *asyncFrame.getStackRoot();
 
-      viaCoroutine_.setAsyncFrame(asyncFrame);
+      viaCoroutine_.setParentFrame(asyncFrame);
+      viaCoroutine_.setReturnAddress(FOLLY_ASYNC_STACK_RETURN_ADDRESS());
 
       folly::deactivateAsyncStackFrame(asyncFrame);
+      folly::activateSuspendedLeaf(viaCoroutine_.getLeafFrame());
 
       // Reactivate the stack-frame before we resume.
-      auto rollback =
-          makeGuard([&] { activateAsyncStackFrame(stackRoot, asyncFrame); });
+      auto rollback = makeGuard([&] {
+        folly::activateAsyncStackFrame(stackRoot, asyncFrame);
+        folly::deactivateSuspendedLeaf(viaCoroutine_.getLeafFrame());
+      });
       if constexpr (std::is_same_v<await_suspend_result_t, bool>) {
         if (!awaiter_.await_suspend(viaCoroutine_.getHandle())) {
           return false;
@@ -438,7 +460,8 @@ class ViaIfAsyncAwaitable {
 namespace detail {
 
 template <typename SemiAwaitable, typename = void>
-struct HasViaIfAsyncMethod : bool_constant<!require_sizeof<SemiAwaitable>> {};
+struct HasViaIfAsyncMethod
+    : std::bool_constant<!require_sizeof<SemiAwaitable>> {};
 
 template <typename SemiAwaitable>
 struct HasViaIfAsyncMethod<
@@ -501,7 +524,7 @@ struct ViaIfAsyncFunction {
 FOLLY_DEFINE_CPO(detail::adl::ViaIfAsyncFunction, co_viaIfAsync)
 
 template <typename T, typename = void>
-struct is_semi_awaitable : bool_constant<!require_sizeof<T>> {};
+struct is_semi_awaitable : std::bool_constant<!require_sizeof<T>> {};
 
 template <typename T>
 struct is_semi_awaitable<T, std::enable_if_t<std::is_void_v<T>>>
@@ -632,7 +655,7 @@ class TryAwaitable : public CommutativeWrapperAwaitable<TryAwaitable, T> {
           int> = 0,
       typename T2 = like_t<Self, T>,
       std::enable_if_t<is_awaitable_v<T2>, int> = 0>
-  friend TryAwaiter<T2> operator co_await(Self&& self) {
+  friend TryAwaiter<T2> operator co_await(Self && self) {
     return TryAwaiter<T2>{static_cast<Self&&>(self).inner_};
   }
 };

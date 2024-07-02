@@ -98,6 +98,7 @@ type class_elt = {
 type fun_elt = {
   fe_deprecated: string option;
   fe_module: Ast_defs.id option;
+  fe_package_override: string option;
   fe_internal: bool;  (** Top-level functions have limited visibilities *)
   fe_type: decl_ty;
   fe_pos: Pos_or_decl.t;
@@ -201,7 +202,7 @@ type typeconst_type = {
           [Pos_or_decl.none].
 
           To manage the difference between legacy and shallow decl, use
-          [Typing_classes_heap.Api.get_typeconst_enforceability] rather than
+          [Folded_class.get_typeconst_enforceability] rather than
           accessing this field directly. *)
   ttc_reifiable: Pos_or_decl.t option;
   ttc_concretized: bool;
@@ -228,6 +229,7 @@ type typedef_type = {
   td_attributes: user_attribute list;
   td_internal: bool;
   td_docs_url: string option;
+  td_package_override: string option;
 }
 [@@deriving eq, show]
 
@@ -357,6 +359,10 @@ type expand_env = {
        *)
   on_error: Typing_error.Reasons_callback.t option;
   wildcard_action: wildcard_action;
+  ish_weakening: bool;
+      (** If true, for refinement hints (is/as), approximate E by ~E & arraykey to account
+       * for intish and stringish casts
+       *)
 }
 
 let empty_expand_env =
@@ -369,6 +375,7 @@ let empty_expand_env =
       mk (Reason.none, Tgeneric (Naming_special_names.Typehints.this, []));
     on_error = None;
     wildcard_action = Wildcard_fresh_tyvar;
+    ish_weakening = false;
   }
 
 let empty_expand_env_with_on_error on_error =
@@ -502,6 +509,7 @@ let is_union_or_inter_type (ty : locl_ty) =
   | Tclass _
   | Tunapplied_alias _
   | Tvec_or_dict _
+  | Tlabel _
   | Taccess _ ->
     false
 
@@ -598,6 +606,7 @@ let rec is_denotable ty =
   | Tany _
   | Tvar _
   | Tdependent _
+  | Tlabel _
   | Tunapplied_alias _ ->
     false
 

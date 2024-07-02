@@ -35,6 +35,7 @@ type env = {
   decl_env: Decl_env.env;
   in_loop: bool;
   in_try: bool;
+  in_lambda: bool;
   in_expr_tree: expr_tree_env option;
   inside_constructor: bool;
   checked: Tast.check_status;
@@ -46,6 +47,7 @@ type env = {
   big_envs: (Pos.t * env) list ref;
   fun_tast_info: Tast.fun_tast_info option;
   loaded_packages: SSet.t;
+  emit_string_coercion_error: bool;
 }
 
 (** See the .mli file for the documentation of fields. *)
@@ -63,6 +65,7 @@ and genv = {
   fun_is_ctor: bool;
   file: Relative_path.t;
   current_module: Ast_defs.id option;
+  current_package_override: string option;
   this_internal: bool;
   this_support_dynamic_type: bool;
   no_auto_likes: bool;
@@ -83,6 +86,7 @@ let empty ?origin ?(mode = FileInfo.Mstrict) ctx file ~droot =
     lenv = initial_local Type_parameter_env.empty;
     in_loop = false;
     in_try = false;
+    in_lambda = false;
     in_expr_tree = None;
     inside_constructor = false;
     checked = Tast.COnce;
@@ -97,7 +101,7 @@ let empty ?origin ?(mode = FileInfo.Mstrict) ctx file ~droot =
         return =
           {
             (* Actually should get set straight away anyway *)
-            Typing_env_return_info.return_type = mk (Reason.Rnone, Tunion []);
+            Typing_env_return_info.return_type = mk (Reason.none, Tunion []);
             return_disposable = false;
           };
         params = Local_id.Map.empty;
@@ -109,6 +113,7 @@ let empty ?origin ?(mode = FileInfo.Mstrict) ctx file ~droot =
         fun_is_ctor = false;
         file;
         current_module = None;
+        current_package_override = None;
         this_internal = false;
         this_support_dynamic_type = false;
         no_auto_likes = false;
@@ -120,6 +125,7 @@ let empty ?origin ?(mode = FileInfo.Mstrict) ctx file ~droot =
     big_envs = ref [];
     fun_tast_info = None;
     loaded_packages = SSet.empty;
+    emit_string_coercion_error = true;
   }
 
 let get_log_level env key =

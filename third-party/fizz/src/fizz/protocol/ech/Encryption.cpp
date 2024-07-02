@@ -9,9 +9,7 @@
 #include <fizz/protocol/ech/Encryption.h>
 #include "fizz/record/Types.h"
 
-#include <fizz/crypto/Sha256.h>
-#include <fizz/crypto/Sha384.h>
-#include <fizz/crypto/Sha512.h>
+#include <fizz/backend/openssl/OpenSSL.h>
 #include <fizz/crypto/hpke/Utils.h>
 #include <fizz/protocol/Protocol.h>
 #include <fizz/protocol/ech/ECHExtensions.h>
@@ -150,9 +148,8 @@ folly::Optional<SupportedECHConfig> selectECHConfig(
       }
 
       // Check for an invalid public name and skip if found.
-      std::string publicName = echConfig.public_name->cloneCoalescedAsValue()
-                                   .moveToFbString()
-                                   .toStdString();
+      std::string publicName =
+          echConfig.public_name->cloneCoalescedAsValue().to<std::string>();
       if (!isValidPublicName(publicName)) {
         VLOG(8) << publicName << " isn't a valid public name";
         continue;
@@ -217,21 +214,21 @@ std::unique_ptr<folly::IOBuf> getRecordDigest(
   switch (id) {
     case hpke::KDFId::Sha256: {
       std::array<uint8_t, fizz::Sha256::HashLen> recordDigest;
-      fizz::Sha256::hash(
+      fizz::openssl::Hasher<Sha256>::hash(
           *encode(echConfig),
           folly::MutableByteRange(recordDigest.data(), recordDigest.size()));
       return folly::IOBuf::copyBuffer(recordDigest);
     }
     case hpke::KDFId::Sha384: {
       std::array<uint8_t, fizz::Sha384::HashLen> recordDigest;
-      fizz::Sha384::hash(
+      fizz::openssl::Hasher<Sha384>::hash(
           *encode(echConfig),
           folly::MutableByteRange(recordDigest.data(), recordDigest.size()));
       return folly::IOBuf::copyBuffer(recordDigest);
     }
     case hpke::KDFId::Sha512: {
       std::array<uint8_t, fizz::Sha512::HashLen> recordDigest;
-      fizz::Sha512::hash(
+      fizz::openssl::Hasher<Sha512>::hash(
           *encode(echConfig),
           folly::MutableByteRange(recordDigest.data(), recordDigest.size()));
       return folly::IOBuf::copyBuffer(recordDigest);

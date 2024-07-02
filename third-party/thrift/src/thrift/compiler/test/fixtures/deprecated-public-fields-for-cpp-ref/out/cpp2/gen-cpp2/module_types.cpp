@@ -76,7 +76,7 @@ Foo& Foo::operator=([[maybe_unused]] Foo&& other) noexcept {
 
 Foo::Foo(apache::thrift::FragileConstructor, ::std::unique_ptr<::cpp2::Foo> foo__arg, ::std::shared_ptr<::cpp2::Foo> bar__arg) :
     __fbthrift_field_foo(std::move(foo__arg)),
-    __fbthrift_field_bar(std::move(bar__arg)) {
+    __fbthrift_field_bar(std::move(bar__arg)) { 
 }
 
 
@@ -131,11 +131,11 @@ static_assert(
         ::cpp2::Foo>,
     "inconsistent use of json option");
 
-} // cpp2
+} // namespace cpp2
 
 namespace cpp2 { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}} // cpp2
+}} // namespace cpp2
 namespace apache::thrift::detail::annotation {
 }

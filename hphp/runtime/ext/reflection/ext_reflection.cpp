@@ -44,6 +44,8 @@
 
 #include "hphp/system/systemlib.h"
 
+#include "hphp/util/configs/eval.h"
+
 #include <functional>
 #include <boost/algorithm/string/predicate.hpp>
 
@@ -537,7 +539,7 @@ void HHVM_FUNCTION(hphp_set_static_property, const String& cls,
   // TODO(T61738946): We can remove the temporary here once we no longer coerce
   // class_meth types.
   auto tmp = value;
-  if (RuntimeOption::EvalCheckPropTypeHints > 0 && tc.isCheckable()) {
+  if (Cfg::Eval::CheckPropTypeHints > 0 && tc.isCheckable()) {
     tc.verifyStaticProperty(tmp.asTypedValue(), class_, sprop.cls, prop.get());
   }
   tvAsVariant(lookup.val) = tmp;
@@ -954,7 +956,7 @@ static Array get_function_user_attributes(const Func* func) {
               sd->same(s_MakeICInaccessible.get()) ||
               sd->same(s_SoftMakeICInaccessible.get()) ||
               sd->same(s_Uncategorized.get())) {
-            if (RO::EvalEmitNativeEnumClassLabels) {
+            if (Cfg::Eval::EmitNativeEnumClassLabels) {
               args.append(make_tv<KindOfEnumClassLabel>(sd));
             } else {
               auto const func = Func::load(s_systemlib_create_opaque_value.get());

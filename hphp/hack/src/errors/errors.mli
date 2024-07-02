@@ -13,10 +13,12 @@ type finalized_error = (Pos.absolute, Pos.absolute) User_error.t
 [@@deriving eq, show]
 
 type format =
-  | Context
-  | Raw
-  | Highlighted
-  | Plain
+  | Context  (** Underlined references and color *)
+  | Raw  (** Compact format with color but no references *)
+  | Highlighted  (** Numbered and colored references *)
+  | Plain  (** Verbose positions and no color *)
+  | Extended
+      (** Verbose context showing expressions, statements, hints, and declarations involved in error *)
 
 (** Type representing the errors for a single file. *)
 type per_file_errors
@@ -25,6 +27,12 @@ type per_file_errors
 type t [@@deriving eq, show]
 
 val iter : t -> f:(error -> unit) -> unit
+
+module Error : sig
+  type t = error
+
+  val hash_for_saved_state : t -> Warnings_saved_state.ErrorHash.t
+end
 
 module ErrorSet : Stdlib.Set.S with type elt := error
 
@@ -249,3 +257,5 @@ val function_is_not_dynamically_callable : string -> error -> unit
 
 val global_access_error :
   Error_codes.GlobalAccessCheck.t -> Pos.t -> string -> unit
+
+val filter : t -> f:(Relative_path.t -> error -> bool) -> t

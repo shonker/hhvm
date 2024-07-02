@@ -28,12 +28,12 @@
 #include <boost/thread.hpp>
 
 #include <folly/Exception.h>
-#include <folly/VirtualExecutor.h>
 #include <folly/container/F14Map.h>
 #include <folly/executors/CPUThreadPoolExecutor.h>
 #include <folly/executors/EDFThreadPoolExecutor.h>
 #include <folly/executors/FutureExecutor.h>
 #include <folly/executors/IOThreadPoolExecutor.h>
+#include <folly/executors/VirtualExecutor.h>
 #include <folly/executors/task_queue/LifoSemMPMCQueue.h>
 #include <folly/executors/task_queue/UnboundedBlockingQueue.h>
 #include <folly/executors/thread_factory/InitThreadFactory.h>
@@ -209,7 +209,7 @@ static void destroy() {
 // taken back.
 template <>
 void destroy<IOThreadPoolExecutor>() {
-  Optional<IOThreadPoolExecutor> tpe(in_place, 1);
+  Optional<IOThreadPoolExecutor> tpe(std::in_place, 1);
   std::atomic<int> completed(0);
   auto f = [&]() {
     burnMs(10)();
@@ -1028,7 +1028,11 @@ TEST(ThreadPoolExecutorTest, AddPerf) {
       std::make_shared<NamedThreadFactory>("CPUThreadPool"));
   e.setThreadDeathTimeout(std::chrono::milliseconds(1));
   for (int i = 0; i < 10000; i++) {
-    e.add([&]() { e.add([]() { /* sleep override */ usleep(1000); }); });
+    e.add([&, ka = getKeepAliveToken(e)]() {
+      // holding a keep-alive here permits the following add()
+      // to occur safely, concurrently with the stop() below
+      e.add([]() { /* sleep override */ usleep(1000); });
+    });
   }
   e.stop();
 }

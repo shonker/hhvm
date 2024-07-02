@@ -267,53 +267,25 @@ void cgLdImplicitContext(IRLS& env, const IRInstruction* inst) {
   markRDSAccess(v, ImplicitContext::activeCtx.handle());
 
   auto const dst = dstLoc(env, inst, 0);
-  auto const sf = v.makeReg();
-  v << load{
-    rvmtl()[ImplicitContext::activeCtx.handle()],
-    dst.reg(0) /* data */
-  };
-  v << testq{dst.reg(0), dst.reg(0), sf};
-  v << cmovb{
-    CC_Z,
-    sf,
-    v.cns(TObj.toDataType()),
-    v.cns(TInitNull.toDataType()),
-    dst.reg(1) /* type */
-  };
+  v << load{rvmtl()[ImplicitContext::activeCtx.handle()], dst.reg(0)};
 }
 
 void cgLdImplicitContextMemoKey(IRLS& env, const IRInstruction* inst) {
-  auto const obj = srcLoc(env, inst, 0).reg();
+  auto const src = srcLoc(env, inst, 0).reg();
   auto const dst = dstLoc(env, inst, 0).reg();
 
   auto& v = vmain(env);
-  v << load{
-    obj[Native::dataOffset<ImplicitContext>() + ImplicitContext::memoKeyOffset()],
-    dst
-  };
+  v << copy{src, dst};
 }
 
 void cgStImplicitContext(IRLS& env, const IRInstruction* inst) {
   auto& v = vmain(env);
-  auto const src = inst->src(0);
+  assertx(inst->src(0)->isA(TObj));
+
   auto const data = srcLoc(env, inst, 0).reg(0);
-  auto const type = srcLoc(env, inst, 0).reg(1);
   markRDSAccess(v, ImplicitContext::activeCtx.handle());
 
-  if (src->isA(TInitNull)) {
-    v << store{v.cns(nullptr), rvmtl()[ImplicitContext::activeCtx.handle()]};
-  } else if (src->isA(TObj)) {
-    v << store{data, rvmtl()[ImplicitContext::activeCtx.handle()]};
-  } else {
-    assertx(src->isA(TObj|TInitNull));
-    emitTypeTest(v, env, TInitNull, data, type, v.makeReg(),
-      [&] (ConditionCode cc, Vreg sf) {
-        auto const result = v.makeReg();
-        v << cmovq{cc, sf, v.cns(nullptr), data, result};
-        v << store{result, rvmtl()[ImplicitContext::activeCtx.handle()]};
-      }
-    );
-  }
+  v << store{data, rvmtl()[ImplicitContext::activeCtx.handle()]};
 }
 
 void cgDbgTrashMem(IRLS& env, const IRInstruction* inst) {
@@ -611,7 +583,7 @@ void cgLdTVAux(IRLS& env, const IRInstruction* inst) {
       auto const sf = v.makeReg();
       v << testqi{mask, dst, sf};
       ifThen(v, CC_NZ, sf, [](Vout& v) {
-        v << trap{TRAP_REASON};
+        v << trap{TRAP_REASON, Fixup::none()};
       });
     }
   }

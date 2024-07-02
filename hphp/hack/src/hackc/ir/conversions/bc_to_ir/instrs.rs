@@ -5,7 +5,6 @@
 
 use std::cmp::Ordering;
 use std::fmt::Display;
-use std::sync::Arc;
 
 use hhbc::Instruct;
 use hhbc::Opcode;
@@ -88,7 +87,7 @@ pub(crate) fn convert_sequence(ctx: &mut Context<'_>, addr: Addr) {
                 trace!(
                     "  [{idx}] {bid},%{iid} stack: [{stack}] instr {instr:?}, loc {loc:?}",
                     bid = FmtRawBid(ctx.builder.cur_bid()),
-                    iid = ctx.builder.func.instrs_len(),
+                    iid = ctx.builder.func.repr.instrs_len(),
                     stack = FmtSep::comma(ctx.debug_get_stack().iter(), |w, vid| FmtRawVid(*vid)
                         .fmt(w)),
                     loc = ctx.loc
@@ -120,7 +119,7 @@ pub(crate) fn convert_sequence(ctx: &mut Context<'_>, addr: Addr) {
         }
     }
 
-    if !ctx.builder.func.is_terminated(ctx.builder.cur_bid()) {
+    if !ctx.builder.func.repr.is_terminated(ctx.builder.cur_bid()) {
         trace!("  Non-terminated sequence. Next = {:?}", seq.next);
 
         // This sequence ended on a non-terminal. That probably means it falls
@@ -656,11 +655,11 @@ fn convert_include(ctx: &mut Context<'_>, ie: &Opcode) {
 }
 
 fn convert_local(ctx: &mut Context<'_>, local: &hhbc::Local) -> LocalId {
-    if let Some(local) = ctx.named_local_lookup.get(local.as_usize()) {
+    if let Some(local) = ctx.named_local_lookup.get(local.index()) {
         *local
     } else {
         // Convert the hhbc::Local ID to a 0-based number.
-        let id = ir::UnnamedLocalId::from_usize(local.as_usize() - ctx.named_local_lookup.len());
+        let id = ir::UnnamedLocalId::from_usize(local.index() - ctx.named_local_lookup.len());
         LocalId::Unnamed(id)
     }
 }
@@ -670,7 +669,7 @@ fn convert_local_range(ctx: &mut Context<'_>, range: &hhbc::LocalRange) -> Box<[
     if range.start != hhbc::Local::INVALID && range.len != 0 {
         let size = range.len as usize;
         for idx in 0..size {
-            let local = hhbc::Local::from_usize(range.start.as_usize() + idx);
+            let local = hhbc::Local::new(range.start.index() + idx);
             let lid = convert_local(ctx, &local);
             locals.push(lid);
         }
@@ -680,39 +679,44 @@ fn convert_local_range(ctx: &mut Context<'_>, range: &hhbc::LocalRange) -> Box<[
 
 fn convert_iterator(ctx: &mut Context<'_>, opcode: &Opcode) {
     match *opcode {
-        Opcode::IterInit(ref args, label) => {
+        Opcode::IterInit(ref args, ref base_id, label) => {
             let hhbc::IterArgs {
                 iter_id,
                 ref key_id,
                 ref val_id,
+                flags,
             } = *args;
+            let base_lid = convert_local(ctx, base_id);
             let key_lid = key_id.is_valid().then(|| convert_local(ctx, key_id));
             let value_lid = convert_local(ctx, val_id);
-            let base_iid = ctx.pop();
             let stack_size = ctx.spill_stack();
             let next_bid = ctx.builder.alloc_bid();
             let done_bid = ctx.target_from_label(label, stack_size);
 
-            let args =
-                instr::IteratorArgs::new(iter_id, key_lid, value_lid, done_bid, next_bid, ctx.loc);
-            ctx.emit(Instr::Terminator(Terminator::IterInit(args, base_iid)));
+            let args = instr::IteratorArgs::new(
+                iter_id, flags, base_lid, key_lid, value_lid, done_bid, next_bid, ctx.loc,
+            );
+            ctx.emit(Instr::Terminator(Terminator::IterInit(args)));
             ctx.builder.start_block(next_bid);
             ctx.unspill_stack(stack_size);
         }
-        Opcode::IterNext(ref args, label) => {
+        Opcode::IterNext(ref args, ref base_id, label) => {
             let hhbc::IterArgs {
                 iter_id,
                 ref key_id,
                 ref val_id,
+                flags,
             } = *args;
+            let base_lid = convert_local(ctx, base_id);
             let key_lid = key_id.is_valid().then(|| convert_local(ctx, key_id));
             let value_lid = convert_local(ctx, val_id);
             let stack_size = ctx.spill_stack();
             let next_bid = ctx.builder.alloc_bid();
             let done_bid = ctx.target_from_label(label, stack_size);
 
-            let args =
-                instr::IteratorArgs::new(iter_id, key_lid, value_lid, done_bid, next_bid, ctx.loc);
+            let args = instr::IteratorArgs::new(
+                iter_id, flags, base_lid, key_lid, value_lid, done_bid, next_bid, ctx.loc,
+            );
             ctx.emit(Instr::Terminator(Terminator::IterNext(args)));
             ctx.builder.start_block(next_bid);
             ctx.unspill_stack(stack_size);
@@ -853,7 +857,7 @@ fn convert_opcode(ctx: &mut Context<'_>, opcode: &Opcode) -> bool {
             Action::None
         }
 
-        Opcode::IterInit(_, _) | Opcode::IterNext(_, _) => {
+        Opcode::IterInit(_, _, _) | Opcode::IterNext(_, _, _) => {
             convert_iterator(ctx, opcode);
             Action::None
         }
@@ -929,21 +933,7 @@ fn convert_opcode(ctx: &mut Context<'_>, opcode: &Opcode) -> bool {
             ))
         }
 
-        Opcode::Dict(name) => {
-            let tv = Arc::clone(&ctx.adata_lookup[&name]);
-            debug_assert!(matches!(*tv, ir::TypedValue::Dict(_)));
-            Action::Immediate(Immediate::Array(tv))
-        }
-        Opcode::Keyset(name) => {
-            let tv = Arc::clone(&ctx.adata_lookup[&name]);
-            debug_assert!(matches!(*tv, ir::TypedValue::Keyset(_)));
-            Action::Immediate(Immediate::Array(tv))
-        }
-        Opcode::Vec(name) => {
-            let tv = Arc::clone(&ctx.adata_lookup[&name]);
-            debug_assert!(matches!(*tv, ir::TypedValue::Vec(_)));
-            Action::Immediate(Immediate::Array(tv))
-        }
+        Opcode::Vec(v) | Opcode::Dict(v) | Opcode::Keyset(v) => Action::Immediate(v.clone().into()),
 
         Opcode::AKExists => simple!(Hhbc::AKExists),
         Opcode::Add => simple!(Hhbc::Add),
@@ -1000,7 +990,7 @@ fn convert_opcode(ctx: &mut Context<'_>, opcode: &Opcode) -> bool {
         Opcode::ContRaise => simple!(Hhbc::ContRaise),
         Opcode::ContValid => simple!(Hhbc::ContValid),
         Opcode::CreateCont => simple!(Hhbc::CreateCont),
-        Opcode::CreateSpecialImplicitContext => simple!(Hhbc::CreateSpecialImplicitContext),
+        Opcode::GetInaccessibleImplicitContext => simple!(Hhbc::GetInaccessibleImplicitContext),
         Opcode::DblAsBits => todo!(),
         Opcode::Dir => simple!(Immediate::Dir),
         Opcode::Div => simple!(Hhbc::Div),
@@ -1022,7 +1012,11 @@ fn convert_opcode(ctx: &mut Context<'_>, opcode: &Opcode) -> bool {
         Opcode::IncDecS => simple!(Hhbc::IncDecS),
         Opcode::InitProp => simple!(Hhbc::InitProp),
         Opcode::InstanceOf => todo!(),
-        Opcode::InstanceOfD => simple!(Hhbc::InstanceOfD),
+        Opcode::InstanceOfD(ref cn) => {
+            let cn = *cn;
+            let v = ctx.pop();
+            Action::Push(Instr::Hhbc(Hhbc::InstanceOfD(v, cn, false, ctx.loc)))
+        }
         Opcode::Int => simple!(Immediate::Int),
         Opcode::IsLateBoundCls => simple!(Hhbc::IsLateBoundCls),
         Opcode::IsTypeC => simple!(Hhbc::IsTypeC),
@@ -1032,10 +1026,8 @@ fn convert_opcode(ctx: &mut Context<'_>, opcode: &Opcode) -> bool {
         Opcode::IssetG => simple!(Hhbc::IssetG),
         Opcode::IssetL => simple!(Hhbc::IssetL),
         Opcode::IssetS => simple!(Hhbc::IssetS),
+        Opcode::IterBase => simple!(Hhbc::IterBase),
         Opcode::IterFree => simple!(Hhbc::IterFree),
-        Opcode::LIterFree => todo!(),
-        Opcode::LIterInit => todo!(),
-        Opcode::LIterNext => todo!(),
         Opcode::LateBoundCls => simple!(Hhbc::LateBoundCls),
         Opcode::LazyClass => simple!(Immediate::LazyClass),
         Opcode::LazyClassFromClass => simple!(Hhbc::LazyClassFromClass),
@@ -1099,6 +1091,7 @@ fn convert_opcode(ctx: &mut Context<'_>, opcode: &Opcode) -> bool {
         Opcode::Shl => simple!(Hhbc::Shl),
         Opcode::Shr => simple!(Hhbc::Shr),
         Opcode::Silence => simple!(Hhbc::Silence),
+        Opcode::StaticAnalysisError => todo!(),
         Opcode::Sub => simple!(Hhbc::Sub),
         Opcode::This => simple!(Hhbc::This),
         Opcode::Throw => simple!(Terminator::Throw),
@@ -1107,7 +1100,6 @@ fn convert_opcode(ctx: &mut Context<'_>, opcode: &Opcode) -> bool {
         Opcode::UGetCUNop => todo!(),
         Opcode::UnsetG => simple!(Hhbc::UnsetG),
         Opcode::UnsetL => simple!(Hhbc::UnsetL),
-        Opcode::VerifyImplicitContextState => simple!(Hhbc::VerifyImplicitContextState),
         Opcode::VerifyOutType => simple!(Hhbc::VerifyOutType),
         Opcode::VerifyParamType => simple!(Hhbc::VerifyParamType),
         Opcode::VerifyParamTypeTS => simple!(Hhbc::VerifyParamTypeTS),
@@ -1195,14 +1187,14 @@ fn add_catch_work(ctx: &mut Context<'_>, mut tcid: TryCatchId) {
             }
             TryCatchId::Try(exid) => {
                 // Catch block is the catch of this exid.
-                ctx.add_work_bid(ctx.builder.func.ex_frames[&exid].catch_bid);
+                ctx.add_work_bid(ctx.builder.func.repr.ex_frames[&exid].catch_bid);
                 return;
             }
             TryCatchId::Catch(exid) => {
                 // Catch block is the catch of the parent. If our parent is a
                 // Try(_) then we want its catch. If our parent is a Catch(_)
                 // then we want its parent's stuff.
-                tcid = ctx.builder.func.ex_frames[&exid].parent;
+                tcid = ctx.builder.func.repr.ex_frames[&exid].parent;
             }
         }
     }

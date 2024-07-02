@@ -4,25 +4,11 @@
 // LICENSE file in the "hack" directory of this source tree.
 
 use hash::IndexSet;
-use serde::Serialize;
 
 use crate::AdataId;
 use crate::TypedValue;
 
-#[derive(Debug, Eq, PartialEq, Serialize)]
-#[repr(C)]
-pub struct Adata {
-    pub id: AdataId,
-    pub value: TypedValue,
-}
-
-impl Adata {
-    pub const VEC_PREFIX: &'static str = "v";
-    pub const DICT_PREFIX: &'static str = "D";
-    pub const KEYSET_PREFIX: &'static str = "k";
-}
-
-#[derive(Debug, Default)]
+#[derive(Debug, Clone, Default)]
 pub struct AdataState {
     shared: IndexSet<TypedValue>,
 }
@@ -33,14 +19,20 @@ impl AdataState {
         AdataId::new(i)
     }
 
-    pub fn finish(self) -> Vec<Adata> {
-        self.shared
-            .into_iter()
-            .enumerate()
-            .map(|(i, value)| Adata {
-                id: AdataId::new(i),
-                value,
-            })
-            .collect()
+    pub fn intern_value(&mut self, tv: TypedValue) -> &TypedValue {
+        let (i, _) = self.shared.insert_full(tv);
+        self.shared.get_index(i).unwrap()
+    }
+
+    pub fn index_of(&self, tv: &TypedValue) -> Option<AdataId> {
+        self.shared.get_index_of(tv).map(AdataId::new)
+    }
+
+    pub fn lookup(&self, id: AdataId) -> Option<&TypedValue> {
+        self.shared.get_index(id.index())
+    }
+
+    pub fn finish(self) -> Vec<TypedValue> {
+        self.shared.into_iter().collect()
     }
 }

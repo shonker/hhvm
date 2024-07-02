@@ -16,26 +16,18 @@ let popt
     ~keep_user_attributes
     ~interpret_soft_types_as_like_types
     ~everything_sdt =
-  let po = ParserOptions.default in
-  let po =
-    ParserOptions.with_disable_xhp_element_mangling
-      po
-      disable_xhp_element_mangling
-  in
-  let po = ParserOptions.with_keep_user_attributes po keep_user_attributes in
-  let po = ParserOptions.with_auto_namespace_map po auto_namespace_map in
-  let po =
-    ParserOptions.with_enable_xhp_class_modifier po enable_xhp_class_modifier
-  in
-  let po =
-    ParserOptions.with_interpret_soft_types_as_like_types
-      po
-      interpret_soft_types_as_like_types
-  in
-  let po = ParserOptions.with_everything_sdt po everything_sdt in
-  po
+  ParserOptions.
+    {
+      default with
+      auto_namespace_map;
+      disable_xhp_element_mangling;
+      keep_user_attributes;
+      enable_xhp_class_modifier;
+      interpret_soft_types_as_like_types;
+      everything_sdt;
+    }
 
-let init root popt ~rust_provider_backend : Provider_context.t =
+let init root tcopt ~rust_provider_backend : Provider_context.t =
   Relative_path.(set_path_prefix Root root);
   Relative_path.(set_path_prefix Tmp (Path.make "/tmp"));
   Relative_path.(set_path_prefix Hhi (Path.make "/tmp/non_existent"));
@@ -55,9 +47,14 @@ let init root popt ~rust_provider_backend : Provider_context.t =
   let (_handle : SharedMem.handle) =
     SharedMem.init ~num_workers:0 sharedmem_config
   in
-  let tcopt = { popt with GlobalOptions.tco_higher_kinded_types = true } in
+  let popt = tcopt.GlobalOptions.po in
+  let tcopt = { tcopt with GlobalOptions.tco_higher_kinded_types = true } in
   if rust_provider_backend then
-    let backend = Hh_server_provider_backend.make popt in
+    let backend =
+      Hh_server_provider_backend.make
+        (DeclFoldOptions.from_global_options tcopt)
+        (DeclParserOptions.from_parser_options popt)
+    in
     Provider_backend.set_rust_backend backend
   else
     Provider_backend.set_shared_memory_backend ();
@@ -294,7 +291,7 @@ let name_and_then_print_name_results ctx files ~decl_make_env =
         in
         let ast =
           let { Parser_return.ast; _ } = parsed_file in
-          if ParserOptions.deregister_php_stdlib popt then
+          if popt.ParserOptions.deregister_php_stdlib then
             Nast.deregister_ignored_attributes ast
           else
             ast
@@ -478,10 +475,6 @@ let () =
       ( "--interpret-soft-types-as-like-types",
         Arg.Set interpret_soft_types_as_like_types,
         "Interpret <<__Soft>> type hints as like types" );
-      ( "--everything-sdt",
-        Arg.Set everything_sdt,
-        " Treat all classes, functions, and traits as though they are annotated with <<__SupportDynamicType>>, unless they are annotated with <<__NoAutoDynamic>>"
-      );
       ( "--rust-provider-backend",
         Arg.Set rust_provider_backend,
         " Use the Rust implementation of Provider_backend (including decl-folding)"
@@ -534,7 +527,6 @@ let () =
       ignored_flag "--require-extends-implements-ancestors";
       ignored_flag "--strict-value-equality";
       ignored_flag "--enable-sealed-subclasses";
-      ignored_flag "--enable-sound-dynamic-type";
       ignored_arg "--explicit-consistent-constructors";
       ignored_arg "--require-types-class-consts";
       ignored_flag "--skip-tast-checks";
@@ -588,9 +580,11 @@ let () =
     TypecheckerOptions.experimental_from_flags
       ~disallow_static_memoized:!disallow_static_memoized
   in
-  let popt = { popt with GlobalOptions.tco_experimental_features } in
+  let tcopt =
+    GlobalOptions.{ default with po = popt; tco_experimental_features }
+  in
   let ctx =
-    init (Path.dirname file) popt ~rust_provider_backend:!rust_provider_backend
+    init (Path.dirname file) tcopt ~rust_provider_backend:!rust_provider_backend
   in
   let file = Relative_path.(create Root (Path.to_string file)) in
   let files = Multifile.file_to_file_list file in

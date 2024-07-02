@@ -108,7 +108,7 @@ class Default;
 class NonAtomic;
 class Atomic;
 class AtomicFoo;
-} // cpp2
+} // namespace cpp2
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -175,6 +175,8 @@ class Default final  {
  public:
   using __fbthrift_cpp2_type = Default;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -509,6 +511,8 @@ class NonAtomic final  {
   using __fbthrift_cpp2_type = NonAtomic;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -841,6 +845,8 @@ class Atomic final  {
  public:
   using __fbthrift_cpp2_type = Atomic;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -1175,6 +1181,8 @@ class AtomicFoo final  {
   using __fbthrift_cpp2_type = AtomicFoo;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1457,4 +1465,4 @@ unsigned long AtomicFoo::read(Protocol_* iprot) {
 }
 
 
-} // cpp2
+} // namespace cpp2

@@ -52,15 +52,15 @@ struct StoreValue {
   StoreValue() = default;
   StoreValue(const StoreValue& o)
     : m_data{o.m_data.load(std::memory_order_acquire)}
-    , expireTime{o.expireTime.load(std::memory_order_relaxed)}
+    , expireTime{o.expireTime.load(std::memory_order_acquire)}
     , dataSize{o.dataSize}
     , kind(o.kind)
-    , bumpTTL{o.bumpTTL.load(std::memory_order_relaxed)}
+    , bumpTTL{o.bumpTTL.load(std::memory_order_acquire)}
     , c_time{o.c_time}
-    , maxExpireTime{o.maxExpireTime.load(std::memory_order_relaxed)}
+    , maxExpireTime{o.maxExpireTime.load(std::memory_order_acquire)}
   {
-    hotIndex.store(o.hotIndex.load(std::memory_order_relaxed),
-                   std::memory_order_relaxed);
+    hotIndex.store(o.hotIndex.load(std::memory_order_acquire),
+                   std::memory_order_release);
   }
 
   APCHandle* data() const {
@@ -162,6 +162,7 @@ struct EntryInfo {
     , inHotCache(inHotCache)
   {}
 
+  size_t totalSize() const;
   static Type getAPCType(const APCHandle* handle);
 
   std::string key;
@@ -398,6 +399,9 @@ private:
       return p1.second > p2.second;
     }
   };
+
+public:
+  static constexpr size_t NodeSize = sizeof(Map::node);
 
 private:
   bool checkExpire(const String& keyStr, Map::const_accessor& acc);

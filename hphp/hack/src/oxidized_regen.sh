@@ -40,6 +40,7 @@ summary "Write oxidized/gen/"
   --regen-command "$REGEN_COMMAND"                                            \
   --rustfmt-path "$RUSTFMT_PATH"                                              \
   --copy-types-file hphp/hack/src/oxidized/copy_types.txt                     \
+  --safe-ints-types-file hphp/hack/src/oxidized/safe_ints_types.txt           \
   hphp/hack/src/annotated_ast/aast_defs.ml                                    \
   hphp/hack/src/annotated_ast/namespace_env.ml                                \
   hphp/hack/src/ast/ast_defs.ml                                               \
@@ -59,6 +60,7 @@ summary "Write oxidized/gen/"
   hphp/hack/src/errors/user_error.ml                                          \
   hphp/hack/src/errors/user_error_flags.ml                                          \
   hphp/hack/src/errors/errors.ml                                              \
+  hphp/hack/src/errors/warnings_saved_state.ml                                              \
   hphp/hack/src/errors/error_codes.ml                                         \
   hphp/hack/src/errors/message.ml                                             \
   hphp/hack/src/naming/name_context.ml                                        \
@@ -68,7 +70,9 @@ summary "Write oxidized/gen/"
   hphp/hack/src/errors/classish_positions_types.ml                            \
   hphp/hack/src/errors/quickfix.ml                                            \
   hphp/hack/src/naming/naming_phase_error.ml                                  \
+  hphp/hack/src/options/declFoldOptions.ml                                  \
   hphp/hack/src/options/declParserOptions.ml                                  \
+  hphp/hack/src/options/experimental_features.ml                              \
   hphp/hack/src/options/globalOptions.ml                                      \
   hphp/hack/src/options/parserOptions.ml                                      \
   hphp/hack/src/options/saved_state_rollouts.ml                               \

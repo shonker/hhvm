@@ -24,7 +24,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol.h",
         "line": "162",
-        "column": "1",
+        "column": "12",
         "bodyfile": "fbcode/thrift/lib/cpp/protocol/TCompactProtocol-inl.h",
         "bodystart": "195",
         "bodyend": "214"
@@ -52,5 +52,11 @@
   "brief_html": "<p>Write a boolean value. Potentially, this could be a boolean field, in which case the field header info isn't written yet. If so, decide what the right type header is for the value and then write the field header. Otherwise, write a single byte. </p>",
   "groupname_html": "",
   "href": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeBool",
-  "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeBool"
+  "refid": "/ref/cpp/f/class/apache/thrift/protocol/TCompactProtocolT/writeBool",
+  "parent_links": [
+    {
+      "text_html": "TCompactProtocolT",
+      "href": "/ref/cpp/class/apache/thrift/protocol/TCompactProtocolT"
+    }
+  ]
 }

@@ -8,16 +8,23 @@
 pub mod my_root {
     #[derive(Clone, Debug)]
     pub enum DoRootExn {
-        #[doc(hidden)]
-        Success(()),
+
         ApplicationException(::fbthrift::ApplicationException),
     }
 
-    impl ::std::convert::From<crate::errors::my_root::DoRootError> for DoRootExn {
-        fn from(err: crate::errors::my_root::DoRootError) -> Self {
+    impl ::std::convert::From<DoRootExn> for ::fbthrift::NonthrowingFunctionError {
+        fn from(err: DoRootExn) -> Self {
             match err {
-                crate::errors::my_root::DoRootError::ApplicationException(aexn) => DoRootExn::ApplicationException(aexn),
-                crate::errors::my_root::DoRootError::ThriftError(err) => DoRootExn::ApplicationException(::fbthrift::ApplicationException {
+                DoRootExn::ApplicationException(aexn) => ::fbthrift::NonthrowingFunctionError::ApplicationException(aexn),
+            }
+        }
+    }
+
+    impl ::std::convert::From<::fbthrift::NonthrowingFunctionError> for DoRootExn {
+        fn from(err: ::fbthrift::NonthrowingFunctionError) -> Self {
+            match err {
+                ::fbthrift::NonthrowingFunctionError::ApplicationException(aexn) => DoRootExn::ApplicationException(aexn),
+                ::fbthrift::NonthrowingFunctionError::ThriftError(err) => DoRootExn::ApplicationException(::fbthrift::ApplicationException {
                     message: err.to_string(),
                     type_: ::fbthrift::ApplicationExceptionErrorCode::InternalError,
                 }),
@@ -34,21 +41,18 @@ pub mod my_root {
     impl ::fbthrift::ExceptionInfo for DoRootExn {
         fn exn_name(&self) -> &'static str {
             match self {
-                Self::Success(_) => panic!("ExceptionInfo::exn_name called on Success"),
                 Self::ApplicationException(aexn) => aexn.exn_name(),
             }
         }
 
         fn exn_value(&self) -> String {
             match self {
-                Self::Success(_) => panic!("ExceptionInfo::exn_value called on Success"),
                 Self::ApplicationException(aexn) => aexn.exn_value(),
             }
         }
 
         fn exn_is_declared(&self) -> bool {
             match self {
-                Self::Success(_) => panic!("ExceptionInfo::exn_is_declared called on Success"),
                 Self::ApplicationException(aexn) => aexn.exn_is_declared(),
             }
         }
@@ -57,81 +61,38 @@ pub mod my_root {
     impl ::fbthrift::ResultInfo for DoRootExn {
         fn result_type(&self) -> ::fbthrift::ResultType {
             match self {
-                Self::Success(_) => ::fbthrift::ResultType::Return,
                 Self::ApplicationException(_aexn) => ::fbthrift::ResultType::Exception,
             }
         }
     }
 
-    impl ::fbthrift::GetTType for DoRootExn {
-        const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
-    }
+    impl ::fbthrift::help::SerializeExn for DoRootExn {
+        type Success = ();
 
-    impl<P> ::fbthrift::Serialize<P> for DoRootExn
-    where
-        P: ::fbthrift::ProtocolWriter,
-    {
-        fn write(&self, p: &mut P) {
-            if let Self::ApplicationException(aexn) = self {
-                return aexn.write(p);
+        fn write_result<P>(
+            res: ::std::result::Result<&Self::Success, &Self>,
+            p: &mut P,
+            function_name: &'static str,
+        )
+        where
+            P: ::fbthrift::ProtocolWriter,
+        {
+            if let ::std::result::Result::Err(Self::ApplicationException(aexn)) = res {
+                ::fbthrift::Serialize::write(aexn, p);
+                return;
             }
-            p.write_struct_begin("DoRoot");
-            match self {
-                Self::Success(inner) => {
-                    p.write_field_begin(
-                        "Success",
-                        ::fbthrift::TType::Void,
-                        0i16,
-                    );
-                    inner.write(p);
+            p.write_struct_begin(function_name);
+            match res {
+                ::std::result::Result::Ok(_success) => {
+                    p.write_field_begin("Success", ::fbthrift::TType::Void, 0i16);
+                    ::fbthrift::Serialize::write(_success, p);
                     p.write_field_end();
                 }
-                Self::ApplicationException(_aexn) => unreachable!(),
+
+                ::std::result::Result::Err(Self::ApplicationException(_aexn)) => unreachable!(),
             }
             p.write_field_stop();
             p.write_struct_end();
-        }
-    }
-
-    impl<P> ::fbthrift::Deserialize<P> for DoRootExn
-    where
-        P: ::fbthrift::ProtocolReader,
-    {
-        fn read(p: &mut P) -> ::anyhow::Result<Self> {
-            static RETURNS: &[::fbthrift::Field] = &[
-                ::fbthrift::Field::new("Success", ::fbthrift::TType::Void, 0),
-            ];
-            let _ = p.read_struct_begin(|_| ())?;
-            let mut once = false;
-            let mut alt = Self::Success(());
-            loop {
-                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
-                match ((fty, fid as ::std::primitive::i32), once) {
-                    ((::fbthrift::TType::Stop, _), _) => {
-                        p.read_field_end()?;
-                        break;
-                    }
-                    ((::fbthrift::TType::Void, 0i32), false) => {
-                        once = true;
-                        alt = Self::Success(::fbthrift::Deserialize::read(p)?);
-                    }
-                    ((ty, _id), false) => p.skip(ty)?,
-                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
-                        ::fbthrift::ApplicationException::new(
-                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
-                            format!(
-                                "unwanted extra union {} field ty {:?} id {}",
-                                "DoRootExn",
-                                badty,
-                                badid,
-                            ),
-                        )
-                    )),
-                }
-                p.read_field_end()?;
-            }
-            p.read_struct_end()?;
-            ::std::result::Result::Ok(alt)
         }
     }
 }
@@ -140,16 +101,23 @@ pub mod my_root {
 pub mod my_node {
     #[derive(Clone, Debug)]
     pub enum DoMidExn {
-        #[doc(hidden)]
-        Success(()),
+
         ApplicationException(::fbthrift::ApplicationException),
     }
 
-    impl ::std::convert::From<crate::errors::my_node::DoMidError> for DoMidExn {
-        fn from(err: crate::errors::my_node::DoMidError) -> Self {
+    impl ::std::convert::From<DoMidExn> for ::fbthrift::NonthrowingFunctionError {
+        fn from(err: DoMidExn) -> Self {
             match err {
-                crate::errors::my_node::DoMidError::ApplicationException(aexn) => DoMidExn::ApplicationException(aexn),
-                crate::errors::my_node::DoMidError::ThriftError(err) => DoMidExn::ApplicationException(::fbthrift::ApplicationException {
+                DoMidExn::ApplicationException(aexn) => ::fbthrift::NonthrowingFunctionError::ApplicationException(aexn),
+            }
+        }
+    }
+
+    impl ::std::convert::From<::fbthrift::NonthrowingFunctionError> for DoMidExn {
+        fn from(err: ::fbthrift::NonthrowingFunctionError) -> Self {
+            match err {
+                ::fbthrift::NonthrowingFunctionError::ApplicationException(aexn) => DoMidExn::ApplicationException(aexn),
+                ::fbthrift::NonthrowingFunctionError::ThriftError(err) => DoMidExn::ApplicationException(::fbthrift::ApplicationException {
                     message: err.to_string(),
                     type_: ::fbthrift::ApplicationExceptionErrorCode::InternalError,
                 }),
@@ -166,21 +134,18 @@ pub mod my_node {
     impl ::fbthrift::ExceptionInfo for DoMidExn {
         fn exn_name(&self) -> &'static str {
             match self {
-                Self::Success(_) => panic!("ExceptionInfo::exn_name called on Success"),
                 Self::ApplicationException(aexn) => aexn.exn_name(),
             }
         }
 
         fn exn_value(&self) -> String {
             match self {
-                Self::Success(_) => panic!("ExceptionInfo::exn_value called on Success"),
                 Self::ApplicationException(aexn) => aexn.exn_value(),
             }
         }
 
         fn exn_is_declared(&self) -> bool {
             match self {
-                Self::Success(_) => panic!("ExceptionInfo::exn_is_declared called on Success"),
                 Self::ApplicationException(aexn) => aexn.exn_is_declared(),
             }
         }
@@ -189,81 +154,38 @@ pub mod my_node {
     impl ::fbthrift::ResultInfo for DoMidExn {
         fn result_type(&self) -> ::fbthrift::ResultType {
             match self {
-                Self::Success(_) => ::fbthrift::ResultType::Return,
                 Self::ApplicationException(_aexn) => ::fbthrift::ResultType::Exception,
             }
         }
     }
 
-    impl ::fbthrift::GetTType for DoMidExn {
-        const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
-    }
+    impl ::fbthrift::help::SerializeExn for DoMidExn {
+        type Success = ();
 
-    impl<P> ::fbthrift::Serialize<P> for DoMidExn
-    where
-        P: ::fbthrift::ProtocolWriter,
-    {
-        fn write(&self, p: &mut P) {
-            if let Self::ApplicationException(aexn) = self {
-                return aexn.write(p);
+        fn write_result<P>(
+            res: ::std::result::Result<&Self::Success, &Self>,
+            p: &mut P,
+            function_name: &'static str,
+        )
+        where
+            P: ::fbthrift::ProtocolWriter,
+        {
+            if let ::std::result::Result::Err(Self::ApplicationException(aexn)) = res {
+                ::fbthrift::Serialize::write(aexn, p);
+                return;
             }
-            p.write_struct_begin("DoMid");
-            match self {
-                Self::Success(inner) => {
-                    p.write_field_begin(
-                        "Success",
-                        ::fbthrift::TType::Void,
-                        0i16,
-                    );
-                    inner.write(p);
+            p.write_struct_begin(function_name);
+            match res {
+                ::std::result::Result::Ok(_success) => {
+                    p.write_field_begin("Success", ::fbthrift::TType::Void, 0i16);
+                    ::fbthrift::Serialize::write(_success, p);
                     p.write_field_end();
                 }
-                Self::ApplicationException(_aexn) => unreachable!(),
+
+                ::std::result::Result::Err(Self::ApplicationException(_aexn)) => unreachable!(),
             }
             p.write_field_stop();
             p.write_struct_end();
-        }
-    }
-
-    impl<P> ::fbthrift::Deserialize<P> for DoMidExn
-    where
-        P: ::fbthrift::ProtocolReader,
-    {
-        fn read(p: &mut P) -> ::anyhow::Result<Self> {
-            static RETURNS: &[::fbthrift::Field] = &[
-                ::fbthrift::Field::new("Success", ::fbthrift::TType::Void, 0),
-            ];
-            let _ = p.read_struct_begin(|_| ())?;
-            let mut once = false;
-            let mut alt = Self::Success(());
-            loop {
-                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
-                match ((fty, fid as ::std::primitive::i32), once) {
-                    ((::fbthrift::TType::Stop, _), _) => {
-                        p.read_field_end()?;
-                        break;
-                    }
-                    ((::fbthrift::TType::Void, 0i32), false) => {
-                        once = true;
-                        alt = Self::Success(::fbthrift::Deserialize::read(p)?);
-                    }
-                    ((ty, _id), false) => p.skip(ty)?,
-                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
-                        ::fbthrift::ApplicationException::new(
-                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
-                            format!(
-                                "unwanted extra union {} field ty {:?} id {}",
-                                "DoMidExn",
-                                badty,
-                                badid,
-                            ),
-                        )
-                    )),
-                }
-                p.read_field_end()?;
-            }
-            p.read_struct_end()?;
-            ::std::result::Result::Ok(alt)
         }
     }
 }
@@ -272,16 +194,23 @@ pub mod my_node {
 pub mod my_leaf {
     #[derive(Clone, Debug)]
     pub enum DoLeafExn {
-        #[doc(hidden)]
-        Success(()),
+
         ApplicationException(::fbthrift::ApplicationException),
     }
 
-    impl ::std::convert::From<crate::errors::my_leaf::DoLeafError> for DoLeafExn {
-        fn from(err: crate::errors::my_leaf::DoLeafError) -> Self {
+    impl ::std::convert::From<DoLeafExn> for ::fbthrift::NonthrowingFunctionError {
+        fn from(err: DoLeafExn) -> Self {
             match err {
-                crate::errors::my_leaf::DoLeafError::ApplicationException(aexn) => DoLeafExn::ApplicationException(aexn),
-                crate::errors::my_leaf::DoLeafError::ThriftError(err) => DoLeafExn::ApplicationException(::fbthrift::ApplicationException {
+                DoLeafExn::ApplicationException(aexn) => ::fbthrift::NonthrowingFunctionError::ApplicationException(aexn),
+            }
+        }
+    }
+
+    impl ::std::convert::From<::fbthrift::NonthrowingFunctionError> for DoLeafExn {
+        fn from(err: ::fbthrift::NonthrowingFunctionError) -> Self {
+            match err {
+                ::fbthrift::NonthrowingFunctionError::ApplicationException(aexn) => DoLeafExn::ApplicationException(aexn),
+                ::fbthrift::NonthrowingFunctionError::ThriftError(err) => DoLeafExn::ApplicationException(::fbthrift::ApplicationException {
                     message: err.to_string(),
                     type_: ::fbthrift::ApplicationExceptionErrorCode::InternalError,
                 }),
@@ -298,21 +227,18 @@ pub mod my_leaf {
     impl ::fbthrift::ExceptionInfo for DoLeafExn {
         fn exn_name(&self) -> &'static str {
             match self {
-                Self::Success(_) => panic!("ExceptionInfo::exn_name called on Success"),
                 Self::ApplicationException(aexn) => aexn.exn_name(),
             }
         }
 
         fn exn_value(&self) -> String {
             match self {
-                Self::Success(_) => panic!("ExceptionInfo::exn_value called on Success"),
                 Self::ApplicationException(aexn) => aexn.exn_value(),
             }
         }
 
         fn exn_is_declared(&self) -> bool {
             match self {
-                Self::Success(_) => panic!("ExceptionInfo::exn_is_declared called on Success"),
                 Self::ApplicationException(aexn) => aexn.exn_is_declared(),
             }
         }
@@ -321,81 +247,38 @@ pub mod my_leaf {
     impl ::fbthrift::ResultInfo for DoLeafExn {
         fn result_type(&self) -> ::fbthrift::ResultType {
             match self {
-                Self::Success(_) => ::fbthrift::ResultType::Return,
                 Self::ApplicationException(_aexn) => ::fbthrift::ResultType::Exception,
             }
         }
     }
 
-    impl ::fbthrift::GetTType for DoLeafExn {
-        const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
-    }
+    impl ::fbthrift::help::SerializeExn for DoLeafExn {
+        type Success = ();
 
-    impl<P> ::fbthrift::Serialize<P> for DoLeafExn
-    where
-        P: ::fbthrift::ProtocolWriter,
-    {
-        fn write(&self, p: &mut P) {
-            if let Self::ApplicationException(aexn) = self {
-                return aexn.write(p);
+        fn write_result<P>(
+            res: ::std::result::Result<&Self::Success, &Self>,
+            p: &mut P,
+            function_name: &'static str,
+        )
+        where
+            P: ::fbthrift::ProtocolWriter,
+        {
+            if let ::std::result::Result::Err(Self::ApplicationException(aexn)) = res {
+                ::fbthrift::Serialize::write(aexn, p);
+                return;
             }
-            p.write_struct_begin("DoLeaf");
-            match self {
-                Self::Success(inner) => {
-                    p.write_field_begin(
-                        "Success",
-                        ::fbthrift::TType::Void,
-                        0i16,
-                    );
-                    inner.write(p);
+            p.write_struct_begin(function_name);
+            match res {
+                ::std::result::Result::Ok(_success) => {
+                    p.write_field_begin("Success", ::fbthrift::TType::Void, 0i16);
+                    ::fbthrift::Serialize::write(_success, p);
                     p.write_field_end();
                 }
-                Self::ApplicationException(_aexn) => unreachable!(),
+
+                ::std::result::Result::Err(Self::ApplicationException(_aexn)) => unreachable!(),
             }
             p.write_field_stop();
             p.write_struct_end();
-        }
-    }
-
-    impl<P> ::fbthrift::Deserialize<P> for DoLeafExn
-    where
-        P: ::fbthrift::ProtocolReader,
-    {
-        fn read(p: &mut P) -> ::anyhow::Result<Self> {
-            static RETURNS: &[::fbthrift::Field] = &[
-                ::fbthrift::Field::new("Success", ::fbthrift::TType::Void, 0),
-            ];
-            let _ = p.read_struct_begin(|_| ())?;
-            let mut once = false;
-            let mut alt = Self::Success(());
-            loop {
-                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
-                match ((fty, fid as ::std::primitive::i32), once) {
-                    ((::fbthrift::TType::Stop, _), _) => {
-                        p.read_field_end()?;
-                        break;
-                    }
-                    ((::fbthrift::TType::Void, 0i32), false) => {
-                        once = true;
-                        alt = Self::Success(::fbthrift::Deserialize::read(p)?);
-                    }
-                    ((ty, _id), false) => p.skip(ty)?,
-                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
-                        ::fbthrift::ApplicationException::new(
-                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
-                            format!(
-                                "unwanted extra union {} field ty {:?} id {}",
-                                "DoLeafExn",
-                                badty,
-                                badid,
-                            ),
-                        )
-                    )),
-                }
-                p.read_field_end()?;
-            }
-            p.read_struct_end()?;
-            ::std::result::Result::Ok(alt)
         }
     }
 }

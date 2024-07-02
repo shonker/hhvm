@@ -127,6 +127,10 @@ impl ClassState<'_, '_> {
             metadata.insert("final", self.class.flags.is_final().into());
         }
 
+        if self.class.flags.is_abstract() {
+            metadata.insert("abstract", self.class.flags.is_abstract().into());
+        }
+
         let mut fields: Vec<textual::Field<'_>> = Vec::new();
         let properties = std::mem::take(&mut self.class.properties);
         for prop in &properties {
@@ -144,15 +148,22 @@ impl ClassState<'_, '_> {
         extends.extend(self.class.implements.iter());
         extends.extend(self.class.uses.iter());
 
-        let extends = extends
+        let mut extends = extends
             .into_iter()
             .map(|id| TypeName::class(id, is_static))
             .collect_vec();
 
+        if compute_base(&self.class).is_none() && is_static.as_bool() {
+            // We need to add a base class for static classes.
+            extends.push(TypeName::class(
+                ir::ClassName::intern("HH\\classname"),
+                IsStatic::NonStatic,
+            ));
+        }
         let cname = TypeName::class(self.class.name, is_static);
         self.txf.define_type(
             &cname,
-            Some(&self.class.src_loc),
+            Some(&ir::SrcLoc::from_span(&self.class.span)),
             extends.iter(),
             fields.into_iter(),
             metadata.iter().map(|(k, v)| (*k, v)),
@@ -261,7 +272,7 @@ impl ClassState<'_, '_> {
 
         self.txf.define_function(
             &name,
-            Some(&self.class.src_loc),
+            Some(&ir::SrcLoc::from_span(&self.class.span)),
             &attributes,
             &coeffects,
             &params,
@@ -278,7 +289,7 @@ impl ClassState<'_, '_> {
     fn write_method(&mut self, method: ir::Method) -> Result {
         trace!("Convert Method {}::{}", self.class.name, method.name);
 
-        let is_static = match method.func.attrs.is_static() {
+        let is_static = match method.body.attrs.is_static() {
             true => IsStatic::Static,
             false => IsStatic::NonStatic,
         };
@@ -287,16 +298,16 @@ impl ClassState<'_, '_> {
 
         let func_info = FuncInfo::Method(MethodInfo {
             name: method.name,
-            attrs: method.func.attrs,
+            attrs: method.body.attrs,
             class: &self.class,
             is_static,
             flags: method.flags,
         });
 
-        if method.func.attrs.is_abstract() {
-            func::write_func_decl(self.txf, this_ty, method.func, Arc::new(func_info))?;
+        if method.body.attrs.is_abstract() {
+            func::write_func_decl(self.txf, this_ty, method.body, Arc::new(func_info))?;
         } else {
-            func::lower_and_write_func(self.txf, this_ty, method.func, func_info)?;
+            func::lower_and_write_func(self.txf, this_ty, method.body, func_info)?;
         }
 
         Ok(())
@@ -331,13 +342,13 @@ fn compute_base(class: &ir::Class) -> Option<ir::ClassName> {
             .find(|r| r.kind == ir::TraitReqKind::MustExtend);
         req.map(|req| req.name)
     } else {
-        class.base
+        class.base.into()
     }
 }
 
 fn cmp_method(a: &ir::Method, b: &ir::Method) -> Ordering {
-    let line_a = a.func.locs[a.func.loc_id].line_begin as usize;
-    let line_b = b.func.locs[b.func.loc_id].line_begin as usize;
+    let line_a = a.body.span.line_begin as usize;
+    let line_b = b.body.span.line_begin as usize;
     line_a
         .cmp(&line_b)
         .then_with(|| {
@@ -346,6 +357,6 @@ fn cmp_method(a: &ir::Method, b: &ir::Method) -> Ordering {
         })
         .then_with(|| {
             // Same name - use param count.
-            a.func.params.len().cmp(&b.func.params.len())
+            a.body.repr.params.len().cmp(&b.body.repr.params.len())
         })
 }

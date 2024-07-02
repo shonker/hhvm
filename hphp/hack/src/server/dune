@@ -20,6 +20,22 @@
  (preprocess
   (pps lwt_ppx ppx_deriving.std)))
 
+(executable
+ (name hh_saved_state_verifier)
+ (modules
+  diffHotDecls
+  diffNamingTable
+  hh_saved_state_verifier)
+ (libraries
+  default_injector_config
+  file_info
+  naming_table
+  ppxlib.print_diff
+  provider_backend
+  server_services
+  typing_deps
+  utils_core))
+
 (rule
  (target serverInvalidateUnits.fb.ml)
  (action
@@ -133,6 +149,8 @@
     ci_util
     cgroupprofiler
     custom_error_config
+    decl_fold_options
+    decl_parser_options
     direct_decl_service
     folly_stubs
     hh_server_provider_backend_stubs

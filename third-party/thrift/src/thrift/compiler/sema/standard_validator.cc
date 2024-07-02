@@ -39,6 +39,7 @@
 #include <thrift/compiler/ast/t_typedef.h>
 #include <thrift/compiler/ast/t_union.h>
 #include <thrift/compiler/gen/cpp/reference_type.h>
+#include <thrift/compiler/gen/cpp/type_resolver.h>
 #include <thrift/compiler/lib/cpp2/util.h>
 #include <thrift/compiler/lib/uri.h>
 #include <thrift/compiler/sema/const_checker.h>
@@ -385,6 +386,22 @@ void validate_field_names_uniqueness(
       for (auto [name, parent] : mixin_metadata.field_name_to_parent) {
         checker.check(name, *parent, field);
       }
+    }
+  }
+}
+
+// @thrift.ExceptionMessage annotation is only valid in exceptions.
+// This validator checks if the node that contains any field
+// with that annotation is an exception definiton.
+void validate_exception_message_annotation_is_only_in_exceptions(
+    diagnostic_context& ctx, const t_structured& node) {
+  for (const auto& f : node.fields()) {
+    if (f.find_structured_annotation_or_null(kExceptionMessageUri)) {
+      ctx.check(
+          node.is_exception(),
+          f,
+          "@thrift.ExceptionMessage annotation is only allowed in exception definitions. '{}' is not an exception.",
+          node.name());
     }
   }
 }
@@ -1013,7 +1030,7 @@ bool owns_annotations(const t_type* type) {
   if (dynamic_cast<const t_container*>(type)) {
     return true;
   }
-  if (dynamic_cast<const t_base_type*>(type)) {
+  if (dynamic_cast<const t_primitive_type*>(type)) {
     return true;
   }
   if (auto t = dynamic_cast<const t_typedef*>(type)) {
@@ -1231,6 +1248,75 @@ void deprecate_annotations(diagnostic_context& ctx, const t_named& node) {
   }
 }
 
+template <typename Node>
+bool has_cursor_serialization_adapter(const Node& node) {
+  try {
+    if (auto* adapter = gen::cpp::type_resolver::find_first_adapter(node)) {
+      return adapter->find("apache::thrift::CursorSerializationAdapter") !=
+          adapter->npos;
+    }
+  } catch (const std::runtime_error&) {
+    // Adapter annotation is malformed, ignore it.
+  }
+  return false;
+}
+
+void validate_cursor_serialization_adapter_on_field(
+    diagnostic_context& ctx, const t_field& node) {
+  ctx.check(
+      !has_cursor_serialization_adapter(node),
+      "CursorSerializationAdapter is not supported on fields. Place it on the top-level struct/union instead.");
+}
+
+void validate_cursor_serialization_adapter_on_function(
+    diagnostic_context& ctx, const t_function& node) {
+  if (node.params().fields().size() <= 1) {
+    return;
+  }
+  for (const auto& field : node.params().fields()) {
+    ctx.check(
+        !has_cursor_serialization_adapter(field),
+        field,
+        "CursorSerializationAdapter only supports single-argument functions.");
+  }
+}
+
+void validate_cursor_serialization_adapter_in_container(
+    diagnostic_context& ctx, const t_container& node) {
+  auto check = [&](const t_type& type) {
+    ctx.check(
+        !has_cursor_serialization_adapter(type),
+        "CursorSerializationAdapter is not supported inside containers.");
+  };
+  if (auto* list = dynamic_cast<const t_list*>(&node)) {
+    check(*list->elem_type());
+  } else if (auto* set = dynamic_cast<const t_set*>(&node)) {
+    check(*set->elem_type());
+  } else if (auto* map = dynamic_cast<const t_map*>(&node)) {
+    check(*map->key_type());
+    check(*map->val_type());
+  }
+}
+
+// TODO (T191018859): forbid as field type too
+void forbid_exception_as_method_type(
+    diagnostic_context& ctx, const t_function& node) {
+  ctx.check(
+      !node.return_type()->get_true_type()->is_exception(),
+      "Exceptions cannot be used as function return types");
+  for (const auto& field : node.params().fields()) {
+    ctx.check(
+        !field.type()->get_true_type()->is_exception(),
+        "Exceptions cannot be used as function arguments");
+  }
+}
+void forbid_exception_as_const_type(
+    diagnostic_context& ctx, const t_const& node) {
+  ctx.check(
+      !node.type()->get_true_type()->is_exception(),
+      "Exceptions cannot be used as const types");
+}
+
 } // namespace
 
 ast_validator standard_validator() {
@@ -1250,6 +1336,9 @@ ast_validator standard_validator() {
       &validate_compatibility_with_lazy_field);
   validator.add_structured_definition_visitor(
       &validate_reserved_ids_structured);
+  validator.add_structured_definition_visitor(
+      &validate_exception_message_annotation_is_only_in_exceptions);
+
   validator.add_union_visitor(&validate_union_field_attributes);
   validator.add_exception_visitor(&validate_exception_message_annotation);
   validator.add_field_visitor(&validate_field_id);
@@ -1293,6 +1382,14 @@ ast_validator standard_validator() {
   validator.add_const_visitor(&validate_const_type_and_value);
   validator.add_const_visitor(ValidateAnnotationPositions());
   validator.add_program_visitor(&validate_uri_uniqueness);
+
+  validator.add_field_visitor(&validate_cursor_serialization_adapter_on_field);
+  validator.add_function_visitor(
+      &validate_cursor_serialization_adapter_on_function);
+  validator.add_container_visitor(
+      &validate_cursor_serialization_adapter_in_container);
+  validator.add_function_visitor(&forbid_exception_as_method_type);
+  validator.add_const_visitor(&forbid_exception_as_const_type);
 
   add_explicit_include_validators(validator);
 

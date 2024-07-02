@@ -348,7 +348,7 @@ enum InnerUnionEnum: int {
 }
 
 /**
- * Original thrift struct:-
+ * Original thrift union:-
  * InnerUnion
  */
 <<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/InnerUnion'))>>
@@ -509,7 +509,7 @@ enum MyUnionEnum: int {
 }
 
 /**
- * Original thrift struct:-
+ * Original thrift union:-
  * MyUnion
  */
 <<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/MyUnion'))>>
@@ -743,7 +743,7 @@ class MyUnion implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftUni
     return new static(
       Shapes::idx($shape, 'option1'),
       Shapes::idx($shape, 'option2'),
-      Shapes::idx($shape, 'option3') === null ? null : (\test\fixtures\patch\InnerUnion::__fromShape($shape['option3'])),
+      Shapes::idx($shape, 'option3') |> $$ === null ? null : (\test\fixtures\patch\InnerUnion::__fromShape($$)),
     );
   }
 
@@ -1931,9 +1931,9 @@ class MyStruct implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftSh
       $shape['stringVal'],
       $shape['binaryVal'],
       Shapes::idx($shape, 'enumVal'),
-      Shapes::idx($shape, 'structVal') === null ? null : (\test\fixtures\patch\MyData::__fromShape($shape['structVal'])),
-      Shapes::idx($shape, 'unionVal') === null ? null : (\test\fixtures\patch\MyUnion::__fromShape($shape['unionVal'])),
-      Shapes::idx($shape, 'lateStructVal') === null ? null : (\test\fixtures\patch\LateDefStruct::__fromShape($shape['lateStructVal'])),
+      Shapes::idx($shape, 'structVal') |> $$ === null ? null : (\test\fixtures\patch\MyData::__fromShape($$)),
+      Shapes::idx($shape, 'unionVal') |> $$ === null ? null : (\test\fixtures\patch\MyUnion::__fromShape($$)),
+      Shapes::idx($shape, 'lateStructVal') |> $$ === null ? null : (\test\fixtures\patch\LateDefStruct::__fromShape($$)),
       Shapes::idx($shape, 'optBoolVal'),
       Shapes::idx($shape, 'optByteVal'),
       Shapes::idx($shape, 'optI16Val'),
@@ -1944,11 +1944,11 @@ class MyStruct implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftSh
       Shapes::idx($shape, 'optStringVal'),
       Shapes::idx($shape, 'optBinaryVal'),
       Shapes::idx($shape, 'optEnumVal'),
-      Shapes::idx($shape, 'optStructVal') === null ? null : (\test\fixtures\patch\MyData::__fromShape($shape['optStructVal'])),
-      Shapes::idx($shape, 'optLateStructVal') === null ? null : (\test\fixtures\patch\LateDefStruct::__fromShape($shape['optLateStructVal'])),
-      Shapes::idx($shape, 'optListVal') === null ? null : ($shape['optListVal'] |> new Vector($$)),
-      Shapes::idx($shape, 'optSetVal') === null ? null : (new Set(Keyset\keys($shape['optSetVal']))),
-      Shapes::idx($shape, 'optMapVal') === null ? null : ($shape['optMapVal'] |> new Map($$)),
+      Shapes::idx($shape, 'optStructVal') |> $$ === null ? null : (\test\fixtures\patch\MyData::__fromShape($$)),
+      Shapes::idx($shape, 'optLateStructVal') |> $$ === null ? null : (\test\fixtures\patch\LateDefStruct::__fromShape($$)),
+      Shapes::idx($shape, 'optListVal') |> $$ === null ? null : ($$ |> new Vector($$)),
+      Shapes::idx($shape, 'optSetVal') |> $$ === null ? null : (new Set(Keyset\keys($$))),
+      Shapes::idx($shape, 'optMapVal') |> $$ === null ? null : ($$ |> new Map($$)),
       $shape['listMap']
         |> Vec\map(
           $$,
@@ -1960,8 +1960,8 @@ class MyStruct implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftSh
           $_val1 ==> $_val1 |> new Map($$),
         ) |> new Map($$),
       $shape['i32WithCustomDefault'],
-      Shapes::idx($shape, 'structWithCustomDefault') === null ? null : (\test\fixtures\patch\MyDataWithCustomDefault::__fromShape($shape['structWithCustomDefault'])),
-      Shapes::idx($shape, 'structWithFieldCustomDefault') === null ? null : (\test\fixtures\patch\MyData::__fromShape($shape['structWithFieldCustomDefault'])),
+      Shapes::idx($shape, 'structWithCustomDefault') |> $$ === null ? null : (\test\fixtures\patch\MyDataWithCustomDefault::__fromShape($$)),
+      Shapes::idx($shape, 'structWithFieldCustomDefault') |> $$ === null ? null : (\test\fixtures\patch\MyData::__fromShape($$)),
     );
   }
 
@@ -2600,7 +2600,7 @@ class Bar implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftShapish
 
   public static function __fromShape(self::TShape $shape)[]: this {
     return new static(
-      Shapes::idx($shape, 'loop') === null ? null : (\test\fixtures\patch\Loop::__fromShape($shape['loop'])),
+      Shapes::idx($shape, 'loop') |> $$ === null ? null : (\test\fixtures\patch\Loop::__fromShape($$)),
     );
   }
 
@@ -2737,7 +2737,7 @@ class Loop implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftShapis
 
   public static function __fromShape(self::TShape $shape)[]: this {
     return new static(
-      Shapes::idx($shape, 'bar') === null ? null : (\test\fixtures\patch\Bar::__fromShape($shape['bar'])),
+      Shapes::idx($shape, 'bar') |> $$ === null ? null : (\test\fixtures\patch\Bar::__fromShape($$)),
     );
   }
 
@@ -3176,10 +3176,10 @@ class RefFields implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftS
       $shape['unique'] |> new Vector($$),
       $shape['shared_const'] |> new Vector($$),
       $shape['shared_mustable'] |> new Vector($$),
-      Shapes::idx($shape, 'opt_unique') === null ? null : ($shape['opt_unique'] |> new Vector($$)),
-      Shapes::idx($shape, 'opt_shared_const') === null ? null : ($shape['opt_shared_const'] |> new Vector($$)),
-      Shapes::idx($shape, 'opt_shared_mustable') === null ? null : ($shape['opt_shared_mustable'] |> new Vector($$)),
-      Shapes::idx($shape, 'opt_box') === null ? null : ($shape['opt_box'] |> new Vector($$)),
+      Shapes::idx($shape, 'opt_unique') |> $$ === null ? null : ($$ |> new Vector($$)),
+      Shapes::idx($shape, 'opt_shared_const') |> $$ === null ? null : ($$ |> new Vector($$)),
+      Shapes::idx($shape, 'opt_shared_mustable') |> $$ === null ? null : ($$ |> new Vector($$)),
+      Shapes::idx($shape, 'opt_box') |> $$ === null ? null : ($$ |> new Vector($$)),
     );
   }
 
@@ -3323,7 +3323,7 @@ class RefFields implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftS
  * MyDataPatch
  */
 <<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/MyDataPatch'))>>
-class MyDataPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
+class MyDataPatchStructInternalDoNotUse implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
   use \ThriftSerializationTrait;
 
   const \ThriftStructTypes::TSpec SPEC = dict[
@@ -3458,7 +3458,7 @@ class MyDataPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThrif
   }
 
   public function getName()[]: string {
-    return 'MyDataPatch';
+    return 'MyDataPatchStructInternalDoNotUse';
   }
 
   public function clearTerseFields()[write_props]: void {
@@ -3583,6 +3583,21 @@ class MyDataPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThrif
   public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
     return shape(
       'struct' => dict[
+        '\facebook\thrift\annotation\hack\Name' => \facebook\thrift\annotation\hack\Name::fromShape(
+          shape(
+            "name" => "MyDataPatchStructInternalDoNotUse",
+          )
+        ),
+        '\facebook\thrift\annotation\python\Name' => \facebook\thrift\annotation\python\Name::fromShape(
+          shape(
+            "name" => "MyDataPatchStructInternalDoNotUse",
+          )
+        ),
+        '\facebook\thrift\annotation\rust\Name' => \facebook\thrift\annotation\rust\Name::fromShape(
+          shape(
+            "name" => "MyDataPatchStructInternalDoNotUse",
+          )
+        ),
         '\facebook\thrift\annotation\cpp\Adapter' => \facebook\thrift\annotation\cpp\Adapter::fromShape(
           shape(
             "name" => "::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::MyDataPatchStruct>",
@@ -4026,10 +4041,150 @@ class MyDataEnsureStruct implements \IThriftSyncStruct, \IThriftStructMetadata {
 
 /**
  * Original thrift struct:-
+ * MyDataSafePatch
+ */
+<<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/MyDataSafePatch'))>>
+class MyDataSafePatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
+  use \ThriftSerializationTrait;
+
+  const \ThriftStructTypes::TSpec SPEC = dict[
+    1 => shape(
+      'var' => 'version',
+      'is_terse' => true,
+      'type' => \TType::I32,
+    ),
+    2 => shape(
+      'var' => 'data',
+      'is_terse' => true,
+      'type' => \TType::STRING,
+      'is_binary' => true,
+    ),
+  ];
+  const dict<string, int> FIELDMAP = dict[
+    'version' => 1,
+    'data' => 2,
+  ];
+
+  const type TConstructorShape = shape(
+    ?'version' => ?int,
+    ?'data' => ?string,
+  );
+
+  const int STRUCTURAL_ID = 3942627235385260502;
+  /**
+   * Original thrift field:-
+   * 1: i32 version
+   */
+  public int $version;
+  /**
+   * Original thrift field:-
+   * 2: binary data
+   */
+  public string $data;
+
+  public function __construct(?int $version = null, ?string $data = null)[] {
+    $this->version = $version ?? 0;
+    $this->data = $data ?? '';
+  }
+
+  public static function withDefaultValues()[]: this {
+    return new static();
+  }
+
+  public static function fromShape(self::TConstructorShape $shape)[]: this {
+    return new static(
+      Shapes::idx($shape, 'version'),
+      Shapes::idx($shape, 'data'),
+    );
+  }
+
+  public function getName()[]: string {
+    return 'MyDataSafePatch';
+  }
+
+  public function clearTerseFields()[write_props]: void {
+    $this->version = 0;
+    $this->data = '';
+  }
+
+  public static function getStructMetadata()[]: \tmeta_ThriftStruct {
+    return \tmeta_ThriftStruct::fromShape(
+      shape(
+        "name" => "module.MyDataSafePatch",
+        "fields" => vec[
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 1,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_I32_TYPE,
+                )
+              ),
+              "name" => "version",
+            )
+          ),
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 2,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_BINARY_TYPE,
+                )
+              ),
+              "name" => "data",
+            )
+          ),
+        ],
+        "is_union" => false,
+      )
+    );
+  }
+
+  public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
+    return shape(
+      'struct' => dict[
+        '\facebook\thrift\annotation\cpp\Frozen2Exclude' => \facebook\thrift\annotation\cpp\Frozen2Exclude::fromShape(
+          shape(
+          )
+        ),
+      ],
+      'fields' => dict[
+      ],
+    );
+  }
+
+  public function getInstanceKey()[write_props]: string {
+    return \TCompactSerializer::serialize($this);
+  }
+
+  public function readFromJson(string $jsonText): void {
+    $parsed = json_decode($jsonText, true);
+
+    if ($parsed === null || !($parsed is KeyedContainer<_, _>)) {
+      throw new \TProtocolException("Cannot parse the given json string.");
+    }
+
+    if (idx($parsed, 'version') !== null) {
+      $_tmp0 = (int)HH\FIXME\UNSAFE_CAST<mixed, int>($parsed['version']);
+      if ($_tmp0 > 0x7fffffff) {
+        throw new \TProtocolException("number exceeds limit in field");
+      } else {
+        $this->version = (int)$_tmp0;
+      }
+    }
+    if (idx($parsed, 'data') !== null) {
+      $this->data = HH\FIXME\UNSAFE_CAST<mixed, string>($parsed['data']);
+    }
+  }
+
+}
+
+/**
+ * Original thrift struct:-
  * MyDataWithCustomDefaultPatch
  */
 <<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/MyDataWithCustomDefaultPatch'))>>
-class MyDataWithCustomDefaultPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
+class MyDataWithCustomDefaultPatchStructInternalDoNotUse implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
   use \ThriftSerializationTrait;
 
   const \ThriftStructTypes::TSpec SPEC = dict[
@@ -4164,7 +4319,7 @@ class MyDataWithCustomDefaultPatch implements \IThriftSyncStruct, \IThriftStruct
   }
 
   public function getName()[]: string {
-    return 'MyDataWithCustomDefaultPatch';
+    return 'MyDataWithCustomDefaultPatchStructInternalDoNotUse';
   }
 
   public function clearTerseFields()[write_props]: void {
@@ -4289,6 +4444,21 @@ class MyDataWithCustomDefaultPatch implements \IThriftSyncStruct, \IThriftStruct
   public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
     return shape(
       'struct' => dict[
+        '\facebook\thrift\annotation\hack\Name' => \facebook\thrift\annotation\hack\Name::fromShape(
+          shape(
+            "name" => "MyDataWithCustomDefaultPatchStructInternalDoNotUse",
+          )
+        ),
+        '\facebook\thrift\annotation\python\Name' => \facebook\thrift\annotation\python\Name::fromShape(
+          shape(
+            "name" => "MyDataWithCustomDefaultPatchStructInternalDoNotUse",
+          )
+        ),
+        '\facebook\thrift\annotation\rust\Name' => \facebook\thrift\annotation\rust\Name::fromShape(
+          shape(
+            "name" => "MyDataWithCustomDefaultPatchStructInternalDoNotUse",
+          )
+        ),
         '\facebook\thrift\annotation\cpp\Adapter' => \facebook\thrift\annotation\cpp\Adapter::fromShape(
           shape(
             "name" => "::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::MyDataWithCustomDefaultPatchStruct>",
@@ -4725,6 +4895,146 @@ class MyDataWithCustomDefaultEnsureStruct implements \IThriftSyncStruct, \IThrif
       } else {
         $this->data2 = (int)$_tmp0;
       }
+    }
+  }
+
+}
+
+/**
+ * Original thrift struct:-
+ * MyDataWithCustomDefaultSafePatch
+ */
+<<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/MyDataWithCustomDefaultSafePatch'))>>
+class MyDataWithCustomDefaultSafePatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
+  use \ThriftSerializationTrait;
+
+  const \ThriftStructTypes::TSpec SPEC = dict[
+    1 => shape(
+      'var' => 'version',
+      'is_terse' => true,
+      'type' => \TType::I32,
+    ),
+    2 => shape(
+      'var' => 'data',
+      'is_terse' => true,
+      'type' => \TType::STRING,
+      'is_binary' => true,
+    ),
+  ];
+  const dict<string, int> FIELDMAP = dict[
+    'version' => 1,
+    'data' => 2,
+  ];
+
+  const type TConstructorShape = shape(
+    ?'version' => ?int,
+    ?'data' => ?string,
+  );
+
+  const int STRUCTURAL_ID = 3942627235385260502;
+  /**
+   * Original thrift field:-
+   * 1: i32 version
+   */
+  public int $version;
+  /**
+   * Original thrift field:-
+   * 2: binary data
+   */
+  public string $data;
+
+  public function __construct(?int $version = null, ?string $data = null)[] {
+    $this->version = $version ?? 0;
+    $this->data = $data ?? '';
+  }
+
+  public static function withDefaultValues()[]: this {
+    return new static();
+  }
+
+  public static function fromShape(self::TConstructorShape $shape)[]: this {
+    return new static(
+      Shapes::idx($shape, 'version'),
+      Shapes::idx($shape, 'data'),
+    );
+  }
+
+  public function getName()[]: string {
+    return 'MyDataWithCustomDefaultSafePatch';
+  }
+
+  public function clearTerseFields()[write_props]: void {
+    $this->version = 0;
+    $this->data = '';
+  }
+
+  public static function getStructMetadata()[]: \tmeta_ThriftStruct {
+    return \tmeta_ThriftStruct::fromShape(
+      shape(
+        "name" => "module.MyDataWithCustomDefaultSafePatch",
+        "fields" => vec[
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 1,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_I32_TYPE,
+                )
+              ),
+              "name" => "version",
+            )
+          ),
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 2,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_BINARY_TYPE,
+                )
+              ),
+              "name" => "data",
+            )
+          ),
+        ],
+        "is_union" => false,
+      )
+    );
+  }
+
+  public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
+    return shape(
+      'struct' => dict[
+        '\facebook\thrift\annotation\cpp\Frozen2Exclude' => \facebook\thrift\annotation\cpp\Frozen2Exclude::fromShape(
+          shape(
+          )
+        ),
+      ],
+      'fields' => dict[
+      ],
+    );
+  }
+
+  public function getInstanceKey()[write_props]: string {
+    return \TCompactSerializer::serialize($this);
+  }
+
+  public function readFromJson(string $jsonText): void {
+    $parsed = json_decode($jsonText, true);
+
+    if ($parsed === null || !($parsed is KeyedContainer<_, _>)) {
+      throw new \TProtocolException("Cannot parse the given json string.");
+    }
+
+    if (idx($parsed, 'version') !== null) {
+      $_tmp0 = (int)HH\FIXME\UNSAFE_CAST<mixed, int>($parsed['version']);
+      if ($_tmp0 > 0x7fffffff) {
+        throw new \TProtocolException("number exceeds limit in field");
+      } else {
+        $this->version = (int)$_tmp0;
+      }
+    }
+    if (idx($parsed, 'data') !== null) {
+      $this->data = HH\FIXME\UNSAFE_CAST<mixed, string>($parsed['data']);
     }
   }
 
@@ -5169,6 +5479,146 @@ class InnerUnionFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata
       $_tmp1 = \facebook\thrift\op\BinaryPatch::withDefaultValues();
       $_tmp1->readFromJson($_tmp0);
       $this->innerOption = $_tmp1;
+    }
+  }
+
+}
+
+/**
+ * Original thrift struct:-
+ * InnerUnionSafePatch
+ */
+<<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/InnerUnionSafePatch'))>>
+class InnerUnionSafePatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
+  use \ThriftSerializationTrait;
+
+  const \ThriftStructTypes::TSpec SPEC = dict[
+    1 => shape(
+      'var' => 'version',
+      'is_terse' => true,
+      'type' => \TType::I32,
+    ),
+    2 => shape(
+      'var' => 'data',
+      'is_terse' => true,
+      'type' => \TType::STRING,
+      'is_binary' => true,
+    ),
+  ];
+  const dict<string, int> FIELDMAP = dict[
+    'version' => 1,
+    'data' => 2,
+  ];
+
+  const type TConstructorShape = shape(
+    ?'version' => ?int,
+    ?'data' => ?string,
+  );
+
+  const int STRUCTURAL_ID = 3942627235385260502;
+  /**
+   * Original thrift field:-
+   * 1: i32 version
+   */
+  public int $version;
+  /**
+   * Original thrift field:-
+   * 2: binary data
+   */
+  public string $data;
+
+  public function __construct(?int $version = null, ?string $data = null)[] {
+    $this->version = $version ?? 0;
+    $this->data = $data ?? '';
+  }
+
+  public static function withDefaultValues()[]: this {
+    return new static();
+  }
+
+  public static function fromShape(self::TConstructorShape $shape)[]: this {
+    return new static(
+      Shapes::idx($shape, 'version'),
+      Shapes::idx($shape, 'data'),
+    );
+  }
+
+  public function getName()[]: string {
+    return 'InnerUnionSafePatch';
+  }
+
+  public function clearTerseFields()[write_props]: void {
+    $this->version = 0;
+    $this->data = '';
+  }
+
+  public static function getStructMetadata()[]: \tmeta_ThriftStruct {
+    return \tmeta_ThriftStruct::fromShape(
+      shape(
+        "name" => "module.InnerUnionSafePatch",
+        "fields" => vec[
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 1,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_I32_TYPE,
+                )
+              ),
+              "name" => "version",
+            )
+          ),
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 2,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_BINARY_TYPE,
+                )
+              ),
+              "name" => "data",
+            )
+          ),
+        ],
+        "is_union" => false,
+      )
+    );
+  }
+
+  public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
+    return shape(
+      'struct' => dict[
+        '\facebook\thrift\annotation\cpp\Frozen2Exclude' => \facebook\thrift\annotation\cpp\Frozen2Exclude::fromShape(
+          shape(
+          )
+        ),
+      ],
+      'fields' => dict[
+      ],
+    );
+  }
+
+  public function getInstanceKey()[write_props]: string {
+    return \TCompactSerializer::serialize($this);
+  }
+
+  public function readFromJson(string $jsonText): void {
+    $parsed = json_decode($jsonText, true);
+
+    if ($parsed === null || !($parsed is KeyedContainer<_, _>)) {
+      throw new \TProtocolException("Cannot parse the given json string.");
+    }
+
+    if (idx($parsed, 'version') !== null) {
+      $_tmp0 = (int)HH\FIXME\UNSAFE_CAST<mixed, int>($parsed['version']);
+      if ($_tmp0 > 0x7fffffff) {
+        throw new \TProtocolException("number exceeds limit in field");
+      } else {
+        $this->version = (int)$_tmp0;
+      }
+    }
+    if (idx($parsed, 'data') !== null) {
+      $this->data = HH\FIXME\UNSAFE_CAST<mixed, string>($parsed['data']);
     }
   }
 
@@ -5727,10 +6177,150 @@ class MyUnionFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \
 
 /**
  * Original thrift struct:-
+ * MyUnionSafePatch
+ */
+<<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/MyUnionSafePatch'))>>
+class MyUnionSafePatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
+  use \ThriftSerializationTrait;
+
+  const \ThriftStructTypes::TSpec SPEC = dict[
+    1 => shape(
+      'var' => 'version',
+      'is_terse' => true,
+      'type' => \TType::I32,
+    ),
+    2 => shape(
+      'var' => 'data',
+      'is_terse' => true,
+      'type' => \TType::STRING,
+      'is_binary' => true,
+    ),
+  ];
+  const dict<string, int> FIELDMAP = dict[
+    'version' => 1,
+    'data' => 2,
+  ];
+
+  const type TConstructorShape = shape(
+    ?'version' => ?int,
+    ?'data' => ?string,
+  );
+
+  const int STRUCTURAL_ID = 3942627235385260502;
+  /**
+   * Original thrift field:-
+   * 1: i32 version
+   */
+  public int $version;
+  /**
+   * Original thrift field:-
+   * 2: binary data
+   */
+  public string $data;
+
+  public function __construct(?int $version = null, ?string $data = null)[] {
+    $this->version = $version ?? 0;
+    $this->data = $data ?? '';
+  }
+
+  public static function withDefaultValues()[]: this {
+    return new static();
+  }
+
+  public static function fromShape(self::TConstructorShape $shape)[]: this {
+    return new static(
+      Shapes::idx($shape, 'version'),
+      Shapes::idx($shape, 'data'),
+    );
+  }
+
+  public function getName()[]: string {
+    return 'MyUnionSafePatch';
+  }
+
+  public function clearTerseFields()[write_props]: void {
+    $this->version = 0;
+    $this->data = '';
+  }
+
+  public static function getStructMetadata()[]: \tmeta_ThriftStruct {
+    return \tmeta_ThriftStruct::fromShape(
+      shape(
+        "name" => "module.MyUnionSafePatch",
+        "fields" => vec[
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 1,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_I32_TYPE,
+                )
+              ),
+              "name" => "version",
+            )
+          ),
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 2,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_BINARY_TYPE,
+                )
+              ),
+              "name" => "data",
+            )
+          ),
+        ],
+        "is_union" => false,
+      )
+    );
+  }
+
+  public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
+    return shape(
+      'struct' => dict[
+        '\facebook\thrift\annotation\cpp\Frozen2Exclude' => \facebook\thrift\annotation\cpp\Frozen2Exclude::fromShape(
+          shape(
+          )
+        ),
+      ],
+      'fields' => dict[
+      ],
+    );
+  }
+
+  public function getInstanceKey()[write_props]: string {
+    return \TCompactSerializer::serialize($this);
+  }
+
+  public function readFromJson(string $jsonText): void {
+    $parsed = json_decode($jsonText, true);
+
+    if ($parsed === null || !($parsed is KeyedContainer<_, _>)) {
+      throw new \TProtocolException("Cannot parse the given json string.");
+    }
+
+    if (idx($parsed, 'version') !== null) {
+      $_tmp0 = (int)HH\FIXME\UNSAFE_CAST<mixed, int>($parsed['version']);
+      if ($_tmp0 > 0x7fffffff) {
+        throw new \TProtocolException("number exceeds limit in field");
+      } else {
+        $this->version = (int)$_tmp0;
+      }
+    }
+    if (idx($parsed, 'data') !== null) {
+      $this->data = HH\FIXME\UNSAFE_CAST<mixed, string>($parsed['data']);
+    }
+  }
+
+}
+
+/**
+ * Original thrift struct:-
  * MyStructPatch
  */
 <<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/MyStructPatch'))>>
-class MyStructPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
+class MyStructPatchStructInternalDoNotUse implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
   use \ThriftSerializationTrait;
 
   const \ThriftStructTypes::TSpec SPEC = dict[
@@ -5865,7 +6455,7 @@ class MyStructPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThr
   }
 
   public function getName()[]: string {
-    return 'MyStructPatch';
+    return 'MyStructPatchStructInternalDoNotUse';
   }
 
   public function clearTerseFields()[write_props]: void {
@@ -5990,6 +6580,21 @@ class MyStructPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThr
   public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
     return shape(
       'struct' => dict[
+        '\facebook\thrift\annotation\hack\Name' => \facebook\thrift\annotation\hack\Name::fromShape(
+          shape(
+            "name" => "MyStructPatchStructInternalDoNotUse",
+          )
+        ),
+        '\facebook\thrift\annotation\python\Name' => \facebook\thrift\annotation\python\Name::fromShape(
+          shape(
+            "name" => "MyStructPatchStructInternalDoNotUse",
+          )
+        ),
+        '\facebook\thrift\annotation\rust\Name' => \facebook\thrift\annotation\rust\Name::fromShape(
+          shape(
+            "name" => "MyStructPatchStructInternalDoNotUse",
+          )
+        ),
         '\facebook\thrift\annotation\cpp\Adapter' => \facebook\thrift\annotation\cpp\Adapter::fromShape(
           shape(
             "name" => "::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::MyStructPatchStruct>",
@@ -8903,7 +9508,7 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
       'var' => 'structWithCustomDefault',
       'is_terse' => true,
       'type' => \TType::STRUCT,
-      'class' => \test\fixtures\patch\MyDataWithCustomDefaultPatch::class,
+      'class' => \test\fixtures\patch\MyDataWithCustomDefaultPatchStructInternalDoNotUse::class,
     ),
     -31 => shape(
       'var' => 'i32WithCustomDefault',
@@ -8945,13 +9550,13 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
       'var' => 'optLateStructVal',
       'is_terse' => true,
       'type' => \TType::STRUCT,
-      'class' => \test\fixtures\patch\LateDefStructPatch::class,
+      'class' => \test\fixtures\patch\LateDefStructPatchStructInternalDoNotUse::class,
     ),
     -24 => shape(
       'var' => 'optStructVal',
       'is_terse' => true,
       'type' => \TType::STRUCT,
-      'class' => \test\fixtures\patch\MyDataPatch::class,
+      'class' => \test\fixtures\patch\MyDataPatchStructInternalDoNotUse::class,
     ),
     -23 => shape(
       'var' => 'optEnumVal',
@@ -9017,7 +9622,7 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
       'var' => 'lateStructVal',
       'is_terse' => true,
       'type' => \TType::STRUCT,
-      'class' => \test\fixtures\patch\LateDefStructPatch::class,
+      'class' => \test\fixtures\patch\LateDefStructPatchStructInternalDoNotUse::class,
     ),
     -12 => shape(
       'var' => 'unionVal',
@@ -9029,7 +9634,7 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
       'var' => 'structVal',
       'is_terse' => true,
       'type' => \TType::STRUCT,
-      'class' => \test\fixtures\patch\MyDataPatch::class,
+      'class' => \test\fixtures\patch\MyDataPatchStructInternalDoNotUse::class,
     ),
     -10 => shape(
       'var' => 'enumVal',
@@ -9095,7 +9700,7 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
       'var' => 'structWithFieldCustomDefault',
       'is_terse' => true,
       'type' => \TType::STRUCT,
-      'class' => \test\fixtures\patch\MyDataPatch::class,
+      'class' => \test\fixtures\patch\MyDataPatchStructInternalDoNotUse::class,
     ),
   ];
   const dict<string, int> FIELDMAP = dict[
@@ -9135,15 +9740,15 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
   ];
 
   const type TConstructorShape = shape(
-    ?'structWithCustomDefault' => ?\test\fixtures\patch\MyDataWithCustomDefaultPatch,
+    ?'structWithCustomDefault' => ?\test\fixtures\patch\MyDataWithCustomDefaultPatchStructInternalDoNotUse,
     ?'i32WithCustomDefault' => ?\facebook\thrift\op\I32Patch,
     ?'mapMap' => ?\test\fixtures\patch\MyStructField30Patch,
     ?'listMap' => ?\test\fixtures\patch\MyStructField29Patch,
     ?'optMapVal' => ?\test\fixtures\patch\MyStructField28Patch,
     ?'optSetVal' => ?\test\fixtures\patch\MyStructField27Patch,
     ?'optListVal' => ?\test\fixtures\patch\MyStructField26Patch,
-    ?'optLateStructVal' => ?\test\fixtures\patch\LateDefStructPatch,
-    ?'optStructVal' => ?\test\fixtures\patch\MyDataPatch,
+    ?'optLateStructVal' => ?\test\fixtures\patch\LateDefStructPatchStructInternalDoNotUse,
+    ?'optStructVal' => ?\test\fixtures\patch\MyDataPatchStructInternalDoNotUse,
     ?'optEnumVal' => ?\test\fixtures\patch\MyStructField23Patch,
     ?'optBinaryVal' => ?\facebook\thrift\op\BinaryPatch,
     ?'optStringVal' => ?\facebook\thrift\op\StringPatch,
@@ -9154,9 +9759,9 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
     ?'optI16Val' => ?\facebook\thrift\op\I16Patch,
     ?'optByteVal' => ?\facebook\thrift\op\BytePatch,
     ?'optBoolVal' => ?\facebook\thrift\op\BoolPatch,
-    ?'lateStructVal' => ?\test\fixtures\patch\LateDefStructPatch,
+    ?'lateStructVal' => ?\test\fixtures\patch\LateDefStructPatchStructInternalDoNotUse,
     ?'unionVal' => ?\test\fixtures\patch\MyUnionPatch,
-    ?'structVal' => ?\test\fixtures\patch\MyDataPatch,
+    ?'structVal' => ?\test\fixtures\patch\MyDataPatchStructInternalDoNotUse,
     ?'enumVal' => ?\test\fixtures\patch\MyStructField10Patch,
     ?'binaryVal' => ?\facebook\thrift\op\BinaryPatch,
     ?'stringVal' => ?\facebook\thrift\op\StringPatch,
@@ -9167,7 +9772,7 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
     ?'i16Val' => ?\facebook\thrift\op\I16Patch,
     ?'byteVal' => ?\facebook\thrift\op\BytePatch,
     ?'boolVal' => ?\facebook\thrift\op\BoolPatch,
-    ?'structWithFieldCustomDefault' => ?\test\fixtures\patch\MyDataPatch,
+    ?'structWithFieldCustomDefault' => ?\test\fixtures\patch\MyDataPatchStructInternalDoNotUse,
   );
 
   const int STRUCTURAL_ID = 2177152892435994657;
@@ -9175,7 +9780,7 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
    * Original thrift field:-
    * -32: module.MyDataWithCustomDefaultPatch structWithCustomDefault
    */
-  public ?\test\fixtures\patch\MyDataWithCustomDefaultPatch $structWithCustomDefault;
+  public ?\test\fixtures\patch\MyDataWithCustomDefaultPatchStructInternalDoNotUse $structWithCustomDefault;
   /**
    * Original thrift field:-
    * -31: patch.I32Patch i32WithCustomDefault
@@ -9210,12 +9815,12 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
    * Original thrift field:-
    * -25: module.LateDefStructPatch optLateStructVal
    */
-  public ?\test\fixtures\patch\LateDefStructPatch $optLateStructVal;
+  public ?\test\fixtures\patch\LateDefStructPatchStructInternalDoNotUse $optLateStructVal;
   /**
    * Original thrift field:-
    * -24: module.MyDataPatch optStructVal
    */
-  public ?\test\fixtures\patch\MyDataPatch $optStructVal;
+  public ?\test\fixtures\patch\MyDataPatchStructInternalDoNotUse $optStructVal;
   /**
    * Original thrift field:-
    * -23: module.MyStructField23Patch optEnumVal
@@ -9270,7 +9875,7 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
    * Original thrift field:-
    * -13: module.LateDefStructPatch lateStructVal
    */
-  public ?\test\fixtures\patch\LateDefStructPatch $lateStructVal;
+  public ?\test\fixtures\patch\LateDefStructPatchStructInternalDoNotUse $lateStructVal;
   /**
    * Original thrift field:-
    * -12: module.MyUnionPatch unionVal
@@ -9280,7 +9885,7 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
    * Original thrift field:-
    * -11: module.MyDataPatch structVal
    */
-  public ?\test\fixtures\patch\MyDataPatch $structVal;
+  public ?\test\fixtures\patch\MyDataPatchStructInternalDoNotUse $structVal;
   /**
    * Original thrift field:-
    * -10: module.MyStructField10Patch enumVal
@@ -9335,9 +9940,9 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
    * Original thrift field:-
    * 1: module.MyDataPatch structWithFieldCustomDefault
    */
-  public ?\test\fixtures\patch\MyDataPatch $structWithFieldCustomDefault;
+  public ?\test\fixtures\patch\MyDataPatchStructInternalDoNotUse $structWithFieldCustomDefault;
 
-  public function __construct(?\test\fixtures\patch\MyDataWithCustomDefaultPatch $structWithCustomDefault = null, ?\facebook\thrift\op\I32Patch $i32WithCustomDefault = null, ?\test\fixtures\patch\MyStructField30Patch $mapMap = null, ?\test\fixtures\patch\MyStructField29Patch $listMap = null, ?\test\fixtures\patch\MyStructField28Patch $optMapVal = null, ?\test\fixtures\patch\MyStructField27Patch $optSetVal = null, ?\test\fixtures\patch\MyStructField26Patch $optListVal = null, ?\test\fixtures\patch\LateDefStructPatch $optLateStructVal = null, ?\test\fixtures\patch\MyDataPatch $optStructVal = null, ?\test\fixtures\patch\MyStructField23Patch $optEnumVal = null, ?\facebook\thrift\op\BinaryPatch $optBinaryVal = null, ?\facebook\thrift\op\StringPatch $optStringVal = null, ?\facebook\thrift\op\DoublePatch $optDoubleVal = null, ?\facebook\thrift\op\FloatPatch $optFloatVal = null, ?\facebook\thrift\op\I64Patch $optI64Val = null, ?\facebook\thrift\op\I32Patch $optI32Val = null, ?\facebook\thrift\op\I16Patch $optI16Val = null, ?\facebook\thrift\op\BytePatch $optByteVal = null, ?\facebook\thrift\op\BoolPatch $optBoolVal = null, ?\test\fixtures\patch\LateDefStructPatch $lateStructVal = null, ?\test\fixtures\patch\MyUnionPatch $unionVal = null, ?\test\fixtures\patch\MyDataPatch $structVal = null, ?\test\fixtures\patch\MyStructField10Patch $enumVal = null, ?\facebook\thrift\op\BinaryPatch $binaryVal = null, ?\facebook\thrift\op\StringPatch $stringVal = null, ?\facebook\thrift\op\DoublePatch $doubleVal = null, ?\facebook\thrift\op\FloatPatch $floatVal = null, ?\facebook\thrift\op\I64Patch $i64Val = null, ?\facebook\thrift\op\I32Patch $i32Val = null, ?\facebook\thrift\op\I16Patch $i16Val = null, ?\facebook\thrift\op\BytePatch $byteVal = null, ?\facebook\thrift\op\BoolPatch $boolVal = null, ?\test\fixtures\patch\MyDataPatch $structWithFieldCustomDefault = null)[] {
+  public function __construct(?\test\fixtures\patch\MyDataWithCustomDefaultPatchStructInternalDoNotUse $structWithCustomDefault = null, ?\facebook\thrift\op\I32Patch $i32WithCustomDefault = null, ?\test\fixtures\patch\MyStructField30Patch $mapMap = null, ?\test\fixtures\patch\MyStructField29Patch $listMap = null, ?\test\fixtures\patch\MyStructField28Patch $optMapVal = null, ?\test\fixtures\patch\MyStructField27Patch $optSetVal = null, ?\test\fixtures\patch\MyStructField26Patch $optListVal = null, ?\test\fixtures\patch\LateDefStructPatchStructInternalDoNotUse $optLateStructVal = null, ?\test\fixtures\patch\MyDataPatchStructInternalDoNotUse $optStructVal = null, ?\test\fixtures\patch\MyStructField23Patch $optEnumVal = null, ?\facebook\thrift\op\BinaryPatch $optBinaryVal = null, ?\facebook\thrift\op\StringPatch $optStringVal = null, ?\facebook\thrift\op\DoublePatch $optDoubleVal = null, ?\facebook\thrift\op\FloatPatch $optFloatVal = null, ?\facebook\thrift\op\I64Patch $optI64Val = null, ?\facebook\thrift\op\I32Patch $optI32Val = null, ?\facebook\thrift\op\I16Patch $optI16Val = null, ?\facebook\thrift\op\BytePatch $optByteVal = null, ?\facebook\thrift\op\BoolPatch $optBoolVal = null, ?\test\fixtures\patch\LateDefStructPatchStructInternalDoNotUse $lateStructVal = null, ?\test\fixtures\patch\MyUnionPatch $unionVal = null, ?\test\fixtures\patch\MyDataPatchStructInternalDoNotUse $structVal = null, ?\test\fixtures\patch\MyStructField10Patch $enumVal = null, ?\facebook\thrift\op\BinaryPatch $binaryVal = null, ?\facebook\thrift\op\StringPatch $stringVal = null, ?\facebook\thrift\op\DoublePatch $doubleVal = null, ?\facebook\thrift\op\FloatPatch $floatVal = null, ?\facebook\thrift\op\I64Patch $i64Val = null, ?\facebook\thrift\op\I32Patch $i32Val = null, ?\facebook\thrift\op\I16Patch $i16Val = null, ?\facebook\thrift\op\BytePatch $byteVal = null, ?\facebook\thrift\op\BoolPatch $boolVal = null, ?\test\fixtures\patch\MyDataPatchStructInternalDoNotUse $structWithFieldCustomDefault = null)[] {
     $this->structWithCustomDefault = $structWithCustomDefault;
     $this->i32WithCustomDefault = $i32WithCustomDefault;
     $this->mapMap = $mapMap;
@@ -9981,6 +10586,21 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
             ),
           ],
           'type' => dict[
+            '\facebook\thrift\annotation\hack\Name' => \facebook\thrift\annotation\hack\Name::fromShape(
+              shape(
+                "name" => "MyDataWithCustomDefaultPatchStructInternalDoNotUse",
+              )
+            ),
+            '\facebook\thrift\annotation\python\Name' => \facebook\thrift\annotation\python\Name::fromShape(
+              shape(
+                "name" => "MyDataWithCustomDefaultPatchStructInternalDoNotUse",
+              )
+            ),
+            '\facebook\thrift\annotation\rust\Name' => \facebook\thrift\annotation\rust\Name::fromShape(
+              shape(
+                "name" => "MyDataWithCustomDefaultPatchStructInternalDoNotUse",
+              )
+            ),
             '\facebook\thrift\annotation\cpp\Adapter' => \facebook\thrift\annotation\cpp\Adapter::fromShape(
               shape(
                 "name" => "::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::MyDataWithCustomDefaultPatchStruct>",
@@ -10099,6 +10719,21 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
             ),
           ],
           'type' => dict[
+            '\facebook\thrift\annotation\hack\Name' => \facebook\thrift\annotation\hack\Name::fromShape(
+              shape(
+                "name" => "LateDefStructPatchStructInternalDoNotUse",
+              )
+            ),
+            '\facebook\thrift\annotation\python\Name' => \facebook\thrift\annotation\python\Name::fromShape(
+              shape(
+                "name" => "LateDefStructPatchStructInternalDoNotUse",
+              )
+            ),
+            '\facebook\thrift\annotation\rust\Name' => \facebook\thrift\annotation\rust\Name::fromShape(
+              shape(
+                "name" => "LateDefStructPatchStructInternalDoNotUse",
+              )
+            ),
             '\facebook\thrift\annotation\cpp\Adapter' => \facebook\thrift\annotation\cpp\Adapter::fromShape(
               shape(
                 "name" => "::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::LateDefStructPatchStruct>",
@@ -10116,6 +10751,21 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
             ),
           ],
           'type' => dict[
+            '\facebook\thrift\annotation\hack\Name' => \facebook\thrift\annotation\hack\Name::fromShape(
+              shape(
+                "name" => "MyDataPatchStructInternalDoNotUse",
+              )
+            ),
+            '\facebook\thrift\annotation\python\Name' => \facebook\thrift\annotation\python\Name::fromShape(
+              shape(
+                "name" => "MyDataPatchStructInternalDoNotUse",
+              )
+            ),
+            '\facebook\thrift\annotation\rust\Name' => \facebook\thrift\annotation\rust\Name::fromShape(
+              shape(
+                "name" => "MyDataPatchStructInternalDoNotUse",
+              )
+            ),
             '\facebook\thrift\annotation\cpp\Adapter' => \facebook\thrift\annotation\cpp\Adapter::fromShape(
               shape(
                 "name" => "::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::MyDataPatchStruct>",
@@ -10294,6 +10944,21 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
             ),
           ],
           'type' => dict[
+            '\facebook\thrift\annotation\hack\Name' => \facebook\thrift\annotation\hack\Name::fromShape(
+              shape(
+                "name" => "LateDefStructPatchStructInternalDoNotUse",
+              )
+            ),
+            '\facebook\thrift\annotation\python\Name' => \facebook\thrift\annotation\python\Name::fromShape(
+              shape(
+                "name" => "LateDefStructPatchStructInternalDoNotUse",
+              )
+            ),
+            '\facebook\thrift\annotation\rust\Name' => \facebook\thrift\annotation\rust\Name::fromShape(
+              shape(
+                "name" => "LateDefStructPatchStructInternalDoNotUse",
+              )
+            ),
             '\facebook\thrift\annotation\cpp\Adapter' => \facebook\thrift\annotation\cpp\Adapter::fromShape(
               shape(
                 "name" => "::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::LateDefStructPatchStruct>",
@@ -10328,6 +10993,21 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
             ),
           ],
           'type' => dict[
+            '\facebook\thrift\annotation\hack\Name' => \facebook\thrift\annotation\hack\Name::fromShape(
+              shape(
+                "name" => "MyDataPatchStructInternalDoNotUse",
+              )
+            ),
+            '\facebook\thrift\annotation\python\Name' => \facebook\thrift\annotation\python\Name::fromShape(
+              shape(
+                "name" => "MyDataPatchStructInternalDoNotUse",
+              )
+            ),
+            '\facebook\thrift\annotation\rust\Name' => \facebook\thrift\annotation\rust\Name::fromShape(
+              shape(
+                "name" => "MyDataPatchStructInternalDoNotUse",
+              )
+            ),
             '\facebook\thrift\annotation\cpp\Adapter' => \facebook\thrift\annotation\cpp\Adapter::fromShape(
               shape(
                 "name" => "::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::MyDataPatchStruct>",
@@ -10506,6 +11186,21 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
             ),
           ],
           'type' => dict[
+            '\facebook\thrift\annotation\hack\Name' => \facebook\thrift\annotation\hack\Name::fromShape(
+              shape(
+                "name" => "MyDataPatchStructInternalDoNotUse",
+              )
+            ),
+            '\facebook\thrift\annotation\python\Name' => \facebook\thrift\annotation\python\Name::fromShape(
+              shape(
+                "name" => "MyDataPatchStructInternalDoNotUse",
+              )
+            ),
+            '\facebook\thrift\annotation\rust\Name' => \facebook\thrift\annotation\rust\Name::fromShape(
+              shape(
+                "name" => "MyDataPatchStructInternalDoNotUse",
+              )
+            ),
             '\facebook\thrift\annotation\cpp\Adapter' => \facebook\thrift\annotation\cpp\Adapter::fromShape(
               shape(
                 "name" => "::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::MyDataPatchStruct>",
@@ -10531,8 +11226,8 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
     }
 
     if (idx($parsed, 'structWithCustomDefault') !== null) {
-      $_tmp0 = \json_encode(HH\FIXME\UNSAFE_CAST<mixed, \test\fixtures\patch\MyDataWithCustomDefaultPatch>($parsed['structWithCustomDefault']));
-      $_tmp1 = \test\fixtures\patch\MyDataWithCustomDefaultPatch::withDefaultValues();
+      $_tmp0 = \json_encode(HH\FIXME\UNSAFE_CAST<mixed, \test\fixtures\patch\MyDataWithCustomDefaultPatchStructInternalDoNotUse>($parsed['structWithCustomDefault']));
+      $_tmp1 = \test\fixtures\patch\MyDataWithCustomDefaultPatchStructInternalDoNotUse::withDefaultValues();
       $_tmp1->readFromJson($_tmp0);
       $this->structWithCustomDefault = $_tmp1;
     }
@@ -10573,14 +11268,14 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
       $this->optListVal = $_tmp13;
     }
     if (idx($parsed, 'optLateStructVal') !== null) {
-      $_tmp14 = \json_encode(HH\FIXME\UNSAFE_CAST<mixed, \test\fixtures\patch\LateDefStructPatch>($parsed['optLateStructVal']));
-      $_tmp15 = \test\fixtures\patch\LateDefStructPatch::withDefaultValues();
+      $_tmp14 = \json_encode(HH\FIXME\UNSAFE_CAST<mixed, \test\fixtures\patch\LateDefStructPatchStructInternalDoNotUse>($parsed['optLateStructVal']));
+      $_tmp15 = \test\fixtures\patch\LateDefStructPatchStructInternalDoNotUse::withDefaultValues();
       $_tmp15->readFromJson($_tmp14);
       $this->optLateStructVal = $_tmp15;
     }
     if (idx($parsed, 'optStructVal') !== null) {
-      $_tmp16 = \json_encode(HH\FIXME\UNSAFE_CAST<mixed, \test\fixtures\patch\MyDataPatch>($parsed['optStructVal']));
-      $_tmp17 = \test\fixtures\patch\MyDataPatch::withDefaultValues();
+      $_tmp16 = \json_encode(HH\FIXME\UNSAFE_CAST<mixed, \test\fixtures\patch\MyDataPatchStructInternalDoNotUse>($parsed['optStructVal']));
+      $_tmp17 = \test\fixtures\patch\MyDataPatchStructInternalDoNotUse::withDefaultValues();
       $_tmp17->readFromJson($_tmp16);
       $this->optStructVal = $_tmp17;
     }
@@ -10645,8 +11340,8 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
       $this->optBoolVal = $_tmp37;
     }
     if (idx($parsed, 'lateStructVal') !== null) {
-      $_tmp38 = \json_encode(HH\FIXME\UNSAFE_CAST<mixed, \test\fixtures\patch\LateDefStructPatch>($parsed['lateStructVal']));
-      $_tmp39 = \test\fixtures\patch\LateDefStructPatch::withDefaultValues();
+      $_tmp38 = \json_encode(HH\FIXME\UNSAFE_CAST<mixed, \test\fixtures\patch\LateDefStructPatchStructInternalDoNotUse>($parsed['lateStructVal']));
+      $_tmp39 = \test\fixtures\patch\LateDefStructPatchStructInternalDoNotUse::withDefaultValues();
       $_tmp39->readFromJson($_tmp38);
       $this->lateStructVal = $_tmp39;
     }
@@ -10657,8 +11352,8 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
       $this->unionVal = $_tmp41;
     }
     if (idx($parsed, 'structVal') !== null) {
-      $_tmp42 = \json_encode(HH\FIXME\UNSAFE_CAST<mixed, \test\fixtures\patch\MyDataPatch>($parsed['structVal']));
-      $_tmp43 = \test\fixtures\patch\MyDataPatch::withDefaultValues();
+      $_tmp42 = \json_encode(HH\FIXME\UNSAFE_CAST<mixed, \test\fixtures\patch\MyDataPatchStructInternalDoNotUse>($parsed['structVal']));
+      $_tmp43 = \test\fixtures\patch\MyDataPatchStructInternalDoNotUse::withDefaultValues();
       $_tmp43->readFromJson($_tmp42);
       $this->structVal = $_tmp43;
     }
@@ -10723,8 +11418,8 @@ class MyStructFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
       $this->boolVal = $_tmp63;
     }
     if (idx($parsed, 'structWithFieldCustomDefault') !== null) {
-      $_tmp64 = \json_encode(HH\FIXME\UNSAFE_CAST<mixed, \test\fixtures\patch\MyDataPatch>($parsed['structWithFieldCustomDefault']));
-      $_tmp65 = \test\fixtures\patch\MyDataPatch::withDefaultValues();
+      $_tmp64 = \json_encode(HH\FIXME\UNSAFE_CAST<mixed, \test\fixtures\patch\MyDataPatchStructInternalDoNotUse>($parsed['structWithFieldCustomDefault']));
+      $_tmp65 = \test\fixtures\patch\MyDataPatchStructInternalDoNotUse::withDefaultValues();
       $_tmp65->readFromJson($_tmp64);
       $this->structWithFieldCustomDefault = $_tmp65;
     }
@@ -12088,10 +12783,150 @@ class MyStructEnsureStruct implements \IThriftSyncStruct, \IThriftStructMetadata
 
 /**
  * Original thrift struct:-
+ * MyStructSafePatch
+ */
+<<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/MyStructSafePatch'))>>
+class MyStructSafePatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
+  use \ThriftSerializationTrait;
+
+  const \ThriftStructTypes::TSpec SPEC = dict[
+    1 => shape(
+      'var' => 'version',
+      'is_terse' => true,
+      'type' => \TType::I32,
+    ),
+    2 => shape(
+      'var' => 'data',
+      'is_terse' => true,
+      'type' => \TType::STRING,
+      'is_binary' => true,
+    ),
+  ];
+  const dict<string, int> FIELDMAP = dict[
+    'version' => 1,
+    'data' => 2,
+  ];
+
+  const type TConstructorShape = shape(
+    ?'version' => ?int,
+    ?'data' => ?string,
+  );
+
+  const int STRUCTURAL_ID = 3942627235385260502;
+  /**
+   * Original thrift field:-
+   * 1: i32 version
+   */
+  public int $version;
+  /**
+   * Original thrift field:-
+   * 2: binary data
+   */
+  public string $data;
+
+  public function __construct(?int $version = null, ?string $data = null)[] {
+    $this->version = $version ?? 0;
+    $this->data = $data ?? '';
+  }
+
+  public static function withDefaultValues()[]: this {
+    return new static();
+  }
+
+  public static function fromShape(self::TConstructorShape $shape)[]: this {
+    return new static(
+      Shapes::idx($shape, 'version'),
+      Shapes::idx($shape, 'data'),
+    );
+  }
+
+  public function getName()[]: string {
+    return 'MyStructSafePatch';
+  }
+
+  public function clearTerseFields()[write_props]: void {
+    $this->version = 0;
+    $this->data = '';
+  }
+
+  public static function getStructMetadata()[]: \tmeta_ThriftStruct {
+    return \tmeta_ThriftStruct::fromShape(
+      shape(
+        "name" => "module.MyStructSafePatch",
+        "fields" => vec[
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 1,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_I32_TYPE,
+                )
+              ),
+              "name" => "version",
+            )
+          ),
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 2,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_BINARY_TYPE,
+                )
+              ),
+              "name" => "data",
+            )
+          ),
+        ],
+        "is_union" => false,
+      )
+    );
+  }
+
+  public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
+    return shape(
+      'struct' => dict[
+        '\facebook\thrift\annotation\cpp\Frozen2Exclude' => \facebook\thrift\annotation\cpp\Frozen2Exclude::fromShape(
+          shape(
+          )
+        ),
+      ],
+      'fields' => dict[
+      ],
+    );
+  }
+
+  public function getInstanceKey()[write_props]: string {
+    return \TCompactSerializer::serialize($this);
+  }
+
+  public function readFromJson(string $jsonText): void {
+    $parsed = json_decode($jsonText, true);
+
+    if ($parsed === null || !($parsed is KeyedContainer<_, _>)) {
+      throw new \TProtocolException("Cannot parse the given json string.");
+    }
+
+    if (idx($parsed, 'version') !== null) {
+      $_tmp0 = (int)HH\FIXME\UNSAFE_CAST<mixed, int>($parsed['version']);
+      if ($_tmp0 > 0x7fffffff) {
+        throw new \TProtocolException("number exceeds limit in field");
+      } else {
+        $this->version = (int)$_tmp0;
+      }
+    }
+    if (idx($parsed, 'data') !== null) {
+      $this->data = HH\FIXME\UNSAFE_CAST<mixed, string>($parsed['data']);
+    }
+  }
+
+}
+
+/**
+ * Original thrift struct:-
  * LateDefStructPatch
  */
 <<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/LateDefStructPatch'))>>
-class LateDefStructPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
+class LateDefStructPatchStructInternalDoNotUse implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
   use \ThriftSerializationTrait;
 
   const \ThriftStructTypes::TSpec SPEC = dict[
@@ -12226,7 +13061,7 @@ class LateDefStructPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
   }
 
   public function getName()[]: string {
-    return 'LateDefStructPatch';
+    return 'LateDefStructPatchStructInternalDoNotUse';
   }
 
   public function clearTerseFields()[write_props]: void {
@@ -12351,6 +13186,21 @@ class LateDefStructPatch implements \IThriftSyncStruct, \IThriftStructMetadata, 
   public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
     return shape(
       'struct' => dict[
+        '\facebook\thrift\annotation\hack\Name' => \facebook\thrift\annotation\hack\Name::fromShape(
+          shape(
+            "name" => "LateDefStructPatchStructInternalDoNotUse",
+          )
+        ),
+        '\facebook\thrift\annotation\python\Name' => \facebook\thrift\annotation\python\Name::fromShape(
+          shape(
+            "name" => "LateDefStructPatchStructInternalDoNotUse",
+          )
+        ),
+        '\facebook\thrift\annotation\rust\Name' => \facebook\thrift\annotation\rust\Name::fromShape(
+          shape(
+            "name" => "LateDefStructPatchStructInternalDoNotUse",
+          )
+        ),
         '\facebook\thrift\annotation\cpp\Adapter' => \facebook\thrift\annotation\cpp\Adapter::fromShape(
           shape(
             "name" => "::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::LateDefStructPatchStruct>",
@@ -12620,10 +13470,150 @@ class LateDefStructEnsureStruct implements \IThriftSyncStruct, \IThriftStructMet
 
 /**
  * Original thrift struct:-
+ * LateDefStructSafePatch
+ */
+<<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/LateDefStructSafePatch'))>>
+class LateDefStructSafePatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
+  use \ThriftSerializationTrait;
+
+  const \ThriftStructTypes::TSpec SPEC = dict[
+    1 => shape(
+      'var' => 'version',
+      'is_terse' => true,
+      'type' => \TType::I32,
+    ),
+    2 => shape(
+      'var' => 'data',
+      'is_terse' => true,
+      'type' => \TType::STRING,
+      'is_binary' => true,
+    ),
+  ];
+  const dict<string, int> FIELDMAP = dict[
+    'version' => 1,
+    'data' => 2,
+  ];
+
+  const type TConstructorShape = shape(
+    ?'version' => ?int,
+    ?'data' => ?string,
+  );
+
+  const int STRUCTURAL_ID = 3942627235385260502;
+  /**
+   * Original thrift field:-
+   * 1: i32 version
+   */
+  public int $version;
+  /**
+   * Original thrift field:-
+   * 2: binary data
+   */
+  public string $data;
+
+  public function __construct(?int $version = null, ?string $data = null)[] {
+    $this->version = $version ?? 0;
+    $this->data = $data ?? '';
+  }
+
+  public static function withDefaultValues()[]: this {
+    return new static();
+  }
+
+  public static function fromShape(self::TConstructorShape $shape)[]: this {
+    return new static(
+      Shapes::idx($shape, 'version'),
+      Shapes::idx($shape, 'data'),
+    );
+  }
+
+  public function getName()[]: string {
+    return 'LateDefStructSafePatch';
+  }
+
+  public function clearTerseFields()[write_props]: void {
+    $this->version = 0;
+    $this->data = '';
+  }
+
+  public static function getStructMetadata()[]: \tmeta_ThriftStruct {
+    return \tmeta_ThriftStruct::fromShape(
+      shape(
+        "name" => "module.LateDefStructSafePatch",
+        "fields" => vec[
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 1,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_I32_TYPE,
+                )
+              ),
+              "name" => "version",
+            )
+          ),
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 2,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_BINARY_TYPE,
+                )
+              ),
+              "name" => "data",
+            )
+          ),
+        ],
+        "is_union" => false,
+      )
+    );
+  }
+
+  public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
+    return shape(
+      'struct' => dict[
+        '\facebook\thrift\annotation\cpp\Frozen2Exclude' => \facebook\thrift\annotation\cpp\Frozen2Exclude::fromShape(
+          shape(
+          )
+        ),
+      ],
+      'fields' => dict[
+      ],
+    );
+  }
+
+  public function getInstanceKey()[write_props]: string {
+    return \TCompactSerializer::serialize($this);
+  }
+
+  public function readFromJson(string $jsonText): void {
+    $parsed = json_decode($jsonText, true);
+
+    if ($parsed === null || !($parsed is KeyedContainer<_, _>)) {
+      throw new \TProtocolException("Cannot parse the given json string.");
+    }
+
+    if (idx($parsed, 'version') !== null) {
+      $_tmp0 = (int)HH\FIXME\UNSAFE_CAST<mixed, int>($parsed['version']);
+      if ($_tmp0 > 0x7fffffff) {
+        throw new \TProtocolException("number exceeds limit in field");
+      } else {
+        $this->version = (int)$_tmp0;
+      }
+    }
+    if (idx($parsed, 'data') !== null) {
+      $this->data = HH\FIXME\UNSAFE_CAST<mixed, string>($parsed['data']);
+    }
+  }
+
+}
+
+/**
+ * Original thrift struct:-
  * RecursivePatch
  */
 <<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/RecursivePatch'))>>
-class RecursivePatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
+class RecursivePatchStructInternalDoNotUse implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
   use \ThriftSerializationTrait;
 
   const \ThriftStructTypes::TSpec SPEC = dict[
@@ -12758,7 +13748,7 @@ class RecursivePatch implements \IThriftSyncStruct, \IThriftStructMetadata, \ITh
   }
 
   public function getName()[]: string {
-    return 'RecursivePatch';
+    return 'RecursivePatchStructInternalDoNotUse';
   }
 
   public function clearTerseFields()[write_props]: void {
@@ -12883,6 +13873,21 @@ class RecursivePatch implements \IThriftSyncStruct, \IThriftStructMetadata, \ITh
   public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
     return shape(
       'struct' => dict[
+        '\facebook\thrift\annotation\hack\Name' => \facebook\thrift\annotation\hack\Name::fromShape(
+          shape(
+            "name" => "RecursivePatchStructInternalDoNotUse",
+          )
+        ),
+        '\facebook\thrift\annotation\python\Name' => \facebook\thrift\annotation\python\Name::fromShape(
+          shape(
+            "name" => "RecursivePatchStructInternalDoNotUse",
+          )
+        ),
+        '\facebook\thrift\annotation\rust\Name' => \facebook\thrift\annotation\rust\Name::fromShape(
+          shape(
+            "name" => "RecursivePatchStructInternalDoNotUse",
+          )
+        ),
         '\facebook\thrift\annotation\cpp\Adapter' => \facebook\thrift\annotation\cpp\Adapter::fromShape(
           shape(
             "name" => "::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::RecursivePatchStruct>",
@@ -13460,10 +14465,150 @@ class RecursiveEnsureStruct implements \IThriftSyncStruct, \IThriftStructMetadat
 
 /**
  * Original thrift struct:-
+ * RecursiveSafePatch
+ */
+<<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/RecursiveSafePatch'))>>
+class RecursiveSafePatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
+  use \ThriftSerializationTrait;
+
+  const \ThriftStructTypes::TSpec SPEC = dict[
+    1 => shape(
+      'var' => 'version',
+      'is_terse' => true,
+      'type' => \TType::I32,
+    ),
+    2 => shape(
+      'var' => 'data',
+      'is_terse' => true,
+      'type' => \TType::STRING,
+      'is_binary' => true,
+    ),
+  ];
+  const dict<string, int> FIELDMAP = dict[
+    'version' => 1,
+    'data' => 2,
+  ];
+
+  const type TConstructorShape = shape(
+    ?'version' => ?int,
+    ?'data' => ?string,
+  );
+
+  const int STRUCTURAL_ID = 3942627235385260502;
+  /**
+   * Original thrift field:-
+   * 1: i32 version
+   */
+  public int $version;
+  /**
+   * Original thrift field:-
+   * 2: binary data
+   */
+  public string $data;
+
+  public function __construct(?int $version = null, ?string $data = null)[] {
+    $this->version = $version ?? 0;
+    $this->data = $data ?? '';
+  }
+
+  public static function withDefaultValues()[]: this {
+    return new static();
+  }
+
+  public static function fromShape(self::TConstructorShape $shape)[]: this {
+    return new static(
+      Shapes::idx($shape, 'version'),
+      Shapes::idx($shape, 'data'),
+    );
+  }
+
+  public function getName()[]: string {
+    return 'RecursiveSafePatch';
+  }
+
+  public function clearTerseFields()[write_props]: void {
+    $this->version = 0;
+    $this->data = '';
+  }
+
+  public static function getStructMetadata()[]: \tmeta_ThriftStruct {
+    return \tmeta_ThriftStruct::fromShape(
+      shape(
+        "name" => "module.RecursiveSafePatch",
+        "fields" => vec[
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 1,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_I32_TYPE,
+                )
+              ),
+              "name" => "version",
+            )
+          ),
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 2,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_BINARY_TYPE,
+                )
+              ),
+              "name" => "data",
+            )
+          ),
+        ],
+        "is_union" => false,
+      )
+    );
+  }
+
+  public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
+    return shape(
+      'struct' => dict[
+        '\facebook\thrift\annotation\cpp\Frozen2Exclude' => \facebook\thrift\annotation\cpp\Frozen2Exclude::fromShape(
+          shape(
+          )
+        ),
+      ],
+      'fields' => dict[
+      ],
+    );
+  }
+
+  public function getInstanceKey()[write_props]: string {
+    return \TCompactSerializer::serialize($this);
+  }
+
+  public function readFromJson(string $jsonText): void {
+    $parsed = json_decode($jsonText, true);
+
+    if ($parsed === null || !($parsed is KeyedContainer<_, _>)) {
+      throw new \TProtocolException("Cannot parse the given json string.");
+    }
+
+    if (idx($parsed, 'version') !== null) {
+      $_tmp0 = (int)HH\FIXME\UNSAFE_CAST<mixed, int>($parsed['version']);
+      if ($_tmp0 > 0x7fffffff) {
+        throw new \TProtocolException("number exceeds limit in field");
+      } else {
+        $this->version = (int)$_tmp0;
+      }
+    }
+    if (idx($parsed, 'data') !== null) {
+      $this->data = HH\FIXME\UNSAFE_CAST<mixed, string>($parsed['data']);
+    }
+  }
+
+}
+
+/**
+ * Original thrift struct:-
  * BarPatch
  */
 <<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/BarPatch'))>>
-class BarPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
+class BarPatchStructInternalDoNotUse implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
   use \ThriftSerializationTrait;
 
   const \ThriftStructTypes::TSpec SPEC = dict[
@@ -13598,7 +14743,7 @@ class BarPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftSt
   }
 
   public function getName()[]: string {
-    return 'BarPatch';
+    return 'BarPatchStructInternalDoNotUse';
   }
 
   public function clearTerseFields()[write_props]: void {
@@ -13723,6 +14868,21 @@ class BarPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftSt
   public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
     return shape(
       'struct' => dict[
+        '\facebook\thrift\annotation\hack\Name' => \facebook\thrift\annotation\hack\Name::fromShape(
+          shape(
+            "name" => "BarPatchStructInternalDoNotUse",
+          )
+        ),
+        '\facebook\thrift\annotation\python\Name' => \facebook\thrift\annotation\python\Name::fromShape(
+          shape(
+            "name" => "BarPatchStructInternalDoNotUse",
+          )
+        ),
+        '\facebook\thrift\annotation\rust\Name' => \facebook\thrift\annotation\rust\Name::fromShape(
+          shape(
+            "name" => "BarPatchStructInternalDoNotUse",
+          )
+        ),
         '\facebook\thrift\annotation\cpp\Adapter' => \facebook\thrift\annotation\cpp\Adapter::fromShape(
           shape(
             "name" => "::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::BarPatchStruct>",
@@ -13858,7 +15018,7 @@ class BarFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThr
       'var' => 'loop',
       'is_terse' => true,
       'type' => \TType::STRUCT,
-      'class' => \test\fixtures\patch\LoopPatch::class,
+      'class' => \test\fixtures\patch\LoopPatchStructInternalDoNotUse::class,
     ),
   ];
   const dict<string, int> FIELDMAP = dict[
@@ -13866,7 +15026,7 @@ class BarFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThr
   ];
 
   const type TConstructorShape = shape(
-    ?'loop' => ?\test\fixtures\patch\LoopPatch,
+    ?'loop' => ?\test\fixtures\patch\LoopPatchStructInternalDoNotUse,
   );
 
   const int STRUCTURAL_ID = 3282171960754554582;
@@ -13874,9 +15034,9 @@ class BarFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThr
    * Original thrift field:-
    * -1: module.LoopPatch loop
    */
-  public ?\test\fixtures\patch\LoopPatch $loop;
+  public ?\test\fixtures\patch\LoopPatchStructInternalDoNotUse $loop;
 
-  public function __construct(?\test\fixtures\patch\LoopPatch $loop = null)[] {
+  public function __construct(?\test\fixtures\patch\LoopPatchStructInternalDoNotUse $loop = null)[] {
     $this->loop = $loop;
   }
 
@@ -13944,6 +15104,21 @@ class BarFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThr
             ),
           ],
           'type' => dict[
+            '\facebook\thrift\annotation\hack\Name' => \facebook\thrift\annotation\hack\Name::fromShape(
+              shape(
+                "name" => "LoopPatchStructInternalDoNotUse",
+              )
+            ),
+            '\facebook\thrift\annotation\python\Name' => \facebook\thrift\annotation\python\Name::fromShape(
+              shape(
+                "name" => "LoopPatchStructInternalDoNotUse",
+              )
+            ),
+            '\facebook\thrift\annotation\rust\Name' => \facebook\thrift\annotation\rust\Name::fromShape(
+              shape(
+                "name" => "LoopPatchStructInternalDoNotUse",
+              )
+            ),
             '\facebook\thrift\annotation\cpp\Adapter' => \facebook\thrift\annotation\cpp\Adapter::fromShape(
               shape(
                 "name" => "::apache::thrift::op::detail::AssignPatchAdapter<::test::fixtures::patch::LoopPatchStruct>",
@@ -13969,8 +15144,8 @@ class BarFieldPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThr
     }
 
     if (idx($parsed, 'loop') !== null) {
-      $_tmp0 = \json_encode(HH\FIXME\UNSAFE_CAST<mixed, \test\fixtures\patch\LoopPatch>($parsed['loop']));
-      $_tmp1 = \test\fixtures\patch\LoopPatch::withDefaultValues();
+      $_tmp0 = \json_encode(HH\FIXME\UNSAFE_CAST<mixed, \test\fixtures\patch\LoopPatchStructInternalDoNotUse>($parsed['loop']));
+      $_tmp1 = \test\fixtures\patch\LoopPatchStructInternalDoNotUse::withDefaultValues();
       $_tmp1->readFromJson($_tmp0);
       $this->loop = $_tmp1;
     }
@@ -14103,10 +15278,150 @@ class BarEnsureStruct implements \IThriftSyncStruct, \IThriftStructMetadata {
 
 /**
  * Original thrift struct:-
+ * BarSafePatch
+ */
+<<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/BarSafePatch'))>>
+class BarSafePatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
+  use \ThriftSerializationTrait;
+
+  const \ThriftStructTypes::TSpec SPEC = dict[
+    1 => shape(
+      'var' => 'version',
+      'is_terse' => true,
+      'type' => \TType::I32,
+    ),
+    2 => shape(
+      'var' => 'data',
+      'is_terse' => true,
+      'type' => \TType::STRING,
+      'is_binary' => true,
+    ),
+  ];
+  const dict<string, int> FIELDMAP = dict[
+    'version' => 1,
+    'data' => 2,
+  ];
+
+  const type TConstructorShape = shape(
+    ?'version' => ?int,
+    ?'data' => ?string,
+  );
+
+  const int STRUCTURAL_ID = 3942627235385260502;
+  /**
+   * Original thrift field:-
+   * 1: i32 version
+   */
+  public int $version;
+  /**
+   * Original thrift field:-
+   * 2: binary data
+   */
+  public string $data;
+
+  public function __construct(?int $version = null, ?string $data = null)[] {
+    $this->version = $version ?? 0;
+    $this->data = $data ?? '';
+  }
+
+  public static function withDefaultValues()[]: this {
+    return new static();
+  }
+
+  public static function fromShape(self::TConstructorShape $shape)[]: this {
+    return new static(
+      Shapes::idx($shape, 'version'),
+      Shapes::idx($shape, 'data'),
+    );
+  }
+
+  public function getName()[]: string {
+    return 'BarSafePatch';
+  }
+
+  public function clearTerseFields()[write_props]: void {
+    $this->version = 0;
+    $this->data = '';
+  }
+
+  public static function getStructMetadata()[]: \tmeta_ThriftStruct {
+    return \tmeta_ThriftStruct::fromShape(
+      shape(
+        "name" => "module.BarSafePatch",
+        "fields" => vec[
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 1,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_I32_TYPE,
+                )
+              ),
+              "name" => "version",
+            )
+          ),
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 2,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_BINARY_TYPE,
+                )
+              ),
+              "name" => "data",
+            )
+          ),
+        ],
+        "is_union" => false,
+      )
+    );
+  }
+
+  public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
+    return shape(
+      'struct' => dict[
+        '\facebook\thrift\annotation\cpp\Frozen2Exclude' => \facebook\thrift\annotation\cpp\Frozen2Exclude::fromShape(
+          shape(
+          )
+        ),
+      ],
+      'fields' => dict[
+      ],
+    );
+  }
+
+  public function getInstanceKey()[write_props]: string {
+    return \TCompactSerializer::serialize($this);
+  }
+
+  public function readFromJson(string $jsonText): void {
+    $parsed = json_decode($jsonText, true);
+
+    if ($parsed === null || !($parsed is KeyedContainer<_, _>)) {
+      throw new \TProtocolException("Cannot parse the given json string.");
+    }
+
+    if (idx($parsed, 'version') !== null) {
+      $_tmp0 = (int)HH\FIXME\UNSAFE_CAST<mixed, int>($parsed['version']);
+      if ($_tmp0 > 0x7fffffff) {
+        throw new \TProtocolException("number exceeds limit in field");
+      } else {
+        $this->version = (int)$_tmp0;
+      }
+    }
+    if (idx($parsed, 'data') !== null) {
+      $this->data = HH\FIXME\UNSAFE_CAST<mixed, string>($parsed['data']);
+    }
+  }
+
+}
+
+/**
+ * Original thrift struct:-
  * LoopPatch
  */
 <<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/LoopPatch'))>>
-class LoopPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
+class LoopPatchStructInternalDoNotUse implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
   use \ThriftSerializationTrait;
 
   const \ThriftStructTypes::TSpec SPEC = dict[
@@ -14169,7 +15484,7 @@ class LoopPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftS
   }
 
   public function getName()[]: string {
-    return 'LoopPatch';
+    return 'LoopPatchStructInternalDoNotUse';
   }
 
   public function clearTerseFields()[write_props]: void {
@@ -14217,6 +15532,21 @@ class LoopPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftS
   public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
     return shape(
       'struct' => dict[
+        '\facebook\thrift\annotation\hack\Name' => \facebook\thrift\annotation\hack\Name::fromShape(
+          shape(
+            "name" => "LoopPatchStructInternalDoNotUse",
+          )
+        ),
+        '\facebook\thrift\annotation\python\Name' => \facebook\thrift\annotation\python\Name::fromShape(
+          shape(
+            "name" => "LoopPatchStructInternalDoNotUse",
+          )
+        ),
+        '\facebook\thrift\annotation\rust\Name' => \facebook\thrift\annotation\rust\Name::fromShape(
+          shape(
+            "name" => "LoopPatchStructInternalDoNotUse",
+          )
+        ),
         '\facebook\thrift\annotation\cpp\Adapter' => \facebook\thrift\annotation\cpp\Adapter::fromShape(
           shape(
             "name" => "::apache::thrift::op::detail::AssignPatchAdapter<::test::fixtures::patch::LoopPatchStruct>",
@@ -14270,10 +15600,150 @@ class LoopPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftS
 
 /**
  * Original thrift struct:-
+ * LoopSafePatch
+ */
+<<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/LoopSafePatch'))>>
+class LoopSafePatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
+  use \ThriftSerializationTrait;
+
+  const \ThriftStructTypes::TSpec SPEC = dict[
+    1 => shape(
+      'var' => 'version',
+      'is_terse' => true,
+      'type' => \TType::I32,
+    ),
+    2 => shape(
+      'var' => 'data',
+      'is_terse' => true,
+      'type' => \TType::STRING,
+      'is_binary' => true,
+    ),
+  ];
+  const dict<string, int> FIELDMAP = dict[
+    'version' => 1,
+    'data' => 2,
+  ];
+
+  const type TConstructorShape = shape(
+    ?'version' => ?int,
+    ?'data' => ?string,
+  );
+
+  const int STRUCTURAL_ID = 3942627235385260502;
+  /**
+   * Original thrift field:-
+   * 1: i32 version
+   */
+  public int $version;
+  /**
+   * Original thrift field:-
+   * 2: binary data
+   */
+  public string $data;
+
+  public function __construct(?int $version = null, ?string $data = null)[] {
+    $this->version = $version ?? 0;
+    $this->data = $data ?? '';
+  }
+
+  public static function withDefaultValues()[]: this {
+    return new static();
+  }
+
+  public static function fromShape(self::TConstructorShape $shape)[]: this {
+    return new static(
+      Shapes::idx($shape, 'version'),
+      Shapes::idx($shape, 'data'),
+    );
+  }
+
+  public function getName()[]: string {
+    return 'LoopSafePatch';
+  }
+
+  public function clearTerseFields()[write_props]: void {
+    $this->version = 0;
+    $this->data = '';
+  }
+
+  public static function getStructMetadata()[]: \tmeta_ThriftStruct {
+    return \tmeta_ThriftStruct::fromShape(
+      shape(
+        "name" => "module.LoopSafePatch",
+        "fields" => vec[
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 1,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_I32_TYPE,
+                )
+              ),
+              "name" => "version",
+            )
+          ),
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 2,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_BINARY_TYPE,
+                )
+              ),
+              "name" => "data",
+            )
+          ),
+        ],
+        "is_union" => false,
+      )
+    );
+  }
+
+  public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
+    return shape(
+      'struct' => dict[
+        '\facebook\thrift\annotation\cpp\Frozen2Exclude' => \facebook\thrift\annotation\cpp\Frozen2Exclude::fromShape(
+          shape(
+          )
+        ),
+      ],
+      'fields' => dict[
+      ],
+    );
+  }
+
+  public function getInstanceKey()[write_props]: string {
+    return \TCompactSerializer::serialize($this);
+  }
+
+  public function readFromJson(string $jsonText): void {
+    $parsed = json_decode($jsonText, true);
+
+    if ($parsed === null || !($parsed is KeyedContainer<_, _>)) {
+      throw new \TProtocolException("Cannot parse the given json string.");
+    }
+
+    if (idx($parsed, 'version') !== null) {
+      $_tmp0 = (int)HH\FIXME\UNSAFE_CAST<mixed, int>($parsed['version']);
+      if ($_tmp0 > 0x7fffffff) {
+        throw new \TProtocolException("number exceeds limit in field");
+      } else {
+        $this->version = (int)$_tmp0;
+      }
+    }
+    if (idx($parsed, 'data') !== null) {
+      $this->data = HH\FIXME\UNSAFE_CAST<mixed, string>($parsed['data']);
+    }
+  }
+
+}
+
+/**
+ * Original thrift struct:-
  * RefFieldsPatch
  */
 <<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/RefFieldsPatch'))>>
-class RefFieldsPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
+class RefFieldsPatchStructInternalDoNotUse implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
   use \ThriftSerializationTrait;
 
   const \ThriftStructTypes::TSpec SPEC = dict[
@@ -14408,7 +15878,7 @@ class RefFieldsPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \ITh
   }
 
   public function getName()[]: string {
-    return 'RefFieldsPatch';
+    return 'RefFieldsPatchStructInternalDoNotUse';
   }
 
   public function clearTerseFields()[write_props]: void {
@@ -14533,6 +16003,21 @@ class RefFieldsPatch implements \IThriftSyncStruct, \IThriftStructMetadata, \ITh
   public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
     return shape(
       'struct' => dict[
+        '\facebook\thrift\annotation\hack\Name' => \facebook\thrift\annotation\hack\Name::fromShape(
+          shape(
+            "name" => "RefFieldsPatchStructInternalDoNotUse",
+          )
+        ),
+        '\facebook\thrift\annotation\python\Name' => \facebook\thrift\annotation\python\Name::fromShape(
+          shape(
+            "name" => "RefFieldsPatchStructInternalDoNotUse",
+          )
+        ),
+        '\facebook\thrift\annotation\rust\Name' => \facebook\thrift\annotation\rust\Name::fromShape(
+          shape(
+            "name" => "RefFieldsPatchStructInternalDoNotUse",
+          )
+        ),
         '\facebook\thrift\annotation\cpp\Adapter' => \facebook\thrift\annotation\cpp\Adapter::fromShape(
           shape(
             "name" => "::apache::thrift::op::detail::StructPatchAdapter<::test::fixtures::patch::RefFieldsPatchStruct>",
@@ -16181,6 +17666,146 @@ class RefFieldsEnsureStruct implements \IThriftSyncStruct, \IThriftStructMetadat
         $_container46 []= $_elem47;
       }
       $this->opt_box = $_container46;
+    }
+  }
+
+}
+
+/**
+ * Original thrift struct:-
+ * RefFieldsSafePatch
+ */
+<<\ThriftTypeInfo(shape('uri' => 'test.dev/fixtures/patch/RefFieldsSafePatch'))>>
+class RefFieldsSafePatch implements \IThriftSyncStruct, \IThriftStructMetadata, \IThriftStructWithClearTerseFields {
+  use \ThriftSerializationTrait;
+
+  const \ThriftStructTypes::TSpec SPEC = dict[
+    1 => shape(
+      'var' => 'version',
+      'is_terse' => true,
+      'type' => \TType::I32,
+    ),
+    2 => shape(
+      'var' => 'data',
+      'is_terse' => true,
+      'type' => \TType::STRING,
+      'is_binary' => true,
+    ),
+  ];
+  const dict<string, int> FIELDMAP = dict[
+    'version' => 1,
+    'data' => 2,
+  ];
+
+  const type TConstructorShape = shape(
+    ?'version' => ?int,
+    ?'data' => ?string,
+  );
+
+  const int STRUCTURAL_ID = 3942627235385260502;
+  /**
+   * Original thrift field:-
+   * 1: i32 version
+   */
+  public int $version;
+  /**
+   * Original thrift field:-
+   * 2: binary data
+   */
+  public string $data;
+
+  public function __construct(?int $version = null, ?string $data = null)[] {
+    $this->version = $version ?? 0;
+    $this->data = $data ?? '';
+  }
+
+  public static function withDefaultValues()[]: this {
+    return new static();
+  }
+
+  public static function fromShape(self::TConstructorShape $shape)[]: this {
+    return new static(
+      Shapes::idx($shape, 'version'),
+      Shapes::idx($shape, 'data'),
+    );
+  }
+
+  public function getName()[]: string {
+    return 'RefFieldsSafePatch';
+  }
+
+  public function clearTerseFields()[write_props]: void {
+    $this->version = 0;
+    $this->data = '';
+  }
+
+  public static function getStructMetadata()[]: \tmeta_ThriftStruct {
+    return \tmeta_ThriftStruct::fromShape(
+      shape(
+        "name" => "module.RefFieldsSafePatch",
+        "fields" => vec[
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 1,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_I32_TYPE,
+                )
+              ),
+              "name" => "version",
+            )
+          ),
+          \tmeta_ThriftField::fromShape(
+            shape(
+              "id" => 2,
+              "type" => \tmeta_ThriftType::fromShape(
+                shape(
+                  "t_primitive" => \tmeta_ThriftPrimitiveType::THRIFT_BINARY_TYPE,
+                )
+              ),
+              "name" => "data",
+            )
+          ),
+        ],
+        "is_union" => false,
+      )
+    );
+  }
+
+  public static function getAllStructuredAnnotations()[write_props]: \TStructAnnotations {
+    return shape(
+      'struct' => dict[
+        '\facebook\thrift\annotation\cpp\Frozen2Exclude' => \facebook\thrift\annotation\cpp\Frozen2Exclude::fromShape(
+          shape(
+          )
+        ),
+      ],
+      'fields' => dict[
+      ],
+    );
+  }
+
+  public function getInstanceKey()[write_props]: string {
+    return \TCompactSerializer::serialize($this);
+  }
+
+  public function readFromJson(string $jsonText): void {
+    $parsed = json_decode($jsonText, true);
+
+    if ($parsed === null || !($parsed is KeyedContainer<_, _>)) {
+      throw new \TProtocolException("Cannot parse the given json string.");
+    }
+
+    if (idx($parsed, 'version') !== null) {
+      $_tmp0 = (int)HH\FIXME\UNSAFE_CAST<mixed, int>($parsed['version']);
+      if ($_tmp0 > 0x7fffffff) {
+        throw new \TProtocolException("number exceeds limit in field");
+      } else {
+        $this->version = (int)$_tmp0;
+      }
+    }
+    if (idx($parsed, 'data') !== null) {
+      $this->data = HH\FIXME\UNSAFE_CAST<mixed, string>($parsed['data']);
     }
   }
 

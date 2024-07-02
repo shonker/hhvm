@@ -10,7 +10,7 @@ open Hh_prelude
 open Aast
 open Typing_defs
 open Utils
-module Cls = Decl_provider.Class
+module Cls = Folded_class
 module Env = Tast_env
 
 let collect_attrs_from_ty_sid ?(include_optional = false) env add bag sid =
@@ -97,7 +97,7 @@ let check_attrs pos env sid attrs =
               in
               Reason.to_string
                 ("The attribute `" ^ attr_name ^ "` is declared here.")
-                (Reason.Rwitness_from_decl pos))
+                (Reason.witness_from_decl pos))
         in
         Typing_error_utils.add_typing_error
           ~env:(Tast_env.tast_env_as_typing_env env)

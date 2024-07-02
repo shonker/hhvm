@@ -675,7 +675,9 @@ TEST(IoUringBackend, OpenAtAbsolutePath) {
   auto path = folly::fs::unique_path();
   auto filePath = dirPath / path;
 
-  SCOPE_EXIT { ::unlink(filePath.string().c_str()); };
+  SCOPE_EXIT {
+    ::unlink(filePath.string().c_str());
+  };
 
   folly::IoUringBackend::FileOpCallback openCb = [&](int res) {
     evbPtr->terminateLoopSoon();
@@ -933,7 +935,9 @@ TEST(IoUringBackend, RegisteredFds) {
   int eventFd = ::eventfd(0, EFD_CLOEXEC | EFD_SEMAPHORE | EFD_NONBLOCK);
   CHECK_GT(eventFd, 0);
 
-  SCOPE_EXIT { ::close(eventFd); };
+  SCOPE_EXIT {
+    ::close(eventFd);
+  };
 
   // verify for useRegisteredFds = false we get a nullptr
   // IoUringFdRegistrationRecord
@@ -985,7 +989,9 @@ TEST(IoUringBackend, FileReadWrite) {
   if (fd == -1)
     fd = ::open(tempFile.path().c_str(), O_RDWR);
   SKIP_IF(fd == -1) << "Tempfile can't be opened: " << folly::errnoStr(errno);
-  SCOPE_EXIT { ::close(fd); };
+  SCOPE_EXIT {
+    ::close(fd);
+  };
 
   auto* backendPtr = dynamic_cast<folly::IoUringBackend*>(evbPtr->getBackend());
   CHECK(!!backendPtr);
@@ -1051,7 +1057,9 @@ TEST(IoUringBackend, FileReadvWritev) {
   if (fd == -1)
     fd = ::open(tempFile.path().c_str(), O_RDWR);
   SKIP_IF(fd == -1) << "Tempfile can't be opened: " << folly::errnoStr(errno);
-  SCOPE_EXIT { ::close(fd); };
+  SCOPE_EXIT {
+    ::close(fd);
+  };
 
   auto* backendPtr = dynamic_cast<folly::IoUringBackend*>(evbPtr->getBackend());
   CHECK(!!backendPtr);
@@ -1145,7 +1153,9 @@ TEST(IoUringBackend, FileReadMany) {
   if (fd == -1)
     fd = ::open(tempFile.path().c_str(), O_RDWR);
   SKIP_IF(fd == -1) << "Tempfile can't be opened: " << folly::errnoStr(errno);
-  SCOPE_EXIT { ::close(fd); };
+  SCOPE_EXIT {
+    ::close(fd);
+  };
 
   auto* backendPtr = dynamic_cast<folly::IoUringBackend*>(evbPtr->getBackend());
   CHECK(!!backendPtr);
@@ -1205,7 +1215,9 @@ TEST(IoUringBackend, FileWriteMany) {
   if (fd == -1)
     fd = ::open(tempFile.path().c_str(), O_RDWR);
   SKIP_IF(fd == -1) << "Tempfile can't be opened: " << folly::errnoStr(errno);
-  SCOPE_EXIT { ::close(fd); };
+  SCOPE_EXIT {
+    ::close(fd);
+  };
 
   auto* backendPtr = dynamic_cast<folly::IoUringBackend*>(evbPtr->getBackend());
   CHECK(!!backendPtr);
@@ -1391,11 +1403,11 @@ TEST(IoUringBackend, ProvidedBuffers) {
       sqe->buf_group = bgid_;
     }
 
-    void callback(int res, uint32_t flags) noexcept override {
-      oncqe_(res, flags);
+    void callback(const io_uring_cqe* cqe) noexcept override {
+      oncqe_(cqe->res, cqe->flags);
     }
 
-    void callbackCancelled(int, uint32_t) noexcept override { FAIL(); }
+    void callbackCancelled(const io_uring_cqe*) noexcept override { FAIL(); }
 
     int fd_;
     uint16_t bgid_;
@@ -1511,11 +1523,11 @@ TEST(IoUringBackend, DeferTaskRun) {
     void processSubmit(struct io_uring_sqe* sqe) noexcept override {
       ::io_uring_prep_nop(sqe);
     }
-    void callback(int, uint32_t) noexcept override {
+    void callback(const io_uring_cqe*) noexcept override {
       ++val;
       delete this;
     }
-    void callbackCancelled(int, uint32_t) noexcept override {
+    void callbackCancelled(const io_uring_cqe*) noexcept override {
       ++val;
       delete this;
     }

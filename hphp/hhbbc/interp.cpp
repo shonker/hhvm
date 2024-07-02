@@ -23,6 +23,7 @@
 #include <folly/gen/Base.h>
 #include <folly/gen/String.h>
 
+#include "hphp/util/configs/eval.h"
 #include "hphp/util/hash-set.h"
 #include "hphp/util/trace.h"
 #include "hphp/runtime/base/array-init.h"
@@ -69,6 +70,10 @@ namespace {
 
 const StaticString s_MethCallerHelper("__SystemLib\\MethCallerHelper");
 const StaticString s_PHP_Incomplete_Class("__PHP_Incomplete_Class");
+const StaticString s_ConstMap("ConstMap");
+const StaticString s_ConstSet("ConstSet");
+const StaticString s_ConstVector("ConstVector");
+const StaticString s_Iterator("HH\\Iterator");
 const StaticString s_IMemoizeParam("HH\\IMemoizeParam");
 const StaticString s_getInstanceKey("getInstanceKey");
 const StaticString s_Closure("Closure");
@@ -88,6 +93,25 @@ bool poppable(Op op) {
     case Op::Keyset:
     case Op::NewDictArray:
     case Op::NewCol:
+    case Op::LazyClass:
+    case Op::EnumClassLabel:
+      return true;
+    default:
+      return false;
+  }
+}
+
+bool pushes_immediate(Op op) {
+  switch (op) {
+    case Op::Null:
+    case Op::False:
+    case Op::True:
+    case Op::Int:
+    case Op::Double:
+    case Op::String:
+    case Op::Vec:
+    case Op::Dict:
+    case Op::Keyset:
     case Op::LazyClass:
     case Op::EnumClassLabel:
       return true;
@@ -129,6 +153,7 @@ uint32_t numPush(const Bytecode& bc) {
 }
 
 void reprocess(ISS& env) {
+  FTRACE(2, "    reprocess\n");
   env.reprocess = true;
 }
 
@@ -388,6 +413,7 @@ void rewind(ISS& env, const Bytecode& bc) {
   assertx(!env.undo);
   ITRACE(2, "(rewind: {}\n", show(*env.ctx.func, bc));
   env.state.stack.rewind(numPop(bc), numPush(bc));
+  env.flags.usedParams.reset();
 }
 
 /*
@@ -423,6 +449,7 @@ void impl_vec(ISS& env, bool reduce, BytecodeVec&& bcs) {
            unsplit<std::string>(", "));
     if (bcs.size()) {
       auto ef = !env.flags.reduced || env.flags.effectFree;
+      auto usedParams = env.flags.usedParams;
       Trace::Indent _;
       for (auto const& bc : bcs) {
         assertx(
@@ -430,10 +457,12 @@ void impl_vec(ISS& env, bool reduce, BytecodeVec&& bcs) {
           "you can't use impl with branching opcodes before last position"
         );
         interpStep(env, bc);
+        usedParams |= env.flags.usedParams;
         if (!env.flags.effectFree) ef = false;
         if (env.state.unreachable || env.flags.jmpDest != NoBlockId) break;
       }
       env.flags.effectFree = ef;
+      env.flags.usedParams = usedParams;
     } else if (!env.flags.reduced) {
       effect_free(env);
     }
@@ -447,11 +476,13 @@ void impl_vec(ISS& env, bool reduce, BytecodeVec&& bcs) {
   // We should be at the start of a bytecode.
   assertx(env.flags.wasPEI &&
           !env.flags.canConstProp &&
-          !env.flags.effectFree);
+          !env.flags.effectFree &&
+          env.flags.usedParams.none());
 
   env.flags.wasPEI          = false;
   env.flags.canConstProp    = true;
   env.flags.effectFree      = true;
+  env.flags.usedParams.reset();
 
   for (auto const& bc : bcs) {
     assertx(env.flags.jmpDest == NoBlockId &&
@@ -978,7 +1009,7 @@ void in(ISS& env, const bc::ClsCnsD& op) {
     unreachable(env);
     return;
   }
-  clsCnsImpl(env, clsExact(*rcls), sval(op.str1));
+  clsCnsImpl(env, clsExact(*rcls, true), sval(op.str1));
 }
 
 void in(ISS& env, const bc::File&) {
@@ -1119,12 +1150,9 @@ void concatHelper(ISS& env, uint32_t n) {
 
     if (!side_effects) {
       for (auto i = 0; i < n; i++) {
-        auto const tracked = !env.trackedElems.empty() &&
-          env.trackedElems.back().depth + i + 1 == env.state.stack.size();
-        if (tracked) finish_tracked_elems(env, env.trackedElems.back().depth);
         auto const prev = op_from_slot(env, i);
         if (!prev) continue;
-        if ((prev->op == Op::Concat && tracked) || prev->op == Op::ConcatN) {
+        if (prev->op == Op::Concat || prev->op == Op::ConcatN) {
           auto const extra = kill_by_slot(env, i);
           changed = true;
           n += extra;
@@ -1171,12 +1199,6 @@ void concatHelper(ISS& env, uint32_t n) {
 
   if (!changed) {
     discard(env, n);
-    if (n == 2 && !side_effects && will_reduce(env)) {
-      env.trackedElems.emplace_back(
-        env.state.stack.size(),
-        env.unchangedBcs + env.replacedBcs.size()
-      );
-    }
     push(env, TStr);
     return;
   }
@@ -1273,8 +1295,8 @@ std::pair<Type,bool> resolveSame(ISS& env) {
   auto const t2 = topC(env, 1);
 
   auto warningsEnabled =
-    (RuntimeOption::EvalEmitClsMethPointers ||
-     RuntimeOption::EvalRaiseClassConversionNoticeSampleRate > 0);
+    (Cfg::Eval::EmitClsMethPointers ||
+     Cfg::Eval::RaiseClassConversionNoticeSampleRate > 0);
 
   auto const result = [&] {
     auto const v1 = tv(t1);
@@ -1349,6 +1371,10 @@ void sameImpl(ISS& env) {
   push(env, std::move(pair.first));
 }
 
+/**
+ * Returns true if the branch in the Jmp should always be taken. Used by
+ * jmpImpl to reduce `if ($a === $b) { ... }`
+ */
 template<class JmpOp>
 bool sameJmpImpl(ISS& env, Op sameOp, const JmpOp& jmp) {
   const StackElem* elems[2];
@@ -1367,6 +1393,9 @@ bool sameJmpImpl(ISS& env, Op sameOp, const JmpOp& jmp) {
   auto const val0 = tv(ty0);
   auto const val1 = tv(ty1);
 
+  // If both have values, we expect the interp for Same to have already
+  // simplified so we shouldn't be here. Note: tv(Cls=C) still does not have a
+  // value despite knowing the exact class.
   assertx(!val0 || !val1);
   if ((loc0 == NoLocalId && !val0 && ty1.subtypeOf(ty0)) ||
       (loc1 == NoLocalId && !val1 && ty0.subtypeOf(ty1))) {
@@ -1374,8 +1403,12 @@ bool sameJmpImpl(ISS& env, Op sameOp, const JmpOp& jmp) {
   }
 
   // Same currently lies about the distinction between Func/Cls/Str
+  // TODO(T168044199) Unify this analysis with sameImpl
+  // see also: couldBeStringish
   if (ty0.couldBe(BCls) && ty1.couldBe(BStr)) return false;
   if (ty1.couldBe(BCls) && ty0.couldBe(BStr)) return false;
+  if (ty0.couldBe(BCls) && ty1.couldBe(BLazyCls)) return false;
+  if (ty1.couldBe(BCls) && ty0.couldBe(BLazyCls)) return false;
   if (ty0.couldBe(BLazyCls) && ty1.couldBe(BStr)) return false;
   if (ty1.couldBe(BLazyCls) && ty0.couldBe(BStr)) return false;
 
@@ -1700,6 +1733,7 @@ void in(ISS& env, const bc::Clone& /*op*/) {
 
 void in(ISS& env, const bc::Exit&)  { popC(env); push(env, TInitNull); }
 void in(ISS& env, const bc::Fatal&) { popC(env); }
+void in(ISS& env, const bc::StaticAnalysisError&) {}
 
 void in(ISS& env, const bc::Enter& op) {
   always_assert(op.target1 == env.ctx.func->mainEntry);
@@ -1806,64 +1840,6 @@ bool isTypeHelper(ISS& env,
 
   refineLocation(env, location, taken, jmp.target1, fallthrough);
   return true;
-}
-
-// If the current function is a memoize wrapper, return the inferred return type
-// of the function being wrapped along with if the wrapped function is effect
-// free.
-Index::ReturnType memoizeImplRetType(ISS& env) {
-  always_assert(env.ctx.func->isMemoizeWrapper);
-
-  // Lookup the wrapped function. This should always resolve to a precise
-  // function but we don't rely on it.
-  auto const memo_impl_func = [&] {
-    if (env.ctx.func->cls) {
-      return env.index.resolve_method(
-        env.ctx,
-        selfExact(env),
-        memoize_impl_name(env.ctx.func)
-      );
-    }
-    return env.index.resolve_func(memoize_impl_name(env.ctx.func));
-  }();
-
-  // Infer the return type of the wrapped function, taking into account the
-  // types of the parameters for context sensitive types.
-  auto const numArgs = env.ctx.func->params.size();
-  CompactVector<Type> args{numArgs};
-  for (auto i = LocalId{0}; i < numArgs; ++i) {
-    args[i] = locAsCell(env, i);
-  }
-
-  // Determine the context the wrapped function will be called on.
-  auto const ctxType = [&]() -> Type {
-    if (env.ctx.func->cls) {
-      if (env.ctx.func->attrs & AttrStatic) {
-        // The class context for static methods is the method's class,
-        // if LSB is not specified.
-        auto const clsTy =
-          env.ctx.func->isMemoizeWrapperLSB ?
-          selfCls(env) :
-          selfClsExact(env);
-        return clsTy ? *clsTy : TCls;
-      } else {
-        return thisTypeNonNull(env);
-      }
-    }
-    return TBottom;
-  }();
-
-  auto [retTy, effectFree] = env.index.lookup_return_type(
-    env.ctx,
-    &env.collect.methods,
-    args,
-    ctxType,
-    memo_impl_func
-  );
-  // Regardless of anything we know the return type will be an InitCell (this is
-  // a requirement of memoize functions).
-  if (!retTy.subtypeOf(BInitCell)) return { TInitCell, effectFree };
-  return { std::move(retTy), effectFree };
 }
 
 template<class JmpOp>
@@ -2146,20 +2122,6 @@ void in(ISS& env, const bc::Throw& /*op*/) {
 
 void in(ISS& env, const bc::ThrowNonExhaustiveSwitch& /*op*/) {}
 
-void in(ISS& env, const bc::VerifyImplicitContextState& /*op*/) {
-  assertx(env.ctx.func->coeffectRules.empty());
-  assertx(env.ctx.func->isMemoizeWrapper || env.ctx.func->isMemoizeWrapperLSB);
-  auto const providedCoeffects =
-    RuntimeCoeffects::fromValue(env.ctx.func->requiredCoeffects.value() |
-                                env.ctx.func->coeffectEscapes.value());
-  if (!providedCoeffects.canCall(RuntimeCoeffects::zoned()) &&
-      !providedCoeffects.canCall(RuntimeCoeffects::leak_safe_shallow())) {
-    // If the current function cannot call zoned code, it cannot retrieve the
-    // implicit context, so it is safe to kill the verify instruction.
-    return reduce(env);
-  }
-}
-
 void in(ISS& env, const bc::RaiseClassStringConversionNotice& /*op*/) {}
 
 void in(ISS& env, const bc::ChainFaults&) {
@@ -2376,11 +2338,22 @@ bool module_check_always_passes(ISS& env, const res::Class& rcls) {
 }
 
 bool module_check_always_passes(ISS& env, const DCls& dcls) {
-  if (!dcls.isIsect()) return module_check_always_passes(env, dcls.cls());
-  for (auto const cls : dcls.isect()) {
-    if (module_check_always_passes(env, cls)) return true;
+  if (dcls.isExact() || dcls.isSub()) {
+    return module_check_always_passes(env, dcls.cls());
+  } else if (dcls.isIsect()) {
+    for (auto const cls : dcls.isect()) {
+      if (module_check_always_passes(env, cls)) return true;
+    }
+    return false;
+  } else {
+    assertx(dcls.isIsectAndExact());
+    auto const [e, i] = dcls.isectAndExact();
+    if (module_check_always_passes(env, e)) return true;
+    for (auto const cls : *i) {
+      if (module_check_always_passes(env, cls)) return true;
+    }
+    return false;
   }
-  return false;
 }
 
 } // namespace
@@ -2416,7 +2389,7 @@ void in(ISS& env, const bc::ClassGetC& op) {
       auto const may_raise = t.subtypeOf(BStr) && [&] {
         switch (kind) {
           case ClassGetCMode::Normal:
-            return RO::EvalRaiseStrToClsConversionNoticeSampleRate > 0;
+            return Cfg::Eval::RaiseStrToClsConversionNoticeSampleRate > 0;
           case ClassGetCMode::ExplicitConversion:
             return rcls->mightCareAboutDynamicallyReferenced();
         }
@@ -2426,7 +2399,7 @@ void in(ISS& env, const bc::ClassGetC& op) {
           module_check_always_passes(env, *rcls)) {
         effect_free(env);
       }
-      push(env, clsExact(*rcls));
+      push(env, clsExact(*rcls, true));
       return;
     }
     push(env, TBottom);
@@ -2765,7 +2738,7 @@ void isTypeObj(ISS& env, const Type& ty) {
   if (ty.subtypeOf(BObj)) {
     auto const incompl = objExact(
       builtin_class(env.index, s_PHP_Incomplete_Class.get()));
-    if (RO::EvalBuildMayNoticeOnMethCallerHelperIsObject) {
+    if (Cfg::Eval::BuildMayNoticeOnMethCallerHelperIsObject) {
       auto const c =
         objExact(builtin_class(env.index, s_MethCallerHelper.get()));
       if (ty.couldBe(c)) return push(env, TBool);
@@ -3961,6 +3934,10 @@ void fcallUnknownImpl(ISS& env,
 void in(ISS& env, const bc::FCallFuncD& op) {
   auto const rfunc = env.index.resolve_func(op.str2);
 
+  if (auto const wrapped = rfunc.triviallyWrappedFunc()) {
+    return reduce(env, bc::FCallFuncD { op.fca, *wrapped });
+  }
+
   if (op.fca.hasGenerics()) {
     auto const tsList = topC(env);
     if (!tsList.couldBe(BVec)) {
@@ -4336,7 +4313,7 @@ void in(ISS& env, const bc::ResolveClass& op) {
   if (module_check_always_passes(env, *cls)) {
     effect_free(env);
   }
-  push(env, clsExact(*cls));
+  push(env, clsExact(*cls, true));
 }
 
 void in(ISS& env, const bc::LazyClass& op) {
@@ -4470,7 +4447,7 @@ void in(ISS& env, const bc::FCallClsMethodD& op) {
     return;
   }
 
-  auto const clsTy = clsExact(*rcls);
+  auto const clsTy = clsExact(*rcls, true);
   auto const rfunc = env.index.resolve_method(env.ctx, clsTy, op.str3);
 
   if (op.fca.hasGenerics() && !rfunc.couldHaveReifiedGenerics()) {
@@ -4513,7 +4490,7 @@ void in(ISS& env, const bc::FCallClsMethod& op) {
     : TCls;
   auto const rfunc = env.index.resolve_method(env.ctx, ctxTy, methName);
   auto const skipLogAsDynamicCall =
-    !RuntimeOption::EvalLogKnownMethodsAsDynamicCalls &&
+    !Cfg::Eval::LogKnownMethodsAsDynamicCalls &&
       op.subop3 == IsLogAsDynamicCallOp::DontLogAsDynamicCall;
   if (is_specialized_cls(clsTy) && dcls_of(clsTy).isExact() &&
       module_check_always_passes(env, dcls_of(clsTy)) &&
@@ -4561,7 +4538,7 @@ void in(ISS& env, const bc::FCallClsMethodM& op) {
     if (t.subtypeOf(BObj)) return objcls(t);
     if (auto const clsname = getNameFromType(t)) {
       if (auto const rcls = env.index.resolve_class(clsname)) {
-        return clsExact(*rcls);
+        return clsExact(*rcls, true);
       } else {
         return TBottom;
       }
@@ -4574,11 +4551,11 @@ void in(ISS& env, const bc::FCallClsMethodM& op) {
   auto const rfunc = env.index.resolve_method(env.ctx, clsTy, methName);
   auto const maybeDynamicCall = t.couldBe(TStr);
   auto const skipLogAsDynamicCall =
-    !RuntimeOption::EvalLogKnownMethodsAsDynamicCalls &&
+    !Cfg::Eval::LogKnownMethodsAsDynamicCalls &&
       op.subop3 == IsLogAsDynamicCallOp::DontLogAsDynamicCall;
   if (is_specialized_cls(clsTy) && dcls_of(clsTy).isExact() &&
       module_check_always_passes(env, dcls_of(clsTy)) &&
-      (RO::EvalRaiseStrToClsConversionNoticeSampleRate == 0 || !maybeDynamicCall) &&
+      (Cfg::Eval::RaiseStrToClsConversionNoticeSampleRate == 0 || !maybeDynamicCall) &&
       (!rfunc.mightCareAboutDynCalls() ||
         !maybeDynamicCall ||
         skipLogAsDynamicCall
@@ -4764,7 +4741,16 @@ bool objMightHaveConstProps(const Type& t) {
   auto const& dobj = dobj_of(t);
   if (dobj.isExact()) return dobj.cls().couldHaveConstProp();
   if (dobj.isSub()) return dobj.cls().subCouldHaveConstProp();
-  for (auto const cls : dobj.isect()) {
+  if (dobj.isIsect()) {
+    for (auto const cls : dobj.isect()) {
+      if (!cls.subCouldHaveConstProp()) return false;
+    }
+    return true;
+  }
+  assertx(dobj.isIsectAndExact());
+  auto const [e, i] = dobj.isectAndExact();
+  if (!e.subCouldHaveConstProp()) return false;
+  for (auto const cls : *i) {
     if (!cls.subCouldHaveConstProp()) return false;
   }
   return true;
@@ -4824,19 +4810,57 @@ void in(ISS& env, const bc::LockObj& op) {
   reduce(env);
 }
 
-namespace {
+void in(ISS& env, const bc::IterBase&) {
+  auto const t = topC(env);
+  if (t.subtypeOf(BArrLike)) return reduce(env);
 
-// baseLoc is NoLocalId for non-local iterators.
-void iterInitImpl(ISS& env, IterArgs ita, BlockId target, LocalId baseLoc) {
-  auto const local = baseLoc != NoLocalId;
-  auto const sourceLoc = local ? baseLoc : topStkLocal(env);
-  auto const base = local ? locAsCell(env, baseLoc) : topC(env);
+  auto const iterator = subObj(builtin_class(env.index, s_Iterator.get()));
+  if (t.subtypeOf(iterator)) return reduce(env);
+
+  auto tOut = TBottom;
+  auto hasEffects = !t.subtypeOf(BArrLike | BObj);
+  if (t.couldBe(BArrLike)) tOut |= intersection_of(t, TArrLike);
+  if (t.couldBe(BObj)) {
+    auto const tObj = intersection_of(t, TObj);
+    auto const map = subObj(builtin_class(env.index, s_ConstMap.get()));
+    auto const set = subObj(builtin_class(env.index, s_ConstSet.get()));
+    auto const vector = subObj(builtin_class(env.index, s_ConstVector.get()));
+    if (tObj.subtypeOf(iterator)) {
+      tOut |= tObj;
+    } else if (tObj.subtypeOf(map)) {
+      tOut |= TDict;
+    } else if (tObj.subtypeOf(set)) {
+      tOut |= TDict;  // Sets are still backed by dicts rather than keysets
+    } else if (tObj.subtypeOf(vector)) {
+      tOut |= TVec;  // Note: this includes Pair
+    } else {
+      tOut |= union_of(TArrLike, TObj);
+      hasEffects = true;
+    }
+  }
+
+  if (!hasEffects) effect_free(env);
+  popC(env);
+  push(env, tOut);
+}
+
+void in(ISS& env, const bc::IterInit& op) {
+  auto const ita = op.ita;
+  auto const baseLoc = op.loc2;
+  auto const sourceLoc = [&] {
+    auto const loc = findIterBaseLoc(env, baseLoc);
+    if (loc == baseLoc && has_flag(ita.flags, IterArgsFlags::BaseConst)) {
+      // Can't improve this iterator further.
+      return NoLocalId;
+    }
+    return loc;
+  }();
+  auto const base = locAsCell(env, baseLoc);
   auto ity = iter_types(base);
 
   auto const fallthrough = [&] {
-    auto const baseCannotBeObject = !base.couldBe(BObj);
     setIter(env, ita.iterId, LiveIter { ity, sourceLoc, NoLocalId, env.bid,
-                                        false, baseCannotBeObject });
+                                        false });
     // Do this after setting the iterator, in case it clobbers the base local
     // equivalency.
     setLoc(env, ita.valId, std::move(ity.value));
@@ -4850,23 +4874,17 @@ void iterInitImpl(ISS& env, IterArgs ita, BlockId target, LocalId baseLoc) {
 
   if (!ity.mayThrowOnInit) {
     if (ity.count == IterTypes::Count::Empty && will_reduce(env)) {
-      if (local) {
-        reduce(env);
-      } else {
-        reduce(env, bc::PopC{});
-      }
-      return jmp_setdest(env, target);
+      reduce(env);
+      return jmp_setdest(env, op.target3);
     }
     nothrow(env);
   }
-
-  if (!local) popC(env);
 
   switch (ity.count) {
     case IterTypes::Count::Empty:
       mayReadLocal(env, ita.valId);
       if (ita.hasKey()) mayReadLocal(env, ita.keyId);
-      jmp_setdest(env, target);
+      jmp_setdest(env, op.target3);
       return;
     case IterTypes::Count::Single:
     case IterTypes::Count::NonEmpty:
@@ -4877,15 +4895,15 @@ void iterInitImpl(ISS& env, IterArgs ita, BlockId target, LocalId baseLoc) {
       // Take the branch before setting locals if the iter is already
       // empty, but after popping.  Similar for the other IterInits
       // below.
-      env.propagate(target, &env.state);
+      env.propagate(op.target3, &env.state);
       fallthrough();
       return;
   }
   always_assert(false);
 }
 
-// baseLoc is NoLocalId for non-local iterators.
-void iterNextImpl(ISS& env, IterArgs ita, BlockId target, LocalId baseLoc) {
+void in(ISS& env, const bc::IterNext& op) {
+  auto const ita = op.ita;
   auto const curVal = peekLocRaw(env, ita.valId);
   auto const curKey = ita.hasKey() ? peekLocRaw(env, ita.keyId) : TBottom;
 
@@ -4920,12 +4938,10 @@ void iterNextImpl(ISS& env, IterArgs ita, BlockId target, LocalId baseLoc) {
 
   if (noTaken && noThrow && will_reduce(env)) {
     auto const iterId = safe_cast<IterId>(ita.iterId);
-    return baseLoc == NoLocalId
-      ? reduce(env, bc::IterFree { iterId })
-      : reduce(env, bc::LIterFree { iterId, baseLoc });
+    reduce(env, bc::IterFree { iterId });
   }
 
-  mayReadLocal(env, baseLoc);
+  mayReadLocal(env, op.loc2);
   mayReadLocal(env, ita.valId);
   if (ita.hasKey()) mayReadLocal(env, ita.keyId);
 
@@ -4937,53 +4953,15 @@ void iterNextImpl(ISS& env, IterArgs ita, BlockId target, LocalId baseLoc) {
     return;
   }
 
-  env.propagate(target, &env.state);
+  env.propagate(op.target3, &env.state);
 
   freeIter(env, ita.iterId);
   setLocRaw(env, ita.valId, curVal);
   if (ita.hasKey()) setLocRaw(env, ita.keyId, curKey);
 }
 
-}
-
-void in(ISS& env, const bc::IterInit& op) {
-  iterInitImpl(env, op.ita, op.target2, NoLocalId);
-}
-
-void in(ISS& env, const bc::LIterInit& op) {
-  iterInitImpl(env, op.ita, op.target3, op.loc2);
-}
-
-void in(ISS& env, const bc::IterNext& op) {
-  iterNextImpl(env, op.ita, op.target2, NoLocalId);
-}
-
-void in(ISS& env, const bc::LIterNext& op) {
-  iterNextImpl(env, op.ita, op.target3, op.loc2);
-}
-
 void in(ISS& env, const bc::IterFree& op) {
-  // IterFree is used for weak iterators too, so we can't assert !iterIsDead.
-  auto const isNop = match<bool>(
-    env.state.iters[op.iter1],
-    []  (DeadIter) {
-      return true;
-    },
-    [&] (const LiveIter& ti) {
-      if (ti.baseLocal != NoLocalId) hasInvariantIterBase(env);
-      return false;
-    }
-  );
-
-  if (isNop && will_reduce(env)) return reduce(env);
-
   nothrow(env);
-  freeIter(env, op.iter1);
-}
-
-void in(ISS& env, const bc::LIterFree& op) {
-  nothrow(env);
-  mayReadLocal(env, op.loc2);
   freeIter(env, op.iter1);
 }
 
@@ -5112,8 +5090,17 @@ bool couldBeMocked(const Type& t) {
   // In practice this should not occur since this is used mostly on
   // the result of looked up type constraints.
   if (!dcls) return true;
-  if (!dcls->isIsect()) return dcls->cls().couldBeMocked();
-  for (auto const cls : dcls->isect()) {
+  if (dcls->isExact() || dcls->isSub()) return dcls->cls().couldBeMocked();
+  if (dcls->isIsect()) {
+    for (auto const cls : dcls->isect()) {
+      if (!cls.couldBeMocked()) return false;
+    }
+    return true;
+  }
+  assertx(dcls->isIsectAndExact());
+  auto const [e, i] = dcls->isectAndExact();
+  if (!e.couldBeMocked()) return false;
+  for (auto const cls : *i) {
     if (!cls.couldBeMocked()) return false;
   }
   return true;
@@ -5142,8 +5129,6 @@ bool couldHaveReifiedType(const ISS& env, const TypeConstraint& tc) {
 using TCVec = std::vector<const TypeConstraint*>;
 
 void in(ISS& env, const bc::VerifyParamType& op) {
-  IgnoreUsedParams _{env};
-
   auto [newTy, remove, effectFree] =
     verify_param_type(env.index, env.ctx, op.loc1, topC(env));
 
@@ -5160,8 +5145,6 @@ void in(ISS& env, const bc::VerifyParamType& op) {
 }
 
 void in(ISS& env, const bc::VerifyParamTypeTS& op) {
-  IgnoreUsedParams _{env};
-
   auto const a = topC(env);
   if (!a.couldBe(BDict)) {
     unreachable(env);
@@ -5204,7 +5187,7 @@ void in(ISS& env, const bc::VerifyParamTypeTS& op) {
       }
     }
   }
-  mayReadLocal(env, op.loc1);
+  mayReadLocal(env, op.loc1, false);
   popC(env);
 }
 
@@ -5250,7 +5233,7 @@ void verifyRetImpl(ISS& env, const TCVec& tcs,
       if (result.couldBe(BCls | BLazyCls)) {
         result = promote_classish(std::move(result));
         if (effectFree && (ts_flavor ||
-                           RO::EvalClassStringHintNoticesSampleRate > 0 ||
+                           Cfg::Eval::ClassStringHintNoticesSampleRate > 0 ||
                            !promote_classish(stackT).moreRefined(type.lower))) {
           effectFree = false;
         }
@@ -5511,61 +5494,15 @@ void in(ISS& env, const bc::AwaitAll& op) {
 
 void in(ISS& env, const bc::SetImplicitContextByValue&) {
   popC(env);
-  push(env, TOptObj);
+  push(env, TObj);
 }
 
 const StaticString
   s_Memoize("__Memoize"),
   s_MemoizeLSB("__MemoizeLSB");
 
-void in(ISS& env, const bc::CreateSpecialImplicitContext&) {
-  auto const memoKey = popC(env);
-  auto const type = popC(env);
-
-  if (!type.couldBe(BInt) || !memoKey.couldBe(BOptStr)) {
-    unreachable(env);
-    return push(env, TBottom);
-  }
-
-  if (type.subtypeOf(BInt) && memoKey.subtypeOf(BOptStr)) {
-    effect_free(env);
-  }
-
-  if (auto const v = tv(type); v && tvIsInt(*v)) {
-    switch (static_cast<ImplicitContext::State>(v->m_data.num)) {
-      case ImplicitContext::State::Value:
-        return push(env, TOptObj);
-      case ImplicitContext::State::SoftInaccessible: {
-        auto const sampleRate = [&] () -> uint32_t {
-          if (!memoKey.couldBe(BInitNull)) return 1;
-
-          auto const attrName = env.ctx.func->isMemoizeWrapperLSB
-            ? s_MemoizeLSB.get()
-            : s_Memoize.get();
-          auto const it = env.ctx.func->userAttributes.find(attrName);
-          if (it == env.ctx.func->userAttributes.end()) return 1;
-
-          uint32_t rate = 1;
-          assertx(tvIsVec(it->second));
-          IterateV(
-            it->second.m_data.parr,
-            [&](TypedValue elem) {
-              if (tvIsInt(elem)) {
-                rate = std::max<uint32_t>(rate, elem.m_data.num);
-              }
-            }
-          );
-          return rate;
-        }();
-        return push(env, sampleRate == 1 ? TObj : TOptObj);
-      }
-      case ImplicitContext::State::Inaccessible:
-      case ImplicitContext::State::SoftSet:
-        return push(env, TObj);
-    }
-  }
-
-  return push(env, TOptObj);
+void in(ISS& env, const bc::GetInaccessibleImplicitContext&) {
+  return push(env, TObj);
 }
 
 void in(ISS& env, const bc::Idx&) {
@@ -5711,7 +5648,14 @@ void in(ISS& env, const bc::InitProp& op) {
       // If class isn't instantiable, this bytecode isn't reachable
       // anyways.
       if (!rcls) break;
-      mergeStaticProp(env, clsExact(*rcls), sval(op.str1), t, false, true);
+      mergeStaticProp(
+        env,
+        clsExact(*rcls, true),
+        sval(op.str1),
+        t,
+        false,
+        true
+      );
       break;
     }
     case InitPropOp::NonStatic:
@@ -5727,10 +5671,10 @@ void in(ISS& env, const bc::InitProp& op) {
     auto const refine =
       [&] (const TypeConstraint& tc) -> std::pair<Type, bool> {
       assertx(tc.validForProp());
-      if (RO::EvalCheckPropTypeHints == 0) return { t, true };
+      if (Cfg::Eval::CheckPropTypeHints == 0) return { t, true };
       auto const lookup = lookup_constraint(env.index, env.ctx, tc, t);
       if (t.moreRefined(lookup.lower)) return { t, true };
-      if (RO::EvalClassStringHintNoticesSampleRate > 0) return { t, false };
+      if (Cfg::Eval::ClassStringHintNoticesSampleRate > 0) return { t, false };
       if (!t.couldBe(lookup.upper)) return { t, false };
       if (lookup.coerceClassToString != TriBool::Yes) return { t, false };
       auto promoted = promote_classish(t);
@@ -5803,13 +5747,15 @@ bool memoGetImpl(ISS& env, const Op& op, Rebind&& rebind) {
     }
   }
 
-  auto [retTy, effectFree] = memoizeImplRetType(env);
+  auto [retTy, effectFree] = memoGet(env);
 
   // MemoGet can raise if we give a non arr-key local, or if we're in a method
   // and $this isn't available.
   auto allArrKey = true;
   for (uint32_t i = 0; i < op.locrange.count; ++i) {
-    allArrKey &= locRaw(env, op.locrange.first + i).subtypeOf(BArrKey);
+    // Peek here, because if we decide to reduce the bytecode, we
+    // don't want to mark the locals as being read.
+    allArrKey &= peekLocRaw(env, op.locrange.first + i).subtypeOf(BArrKey);
   }
   if (allArrKey &&
       (!env.ctx.func->cls ||
@@ -5824,13 +5770,18 @@ bool memoGetImpl(ISS& env, const Op& op, Rebind&& rebind) {
       // deal with constprop manually; otherwise we will propagate the
       // taken edge and *then* replace the MemoGet with a constant.
       if (effectFree) {
-        if (auto v = tv(retTy)) {
+        if (auto const v = tv(retTy)) {
           reduce(env, gen_constant(*v));
           return true;
         }
       }
     }
     effect_free(env);
+  }
+
+  // We don't remove the op, so mark the locals as being read.
+  for (uint32_t i = 0; i < op.locrange.count; ++i) {
+    mayReadLocal(env, op.locrange.first + i);
   }
 
   if (retTy.is(BBottom)) {
@@ -5863,18 +5814,19 @@ void in(ISS& env, const bc::MemoGetEager& op) {
   );
   if (reduced) return;
 
-  env.propagate(op.target2, &env.state);
   auto const t = popC(env);
-  push(
-    env,
-    is_specialized_wait_handle(t) ? wait_handle_inner(t) : TInitCell
-  );
+
+  push(env, wait_handle(t));
+  env.propagate(op.target2, &env.state);
+
+  popC(env);
+  push(env, t);
 }
 
 namespace {
 
 template <typename Op>
-void memoSetImpl(ISS& env, const Op& op) {
+void memoSetImpl(ISS& env, const Op& op, bool eager) {
   always_assert(env.ctx.func->isMemoizeWrapper);
   always_assert(op.locrange.first + op.locrange.count
                 <= env.ctx.func->locals.size());
@@ -5888,6 +5840,14 @@ void memoSetImpl(ISS& env, const Op& op) {
     );
   }
 
+  // If the call to the memoize implementation was optimized away to
+  // an immediate instruction, record that fact so that we can
+  // optimize away the corresponding MemoGet.
+  auto effectFree = [&] {
+    auto const last = last_op(env);
+    return last && pushes_immediate(last->op);
+  }();
+
   // MemoSet can raise if we give a non arr-key local, or if we're in a method
   // and $this isn't available.
   auto allArrKey = true;
@@ -5899,19 +5859,33 @@ void memoSetImpl(ISS& env, const Op& op) {
        (env.ctx.func->attrs & AttrStatic) ||
        thisAvailable(env))) {
     nothrow(env);
+  } else {
+    effectFree = false;
   }
-  push(env, popC(env));
+
+  auto t = popC(env);
+  memoSet(
+    env,
+    [&] {
+      if (!env.ctx.func->isAsync || eager) return t;
+      return is_specialized_wait_handle(t)
+        ? wait_handle_inner(t)
+        : TInitCell;
+    }(),
+    effectFree
+  );
+  push(env, std::move(t));
 }
 
 }
 
 void in(ISS& env, const bc::MemoSet& op) {
-  memoSetImpl(env, op);
+  memoSetImpl(env, op, false);
 }
 
 void in(ISS& env, const bc::MemoSetEager& op) {
   always_assert(env.ctx.func->isAsync && !env.ctx.func->isGenerator);
-  memoSetImpl(env, op);
+  memoSetImpl(env, op, true);
 }
 
 }
@@ -6040,9 +6014,7 @@ BlockId speculate(Interp& interp) {
   FTRACE(4, "  Speculate B{}\n", interp.bid);
   for (auto const& bc : interp.blk->hhbcs) {
     assertx(!interp.state.unreachable);
-    auto const numPop = bc.numPop() +
-      (bc.op == Op::CGetL2 ? 1 :
-       bc.op == Op::Dup ? -1 : 0);
+    auto const numPop = bc.numPop() + (bc.op == Op::Dup ? -1 : 0);
     if (interp.state.stack.size() - numPop < low_water) {
       low_water = interp.state.stack.size() - numPop;
     }
@@ -6174,9 +6146,11 @@ BlockId speculateHelper(ISS& env, BlockId orig, bool updateTaken) {
 
 //////////////////////////////////////////////////////////////////////
 
-RunFlags run(Interp& interp, const State& in, PropagateFn propagate) {
+RunFlags run(Interp& interp, const State& in,
+             const PropagateFn& propagate,
+             const RollbackFn& rollback) {
   SCOPE_EXIT {
-    FTRACE(2, "out {}{}\n",
+    FTRACE(2, "\nout {}{}\n",
            state_string(*interp.ctx.func, interp.state, interp.collect),
            property_state_string(interp.collect.props));
   };
@@ -6209,8 +6183,11 @@ RunFlags run(Interp& interp, const State& in, PropagateFn propagate) {
       env.state.copy_from(in);
       env.reprocess = false;
       env.replacedBcs.clear();
+      env.stateBefore.reset();
       size = retryOffset + retryBcs.size();
       idx = 0;
+      ret.usedParams.reset();
+      rollback();
       continue;
     }
 
@@ -6220,6 +6197,8 @@ RunFlags run(Interp& interp, const State& in, PropagateFn propagate) {
 
     interpOne(env, bc);
     auto const& flags = env.flags;
+
+    ret.usedParams |= flags.usedParams;
 
     if (flags.wasPEI) ret.noThrow = false;
 
@@ -6284,8 +6263,7 @@ RunFlags run(Interp& interp, const State& in, PropagateFn propagate) {
 }
 
 StepFlags step(Interp& interp, const Bytecode& op) {
-  auto noop    = [] (BlockId, const State*) {};
-  ISS env { interp, noop };
+  ISS env { interp, [] (BlockId, const State*) {} };
   env.analyzeDepth++;
   default_dispatch(env, op);
   if (env.state.unreachable) {

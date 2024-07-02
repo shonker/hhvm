@@ -147,11 +147,6 @@ pub fn from_ast<'a, 'd>(
     } else {
         method.visibility
     };
-    let deprecation_info = if is_memoize {
-        None
-    } else {
-        hhbc::deprecation_info(&attributes)
-    };
     let default_dropthrough = if method.abstract_ {
         Some(emit_fatal::emit_fatal_runtimeomitframe(
             &method.name.0,
@@ -223,7 +218,7 @@ pub fn from_ast<'a, 'd>(
         }
     }
     let ast_body_block = &method.body.fb_ast;
-    let (body, is_generator, is_pair_generator) = if is_native_opcode_impl {
+    let (mut body, is_generator, is_pair_generator) = if is_native_opcode_impl {
         (
             emit_native_opcode::emit_body(
                 emitter,
@@ -232,6 +227,9 @@ pub fn from_ast<'a, 'd>(
                 &class.user_attributes,
                 &method.name,
                 &method.params,
+                attributes,
+                Attr::AttrNone,
+                coeffects,
                 method.ret.1.as_ref(),
             )?,
             false,
@@ -263,13 +261,16 @@ pub fn from_ast<'a, 'd>(
             instr::null(),
             scope,
             Span::from_pos(&method.span),
+            attributes,
+            Attr::AttrNone,
+            coeffects,
             emit_body::Args {
                 immediate_tparams: &method.tparams,
                 class_tparam_names: class_tparam_names.as_slice(),
                 ast_params: &method.params,
                 ret: method.ret.1.as_ref(),
                 pos: &method.span,
-                deprecation_info,
+                emit_deprecation_info: !is_memoize,
                 doc_comment: method.doc_comment.clone(),
                 default_dropthrough,
                 call_context,
@@ -293,23 +294,20 @@ pub fn from_ast<'a, 'd>(
     flags.set(MethodFlags::IS_PAIR_GENERATOR, is_pair_generator);
     flags.set(MethodFlags::IS_CLOSURE_BODY, is_closure_body);
 
-    let has_variadic = emit_param::has_variadic(&body.params);
-    let attrs = get_attrs_for_method(
+    let has_variadic = emit_param::has_variadic(&body.repr.params);
+    body.attrs = get_attrs_for_method(
         emitter,
         method,
-        &attributes,
+        &body.attributes,
         &visibility,
         class,
         is_memoize,
         has_variadic,
     );
     Ok(Method {
-        attributes: attributes.into(),
         visibility: Visibility::from(visibility),
         name,
         body,
-        coeffects,
         flags,
-        attrs,
     })
 }

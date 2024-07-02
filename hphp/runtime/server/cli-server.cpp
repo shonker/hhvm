@@ -299,7 +299,7 @@ namespace {
 
 #ifdef SCM_CREDENTIALS
 
-template<class F, class R = typename std::result_of<F(msghdr*)>::type>
+template<class F, class R = typename std::invoke_result<F, msghdr*>::type>
 R with_ucred_message(int fd, F func) {
   iovec iov;
   int data = 1;
@@ -487,6 +487,10 @@ struct CLIServer final : folly::AsyncServerSocket::AcceptCallback {
     Logger::Warning("Error accepting connection: %s", ex.what());
   }
 
+  int getActiveWorkers() const {
+    return m_dispatcher ? m_dispatcher->getActiveWorker() : 0;
+  }
+
 private:
   enum class State { UNINIT, READY, RUNNING, STOPPED };
   using JobQueue = JobQueueDispatcher<CLIWorker>;
@@ -497,22 +501,23 @@ private:
   void waitFor(State s) {
     auto lock = lockState();
     m_stateCV.wait(lock, [=] {
-      return m_state.load(std::memory_order_relaxed) == s;
+      return m_state.load(std::memory_order_acquire) == s;
     });
   }
   void waitWhile(State s) {
     auto lock = lockState();
     m_stateCV.wait(lock, [=] {
-      return m_state.load(std::memory_order_relaxed) != s;
+      return m_state.load(std::memory_order_acquire) != s;
     });
   }
   void setState(State s) {
     auto lock = lockState();
-    m_state.store(s, std::memory_order_relaxed);
+    m_state.store(s, std::memory_order_release);
     lock.unlock();
     m_stateCV.notify_all();
   }
-  State getState() const { return m_state.load(std::memory_order_relaxed); }
+
+  State getState() const { return m_state.load(std::memory_order_acquire); }
 
   folly::EventBase* m_ev{nullptr};
   std::atomic<State> m_state{State::UNINIT};
@@ -2191,6 +2196,10 @@ bool is_cli_server_mode() {
 
 bool is_any_cli_mode() {
   return is_cli_server_mode() || !RuntimeOption::ServerExecutionMode();
+}
+
+int cli_server_active_workers() {
+  return s_cliServer ? s_cliServer->getActiveWorkers() : 0;
 }
 
 uint64_t cli_server_api_version() {

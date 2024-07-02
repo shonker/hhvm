@@ -33,7 +33,7 @@ void TccStructTraits<::apache::thrift::test::TerseFoo>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace apache { namespace thrift { namespace test {
+namespace apache::thrift::test {
 
 std::string_view TerseFoo::__fbthrift_get_field_name(::apache::thrift::FieldOrdinal ord) {
   if (ord == ::apache::thrift::FieldOrdinal{0}) { return {}; }
@@ -73,7 +73,7 @@ TerseFoo::TerseFoo(apache::thrift::FragileConstructor, ::std::vector<double> fie
     __fbthrift_field_field1(std::move(field1__arg)),
     __fbthrift_field_field2(std::move(field2__arg)),
     __fbthrift_field_field3(std::move(field3__arg)),
-    __fbthrift_field_field4(std::move(field4__arg)) {
+    __fbthrift_field_field4(std::move(field4__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
   __isset.set(folly::index_constant<2>(), true);
@@ -160,7 +160,7 @@ template uint32_t TerseFoo::serializedSize<>(apache::thrift::CompactProtocolWrit
 template uint32_t TerseFoo::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // apache::thrift::test
+} // namespace apache::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -183,7 +183,7 @@ void TccStructTraits<::apache::thrift::test::TerseLazyFoo>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace apache { namespace thrift { namespace test {
+namespace apache::thrift::test {
 
 std::string_view TerseLazyFoo::__fbthrift_get_field_name(::apache::thrift::FieldOrdinal ord) {
   if (ord == ::apache::thrift::FieldOrdinal{0}) { return {}; }
@@ -275,7 +275,7 @@ TerseLazyFoo::TerseLazyFoo(apache::thrift::FragileConstructor, ::std::vector<dou
     __fbthrift_field_field1(std::move(field1__arg)),
     __fbthrift_field_field2(std::move(field2__arg)),
     __fbthrift_field_field3(std::move(field3__arg)),
-    __fbthrift_field_field4(std::move(field4__arg)) {
+    __fbthrift_field_field4(std::move(field4__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
   __isset.set(folly::index_constant<2>(), true);
@@ -428,7 +428,7 @@ template uint32_t TerseLazyFoo::serializedSize<>(apache::thrift::CompactProtocol
 template uint32_t TerseLazyFoo::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // apache::thrift::test
+} // namespace apache::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -451,7 +451,7 @@ void TccStructTraits<::apache::thrift::test::TerseOptionalFoo>::translateFieldNa
 } // namespace thrift
 } // namespace apache
 
-namespace apache { namespace thrift { namespace test {
+namespace apache::thrift::test {
 
 std::string_view TerseOptionalFoo::__fbthrift_get_field_name(::apache::thrift::FieldOrdinal ord) {
   if (ord == ::apache::thrift::FieldOrdinal{0}) { return {}; }
@@ -491,7 +491,7 @@ TerseOptionalFoo::TerseOptionalFoo(apache::thrift::FragileConstructor, ::std::ve
     __fbthrift_field_field1(std::move(field1__arg)),
     __fbthrift_field_field2(std::move(field2__arg)),
     __fbthrift_field_field3(std::move(field3__arg)),
-    __fbthrift_field_field4(std::move(field4__arg)) {
+    __fbthrift_field_field4(std::move(field4__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
   __isset.set(folly::index_constant<2>(), true);
@@ -578,7 +578,7 @@ template uint32_t TerseOptionalFoo::serializedSize<>(apache::thrift::CompactProt
 template uint32_t TerseOptionalFoo::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // apache::thrift::test
+} // namespace apache::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -601,7 +601,7 @@ void TccStructTraits<::apache::thrift::test::TerseOptionalLazyFoo>::translateFie
 } // namespace thrift
 } // namespace apache
 
-namespace apache { namespace thrift { namespace test {
+namespace apache::thrift::test {
 
 std::string_view TerseOptionalLazyFoo::__fbthrift_get_field_name(::apache::thrift::FieldOrdinal ord) {
   if (ord == ::apache::thrift::FieldOrdinal{0}) { return {}; }
@@ -693,7 +693,7 @@ TerseOptionalLazyFoo::TerseOptionalLazyFoo(apache::thrift::FragileConstructor, :
     __fbthrift_field_field1(std::move(field1__arg)),
     __fbthrift_field_field2(std::move(field2__arg)),
     __fbthrift_field_field3(std::move(field3__arg)),
-    __fbthrift_field_field4(std::move(field4__arg)) {
+    __fbthrift_field_field4(std::move(field4__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
   __isset.set(folly::index_constant<2>(), true);
@@ -846,11 +846,11 @@ template uint32_t TerseOptionalLazyFoo::serializedSize<>(apache::thrift::Compact
 template uint32_t TerseOptionalLazyFoo::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // apache::thrift::test
+} // namespace apache::thrift::test
 
-namespace apache { namespace thrift { namespace test { namespace {
+namespace apache::thrift::test { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}}}} // apache::thrift::test
+}} // namespace apache::thrift::test
 namespace apache::thrift::detail::annotation {
 }

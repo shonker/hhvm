@@ -222,7 +222,8 @@ struct mixed {
   3: string unq_field = "unqualified";
   4: optional easy opt_easy_ref (cpp.ref = "True");
   6: list<string> const_container_ref (cpp.ref_type = "shared_const");
-  7: optional string some_field (py3.name = "some_field_");
+  @python.Name{name = "some_field_"}
+  7: optional string some_field;
 }
 
 struct numerical {
@@ -255,9 +256,9 @@ typedef map<i32, i32> (
 typedef string (cpp.type = "folly::fbstring") string_typedef
 
 struct customized {
-  1: list<i32> (cpp.template = "std::deque") list_template;
-  2: set<i32> (cpp.template = "std::unordered_set") set_template;
-  3: map<i32, i32> (cpp.template = "std::unordered_map") map_template;
+  1: list_i32_2242 list_template;
+  2: set_i32_3833 set_template;
+  3: map_i32_i32_907 map_template;
   4: list_typedef list_type;
   5: set_typedef set_type;
   6: map_typedef map_type;
@@ -427,3 +428,8 @@ typedef i32 (cpp.type = "uint32_t") i32_2395
 
 struct EmptyStruct {}
 exception EmptyError {}
+
+// The following were automatically generated and may benefit from renaming.
+typedef list<i32> (cpp.template = "std::deque") list_i32_2242
+typedef map<i32, i32> (cpp.template = "std::unordered_map") map_i32_i32_907
+typedef set<i32> (cpp.template = "std::unordered_set") set_i32_3833

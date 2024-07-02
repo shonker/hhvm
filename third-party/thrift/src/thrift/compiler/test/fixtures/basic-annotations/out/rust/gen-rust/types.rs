@@ -10,8 +10,6 @@ pub mod consts;
 pub use self::consts::*;
 pub mod services;
 
-pub mod errors;
-
 #[allow(unused_imports)]
 pub(crate) use crate as types;
 
@@ -241,10 +239,17 @@ impl ::fbthrift::GetTType for self::MyStructNestedAnnotation {
     const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
 }
 
+impl ::fbthrift::GetTypeNameType for self::MyStructNestedAnnotation {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::MyStructNestedAnnotation
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("MyStructNestedAnnotation");
         p.write_field_begin("name", ::fbthrift::TType::String, 1);
@@ -259,6 +264,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::MyStructNestedAnnotation
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("name", ::fbthrift::TType::String, 1),
@@ -318,10 +324,17 @@ impl ::fbthrift::GetTType for MyUnion {
     const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
 }
 
+impl ::fbthrift::GetTypeNameType for self::MyUnion {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::UnionType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for MyUnion
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("MyUnion");
         match self {
@@ -336,6 +349,7 @@ impl<P> ::fbthrift::Deserialize<P> for MyUnion
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
         ];
@@ -449,10 +463,17 @@ impl ::fbthrift::GetTType for self::MyException {
     const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
 }
 
+impl ::fbthrift::GetTypeNameType for self::MyException {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::MyException
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("MyException");
         p.write_field_stop();
@@ -464,6 +485,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::MyException
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
         ];
@@ -589,10 +611,17 @@ impl ::fbthrift::GetUri for self::MyStruct {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::MyStruct {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::MyStruct
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("MyStruct");
         p.write_field_begin("major", ::fbthrift::TType::I64, 2);
@@ -631,6 +660,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::MyStruct
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("abstract", ::fbthrift::TType::String, 1),
@@ -856,10 +886,17 @@ impl ::fbthrift::GetTType for self::SecretStruct {
     const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
 }
 
+impl ::fbthrift::GetTypeNameType for self::SecretStruct {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::SecretStruct
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("SecretStruct");
         p.write_field_begin("id", ::fbthrift::TType::I64, 1);
@@ -877,6 +914,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::SecretStruct
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("id", ::fbthrift::TType::I64, 1),

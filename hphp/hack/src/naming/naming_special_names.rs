@@ -237,6 +237,8 @@ pub mod user_attributes {
 
     pub const ACCEPT_DISPOSABLE: &str = "__AcceptDisposable";
 
+    pub const IGNORE_READONLY_ERROR: &str = "__IgnoreReadonlyError";
+
     pub const RETURN_DISPOSABLE: &str = "__ReturnDisposable";
 
     pub const LSB: &str = "__LSB";
@@ -319,6 +321,8 @@ pub mod user_attributes {
 
     pub const STRICT_SWITCH: &str = "__StrictSwitch";
 
+    pub const PACKAGE_OVERRIDE: &str = "__PackageOverride";
+
     pub fn is_memoized(name: &str) -> bool {
         name == MEMOIZE || name == MEMOIZE_LSB
     }
@@ -356,6 +360,10 @@ pub mod user_attributes {
 
     pub fn is_cross_package(name: &str) -> bool {
         name == CROSS_PACKAGE
+    }
+
+    pub fn is_package_override(name: &str) -> bool {
+        name == PACKAGE_OVERRIDE
     }
 }
 
@@ -551,8 +559,6 @@ pub mod pseudo_functions {
 
 pub mod std_lib_functions {
     pub const IS_ARRAY: &str = "\\is_array";
-
-    pub const IS_NULL: &str = "\\is_null";
 
     pub const GET_CLASS: &str = "\\get_class";
 
@@ -1133,7 +1139,12 @@ pub mod emitter_special_functions {
     pub const SET_PRODUCT_ATTRIBUTION_ID_DEFERRED: &str =
         "\\HH\\set_product_attribution_id_deferred";
     pub const SYSTEMLIB_REIFIED_GENERICS: &str = "\\__systemlib_reified_generics";
-    pub const GENA: &str = "gena";
+    pub const VEC_MAP_ASYNC: &str = "\\HH\\Lib\\Vec\\map_async";
+    pub const VEC_MAP_ASYNC_FB: &str = "\\FlibSL\\Vec\\map_async";
+    pub const DICT_MAP_ASYNC: &str = "\\HH\\Lib\\Dict\\map_async";
+    pub const DICT_MAP_ASYNC_FB: &str = "\\FlibSL\\Dict\\map_async";
+    pub const DICT_MAP_WITH_KEY_ASYNC: &str = "\\HH\\Lib\\Dict\\map_with_key_async";
+    pub const DICT_MAP_WITH_KEY_ASYNC_FB: &str = "\\FlibSL\\Dict\\map_with_key_async";
 }
 
 pub mod math {

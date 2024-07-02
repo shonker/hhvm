@@ -60,7 +60,6 @@ impl<'a> PushCount<'a> for instr::Hhbc {
             | Hhbc::ThrowNonExhaustiveSwitch(_)
             | Hhbc::UnsetG(..)
             | Hhbc::UnsetL(..)
-            | Hhbc::VerifyImplicitContextState(_)
             | Hhbc::VerifyParamTypeTS(..) => 0,
 
             // --- 1 pushed value
@@ -114,7 +113,7 @@ impl<'a> PushCount<'a> for instr::Hhbc {
             | Hhbc::ContValid(_)
             | Hhbc::CreateCl { .. }
             | Hhbc::CreateCont(..)
-            | Hhbc::CreateSpecialImplicitContext(..)
+            | Hhbc::GetInaccessibleImplicitContext(..)
             | Hhbc::Div(..)
             | Hhbc::EnumClassLabelName(..)
             | Hhbc::GetClsRGProp(..)
@@ -132,6 +131,7 @@ impl<'a> PushCount<'a> for instr::Hhbc {
             | Hhbc::IssetG(..)
             | Hhbc::IssetL(..)
             | Hhbc::IssetS(..)
+            | Hhbc::IterBase(..)
             | Hhbc::LateBoundCls(_)
             | Hhbc::LazyClassFromClass(..)
             | Hhbc::LockObj { .. }

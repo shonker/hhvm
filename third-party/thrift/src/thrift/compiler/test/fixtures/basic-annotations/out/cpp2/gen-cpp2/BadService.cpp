@@ -64,7 +64,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::cpp2::GoodSer
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::GoodService>::async_tm_bar(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::cpp2::GoodService>::async_tm_bar(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -168,7 +168,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::cpp2::GoodService>::Bad
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::GoodService>::BadInteractionIf::async_tm_foo(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) {
+void apache::thrift::ServiceHandler<::cpp2::GoodService>::BadInteractionIf::async_tm_foo(apache::thrift::HandlerCallbackPtr<void> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -239,7 +239,7 @@ determineInvocationType:
 
 namespace cpp2 {
 
-::std::int32_t GoodServiceSvNull::bar() {
+::std::int32_t GoodServiceSvNull::bar() { 
   return 0;
 }
 
@@ -285,14 +285,14 @@ apache::thrift::ServiceRequestInfoMap const& GoodServiceServiceInfoHolder::reque
 apache::thrift::ServiceRequestInfoMap GoodServiceServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"bar",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "BadService.bar",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"BadInteraction.foo",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "BadService.BadInteraction.foo",
      "BadInteraction",
@@ -313,4 +313,4 @@ const GoodServiceAsyncProcessor::InteractionConstructorMap GoodServiceAsyncProce
 std::unique_ptr<apache::thrift::Tile> GoodServiceAsyncProcessor::createInteractionImpl(const std::string& name) {
   auto fn = getInteractionConstructorMap().at(name);
   return (this->*fn)();
-}} // cpp2
+}} // namespace cpp2

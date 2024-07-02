@@ -89,9 +89,9 @@ APACHE_THRIFT_DEFINE_ACCESSOR(opt_fieldE);
 
 // END declare_enums
 // BEGIN forward_declare
-namespace extra { namespace svc {
+namespace extra::svc {
 class containerStruct2;
-}} // extra::svc
+} // namespace extra::svc
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -101,7 +101,7 @@ namespace apache::thrift::detail::qualifier {
 
 // BEGIN hash_and_equal_to
 // END hash_and_equal_to
-namespace extra { namespace svc {
+namespace extra::svc {
 using ::apache::thrift::detail::operator!=;
 using ::apache::thrift::detail::operator>;
 using ::apache::thrift::detail::operator<=;
@@ -176,6 +176,8 @@ class containerStruct2 final  {
  public:
   using __fbthrift_cpp2_type = containerStruct2;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -928,4 +930,4 @@ unsigned long containerStruct2::read(Protocol_* iprot) {
 }
 
 
-}} // extra::svc
+} // namespace extra::svc

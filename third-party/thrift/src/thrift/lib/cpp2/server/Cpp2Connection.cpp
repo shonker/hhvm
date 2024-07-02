@@ -64,7 +64,9 @@ class TransportUpgradeSendCallback : public MessageChannel::SendCallback {
   void sendQueued() override {}
 
   void messageSent() override {
-    SCOPE_EXIT { delete this; };
+    SCOPE_EXIT {
+      delete this;
+    };
     // do the transport upgrade
     for (auto& routingHandler :
          *cpp2Worker_->getServer()->getRoutingHandlers()) {
@@ -144,9 +146,13 @@ Cpp2Connection::Cpp2Connection(
           worker_->getServer()->getEventBaseManager(),
           nullptr,
           worker_->getServer()->getClientIdentityHook(),
-          worker_.get()),
+          worker_.get(),
+          apache::thrift::detail::getServiceInterceptorsIfServerIsSetUp(
+              *worker_->getServer())
+              .size()),
       transport_(transport),
-      executor_(worker_->getServer()->getHandlerExecutor_deprecated().get()) {
+      executor_(worker_->getServer()->getHandlerExecutor_deprecated().get()),
+      metricCollector_{worker_->getServer()->getMetricCollector()} {
   processor_->coalesceWithServerScopedLegacyEventHandlers(
       *worker_->getServer());
   if (worker_->getServer()->resourcePoolSet().empty()) {
@@ -161,17 +167,37 @@ Cpp2Connection::Cpp2Connection(
   for (const auto& handler : worker_->getServer()->getEventHandlersUnsafe()) {
     handler->newConnection(&context_);
   }
+
+#if FOLLY_HAS_COROUTINES
+  const auto& serviceInterceptorsInfo =
+      apache::thrift::detail::getServiceInterceptorsIfServerIsSetUp(
+          *worker_->getServer());
+  for (std::size_t i = 0; i < serviceInterceptorsInfo.size(); ++i) {
+    ServiceInterceptorBase::ConnectionInfo connectionInfo{
+        &context_,
+        context_.getStorageForServiceInterceptorOnConnectionByIndex(i)};
+    serviceInterceptorsInfo[i].interceptor->internal_onConnection(
+        connectionInfo);
+  }
+#endif // FOLLY_HAS_COROUTINES
 }
 
 Cpp2Connection::~Cpp2Connection() {
+#if FOLLY_HAS_COROUTINES
+  const auto& serviceInterceptorsInfo =
+      apache::thrift::detail::getServiceInterceptorsIfServerIsSetUp(
+          *worker_->getServer());
+  for (std::size_t i = 0; i < serviceInterceptorsInfo.size(); ++i) {
+    ServiceInterceptorBase::ConnectionInfo connectionInfo{
+        &context_,
+        context_.getStorageForServiceInterceptorOnConnectionByIndex(i)};
+    serviceInterceptorsInfo[i].interceptor->internal_onConnectionClosed(
+        connectionInfo);
+  }
+#endif // FOLLY_HAS_COROUTINES
+
   for (const auto& handler : worker_->getServer()->getEventHandlersUnsafe()) {
     handler->connectionDestroyed(&context_);
-  }
-
-  if (connectionAdded_) {
-    if (auto* observer = worker_->getServer()->getObserver()) {
-      observer->connClosed();
-    }
   }
 
   channel_.reset();
@@ -191,6 +217,7 @@ void Cpp2Connection::stop() {
       if (auto* observer = worker_->getServer()->getObserver()) {
         observer->taskKilled();
       }
+      metricCollector_.requestRejected({});
     }
   }
 
@@ -199,6 +226,15 @@ void Cpp2Connection::stop() {
 
     // Release the socket to avoid long CLOSE_WAIT times
     channel_->closeNow();
+  }
+
+  if (connectionAdded_) {
+    if (auto* observer = worker_->getServer()->getObserver()) {
+      observer->connClosed(server::TServerObserver::ConnectionInfo(
+          reinterpret_cast<uint64_t>(transport_.get()),
+          context_.getSecurityProtocol()));
+      connectionAdded_ = false;
+    }
   }
 
   transport_.reset();
@@ -286,18 +322,17 @@ void Cpp2Connection::killRequest(
     TApplicationException::TApplicationExceptionType reason,
     const std::string& errorCode,
     const char* comment) {
+  DCHECK(
+      reason != TApplicationException::TApplicationExceptionType::LOADSHEDDING)
+      << "Use killRequestServerOverloaded instead";
   VLOG(1) << "ERROR: Task killed: " << comment << ": "
           << context_.getPeerAddress()->getAddressStr();
 
   auto server = worker_->getServer();
   if (auto* observer = server->getObserver()) {
-    if (reason ==
-        TApplicationException::TApplicationExceptionType::LOADSHEDDING) {
-      observer->serverOverloaded();
-    } else {
-      observer->taskKilled();
-    }
+    observer->taskKilled();
   }
+  metricCollector_.requestRejected({});
 
   // Nothing to do for Thrift oneway request.
   if (req->isOneway()) {
@@ -309,6 +344,30 @@ void Cpp2Connection::killRequest(
   req->sendErrorWrapped(
       folly::make_exception_wrapper<TApplicationException>(reason, comment),
       errorCode);
+}
+
+void Cpp2Connection::killRequestServerOverloaded(
+    std::unique_ptr<HeaderServerChannel::HeaderRequest> req,
+    OverloadResult&& overloadResult) {
+  auto server = worker_->getServer();
+  if (auto* observer = server->getObserver()) {
+    observer->serverOverloaded();
+  }
+  metricCollector_.requestRejected(
+      {RequestRejectedScope::ServerOverloaded{overloadResult.loadShedder}});
+
+  // Nothing to do for Thrift oneway request.
+  if (req->isOneway()) {
+    return;
+  }
+
+  setServerHeaders(*req);
+
+  req->sendErrorWrapped(
+      folly::make_exception_wrapper<TApplicationException>(
+          TApplicationException::TApplicationExceptionType::LOADSHEDDING,
+          std::move(overloadResult.errorMessage)),
+      std::move(overloadResult.errorCode));
 }
 
 // Response Channel callbacks
@@ -439,10 +498,10 @@ void Cpp2Connection::requestReceived(
   }
 
   if ((worker_->getServer()->getLegacyTransport() ==
-           BaseThriftServer::LegacyTransport::DEFAULT &&
+           ThriftServer::LegacyTransport::DEFAULT &&
        THRIFT_FLAG(server_header_reject_all)) ||
       worker_->getServer()->getLegacyTransport() ==
-          BaseThriftServer::LegacyTransport::DISABLED) {
+          ThriftServer::LegacyTransport::DISABLED) {
     THRIFT_CONNECTION_EVENT(connection_rejected.header).log(context_);
 
     disconnect("Rejecting Header connection");
@@ -469,6 +528,7 @@ void Cpp2Connection::requestReceived(
   if (observer) {
     observer->receivedRequest(&methodName);
   }
+  metricCollector_.requestReceived();
 
   auto injectedFailure = server->maybeInjectFailure();
   switch (injectedFailure) {
@@ -496,12 +556,7 @@ void Cpp2Connection::requestReceived(
 
   if (auto overloadResult = server->checkOverload(
           &hreq->getHeader()->getHeaders(), &methodName)) {
-    auto [errorCode, errorMessage] = overloadResult.value();
-    killRequest(
-        std::move(hreq),
-        TApplicationException::LOADSHEDDING,
-        errorCode,
-        errorMessage.c_str());
+    killRequestServerOverloaded(std::move(hreq), std::move(*overloadResult));
     return;
   }
 
@@ -514,11 +569,13 @@ void Cpp2Connection::requestReceived(
           handleAppError(std::move(hreq), ace.name(), ace.getMessage(), true);
         },
         [&](AppOverloadedException& aoe) {
-          killRequest(
+          killRequestServerOverloaded(
               std::move(hreq),
-              TApplicationException::LOADSHEDDING,
-              kAppOverloadedErrorCode,
-              aoe.getMessage().c_str());
+              OverloadResult{
+                  kAppOverloadedErrorCode,
+                  aoe.getMessage(),
+                  LoadShedder::CUSTOM,
+              });
         },
         [&](AppQuotaExceededException& aqe) {
           killRequest(
@@ -579,6 +636,7 @@ void Cpp2Connection::requestReceived(
   context_.setClientType(hreq->getHeader()->getClientType());
 
   auto t2r = RequestsRegistry::makeRequest<Cpp2Request>(
+      *server,
       std::move(hreq),
       std::move(reqCtx),
       this_,
@@ -648,6 +706,7 @@ void Cpp2Connection::requestReceived(
   }
 
   Cpp2Worker::dispatchRequest(
+      processorFactory_,
       processor_.get(),
       std::move(req),
       SerializedCompressedRequest(std::move(serializedRequest)),
@@ -674,7 +733,8 @@ void Cpp2Connection::removeRequest(Cpp2Request* req) {
 }
 
 Cpp2Connection::Cpp2Request::Cpp2Request(
-    RequestsRegistry::ColocatedData<folly::Unit> colocationParams,
+    ColocatedConstructionParams colocationParams,
+    apache::thrift::ThriftServer& server,
     std::unique_ptr<HeaderServerChannel::HeaderRequest> req,
     std::shared_ptr<folly::RequestContext> rctx,
     std::shared_ptr<Cpp2Connection> con,
@@ -685,13 +745,14 @@ Cpp2Connection::Cpp2Request::Cpp2Request(
       // Note: tricky ordering here; see the note on connection_ in the class
       // definition.
       reqContext_(
-          &connection_->context_, req_->getHeader(), std::move(methodName)),
+          &connection_->context_,
+          req_->getHeader(),
+          std::move(methodName),
+          std::move(colocationParams.data)),
       stateMachine_(
           util::includeInRecentRequestsCount(reqContext_.getMethodName()),
-          connection_->getWorker()
-              ->getServer()
-              ->getAdaptiveConcurrencyController(),
-          connection_->getWorker()->getServer()->getCPUConcurrencyController()),
+          server.getAdaptiveConcurrencyController(),
+          server.getCPUConcurrencyController()),
       activeRequestsGuard_(connection_->getWorker()->getActiveRequestsGuard()) {
   new (colocationParams.debugStubToInit) RequestsRegistry::DebugStub(
       *connection_->getWorker()->getRequestsRegistry(),

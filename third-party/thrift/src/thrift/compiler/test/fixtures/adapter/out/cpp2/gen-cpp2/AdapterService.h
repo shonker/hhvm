@@ -22,7 +22,7 @@ namespace apache { namespace thrift {
   namespace transport { class THeader; }
 }}
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 class AdapterService;
 class AdapterServiceAsyncProcessor;
 
@@ -31,7 +31,7 @@ class AdapterServiceServiceInfoHolder : public apache::thrift::ServiceInfoHolder
    apache::thrift::ServiceRequestInfoMap const& requestInfoMap() const override;
    static apache::thrift::ServiceRequestInfoMap staticRequestInfoMap();
 };
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache::thrift {
 template <>
@@ -58,7 +58,7 @@ class ServiceHandler<::facebook::thrift::test::AdapterService> : public apache::
   virtual folly::coro::Task<std::unique_ptr<::facebook::thrift::test::CountingStruct>> co_count();
   virtual folly::coro::Task<std::unique_ptr<::facebook::thrift::test::CountingStruct>> co_count(apache::thrift::RequestParams params);
 #endif
-  virtual void async_tm_count(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::facebook::thrift::test::CountingStruct>>> callback);
+  virtual void async_tm_count(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::facebook::thrift::test::CountingStruct>> callback);
   virtual void sync_adaptedTypes(::facebook::thrift::test::HeapAllocated& /*_return*/, std::unique_ptr<::facebook::thrift::test::HeapAllocated> /*arg*/);
   [[deprecated("Use sync_adaptedTypes instead")]] virtual void adaptedTypes(::facebook::thrift::test::HeapAllocated& /*_return*/, std::unique_ptr<::facebook::thrift::test::HeapAllocated> /*arg*/);
   virtual folly::Future<std::unique_ptr<::facebook::thrift::test::HeapAllocated>> future_adaptedTypes(std::unique_ptr<::facebook::thrift::test::HeapAllocated> p_arg);
@@ -67,7 +67,7 @@ class ServiceHandler<::facebook::thrift::test::AdapterService> : public apache::
   virtual folly::coro::Task<std::unique_ptr<::facebook::thrift::test::HeapAllocated>> co_adaptedTypes(std::unique_ptr<::facebook::thrift::test::HeapAllocated> p_arg);
   virtual folly::coro::Task<std::unique_ptr<::facebook::thrift::test::HeapAllocated>> co_adaptedTypes(apache::thrift::RequestParams params, std::unique_ptr<::facebook::thrift::test::HeapAllocated> p_arg);
 #endif
-  virtual void async_tm_adaptedTypes(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::facebook::thrift::test::HeapAllocated>>> callback, std::unique_ptr<::facebook::thrift::test::HeapAllocated> p_arg);
+  virtual void async_tm_adaptedTypes(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::facebook::thrift::test::HeapAllocated>> callback, std::unique_ptr<::facebook::thrift::test::HeapAllocated> p_arg);
  private:
   static ::facebook::thrift::test::AdapterServiceServiceInfoHolder __fbthrift_serviceInfoHolder;
   std::atomic<apache::thrift::detail::si::InvocationType> __fbthrift_invocation_count{apache::thrift::detail::si::InvocationType::AsyncTm};
@@ -76,10 +76,10 @@ class ServiceHandler<::facebook::thrift::test::AdapterService> : public apache::
 
 } // namespace apache::thrift
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 using AdapterServiceSvIf [[deprecated("Use apache::thrift::ServiceHandler<AdapterService> instead")]] = ::apache::thrift::ServiceHandler<AdapterService>;
-}}} // facebook::thrift::test
-namespace facebook { namespace thrift { namespace test {
+} // namespace facebook::thrift::test
+namespace facebook::thrift::test {
 class AdapterServiceSvNull : public ::apache::thrift::ServiceHandler<AdapterService> {
  public:
   void count(::facebook::thrift::test::CountingStruct& /*_return*/) override;
@@ -125,4 +125,4 @@ class AdapterServiceAsyncProcessor : public ::apache::thrift::GeneratedAsyncProc
   ~AdapterServiceAsyncProcessor() override {}
 };
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test

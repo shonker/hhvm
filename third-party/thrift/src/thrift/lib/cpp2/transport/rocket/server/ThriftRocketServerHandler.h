@@ -26,6 +26,7 @@
 #include <thrift/lib/cpp/server/TServerObserver.h>
 #include <thrift/lib/cpp2/server/Cpp2Worker.h>
 #include <thrift/lib/cpp2/server/LoggingEvent.h>
+#include <thrift/lib/cpp2/server/Overload.h>
 #include <thrift/lib/cpp2/server/RequestsRegistry.h>
 #include <thrift/lib/cpp2/transport/rocket/server/RocketServerHandler.h>
 #include <thrift/lib/cpp2/transport/rocket/server/SetupFrameHandler.h>
@@ -39,6 +40,7 @@ namespace thrift {
 
 class AsyncProcessor;
 class Cpp2ConnContext;
+class MetricCollector;
 class RequestRpcMetadata;
 class ThriftRequestCore;
 using ThriftRequestCoreUniquePtr =
@@ -126,6 +128,8 @@ class ThriftRocketServerHandler : public RocketServerHandler {
 
   folly::once_flag setupLoggingFlag_;
 
+  const MetricCollector& metricCollector_;
+
   template <class F>
   void handleRequestCommon(
       Payload&& payload, F&& makeRequest, RpcKind expectedKind);
@@ -135,9 +139,7 @@ class ThriftRocketServerHandler : public RocketServerHandler {
   FOLLY_NOINLINE void handleRequestWithBadChecksum(
       ThriftRequestCoreUniquePtr request);
   FOLLY_NOINLINE void handleRequestOverloadedServer(
-      ThriftRequestCoreUniquePtr request,
-      const std::string& errorCode,
-      const std::string& errorMessage);
+      ThriftRequestCoreUniquePtr request, OverloadResult&& overloadResult);
   FOLLY_NOINLINE void handleQuotaExceededException(
       ThriftRequestCoreUniquePtr request,
       const std::string& errorCode,

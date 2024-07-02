@@ -10,10 +10,12 @@
 #include <chrono>
 #include <cstdint>
 #include <glog/logging.h>
-#include <proxygen/lib/http/HTTPHeaders.h>
+#include <proxygen/lib/http/HTTPMessage.h>
 #include <utility>
 
 namespace proxygen {
+
+class HTTPTransactionObserverAccessor;
 
 /**
  * Accessor object "observed" by HTTPSessionObservers.
@@ -60,9 +62,10 @@ class HTTPSessionObserverInterface {
 
   struct RequestStartedEvent {
     const TimePoint timestamp;
-    const HTTPHeaders& requestHeaders;
+    const HTTPMessage& request;
+    HTTPTransactionObserverAccessor* txnObserverAccessor;
 
-    // Do not support copy or move given that requestHeaders is a ref.
+    // Do not support copy or move given that request is a ref.
     RequestStartedEvent(RequestStartedEvent&&) = delete;
     RequestStartedEvent& operator=(const RequestStartedEvent&) = delete;
     RequestStartedEvent& operator=(RequestStartedEvent&& rhs) = delete;
@@ -71,14 +74,17 @@ class HTTPSessionObserverInterface {
     struct BuilderFields {
       folly::Optional<std::reference_wrapper<const TimePoint>>
           maybeTimestampRef;
-      folly::Optional<std::reference_wrapper<const HTTPHeaders>>
-          maybeHTTPHeadersRef;
+      folly::Optional<std::reference_wrapper<const HTTPMessage>>
+          maybeRequestRef;
+      HTTPTransactionObserverAccessor* maybeTxnObserverAccessorPtr;
       explicit BuilderFields() = default;
     };
 
     struct Builder : public BuilderFields {
-      Builder&& setTimestamp(const TimePoint& timestamp);
-      Builder&& setHeaders(const proxygen::HTTPHeaders& headers);
+      Builder&& setTimestamp(const TimePoint& timestampIn);
+      Builder&& setRequest(const proxygen::HTTPMessage& requestIn);
+      Builder&& setTxnObserverAccessor(
+          proxygen::HTTPTransactionObserverAccessor* txnObserverAccessorIn);
       RequestStartedEvent build() &&;
       explicit Builder() = default;
     };
@@ -106,8 +112,8 @@ class HTTPSessionObserverInterface {
     };
 
     struct Builder : public BuilderFields {
-      Builder&& setPendingEgressBytes(const uint64_t& pendingEgressBytes);
-      Builder&& setTimestamp(const TimePoint& timestamp);
+      Builder&& setPendingEgressBytes(const uint64_t& pendingEgressBytesIn);
+      Builder&& setTimestamp(const TimePoint& timestampIn);
 
       PreWriteEvent build() &&;
       explicit Builder() = default;
@@ -134,8 +140,8 @@ class HTTPSessionObserverInterface {
     };
 
     struct Builder : public BuilderFields {
-      Builder&& setId(const uint64_t& Id);
-      Builder&& setTimestamp(const TimePoint& Timestamp);
+      Builder&& setId(const uint64_t& idIn);
+      Builder&& setTimestamp(const TimePoint& timestampIn);
       PingReplyEvent build() &&;
       explicit Builder() = default;
     };

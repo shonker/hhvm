@@ -862,6 +862,12 @@ void HTTPSession::onHeadersComplete(HTTPCodec::StreamID streamID,
     infoCallback_->onIngressMessage(*this, *msg.get());
   }
 
+  HTTPTransaction* txn = findTransaction(streamID);
+  if (!txn) {
+    invalidStream(streamID);
+    return;
+  }
+
   // Inform observers when request headers (i.e. ingress, from downstream
   // client) are processed.
   if (isDownstream()) {
@@ -869,7 +875,8 @@ void HTTPSession::onHeadersComplete(HTTPCodec::StreamID streamID,
       const auto event =
           HTTPSessionObserverInterface::RequestStartedEvent::Builder()
               .setTimestamp(HTTPSessionObserverInterface::Clock::now())
-              .setHeaders(msgPtr->getHeaders())
+              .setRequest(*msg)
+              .setTxnObserverAccessor(txn->getObserverAccessor())
               .build();
       sessionObserverContainer_.invokeInterfaceMethod<
           HTTPSessionObserverInterface::Events::RequestStarted>(
@@ -877,12 +884,6 @@ void HTTPSession::onHeadersComplete(HTTPCodec::StreamID streamID,
             observer->requestStarted(observed, event);
           });
     }
-  }
-
-  HTTPTransaction* txn = findTransaction(streamID);
-  if (!txn) {
-    invalidStream(streamID);
-    return;
   }
 
   HTTPTransaction::DestructorGuard dg(txn);
@@ -1650,7 +1651,8 @@ void HTTPSession::sendHeaders(HTTPTransaction* txn,
     const auto event =
         HTTPSessionObserverInterface::RequestStartedEvent::Builder()
             .setTimestamp(HTTPSessionObserverInterface::Clock::now())
-            .setHeaders(headers.getHeaders())
+            .setRequest(headers)
+            .setTxnObserverAccessor(txn->getObserverAccessor())
             .build();
     sessionObserverContainer_.invokeInterfaceMethod<
         HTTPSessionObserverInterface::Events::RequestStarted>(
@@ -2234,6 +2236,7 @@ void HTTPSession::runLoopCallback() noexcept {
             });
   }
 
+  uint64_t bytesWritten = 0;
   for (uint32_t i = 0; i < kMaxWritesPerLoop; ++i) {
     bodyBytesPerWriteBuf_ = 0;
     bool cork = true;
@@ -2279,8 +2282,13 @@ void HTTPSession::runLoopCallback() noexcept {
       // updateWriteBufSize called in scope guard
       break;
     }
+    bytesWritten += len;
     // writeChain can result in a writeError and trigger the shutdown code path
   }
+  if (infoCallback_ && bytesWritten > 0) {
+    infoCallback_->onWrite(*this, bytesWritten);
+  }
+
   if (numActiveWrites_ == 0 && !writesShutdown() && hasMoreWrites() &&
       (!connFlowControl_ || connFlowControl_->getAvailableSend())) {
     scheduleWrite();
@@ -2798,7 +2806,7 @@ void HTTPSession::writeSuccess() noexcept {
   writeTimeout_.cancelTimeout();
   pendingWrite_.reset();
 
-  if (infoCallback_) {
+  if (infoCallback_ && !inLoopCallback_) {
     infoCallback_->onWrite(*this, bytesWritten);
   }
 

@@ -8,9 +8,8 @@
 
 #pragma once
 
+#include <fizz/backend/openssl/OpenSSL.h>
 #include <fizz/crypto/Hkdf.h>
-#include <fizz/crypto/Sha256.h>
-#include <fizz/crypto/aead/OpenSSLEVPCipher.h>
 #include <fizz/record/Types.h>
 #include <fizz/server/TokenCipher.h>
 #include <folly/Optional.h>
@@ -24,8 +23,8 @@ class Aead128GCMTokenCipher : public TokenCipher {
   static constexpr size_t kMinTokenSecretLength = 32;
 
   using HashType = Sha256;
-  using AeadType = OpenSSLEVPCipher;
-  using CipherType = AESGCM128;
+  using AeadType = openssl::OpenSSLEVPCipher;
+  using CipherType = fizz::AESGCM128;
 
   /**
    * Set additional context strings for use with these tokens. The strings will

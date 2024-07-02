@@ -49,7 +49,7 @@ void TccStructTraits<::facebook::thrift::test::terse_write::MyStruct>::translate
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test { namespace terse_write {
+namespace facebook::thrift::test::terse_write {
 
 const char* MyStruct::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/terse_write/MyStruct";
@@ -101,7 +101,7 @@ template uint32_t MyStruct::serializedSize<>(apache::thrift::CompactProtocolWrit
 template uint32_t MyStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}}} // facebook::thrift::test::terse_write
+} // namespace facebook::thrift::test::terse_write
 
 namespace apache {
 namespace thrift {
@@ -137,7 +137,7 @@ bool TEnumTraits<::facebook::thrift::test::terse_write::MyUnion::Type>::findValu
   return ::apache::thrift::detail::st::enum_find_value(name, out);
 }
 }} // apache::thrift
-namespace facebook { namespace thrift { namespace test { namespace terse_write {
+namespace facebook::thrift::test::terse_write {
 
 const char* MyUnion::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/terse_write/MyUnion";
@@ -353,7 +353,7 @@ static_assert(
         ::facebook::thrift::test::terse_write::MyStruct>,
     "inconsistent use of json option");
 
-}}}} // facebook::thrift::test::terse_write
+} // namespace facebook::thrift::test::terse_write
 
 namespace apache {
 namespace thrift {
@@ -376,7 +376,7 @@ void TccStructTraits<::facebook::thrift::test::terse_write::MyStructWithCustomDe
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test { namespace terse_write {
+namespace facebook::thrift::test::terse_write {
 
 const char* MyStructWithCustomDefault::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/terse_write/MyStructWithCustomDefault";
@@ -392,7 +392,7 @@ std::string_view MyStructWithCustomDefault::__fbthrift_get_class_name() {
 
 
 MyStructWithCustomDefault::MyStructWithCustomDefault(apache::thrift::FragileConstructor, ::std::int64_t field1__arg) :
-    __fbthrift_field_field1(std::move(field1__arg)) {
+    __fbthrift_field_field1(std::move(field1__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -435,7 +435,7 @@ template uint32_t MyStructWithCustomDefault::serializedSize<>(apache::thrift::Co
 template uint32_t MyStructWithCustomDefault::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}}} // facebook::thrift::test::terse_write
+} // namespace facebook::thrift::test::terse_write
 
 namespace apache {
 namespace thrift {
@@ -458,7 +458,7 @@ void TccStructTraits<::facebook::thrift::test::terse_write::StructLevelTerseStru
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test { namespace terse_write {
+namespace facebook::thrift::test::terse_write {
 
 const char* StructLevelTerseStruct::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/terse_write/StructLevelTerseStruct";
@@ -541,7 +541,7 @@ StructLevelTerseStruct::StructLevelTerseStruct(apache::thrift::FragileConstructo
     __fbthrift_field_set_field(std::move(set_field__arg)),
     __fbthrift_field_map_field(std::move(map_field__arg)),
     __fbthrift_field_struct_field(std::move(struct_field__arg)),
-    __fbthrift_field_union_field(std::move(union_field__arg)) {
+    __fbthrift_field_union_field(std::move(union_field__arg)) { 
 }
 
 
@@ -688,7 +688,7 @@ static_assert(
         ::facebook::thrift::test::terse_write::MyUnion>,
     "inconsistent use of json option");
 
-}}}} // facebook::thrift::test::terse_write
+} // namespace facebook::thrift::test::terse_write
 
 namespace apache {
 namespace thrift {
@@ -711,7 +711,7 @@ void TccStructTraits<::facebook::thrift::test::terse_write::FieldLevelTerseStruc
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test { namespace terse_write {
+namespace facebook::thrift::test::terse_write {
 
 const char* FieldLevelTerseStruct::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/terse_write/FieldLevelTerseStruct";
@@ -849,7 +849,7 @@ FieldLevelTerseStruct::FieldLevelTerseStruct(apache::thrift::FragileConstructor,
     __fbthrift_field_set_field(std::move(set_field__arg)),
     __fbthrift_field_map_field(std::move(map_field__arg)),
     __fbthrift_field_struct_field(std::move(struct_field__arg)),
-    __fbthrift_field_union_field(std::move(union_field__arg)) {
+    __fbthrift_field_union_field(std::move(union_field__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
   __isset.set(folly::index_constant<2>(), true);
@@ -1080,7 +1080,7 @@ static_assert(
         ::facebook::thrift::test::terse_write::MyUnion>,
     "inconsistent use of json option");
 
-}}}} // facebook::thrift::test::terse_write
+} // namespace facebook::thrift::test::terse_write
 
 namespace apache {
 namespace thrift {
@@ -1103,7 +1103,7 @@ void TccStructTraits<::facebook::thrift::test::terse_write::TerseStructWithCusto
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test { namespace terse_write {
+namespace facebook::thrift::test::terse_write {
 
 const char* TerseStructWithCustomDefault::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/terse_write/TerseStructWithCustomDefault";
@@ -1130,9 +1130,9 @@ TerseStructWithCustomDefault::TerseStructWithCustomDefault() :
       __fbthrift_field_string_field(apache::thrift::StringTraits<std::string>::fromStringLiteral("7")),
       __fbthrift_field_binary_field(apache::thrift::StringTraits<std::string>::fromStringLiteral("8")),
       __fbthrift_field_enum_field( ::facebook::thrift::test::terse_write::MyEnum::ME1),
-      __fbthrift_field_list_field(std::initializer_list<::std::int16_t>{static_cast<::std::int16_t>(1)}),
-      __fbthrift_field_set_field(std::initializer_list<::std::int16_t>{static_cast<::std::int16_t>(1)}),
-      __fbthrift_field_map_field(std::initializer_list<::std::map<::std::int16_t, ::std::int16_t>::value_type>{{static_cast<::std::int16_t>(1), static_cast<::std::int16_t>(1)}}) {
+      __fbthrift_field_list_field(std::initializer_list<::std::int16_t>{ static_cast<::std::int16_t>(1) }),
+      __fbthrift_field_set_field(std::initializer_list<::std::int16_t>{ static_cast<::std::int16_t>(1) }),
+      __fbthrift_field_map_field(std::initializer_list<::std::map<::std::int16_t, ::std::int16_t>::value_type>{ { static_cast<::std::int16_t>(1), static_cast<::std::int16_t>(1) } }) {
 }
 
 
@@ -1188,7 +1188,7 @@ TerseStructWithCustomDefault::TerseStructWithCustomDefault(apache::thrift::Fragi
     __fbthrift_field_list_field(std::move(list_field__arg)),
     __fbthrift_field_set_field(std::move(set_field__arg)),
     __fbthrift_field_map_field(std::move(map_field__arg)),
-    __fbthrift_field_struct_field(std::move(struct_field__arg)) {
+    __fbthrift_field_struct_field(std::move(struct_field__arg)) { 
 }
 
 
@@ -1319,7 +1319,7 @@ static_assert(
         ::facebook::thrift::test::terse_write::MyStructWithCustomDefault>,
     "inconsistent use of json option");
 
-}}}} // facebook::thrift::test::terse_write
+} // namespace facebook::thrift::test::terse_write
 
 namespace apache {
 namespace thrift {
@@ -1342,7 +1342,7 @@ void TccStructTraits<::facebook::thrift::test::terse_write::AdaptedFields>::tran
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test { namespace terse_write {
+namespace facebook::thrift::test::terse_write {
 
 const char* AdaptedFields::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/terse_write/AdaptedFields";
@@ -1392,7 +1392,7 @@ AdaptedFields& AdaptedFields::operator=([[maybe_unused]] AdaptedFields&& other) 
 AdaptedFields::AdaptedFields(apache::thrift::FragileConstructor, ::facebook::thrift::test::terse_write::MyInteger field1__arg, ::apache::thrift::adapt_detail::adapted_field_t<::my::Adapter, 2, ::std::int32_t, AdaptedFields> field2__arg, ::apache::thrift::adapt_detail::adapted_field_t<::my::Adapter, 3, ::facebook::thrift::test::terse_write::MyInteger, AdaptedFields> field3__arg) :
     __fbthrift_field_field1(std::move(field1__arg)),
     __fbthrift_field_field2(std::move(field2__arg)),
-    __fbthrift_field_field3(std::move(field3__arg)) {
+    __fbthrift_field_field3(std::move(field3__arg)) { 
   ::apache::thrift::adapt_detail::construct<::my::Adapter, 1>(__fbthrift_field_field1, *this);
   ::apache::thrift::adapt_detail::construct<::my::Adapter, 2>(__fbthrift_field_field2, *this);
   ::apache::thrift::adapt_detail::construct<::my::Adapter, 3>(__fbthrift_field_field3, *this);
@@ -1444,7 +1444,7 @@ template uint32_t AdaptedFields::serializedSize<>(apache::thrift::CompactProtoco
 template uint32_t AdaptedFields::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}}} // facebook::thrift::test::terse_write
+} // namespace facebook::thrift::test::terse_write
 
 namespace apache {
 namespace thrift {
@@ -1467,7 +1467,7 @@ void TccStructTraits<::facebook::thrift::test::terse_write::WrappedFields>::tran
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test { namespace terse_write {
+namespace facebook::thrift::test::terse_write {
 
 const char* WrappedFields::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/terse_write/WrappedFields";
@@ -1483,7 +1483,7 @@ std::string_view WrappedFields::__fbthrift_get_class_name() {
 
 
 WrappedFields::WrappedFields(apache::thrift::FragileConstructor, ::std::int32_t field1__arg) :
-    __fbthrift_field_field1(std::move(field1__arg)) {
+    __fbthrift_field_field1(std::move(field1__arg)) { 
 }
 
 
@@ -1524,7 +1524,7 @@ template uint32_t WrappedFields::serializedSize<>(apache::thrift::CompactProtoco
 template uint32_t WrappedFields::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}}} // facebook::thrift::test::terse_write
+} // namespace facebook::thrift::test::terse_write
 
 namespace apache {
 namespace thrift {
@@ -1547,7 +1547,7 @@ void TccStructTraits<::facebook::thrift::test::terse_write::TerseException>::tra
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test { namespace terse_write {
+namespace facebook::thrift::test::terse_write {
 
 const char* TerseException::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/terse_write/TerseException";
@@ -1584,7 +1584,7 @@ TerseException& TerseException::operator=([[maybe_unused]] TerseException&& othe
 
 
 TerseException::TerseException(apache::thrift::FragileConstructor, ::std::string msg__arg) :
-    __fbthrift_field_msg(std::move(msg__arg)) {
+    __fbthrift_field_msg(std::move(msg__arg)) { 
 }
 
 
@@ -1625,14 +1625,14 @@ template uint32_t TerseException::serializedSize<>(apache::thrift::CompactProtoc
 template uint32_t TerseException::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}}} // facebook::thrift::test::terse_write
+} // namespace facebook::thrift::test::terse_write
 
-namespace facebook { namespace thrift { namespace test { namespace terse_write { namespace {
+namespace facebook::thrift::test::terse_write { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
   ::apache::thrift::adapt_detail::validateFieldAdapter<::my::Adapter, 1, ::std::int32_t, ::facebook::thrift::test::terse_write::AdaptedFields>();
   ::apache::thrift::adapt_detail::validateFieldAdapter<::my::Adapter, 2, ::std::int32_t, ::facebook::thrift::test::terse_write::AdaptedFields>();
   ::apache::thrift::adapt_detail::validateFieldAdapter<::my::Adapter, 3, ::std::int32_t, ::facebook::thrift::test::terse_write::AdaptedFields>();
 }
-}}}}} // facebook::thrift::test::terse_write
+}} // namespace facebook::thrift::test::terse_write
 namespace apache::thrift::detail::annotation {
 }

@@ -15,7 +15,7 @@
 #include <fatal/type/traits.h>
 #include <fatal/type/list.h>
 
-namespace apache { namespace thrift { namespace fixtures { namespace types {
+namespace apache::thrift::fixtures::types {
 
 namespace __fbthrift_refl {
 namespace __fbthrift_refl_impl = ::apache::thrift::detail::reflection_impl;
@@ -198,7 +198,7 @@ class ContainerStruct_struct_traits {
   struct __fbthrift_member_fieldG {
     using owner = ::apache::thrift::fixtures::types::ContainerStruct;
     using name = __fbthrift_strings_module::__fbthrift_hash_4c4f1be7384da0ab8e9483a59b7018f4671e228da38fa30ee8eabe777bc24cda;
-    using type = ::apache::thrift::fixtures::types::map_i32_string_1261;
+    using type = folly::sorted_vector_map<::std::int32_t, ::std::string>;
     using tag = ::apache::thrift::ident::fieldG;
     static constexpr ::apache::thrift::field_id_t id = 7;
     static constexpr auto optional = ::apache::thrift::optionality::required_of_writer;
@@ -2028,4 +2028,4 @@ THRIFT_REGISTER_STRUCT_TRAITS(AllocatorAware, __fbthrift_refl::AllocatorAware_st
 THRIFT_REGISTER_STRUCT_TRAITS(AllocatorAware2, __fbthrift_refl::AllocatorAware2_struct_traits);
 THRIFT_REGISTER_STRUCT_TRAITS(TypedefStruct, __fbthrift_refl::TypedefStruct_struct_traits);
 THRIFT_REGISTER_STRUCT_TRAITS(StructWithDoubleUnderscores, __fbthrift_refl::StructWithDoubleUnderscores_struct_traits);
-}}}} // apache::thrift::fixtures::types
+} // namespace apache::thrift::fixtures::types

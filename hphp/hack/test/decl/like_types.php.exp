@@ -1,7 +1,7 @@
 [("\\expect_int",
   (Shallow_decl_defs.Fun
      { Typing_defs.fe_deprecated = None; fe_module = None;
-       fe_internal = false;
+       fe_package_override = None; fe_internal = false;
        fe_type =
        (Rwitness_from_decl ([5:10-20]),
         (Tfun
@@ -11,7 +11,8 @@
                 fp_type = (Rhint ([5:21-24]), (Tprim Tint));
                 fp_flags =
                 { Typing_defs_flags.FunParam.accept_disposable = false;
-                  inout = false; has_default = false; readonly = false };
+                  inout = false; has_default = false; readonly = false;
+                  ignore_readonly_error = false };
                 fp_def_value = None }
                ];
              ft_implicit_params = { capability = (CapDefaults [5:10-20]) };
@@ -30,7 +31,7 @@
   ("\\f",
    (Shallow_decl_defs.Fun
       { Typing_defs.fe_deprecated = None; fe_module = None;
-        fe_internal = false;
+        fe_package_override = None; fe_internal = false;
         fe_type =
         (Rwitness_from_decl ([7:10-11]),
          (Tfun
@@ -50,7 +51,8 @@
                  fp_type = (Rhint ([7:23-24]), (Tgeneric ("T", [])));
                  fp_flags =
                  { Typing_defs_flags.FunParam.accept_disposable = false;
-                   inout = false; has_default = false; readonly = false };
+                   inout = false; has_default = false; readonly = false;
+                   ignore_readonly_error = false };
                  fp_def_value = None }
                 ];
               ft_implicit_params = { capability = (CapDefaults [7:10-11]) };
@@ -104,7 +106,8 @@
                         ((Rhint ([14:21-28]), Tthis), [([14:27-28], "T")])));
                     fp_flags =
                     { Typing_defs_flags.FunParam.accept_disposable = false;
-                      inout = false; has_default = false; readonly = false };
+                      inout = false; has_default = false; readonly = false;
+                      ignore_readonly_error = false };
                     fp_def_value = None }
                    ];
                  ft_implicit_params =
@@ -125,5 +128,6 @@
              php_std_lib = false; support_dynamic_type = false };
            sm_attributes = []; sm_sort_text = None }
           ];
-        sc_user_attributes = []; sc_enum_type = None; sc_docs_url = None }))
+        sc_user_attributes = []; sc_enum_type = None; sc_docs_url = None;
+        sc_package_override = None }))
   ]

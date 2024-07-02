@@ -290,14 +290,14 @@ class ParallelConcurrencyControllerTest
 TEST_P(ParallelConcurrencyControllerTest, NormalCases) {
   Cpp2RequestContextStorage contextStorage; // Must be destroyed last.
 
-  folly::EventBase eb;
-  auto holder = getResourcePoolHolder(true /*useFifoRequestPile*/);
-
   folly::Baton baton1;
   folly::Baton baton2;
 
   auto blockingAP = makeAP(blockingTaskGen(baton1));
   auto endingAP = makeAP(endingTaskGen(baton2));
+
+  folly::EventBase eb;
+  auto holder = getResourcePoolHolder(true /*useFifoRequestPile*/);
 
   ResourcePoolMock pool(holder.pile.get(), holder.controller.get());
 
@@ -308,6 +308,10 @@ TEST_P(ParallelConcurrencyControllerTest, NormalCases) {
   baton1.post();
 
   baton2.wait();
+
+  // Sleep allows all the request to drain, removing flakiness.
+  // Exact cause of flakiness remains unknown
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
   EXPECT_EQ(holder.controller->requestCount(), 0);
 
   holder.join();
@@ -318,23 +322,22 @@ TEST_P(ParallelConcurrencyControllerTest, NormalCases) {
 TEST_P(ParallelConcurrencyControllerTest, LimitedTasks) {
   Cpp2RequestContextStorage contextStorage; // Must be destroyed last.
 
-  folly::EventBase eb;
-
-  auto holder = getResourcePoolHolder(true /*useFifoRequestPile*/);
-
-  holder.controller->setExecutionLimitRequests(2);
-
   folly::Baton baton1;
   folly::Baton baton2;
   folly::Baton baton3;
 
-  auto staringBlockingAP = makeAP(blockingTaskGen(baton1));
+  auto startingBlockingAP = makeAP(blockingTaskGen(baton1));
   auto blockingAP = makeAP(blockingTaskGen(baton2));
   auto endingAP = makeAP(endingTaskGen(baton3));
 
+  folly::EventBase eb;
+  auto holder = getResourcePoolHolder(true /*useFifoRequestPile*/);
+  holder.controller->setExecutionLimitRequests(2);
+
   ResourcePoolMock pool(holder.pile.get(), holder.controller.get());
 
-  pool.enqueue(getRequest(blockingAP.get(), contextStorage.makeContext(), &eb));
+  pool.enqueue(
+      getRequest(startingBlockingAP.get(), contextStorage.makeContext(), &eb));
   pool.enqueue(getRequest(blockingAP.get(), contextStorage.makeContext(), &eb));
   pool.enqueue(getRequest(endingAP.get(), contextStorage.makeContext(), &eb));
 
@@ -344,6 +347,10 @@ TEST_P(ParallelConcurrencyControllerTest, LimitedTasks) {
   baton2.post();
 
   baton3.wait();
+
+  // Sleep allows all the request to drain, removing flakiness.
+  // Exact cause of flakiness remains unknown
+  std::this_thread::sleep_for(std::chrono::milliseconds(100));
   EXPECT_EQ(holder.controller->requestCount(), 0);
 
   holder.join();
@@ -521,7 +528,7 @@ TEST_P(ParallelConcurrencyControllerTest, InternalPrioritization) {
   {
     ScopedServerInterfaceThread runner(handler, config);
 
-    auto& thriftServer = dynamic_cast<ThriftServer&>(runner.getThriftServer());
+    auto& thriftServer = runner.getThriftServer();
 
     auto ka = thriftServer.getHandlerExecutorKeepAlive();
 
@@ -550,7 +557,7 @@ TEST_P(ParallelConcurrencyControllerTest, InternalPrioritization) {
   }
 }
 
-TEST(ParallelConcurrencyControllerTest, FinishCallbackExecptionSafe) {
+TEST(ParallelConcurrencyControllerTest, FinishCallbackExceptionSafe) {
   THRIFT_FLAG_SET_MOCK(allow_resource_pools_for_wildcards, true);
 
   class DummyTestService : public apache::thrift::ServiceHandler<TestService> {
@@ -630,7 +637,7 @@ TEST(ParallelConcurrencyControllerTest, FinishCallbackExecptionSafe) {
 
   auto client = runner.newClient<apache::thrift::Client<TestService>>();
 
-  auto& thriftServer = dynamic_cast<ThriftServer&>(runner.getThriftServer());
+  auto& thriftServer = runner.getThriftServer();
   auto& rpSet = thriftServer.resourcePoolSet();
   auto& rp = rpSet.resourcePool(ResourcePoolHandle::defaultAsync());
   ConcurrencyControllerInterface& cc = *rp.concurrencyController();

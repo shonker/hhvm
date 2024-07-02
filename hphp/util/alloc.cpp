@@ -415,7 +415,7 @@ DefaultArena* next_extra_arena(int node) {
   if (node < 0) node = 0;
   auto const n = static_cast<unsigned>(node);
   auto counter = s_extra_arenas[n].second;
-  auto const next = counter->fetch_add(1, std::memory_order_relaxed);
+  auto const next = counter->fetch_add(1, std::memory_order_acq_rel);
   return s_extra_arenas[n].first[next % s_extra_arena_per_node];
 }
 
@@ -787,4 +787,12 @@ extern "C" {
     ",prof:true,prof_active:false,prof_thread_active_init:false"
 #endif
     ;
+
+#ifdef FOLLY_SANITIZE_ADDRESS
+  extern const char* const kAsanDefaultOptions =
+    "check_initialization_order=1:detect_invalid_pointer_pairs=1:detect_leaks=0:"
+    "detect_odr_violation=1:detect_stack_use_after_return=0:handle_segv=0:"
+    "print_scariness=1:print_suppressions=0:strict_init_order=1:"
+    "allow_user_segv_handler=1:alloc_dealloc_mismatch=0";
+#endif
 }

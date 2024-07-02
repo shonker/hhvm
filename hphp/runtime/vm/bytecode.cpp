@@ -32,6 +32,7 @@
 
 #include "hphp/util/configs/debugger.h"
 #include "hphp/util/configs/errorhandling.h"
+#include "hphp/util/configs/eval.h"
 #include "hphp/util/configs/jit.h"
 #include "hphp/util/portability.h"
 #include "hphp/util/ringbuffer.h"
@@ -652,7 +653,7 @@ static void toStringFrame(std::ostream& os, const ActRec* fp,
         os << " ";
       }
       if (checkIterScope(func, offset, i)) {
-        os << frame_iter(fp, i)->toString();
+        os << "I";
       } else {
         os << "I:Undefined";
       }
@@ -993,7 +994,7 @@ static inline Class* classnameToClass(TypedValue* input) {
   if (tvIsString(input)) {
     auto const name = input->m_data.pstr;
     if (Class* class_ = Class::resolve(name, vmfp()->func())) {
-      if (folly::Random::oneIn(RO::EvalDynamicallyReferencedNoticeSampleRate) &&
+      if (folly::Random::oneIn(Cfg::Eval::DynamicallyReferencedNoticeSampleRate) &&
           !class_->isDynamicallyReferenced()) {
         raise_notice(Strings::MISSING_DYNAMICALLY_REFERENCED, name->data());
       }
@@ -1877,6 +1878,12 @@ OPTBLD_INLINE void iopFatal(FatalOp kind_char) {
   }
 }
 
+OPTBLD_INLINE void iopStaticAnalysisError() {
+  always_assert(!RO::EvalCrashOnStaticAnalysisError);
+
+  jit::raiseStaticAnalysisError();
+}
+
 OPTBLD_INLINE void jmpSurpriseCheck(Offset offset) {
   if (offset <= 0 && UNLIKELY(checkSurpriseFlags())) {
     auto const flags = handle_request_surprise();
@@ -2271,7 +2278,7 @@ OPTBLD_INLINE void iopThrowNonExhaustiveSwitch() {
 }
 
 OPTBLD_INLINE void iopRaiseClassStringConversionNotice() {
-  if (folly::Random::oneIn(RO::EvalRaiseClassConversionNoticeSampleRate)) {
+  if (folly::Random::oneIn(Cfg::Eval::RaiseClassConversionNoticeSampleRate)) {
     raise_class_to_string_conversion_notice("bytecode");
   }
 }
@@ -3369,7 +3376,7 @@ OPTBLD_INLINE void iopSetS(ReadonlyOp op) {
   if (constant) {
     throw_cannot_modify_static_const_prop(cls->name()->data(), name->data());
   }
-  if (RuntimeOption::EvalCheckPropTypeHints > 0) {
+  if (Cfg::Eval::CheckPropTypeHints > 0) {
     auto const& sprop = cls->staticProperties()[slot];
     auto const& tc = sprop.typeConstraint;
     if (tc.isCheckable()) tc.verifyStaticProperty(tv1, cls, sprop.cls, name);
@@ -3491,7 +3498,7 @@ OPTBLD_INLINE void iopIncDecS(IncDecOp op) {
                                           ss.name->data());
   }
   auto const checkable_sprop = [&]() -> const Class::SProp* {
-    if (RuntimeOption::EvalCheckPropTypeHints <= 0) return nullptr;
+    if (Cfg::Eval::CheckPropTypeHints <= 0) return nullptr;
     auto const& sprop = ss.cls->staticProperties()[ss.slot];
     return sprop.typeConstraint.isCheckable() ? &sprop : nullptr;
   }();
@@ -4248,7 +4255,7 @@ iopFCallClsMethod(bool retToJit, PC origpc, PC& pc, FCallArgs fca,
   vmStack().ndiscard(2);
   assertx(cls && methName);
   auto const logAsDynamicCall = op == IsLogAsDynamicCallOp::LogAsDynamicCall ||
-    RuntimeOption::EvalLogKnownMethodsAsDynamicCalls;
+    Cfg::Eval::LogKnownMethodsAsDynamicCalls;
   return fcallClsMethodImpl<true>(
     retToJit, origpc, pc, fca, cls, methName, false, logAsDynamicCall);
 }
@@ -4264,7 +4271,7 @@ iopFCallClsMethodM(bool retToJit, PC origpc, PC& pc, FCallArgs fca,
   auto const methNameC = const_cast<StringData*>(methName);
   assertx(cls && methNameC);
   auto const logAsDynamicCall = op == IsLogAsDynamicCallOp::LogAsDynamicCall ||
-    RuntimeOption::EvalLogKnownMethodsAsDynamicCalls;
+    Cfg::Eval::LogKnownMethodsAsDynamicCalls;
   if (isString) {
     return fcallClsMethodImpl<true>(
       retToJit, origpc, pc, fca, cls, methNameC, false, logAsDynamicCall);
@@ -4393,58 +4400,59 @@ OPTBLD_INLINE void iopLockObj() {
   c1->m_data.pobj->lockObject();
 }
 
-namespace {
+OPTBLD_INLINE void iopIterBase() {
+  TypedValue* base = vmStack().topC();
+  if (LIKELY(isArrayLikeType(type(base)))) return;
+  tvMove(Iter::extractBase(*base, arGetContextClass(vmfp())), base);
+}
 
-void implIterInit(PC& pc, const IterArgs& ita, TypedValue* base,
-                  PC targetpc, IterTypeOp op) {
-  auto const local = base != nullptr;
 
-  if (!local) base = vmStack().topC();
-  auto val = frame_local(vmfp(), ita.valId);
+OPTBLD_INLINE void iopIterInit(PC& pc, const IterArgs& ita,
+                               TypedValue* base, PC targetpc) {
+  auto value = frame_local(vmfp(), ita.valId);
   auto key = ita.hasKey() ? frame_local(vmfp(), ita.keyId) : nullptr;
   auto it = frame_iter(vmfp(), ita.iterId);
 
   if (isArrayLikeType(type(base))) {
-    auto const arr = base->m_data.parr;
-    auto const res = key
-      ? new_iter_array_key_helper(op)(it, arr, val, key)
-      : new_iter_array_helper(op)(it, arr, val);
+    auto const baseConst = has_flag(ita.flags, IterArgs::Flags::BaseConst);
+    auto const arr = val(base).parr;
+    auto const res = ita.hasKey()
+      ? new_iter_array_key_helper(baseConst)(it, arr, value, key)
+      : new_iter_array_helper(baseConst)(it, arr, value);
     if (res == 0) pc = targetpc;
-    if (!local) vmStack().discard();
     return;
   }
 
-  // NOTE: It looks like we could call new_iter_object at this point. However,
-  // doing so is incorrect, since new_iter_array / new_iter_object only handle
-  // array-like and object bases, respectively. We may have some other kind of
-  // base which the generic Iter::init handles correctly.
-  //
-  // As a result, the simplest code we could have here is the generic case.
-  // It's also about as fast as it can get, because at this point, we're almost
-  // always going to create an object iter, which can't really be optimized.
-  //
-
-  if (it->init(base)) {
-    tvAsVariant(val) = it->val();
-    if (key) tvAsVariant(key) = it->key();
-  } else {
+  // The base is extracted and we already handled ArrayLike.
+  assertx(isObjectType(type(base)));
+  if (!new_iter_object(val(base).pobj, value, key)) {
     pc = targetpc;
   }
-  if (!local) vmStack().popC();
 }
 
-void implIterNext(PC& pc, const IterArgs& ita, TypedValue* base, PC targetpc) {
-  auto val = frame_local(vmfp(), ita.valId);
+OPTBLD_INLINE void iopIterNext(PC& pc, const IterArgs& ita,
+                               TypedValue* base, PC targetpc) {
+  auto value = frame_local(vmfp(), ita.valId);
   auto key = ita.hasKey() ? frame_local(vmfp(), ita.keyId) : nullptr;
   auto it = frame_iter(vmfp(), ita.iterId);
 
-  auto const more = [&]{
-    if (base != nullptr && isArrayLikeType(base->m_type)) {
-      auto const arr = base->m_data.parr;
-      return key ? liter_next_key_ind(it, val, key, arr)
-                 : liter_next_ind(it, val, arr);
+  auto const more = [&] {
+    if (isArrayLikeType(type(base))) {
+      auto const baseConst = has_flag(ita.flags, IterArgs::Flags::BaseConst);
+      auto const arr = val(base).parr;
+      return key
+        ? baseConst
+          ? iter_next_array_key<true>(it, arr, value, key)
+          : iter_next_array_key<false>(it, arr, value, key)
+        : baseConst
+          ? iter_next_array<true>(it, arr, value)
+          : iter_next_array<false>(it, arr, value);
     }
-    return key ? iter_next_key_ind(it, val, key) : iter_next_ind(it, val);
+    assertx(isObjectType(type(base)));
+    auto const obj = val(base).pobj;
+    return key
+      ? iter_next_object_key(obj, value, key)
+      : iter_next_object(obj, value);
   }();
 
   if (more) {
@@ -4454,36 +4462,8 @@ void implIterNext(PC& pc, const IterArgs& ita, TypedValue* base, PC targetpc) {
   }
 }
 
-}
-
-OPTBLD_INLINE void iopIterInit(PC& pc, const IterArgs& ita, PC targetpc) {
-  auto const op = IterTypeOp::NonLocal;
-  implIterInit(pc, ita, nullptr, targetpc, op);
-}
-
-OPTBLD_INLINE void iopLIterInit(PC& pc, const IterArgs& ita,
-                                TypedValue* base, PC targetpc) {
-  auto const op = ita.flags & IterArgs::Flags::BaseConst
-    ? IterTypeOp::LocalBaseConst
-    : IterTypeOp::LocalBaseMutable;
-  implIterInit(pc, ita, base, targetpc, op);
-}
-
-OPTBLD_INLINE void iopIterNext(PC& pc, const IterArgs& ita, PC targetpc) {
-  implIterNext(pc, ita, nullptr, targetpc);
-}
-
-OPTBLD_INLINE void iopLIterNext(PC& pc, const IterArgs& ita,
-                                TypedValue* base, PC targetpc) {
-  implIterNext(pc, ita, base, targetpc);
-}
-
 OPTBLD_INLINE void iopIterFree(Iter* it) {
-  it->free();
-}
-
-OPTBLD_INLINE void iopLIterFree(Iter* it, tv_lval) {
-  it->free();
+  it->kill();
 }
 
 OPTBLD_INLINE void inclOp(InclOpFlags flags, const char* opName) {
@@ -5206,76 +5186,13 @@ OPTBLD_INLINE void iopWHResult() {
 }
 
 OPTBLD_INLINE void iopSetImplicitContextByValue() {
-  auto const tv = *vmStack().topC();
-  auto const obj = [&]() -> ObjectData* {
-    if (tvIsNull(tv)) return nullptr;
-    if (UNLIKELY(!tvIsObject(tv))) {
-      SystemLib::throwInvalidArgumentExceptionObject(
-        "Invalid input to SetImplicitContextByValue");
-    }
-    return tv.m_data.pobj;
-  }();
-  auto const prev = *ImplicitContext::activeCtx;
-  *ImplicitContext::activeCtx = obj;
-  vmStack().discard();
-
-  if (!prev) {
-    vmStack().pushNull();
-  } else {
-    vmStack().pushObject(prev);
-  }
-
-  // Decref after discarding so that if we are pushing the same object back,
-  // avoid refcount going to zero
-  tvDecRefGen(tv);
+  assertx(*ImplicitContext::activeCtx);
+  std::swap((*vmStack().topC()).m_data.pobj, (*ImplicitContext::activeCtx));
 }
 
-OPTBLD_INLINE void iopVerifyImplicitContextState() {
-  auto const func = vmfp()->func();
-  assertx(!func->hasCoeffectRules());
-  assertx(func->isMemoizeWrapper() || func->isMemoizeWrapperLSB());
-
-  switch (func->memoizeICType()) {
-    case Func::MemoizeICType::NoIC:
-      if (vmfp()->providedCoeffectsForCall(false).canCall(
-          RuntimeCoeffects::leak_safe_shallow())) {
-        // We are in a memoized that can call [defaults] code or any escape
-        if (UNLIKELY(*ImplicitContext::activeCtx != nullptr)) {
-          raiseImplicitContextStateInvalidDispatch(func);
-        }
-      }
-      return;
-    case Func::MemoizeICType::SoftMakeICInaccessible:
-      if (*ImplicitContext::activeCtx) {
-        raiseImplicitContextStateInvalidDispatch(func);
-      }
-      return;
-    case Func::MemoizeICType::KeyedByIC:
-    case Func::MemoizeICType::MakeICInaccessible:
-      return;
-  }
-
-  not_reached();
-}
-
-OPTBLD_INLINE void iopCreateSpecialImplicitContext() {
-  auto const memoKey = vmStack().topC();
-  auto const type = vmStack().indC(1);
-  if (!tvIsInt(type)) {
-    raise_error("CreateSpecialImplicitContext requires an int type");
-  }
-  if (!tvIsString(memoKey) && !tvIsNull(memoKey)) {
-    raise_error("CreateSpecialImplicitContext requires a nullable string memo key");
-  }
-  auto const ret = create_special_implicit_context_explicit(
-    type->m_data.num,
-    tvIsString(memoKey) ? memoKey->m_data.pstr : nullptr,
-    vmfp()->func()
-  );
-  assertx(tvIsNull(ret) || tvIsObject(ret));
-  vmStack().popC();
-  vmStack().popC();
-  tvCopy(ret, vmStack().allocC());
+OPTBLD_INLINE void iopGetInaccessibleImplicitContext() {
+  assertx(*ImplicitContext::emptyCtx);
+  vmStack().pushObject(*ImplicitContext::emptyCtx);
 }
 
 OPTBLD_INLINE void iopCheckProp(const StringData* propName) {
@@ -5303,7 +5220,7 @@ OPTBLD_INLINE void iopInitProp(const StringData* propName, InitPropOp propOp) {
         auto const slot = ctx->lookupSProp(propName);
         assertx(slot != kInvalidSlot);
         auto ret = cls->getSPropData(slot);
-        if (RuntimeOption::EvalCheckPropTypeHints > 0) {
+        if (Cfg::Eval::CheckPropTypeHints > 0) {
           auto const& sprop = cls->staticProperties()[slot];
           auto const& tc = sprop.typeConstraint;
           if (tc.isCheckable()) {
@@ -5320,7 +5237,7 @@ OPTBLD_INLINE void iopInitProp(const StringData* propName, InitPropOp propOp) {
         auto const index = cls->propSlotToIndex(slot);
         assertx(slot != kInvalidSlot);
         auto ret = (*propVec)[index].val;
-        if (RuntimeOption::EvalCheckPropTypeHints > 0) {
+        if (Cfg::Eval::CheckPropTypeHints > 0) {
           auto const& prop = cls->declProperties()[slot];
           auto const& tc = prop.typeConstraint;
           if (tc.isCheckable()) tc.verifyProperty(fr, cls, prop.cls, prop.name);

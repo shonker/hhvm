@@ -264,9 +264,6 @@ static CallMap s_callMap {
     {RaiseCoeffectsFunParamCoeffectRulesViolation,
                           raiseCoeffectsFunParamCoeffectRulesViolation,
                           DNone, SSync, {{SSA, 0}}},
-    {RaiseImplicitContextStateInvalid,
-                          raiseImplicitContextStateInvalidDispatch,
-                          DNone, SSync, {extra(&FuncData::func)}},
     {ThrowInvalidOperation, throw_invalid_operation_exception,
                           DNone, SSync, {{SSA, 0}}},
     {ThrowCallReifiedFunctionWithoutGenerics,
@@ -373,8 +370,6 @@ static CallMap s_callMap {
                          getSPropOrRaise, DSSA, SSync,
                            {{extra(&ReadonlyData::op)}, {SSA, 0}, {SSA, 1}, {SSA, 2}, {SSA, 3}, {SSA, 4}}},
 
-    {ProfileProp,        &PropertyProfile::incCount, DNone, SNone,
-                           {{SSA, 0}, {SSA, 1}}},
 
     {IncCallCounter,     FuncOrder::incCount, DNone, SNone, {{extra(&FuncData::func)}, {SSA, 0}}},
 
@@ -495,6 +490,9 @@ static CallMap s_callMap {
                                         DSSA, SSync, {{SSA, 0}}},
     {RaiseErrorOnInvalidIsAsExpressionType,
       errorOnIsAsExpressionInvalidTypesHelper, DSSA, SSync, {{SSA, 0}}},
+
+    /* Iterators */
+    {IterExtractBase, Iter::extractBase, DTV, SSync, {{TV, 0}, {SSA, 1}}},
 };
 
 CallMap::CallMap(CallInfoList infos) {

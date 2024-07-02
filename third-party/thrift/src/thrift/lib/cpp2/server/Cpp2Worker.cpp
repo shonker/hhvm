@@ -44,7 +44,6 @@
 // DANGER: If you disable this overly broadly, this can completely break
 // workloads that rely on passing FDs over Unix sockets + Thrift.
 THRIFT_FLAG_DEFINE_bool(enable_server_async_fd_socket, /* default = */ true);
-THRIFT_FLAG_DEFINE_bool(fizz_server_enable_inplace_decryption, false);
 
 namespace apache {
 namespace thrift {
@@ -96,7 +95,7 @@ void Cpp2Worker::onNewConnection(
   } catch (...) {
     FB_LOG_EVERY_MS(WARNING, 1000)
         << "Cpp2Worker::onNewConnection(...) caught an unhandled exception: "
-        << folly::exceptionStr(std::current_exception());
+        << folly::exceptionStr(folly::current_exception());
   }
 }
 
@@ -151,15 +150,25 @@ void Cpp2Worker::onNewConnectionThatMayThrow(
         sock = folly::AsyncIoUringSocketFactory::create<
             folly::AsyncTransport::UniquePtr>(std::move(sock));
       }
+      // Need an AsyncSocketTransport so we can reset the bytes the
+      // TransportPeekingManager might peek at
+      folly::AsyncSocketTransport::UniquePtr plaintextSocket{
+          sock->getUnderlyingTransport<folly::AsyncSocketTransport>()};
+      DCHECK(plaintextSocket);
+      sock.release();
+
       new TransportPeekingManager(
-          shared_from_this(), *addr, tinfo, server_, std::move(sock));
+          shared_from_this(),
+          *addr,
+          tinfo,
+          server_,
+          std::move(plaintextSocket));
       break;
     }
     case wangle::SecureTransportType::TLS:
       if (auto fizz =
               sock->getUnderlyingTransport<fizz::server::AsyncFizzServer>()) {
-        fizz->setDecryptInplace(
-            THRIFT_FLAG(fizz_server_enable_inplace_decryption));
+        fizz->setDecryptInplace(true);
       }
       // Use the announced protocol to determine the correct handler
       if (!nextProtocolName.empty()) {
@@ -177,8 +186,10 @@ void Cpp2Worker::onNewConnectionThatMayThrow(
           }
         }
       }
-      new TransportPeekingManager(
-          shared_from_this(), *addr, tinfo, server_, std::move(sock));
+      VLOG(4) << "Failed to find a TransportRoutingHandler based on the ALPN "
+              << "value. Handling as Header transport with a possible upgrade "
+              << "to Rocket.";
+      handleHeader(std::move(sock), addr, tinfo);
       break;
     default:
       LOG(ERROR) << "Unsupported Secure Transport Type";
@@ -306,7 +317,7 @@ wangle::AcceptorHandshakeHelper::UniquePtr Cpp2Worker::createSSLHelper(
     const folly::SocketAddress& clientAddr,
     std::chrono::steady_clock::time_point acceptTime,
     wangle::TransportInfo& tInfo) {
-  if (accConfig_.fizzConfig.enableFizz) {
+  if (accConfig_->fizzConfig.enableFizz) {
     auto helper =
         fizzPeeker_.getThriftHelper(bytes, clientAddr, acceptTime, tInfo);
     if (!helper) {
@@ -341,7 +352,7 @@ bool Cpp2Worker::shouldPerformSSL(
 std::optional<ThriftParametersContext> Cpp2Worker::getThriftParametersContext(
     const folly::SocketAddress& clientAddr) {
   auto thriftConfigBase =
-      folly::get_ptr(accConfig_.customConfigMap, "thrift_tls_config");
+      folly::get_ptr(accConfig_->customConfigMap, "thrift_tls_config");
   if (!thriftConfigBase) {
     return std::nullopt;
   }
@@ -412,7 +423,7 @@ void Cpp2Worker::handleServerRequestRejection(
   }
   serverRequest.request()->sendErrorWrapped(
       folly::exception_wrapper(
-          folly::in_place, std::move(reject).applicationException()),
+          std::in_place, std::move(reject).applicationException()),
       errorCode);
 }
 
@@ -458,6 +469,7 @@ Cpp2Worker::PerServiceMetadata::getBaseContextForRequest(
 }
 
 void Cpp2Worker::dispatchRequest(
+    const AsyncProcessorFactory& processorFactory,
     AsyncProcessor* processor,
     ResponseChannelRequest::UniquePtr request,
     SerializedCompressedRequest&& serializedCompressedRequest,
@@ -465,7 +477,7 @@ void Cpp2Worker::dispatchRequest(
     protocol::PROTOCOL_TYPES protocolId,
     Cpp2RequestContext* cpp2ReqCtx,
     concurrency::ThreadManager* tm,
-    server::ServerConfigs* serverConfigs) {
+    ThriftServer* server) {
   auto eb = cpp2ReqCtx->getConnectionContext()
                 ->getWorkerContext()
                 ->getWorkerEventBase();
@@ -473,8 +485,7 @@ void Cpp2Worker::dispatchRequest(
     if (auto* found = std::get_if<PerServiceMetadata::MetadataFound>(
             &methodMetadataResult);
         LIKELY(found != nullptr)) {
-      if (serverConfigs->resourcePoolEnabled() &&
-          !serverConfigs->resourcePoolSet().empty()) {
+      if (server->resourcePoolEnabled() && !server->resourcePoolSet().empty()) {
         if (!found->metadata.isWildcard() && !found->metadata.rpcKind) {
           std::string_view methodName = cpp2ReqCtx->getMethodName();
           AsyncProcessorHelper::sendUnknownMethodError(
@@ -487,7 +498,7 @@ void Cpp2Worker::dispatchRequest(
           priority = found->metadata.priority.value_or(concurrency::NORMAL);
         }
         cpp2ReqCtx->setRequestExecutionScope(
-            serverConfigs->getRequestExecutionScope(cpp2ReqCtx, priority));
+            server->getRequestExecutionScope(cpp2ReqCtx, priority));
 
         ServerRequest serverRequest(
             std::move(request),
@@ -505,18 +516,19 @@ void Cpp2Worker::dispatchRequest(
           return;
         }
 
-        SelectPoolResult poolResult =
-            serverConfigs->resourcePoolSet().selectResourcePool(serverRequest);
+        // Check AsyncProcessorFactory for its opinion on which ResourcePool to
+        // use for the request
+        auto poolResult = processorFactory.selectResourcePool(serverRequest);
 
         ResourcePool* resourcePool;
 
         if (auto resourcePoolHandle =
                 std::get_if<std::reference_wrapper<const ResourcePoolHandle>>(
                     &poolResult)) {
-          DCHECK(serverConfigs->resourcePoolSet().hasResourcePool(
-              *resourcePoolHandle));
-          resourcePool = &serverConfigs->resourcePoolSet().resourcePool(
-              *resourcePoolHandle);
+          DCHECK(
+              server->resourcePoolSet().hasResourcePool(*resourcePoolHandle));
+          resourcePool =
+              &server->resourcePoolSet().resourcePool(*resourcePoolHandle);
         } else if (
             auto* reject = std::get_if<ServerRequestRejection>(&poolResult)) {
           handleServerRequestRejection(serverRequest, *reject);
@@ -545,16 +557,17 @@ void Cpp2Worker::dispatchRequest(
           auto resourcePoolHandle_2 =
               std::get_if<std::reference_wrapper<const ResourcePoolHandle>>(
                   &poolResult);
-          DCHECK(serverConfigs->resourcePoolSet().hasResourcePool(
-              *resourcePoolHandle_2));
-          resourcePool = &serverConfigs->resourcePoolSet().resourcePool(
-              *resourcePoolHandle_2);
+          DCHECK(
+              server->resourcePoolSet().hasResourcePool(*resourcePoolHandle_2));
+          resourcePool =
+              &server->resourcePoolSet().resourcePool(*resourcePoolHandle_2);
           // Allow the priority to override the default resource pool
           if (priority != concurrency::NORMAL &&
               resourcePoolHandle_2->get().index() ==
                   ResourcePoolHandle::kDefaultAsyncIndex) {
-            resourcePool = &serverConfigs->resourcePoolSet()
-                                .resourcePoolByPriority_deprecated(priority);
+            resourcePool =
+                &server->resourcePoolSet().resourcePoolByPriority_deprecated(
+                    priority);
           }
         }
 
@@ -581,7 +594,7 @@ void Cpp2Worker::dispatchRequest(
           // @lint-ignore CLANGTIDY bugprone-use-after-move
           serverRequest.request()->sendErrorWrapped(
               folly::exception_wrapper(
-                  folly::in_place,
+                  std::in_place,
                   std::move(std::move(result).value()).applicationException()),
               errorCode);
           return;
@@ -603,10 +616,9 @@ void Cpp2Worker::dispatchRequest(
         if (found->metadata.executorType ==
                 AsyncProcessor::MethodMetadata::ExecutorType::ANY &&
             tm) {
-          cpp2ReqCtx->setRequestExecutionScope(
-              serverConfigs->getRequestExecutionScope(
-                  cpp2ReqCtx,
-                  found->metadata.priority.value_or(concurrency::NORMAL)));
+          cpp2ReqCtx->setRequestExecutionScope(server->getRequestExecutionScope(
+              cpp2ReqCtx,
+              found->metadata.priority.value_or(concurrency::NORMAL)));
         }
         detail::ap::processViaExecuteRequest(
             processor,
@@ -636,7 +648,7 @@ void Cpp2Worker::dispatchRequest(
     }
   } catch (...) {
     LOG(DFATAL) << "AsyncProcessor::process exception: "
-                << folly::exceptionStr(std::current_exception());
+                << folly::exceptionStr(folly::current_exception());
   }
 }
 

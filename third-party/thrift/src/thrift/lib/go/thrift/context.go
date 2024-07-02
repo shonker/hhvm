@@ -31,16 +31,8 @@ const (
 
 // ConnInfo contains connection information from clients of the SimpleServer.
 type ConnInfo struct {
-	LocalAddr  net.Addr
 	RemoteAddr net.Addr
-
-	netConn  net.Conn             // set by thrift tcp servers
-	tlsState *tls.ConnectionState // set by thrift http servers
-}
-
-// String implements the fmt.Stringer interface.
-func (c ConnInfo) String() string {
-	return c.RemoteAddr.String() + " -> " + c.LocalAddr.String()
+	tlsState   tlsConnectionStater // set by thrift tcp servers
 }
 
 // tlsConnectionStater is an abstract interface for types that can return
@@ -56,14 +48,10 @@ type tlsConnectionStater interface {
 
 // TLS returns the TLS connection state.
 func (c ConnInfo) TLS() *tls.ConnectionState {
-	if c.tlsState != nil {
-		return c.tlsState
-	}
-	tlsConn, ok := c.netConn.(tlsConnectionStater)
-	if !ok {
+	if c.tlsState == nil {
 		return nil
 	}
-	cs := tlsConn.ConnectionState()
+	cs := c.tlsState.ConnectionState()
 	// See the caveat in tlsConnectionStater.
 	if cs.Version == 0 {
 		return nil
@@ -72,15 +60,14 @@ func (c ConnInfo) TLS() *tls.ConnectionState {
 }
 
 // WithConnInfo adds connection info (from a thrift.Transport) to context, if applicable
-func WithConnInfo(ctx context.Context, client Transport) context.Context {
-	s, ok := client.(*Socket)
-	if !ok {
-		return ctx
+func WithConnInfo(ctx context.Context, conn net.Conn) context.Context {
+	var tlsState tlsConnectionStater
+	if t, ok := conn.(tlsConnectionStater); ok {
+		tlsState = t
 	}
 	ctx = context.WithValue(ctx, connInfoKey, ConnInfo{
-		LocalAddr:  s.Conn().LocalAddr(),
-		RemoteAddr: s.Conn().RemoteAddr(),
-		netConn:    s.Conn(),
+		RemoteAddr: conn.RemoteAddr(),
+		tlsState:   tlsState,
 	})
 	return ctx
 }
@@ -89,19 +76,6 @@ func WithConnInfo(ctx context.Context, client Transport) context.Context {
 func ConnInfoFromContext(ctx context.Context) (ConnInfo, bool) {
 	v, ok := ctx.Value(connInfoKey).(ConnInfo)
 	return v, ok
-}
-
-// The context can be augmented with the underlying headerProtocol. Thrift
-// handlers can then query the context for the message headers. We store the
-// protocol object on the context instead of the headers directly to avoid
-// copying headers at each request and only lazy-copy them when the handler
-// asks for them.
-func headerProtocolFromContext(ctx context.Context) *headerProtocol {
-	v, ok := ctx.Value(protocolKey).(*headerProtocol)
-	if !ok {
-		return nil
-	}
-	return v
 }
 
 // WithProtocol attaches thrift protocol to a context
@@ -116,8 +90,8 @@ func WithProtocol(ctx context.Context, proto Protocol) context.Context {
 // This function returns nil when the underlying transport/protocol do not
 // support headers.
 func HeadersFromContext(ctx context.Context) map[string]string {
-	t := headerProtocolFromContext(ctx)
-	if t == nil {
+	t, ok := ctx.Value(protocolKey).(Protocol)
+	if !ok {
 		// A nil map behaves like an empty map for reading.
 		return nil
 	}

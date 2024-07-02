@@ -13,11 +13,11 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+#include <fizz/backend/openssl/certificate/CertUtils.h>
 #include <fizz/client/AsyncFizzClient.h>
 #include <fizz/client/SynchronizedLruPskCache.h>
 #include <fizz/crypto/test/TestUtil.h>
 #include <fizz/experimental/ktls/AsyncFizzBaseKTLS.h>
-#include <fizz/protocol/CertUtils.h>
 #include <fizz/protocol/Certificate.h>
 #include <fizz/protocol/test/Mocks.h>
 #include <fizz/server/AeadTicketCipher.h>
@@ -225,13 +225,11 @@ class OneshotRead : public folly::AsyncTransport::ReadCallback {
 static std::shared_ptr<fizz::server::FizzServerContext>
 makeTestServerContext() {
   auto certmanager = std::make_shared<fizz::server::CertManager>();
-  certmanager->addCert(
-      CertUtils::makeSelfCert(
-          fizz::test::kP256Certificate.str(), fizz::test::kP256Key.str()),
-      true);
+  certmanager->addCertAndSetDefault(openssl::CertUtils::makeSelfCert(
+      fizz::test::kP256Certificate.str(), fizz::test::kP256Key.str()));
 
   auto factory = std::make_shared<fizz::test::MockFactory>();
-  auto certManager = std::make_shared<CertManager>();
+  auto certManager = std::make_shared<server::CertManager>();
   auto ticketCipher = std::make_shared<
       Aead128GCMTicketCipher<TicketCodec<CertificateStorage::X509>>>(
       std::move(factory), std::move(certManager));
@@ -290,7 +288,7 @@ TEST(AsyncFizzBaseKTLSTest, TestFizzClientKTLSServer) {
         .thenValue([](auto&& res) {
           auto& [t, data] = res;
           ASSERT_TRUE(data.get());
-          auto value = data->moveToFbString().toStdString();
+          auto value = data->template to<std::string>();
           VLOG(1) << "ktls read: " << value;
           EXPECT_EQ(value, "hello from fizz");
         })
@@ -317,7 +315,7 @@ TEST(AsyncFizzBaseKTLSTest, TestFizzClientKTLSServer) {
       .thenValue([](auto&& res) {
         auto& [t, data] = res;
         ASSERT_TRUE(data.get());
-        auto value = data->moveToFbString().toStdString();
+        auto value = data->template to<std::string>();
         VLOG(1) << "client received: " << value;
         EXPECT_EQ(value, "hello from ktls");
 
@@ -355,7 +353,7 @@ TEST(AsyncFizzBaseKTLSTest, TestKTLSClientFizzServer) {
         .thenValue([](auto&& res) {
           auto& [t, data] = res;
           ASSERT_TRUE(data.get());
-          auto value = data->moveToFbString().toStdString();
+          auto value = data->template to<std::string>();
           VLOG(1) << "fizz server read: " << value;
           EXPECT_EQ(value, "hello from ktls");
         })
@@ -393,7 +391,7 @@ TEST(AsyncFizzBaseKTLSTest, TestKTLSClientFizzServer) {
         .thenValue([](auto&& res) {
           auto& [t, data] = res;
           ASSERT_TRUE(data.get());
-          auto value = data->moveToFbString().toStdString();
+          auto value = data->template to<std::string>();
           VLOG(1) << "client received: " << value;
           EXPECT_EQ(value, "hello from fizz");
           t->write(nullptr, "hello from ktls", sizeof("hello from ktls") - 1);

@@ -205,7 +205,7 @@ class DebuggingFrameHandler : public rocket::SetupFrameHandler {
  public:
   explicit DebuggingFrameHandler(ThriftServer& server)
       : origServer_(server),
-        reqRegistry_([] { return new RequestsRegistry(0, 0, 0); }) {
+        reqRegistry_([] { return RequestsRegistry(0, 0, 0); }) {
     auto tf =
         std::make_shared<PosixThreadFactory>(PosixThreadFactory::ATTACHED);
     tm_ = std::make_shared<SimpleThreadManager>(1);
@@ -235,11 +235,9 @@ class DebuggingFrameHandler : public rocket::SetupFrameHandler {
               executor,
               std::move(concurrencyController));
         }
-        return rocket::ProcessorInfo(
-            debug_, nullptr, origServer_, reqRegistry_.get());
+        return rocket::ProcessorInfo(debug_, nullptr, reqRegistry_.get());
       } else {
-        return rocket::ProcessorInfo(
-            debug_, tm_, origServer_, reqRegistry_.get());
+        return rocket::ProcessorInfo(debug_, tm_, reqRegistry_.get());
       }
     }
     return std::nullopt;
@@ -285,7 +283,7 @@ THRIFT_PLUGGABLE_FUNC_SET(
 
 } // namespace apache::thrift::detail
 
-class RequestInstrumentationTest : public testing::Test {
+class RequestInstrumentationTest : public ::testing::Test {
  protected:
   RequestInstrumentationTest() {}
 
@@ -302,7 +300,9 @@ class RequestInstrumentationTest : public testing::Test {
   }
 
   ThriftServer::ServerSnapshot waitForRequestsThenSnapshot(size_t reqNum) {
-    SCOPE_EXIT { handler()->stopRequests(); };
+    SCOPE_EXIT {
+      handler()->stopRequests();
+    };
     handler()->waitForRequests(reqNum);
     return getServerSnapshot();
   }
@@ -379,8 +379,7 @@ class RequestInstrumentationTest : public testing::Test {
     Impl(ScopedServerInterfaceThread::ServerConfigCb&& serverCfgCob = {})
         : handler_(std::make_shared<TestInterface>()),
           server_(handler_, "::1", 0, std::move(serverCfgCob)),
-          thriftServer_(
-              dynamic_cast<ThriftServer*>(&server_.getThriftServer())) {}
+          thriftServer_(&server_.getThriftServer()) {}
     std::shared_ptr<TestInterface> handler_;
     apache::thrift::ScopedServerInterfaceThread server_;
     ThriftServer* thriftServer_;
@@ -774,7 +773,7 @@ TEST_P(RecentRequestsTest, Exclude) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-    RecentRequestsTest, RecentRequestsTest, testing::Values(true, false));
+    RecentRequestsTest, RecentRequestsTest, ::testing::Values(true, false));
 
 class RequestInstrumentationTestWithFinishedDebugPayload
     : public RequestInstrumentationTest {
@@ -842,7 +841,7 @@ TEST_F(
   std::move(req3).get();
 }
 
-class ServerInstrumentationTest : public testing::Test {};
+class ServerInstrumentationTest : public ::testing::Test {};
 
 TEST_F(ServerInstrumentationTest, simpleServerTest) {
   EXPECT_EQ(
@@ -900,7 +899,7 @@ TEST(ThriftServerDeathTest, getSnapshotOnServerShutdown) {
           // We need at least 2 cpu threads for the test
           server.setNumCPUWorkerThreads(2);
           server.setThreadManagerType(
-              apache::thrift::BaseThriftServer::ThreadManagerType::SIMPLE);
+              apache::thrift::ThriftServer::ThreadManagerType::SIMPLE);
           server.setThreadFactory(std::make_shared<PosixThreadFactory>(
               PosixThreadFactory::ATTACHED));
           server.setWorkersJoinTimeout(1s);
@@ -911,9 +910,7 @@ TEST(ThriftServerDeathTest, getSnapshotOnServerShutdown) {
           return {
               folly::makeSemiFuture().deferValue([&](folly::Unit) {
                 auto snapshot =
-                    dynamic_cast<ThriftServer&>(runner.getThriftServer())
-                        .getServerSnapshot()
-                        .get();
+                    runner.getThriftServer().getServerSnapshot().get();
                 ASSERT_EQ(snapshot.requests.size(), 1);
                 // We exit here with a specific exit code to test that this
                 // code is reached
@@ -931,7 +928,7 @@ TEST(ThriftServerDeathTest, getSnapshotOnServerShutdown) {
         ASSERT_TRUE(started.try_wait_for(2s));
         // Server shuts down when we exit the scope.
       }),
-      testing::ExitedWithCode(kExitCode),
+      ::testing::ExitedWithCode(kExitCode),
       "");
 }
 
@@ -974,12 +971,13 @@ TEST_P(RequestInstrumentationTestP, FinishedRequests) {
 INSTANTIATE_TEST_CASE_P(
     FinishedRequestsSequence,
     RequestInstrumentationTestP,
-    testing::Combine(
-        testing::Values(0, 3, 20),
-        testing::Values(3, 10),
-        testing::Values(true, false)));
+    ::testing::Combine(
+        ::testing::Values(0, 3, 20),
+        ::testing::Values(3, 10),
+        ::testing::Values(true, false)));
 
-class RegistryTests : public testing::TestWithParam<std::tuple<size_t, bool>> {
+class RegistryTests
+    : public ::testing::TestWithParam<std::tuple<size_t, bool>> {
  protected:
   // test params
   int finishedMax_;
@@ -1079,8 +1077,8 @@ TEST_P(RegistryTests, Destruction) {
 INSTANTIATE_TEST_CASE_P(
     RegistryTestsSequence,
     RegistryTests,
-    testing::Combine(
-        testing::Values(0, 1, 2, 10), testing::Values(true, false)));
+    ::testing::Combine(
+        ::testing::Values(0, 1, 2, 10), ::testing::Values(true, false)));
 
 TEST(RegistryTests, RootId) {
   RequestsRegistry registry(0, 0, 0);
@@ -1149,7 +1147,7 @@ TEST_P(MaxRequestsTest, Bypass) {
 }
 
 INSTANTIATE_TEST_CASE_P(
-    MaxRequestsTestsSequence, MaxRequestsTest, testing::Values(true, false));
+    MaxRequestsTestsSequence, MaxRequestsTest, ::testing::Values(true, false));
 
 class TimestampsTest
     : public RequestInstrumentationTest,
@@ -1250,5 +1248,49 @@ TEST_P(TimestampsTest, QueueTimeout) {
 INSTANTIATE_TEST_CASE_P(
     TimestampsTestSequence,
     TimestampsTest,
-    testing::Combine(
-        testing::Values(true, false), testing::Values(true, false)));
+    ::testing::Combine(
+        ::testing::Values(true, false), ::testing::Values(true, false)));
+
+class ConnectionsObserverTest : public RequestInstrumentationTest,
+                                public ::testing::WithParamInterface<bool> {
+ protected:
+  struct Observer : public server::TServerObserver {
+    uint64_t acceptedConnId;
+    uint64_t closedConnId;
+
+    void connAccepted(
+        const wangle::TransportInfo& /* info */,
+        const TServerObserver::ConnectionInfo& param) override {
+      ASSERT_TRUE(param.getConnectionId() != 0);
+      acceptedConnId = param.getConnectionId();
+    }
+
+    void connClosed(const TServerObserver::ConnectionInfo& param) override {
+      ASSERT_TRUE(param.getConnectionId() != 0);
+      ASSERT_TRUE(acceptedConnId != 0);
+      ASSERT_TRUE(closedConnId == 0);
+      closedConnId = param.getConnectionId();
+    }
+  };
+  bool useRocket;
+  std::shared_ptr<Observer> observer = std::make_shared<Observer>();
+  void SetUp() override {
+    useRocket = GetParam();
+    impl_ = std::make_unique<Impl>([&](auto& ts) { ts.setObserver(observer); });
+  }
+};
+
+TEST_P(ConnectionsObserverTest, Basic) {
+  auto client = useRocket ? makeRocketClient() : makeHeaderClient();
+  client->sync_runCallback();
+  impl_.reset();
+  // Make sure both connAccepted and connClosed are invoked.
+  ASSERT_TRUE(observer->acceptedConnId != 0);
+  ASSERT_TRUE(observer->closedConnId != 0);
+  ASSERT_EQ(observer->acceptedConnId, observer->closedConnId);
+}
+
+INSTANTIATE_TEST_CASE_P(
+    ConnectionsObserverTestSequence,
+    ConnectionsObserverTest,
+    ::testing::Values(true, false));

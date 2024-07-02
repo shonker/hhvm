@@ -14,7 +14,6 @@
 #include <fizz/record/Types.h>
 #include <folly/Conv.h>
 #include <folly/String.h>
-#include <folly/ssl/Init.h>
 
 #include <folly/portability/GMock.h>
 #include <folly/portability/GTest.h>
@@ -61,15 +60,14 @@ TEST(SecondaryAuthManagerTest, AuthenticatorRequest) {
 }
 
 TEST(SecondaryAuthManagerTest, Authenticator) {
-  folly::ssl::init();
   // Instantiate a SecondaryAuthManager.
   auto cert = fizz::test::getCert(kP256Certificate);
   auto key = fizz::test::getPrivateKey(kP256Key);
   std::vector<folly::ssl::X509UniquePtr> certs;
   certs.push_back(std::move(cert));
   std::unique_ptr<fizz::SelfCert> certPtr =
-      std::make_unique<OpenSSLSelfCertImpl<KeyType::P256>>(std::move(key),
-                                                           std::move(certs));
+      std::make_unique<openssl::OpenSSLSelfCertImpl<openssl::KeyType::P256>>(
+          std::move(key), std::move(certs));
   EXPECT_NE(certPtr, nullptr);
   SecondaryAuthManager authManager(std::move(certPtr));
   // Genearte an authenticator request.

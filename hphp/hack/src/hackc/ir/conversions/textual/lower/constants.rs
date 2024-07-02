@@ -15,6 +15,7 @@ use ir::HasEdges;
 use ir::ImmId;
 use ir::Immediate;
 use ir::Instr;
+use ir::IrRepr;
 use ir::ValueId;
 use ir::ValueIdMap;
 use log::trace;
@@ -23,7 +24,7 @@ use log::trace;
 /// handling blocks) and remap their uses to the emitted values.
 pub(crate) fn write_constants(builder: &mut FuncBuilder) {
     // Rewrite some types of constants.
-    for c in builder.func.imms.iter_mut() {
+    for c in builder.func.repr.imms.iter_mut() {
         match c {
             Immediate::File => {
                 // Rewrite __FILE__ as a simple string since the real filename
@@ -36,7 +37,7 @@ pub(crate) fn write_constants(builder: &mut FuncBuilder) {
     }
 
     // Write the complex constants to the entry block.
-    insert_constants(builder, Func::ENTRY_BID);
+    insert_constants(builder, IrRepr::ENTRY_BID);
 }
 
 /// Follow the blocks successors around but stopping at an 'enter'. We stop at
@@ -51,7 +52,7 @@ fn follow_block_successors(func: &Func, bid: BlockId) -> Vec<BlockId> {
         result.push(bid);
 
         // Add unprocessed successors to pending.
-        let terminator = func.terminator(bid);
+        let terminator = func.repr.terminator(bid);
         match terminator {
             Terminator::Enter(..) => {
                 // We don't want to trace through Enter.
@@ -66,7 +67,7 @@ fn follow_block_successors(func: &Func, bid: BlockId) -> Vec<BlockId> {
         }
 
         // And catch handlers
-        let handler = func.catch_target(bid);
+        let handler = func.repr.catch_target(bid);
         if handler != BlockId::NONE && !processed.contains(&handler) {
             pending.push(handler);
         }
@@ -79,11 +80,11 @@ fn follow_block_successors(func: &Func, bid: BlockId) -> Vec<BlockId> {
 fn compute_live_constants(func: &Func, bids: &Vec<BlockId>) -> ImmIdSet {
     let mut visible = ImmIdSet::default();
     for &bid in bids {
-        let block = func.block(bid);
+        let block = func.repr.block(bid);
         visible.extend(
             block
                 .iids()
-                .map(|iid| func.instr(iid))
+                .map(|iid| func.repr.instr(iid))
                 .flat_map(|instr| instr.operands().iter().filter_map(|op| op.imm())),
         );
     }
@@ -93,7 +94,7 @@ fn compute_live_constants(func: &Func, bids: &Vec<BlockId>) -> ImmIdSet {
 
 fn remap_constants(func: &mut Func, bids: &Vec<BlockId>, remap: ValueIdMap<ValueId>) {
     for &bid in bids {
-        func.remap_block_vids(bid, &remap);
+        func.repr.remap_block_vids(bid, &remap);
     }
 }
 
@@ -121,16 +122,16 @@ fn insert_constants(builder: &mut FuncBuilder, start_bid: BlockId) {
         }
     }
 
-    let mut old_iids = std::mem::take(&mut builder.func.block_mut(start_bid).iids);
+    let mut old_iids = std::mem::take(&mut builder.func.repr.block_mut(start_bid).iids);
     builder.cur_block_mut().iids.append(&mut old_iids);
 
-    builder.func.blocks.swap(start_bid, new_bid);
+    builder.func.repr.blocks.swap(start_bid, new_bid);
 
     remap_constants(&mut builder.func, &bids, remap);
 
     for (vid, src) in fixups {
         let iid = vid.instr().unwrap();
-        builder.func.instrs[iid] = Instr::Special(instr::Special::Copy(src));
+        builder.func.repr.instrs[iid] = Instr::Special(instr::Special::Copy(src));
     }
 }
 
@@ -141,7 +142,7 @@ fn sort_and_filter_constants(func: &Func, constants: ImmIdSet) -> Vec<ImmId> {
     let mut result = Vec::with_capacity(constants.len());
     let mut arrays = Vec::with_capacity(constants.len());
     for cid in constants {
-        let imm = func.imm(cid);
+        let imm = func.repr.imm(cid);
         match imm {
             Immediate::Bool(..)
             | Immediate::Dir
@@ -156,7 +157,7 @@ fn sort_and_filter_constants(func: &Func, constants: ImmIdSet) -> Vec<ImmId> {
             | Immediate::Null
             | Immediate::Uninit => {}
 
-            Immediate::Array(_) => {
+            Immediate::Vec(_) | Immediate::Dict(_) | Immediate::Keyset(_) => {
                 arrays.push(cid);
             }
             Immediate::Named(..) => {
@@ -178,7 +179,7 @@ fn sort_and_filter_constants(func: &Func, constants: ImmIdSet) -> Vec<ImmId> {
 }
 
 fn write_constant(builder: &mut FuncBuilder, cid: ImmId) -> (ValueId, bool) {
-    let imm = builder.func.imm(cid);
+    let imm = builder.func.repr.imm(cid);
     trace!("    Immediate {cid}: {imm:?}");
     match imm {
         Immediate::Bool(..)
@@ -194,9 +195,11 @@ fn write_constant(builder: &mut FuncBuilder, cid: ImmId) -> (ValueId, bool) {
         | Immediate::Uninit => unreachable!(),
 
         // Insert a tombstone which will be turned into a 'copy' later.
-        Immediate::Array(_) | Immediate::String(_) | Immediate::EnumClassLabel(_) => {
-            (builder.emit(Instr::tombstone()), true)
-        }
+        Immediate::Vec(_)
+        | Immediate::Dict(_)
+        | Immediate::Keyset(_)
+        | Immediate::String(_)
+        | Immediate::EnumClassLabel(_) => (builder.emit(Instr::tombstone()), true),
 
         Immediate::Named(name) => {
             let id = ir::GlobalId::new(name.as_string_id());

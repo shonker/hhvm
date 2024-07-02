@@ -536,6 +536,17 @@ struct Const {
   Invariance invariance : 2;
   bool isAbstract   : 1;
   bool isFromTrait  : 1;
+  /*
+   * Whether resolvedTypeStructure incorporates context sensitive
+   * types. If true, the resolvedTypeStructure cannot be safely used
+   * by classes other than the one which defined it.
+   */
+  bool contextInsensitive : 1;
+  /*
+   * Whether resolvedTypeStructure was determined in the current
+   * worker.
+   */
+  bool resolvedLocally : 1 = false;
 
   template <typename SerDe> void serde(SerDe&);
 };
@@ -554,6 +565,11 @@ struct ClassBase {
    * Methods on the class. If there's an 86cinit, it must be last.
    */
   CompactVector<std::unique_ptr<php::Func>> methods;
+
+  /*
+   * Closures declared by this class.
+   */
+  CompactVector<std::unique_ptr<php::Class>> closures;
 };
 
 /*
@@ -603,7 +619,7 @@ struct Class : ClassBase {
    * If this class represents a closure defined in a top level
    * function (not a method), this points to the name of that
    * function. Nullptr otherwise. (For closures defined within
-  * classes, use closureContextCls).
+   * classes, use closureContextCls).
    */
   LSString closureDeclFunc;
 
@@ -636,7 +652,7 @@ struct Class : ClassBase {
   /*
    * Constants defined on this class.
    */
-  CompactVector<Const> constants;
+  std::deque<Const> constants;
 
   /*
    * User attributes for this class declaration.
@@ -671,6 +687,10 @@ struct ClassBytecode {
   ClassBytecode() = default;
   explicit ClassBytecode(SString cls) : cls{cls} {}
   SString cls;
+  // This stores both the class' bytecode and the bytecode for any
+  // closures declared in the class. The bytecode for the methods is
+  // provided first, and the remaining bytecode is for each closure's
+  // __invoke method (in closure vec order).
   CompactVector<FuncBytecode> methodBCs;
   template <typename SerDe> void serde(SerDe&);
 };
@@ -701,8 +721,13 @@ struct TypeAlias {
   TypeConstraint value;
   AliasKind kind;
   UserAttributeMap userAttrs;
-  Array typeStructure{ArrayData::CreateDict()};
-  Array resolvedTypeStructure;
+  SArray typeStructure{nullptr};
+  SArray resolvedTypeStructure{nullptr};
+  /*
+   * Whether resolvedTypeStructure was determined in the current
+   * worker.
+   */
+  bool resolvedLocally{false};
 
   template <typename SerDe> void serde(SerDe&);
 };
@@ -768,7 +793,7 @@ std::string local_string(const Func&, LocalId);
 //////////////////////////////////////////////////////////////////////
 
 bool check(const Func&);
-bool check(const Class&);
+bool check(const Class&, bool checkMeths = true);
 bool check(const Unit&, const Index&);
 bool check(const Program&);
 
@@ -778,15 +803,54 @@ bool check(const Program&);
 
 //////////////////////////////////////////////////////////////////////
 
-using FuncOrCls = Either<const php::Func*, const php::Class*>;
+struct FuncClsUnit {
+  FuncClsUnit() : tagged{Tag::Func, nullptr} {}
+  /* implicit */ FuncClsUnit(const php::Func* f) : tagged{Tag::Func, f} {}
+  /* implicit */ FuncClsUnit(const php::Class* c) : tagged{Tag::Class, c} {}
+  /* implicit */ FuncClsUnit(const php::Unit* u) : tagged{Tag::Unit, u} {}
+  /* implicit */ FuncClsUnit(std::nullptr_t) : tagged{Tag::Func, nullptr} {}
 
-struct FuncOrClsHasher {
-  size_t operator()(FuncOrCls f) const { return f.toOpaque(); }
+  operator bool() const { return (bool)tagged.ptr(); }
+
+  const php::Func* func() const {
+    return tagged.tag() == Tag::Func
+      ? (const php::Func*)tagged.ptr()
+      : nullptr;
+  }
+  const php::Class* cls() const {
+    return tagged.tag() == Tag::Class
+      ? (const php::Class*)tagged.ptr()
+      : nullptr;
+  }
+  const php::Unit* unit() const {
+    return tagged.tag() == Tag::Unit
+      ? (const php::Unit*)tagged.ptr()
+      : nullptr;
+  }
+
+  size_t hash() const { return pointer_hash<const void>{}(tagged.ptr()); }
+
+  bool operator==(FuncClsUnit o) const {
+    // The same pointer will never have different tags, so this is
+    // sufficient.
+    return tagged.ptr() == o.tagged.ptr();
+  }
+  bool operator!=(FuncClsUnit o) const { return !(*this == o); }
+
+private:
+  enum class Tag : uint8_t {
+    Func,
+    Class,
+    Unit
+  };
+  CompactTaggedPtr<const void, Tag> tagged;
 };
 
-std::string show(FuncOrCls);
+struct FuncClsUnitHasher {
+  size_t operator()(FuncClsUnit f) const { return f.hash(); }
+};
 
-//////////////////////////////////////////////////////////////////////
+std::string show(FuncClsUnit);
 
 }
 

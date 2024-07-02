@@ -324,6 +324,30 @@ TEST_P(HQUpstreamSessionTest, PriorityUpdateIntoTransport) {
   hqSession_->closeWhenIdle();
 }
 
+TEST_P(HQUpstreamSessionTest, DisableEgressPrioritization) {
+  hqSession_->setEnableEgressPrioritization(false);
+  auto handler = openTransaction();
+  auto req = getGetRequest();
+  req.getHeaders().add(HTTP_HEADER_PRIORITY, "u=3, i");
+  handler->txn_->sendHeadersWithEOM(req);
+
+  handler->expectHeaders();
+  handler->expectBody(
+      [&]() { handler->txn_->updateAndSendPriority(HTTPPriority(5, true)); });
+  handler->expectEOM();
+  handler->expectDetachTransaction();
+  auto resp = makeResponse(200, 100);
+  std::get<0>(resp)->getHeaders().add(HTTP_HEADER_PRIORITY, "u=5");
+  sendResponse(handler->txn_->getID(),
+               *std::get<0>(resp),
+               std::move(std::get<1>(resp)),
+               true);
+
+  EXPECT_CALL(*socketDriver_->getSocket(), setStreamPriority(_, _)).Times(0);
+  flushAndLoop();
+  hqSession_->closeWhenIdle();
+}
+
 TEST_P(HQUpstreamSessionTest, TestSupportsMoreTransactions) {
   auto infoCb = std::make_unique<
       testing::NiceMock<proxygen::MockHTTPSessionInfoCallback>>();
@@ -1248,14 +1272,17 @@ TEST_P(HQUpstreamSessionTest, Observer_RequestStarted) {
           .build());
   hqSession_->addObserver(observerSubscribed.get());
 
+  HTTPTransactionObserverAccessor* actualTxnObserverAccessor;
   // expect to see a request started with header 'x-meta-test-header' having
   // value 'abc123'
   EXPECT_CALL(*observerSubscribed, requestStarted(_, _))
-      .WillOnce(Invoke(
-          [](HTTPSessionObserverAccessor*,
-             const proxygen::MockSessionObserver::RequestStartedEvent& event) {
-            auto hdrs = event.requestHeaders;
-            EXPECT_EQ(hdrs.getSingleOrEmpty("x-meta-test-header"), "abc123");
+      .WillOnce(
+          Invoke([&](HTTPSessionObserverAccessor*,
+                     const MockSessionObserver::RequestStartedEvent& event) {
+            EXPECT_EQ(event.request.getHeaders().getSingleOrEmpty(
+                          "x-meta-test-header"),
+                      "abc123");
+            actualTxnObserverAccessor = event.txnObserverAccessor;
           }));
 
   auto handler = openTransaction();
@@ -1273,6 +1300,7 @@ TEST_P(HQUpstreamSessionTest, Observer_RequestStarted) {
                std::move(std::get<1>(resp)),
                true);
   flushAndLoop();
+  EXPECT_EQ(actualTxnObserverAccessor, handler->txn_->getObserverAccessor());
   hqSession_->closeWhenIdle();
 }
 
@@ -2345,6 +2373,20 @@ TEST_P(HQUpstreamSessionTestWebTransport, PairOfUnisReset) {
 
   eventBase_.loopOnce();
 
+  closeWTSession();
+}
+
+TEST_P(HQUpstreamSessionTestWebTransport, Datagrams) {
+  InSequence enforceOrder;
+  EXPECT_TRUE(wt_->sendDatagram(makeBuf(10)));
+  EXPECT_EQ(socketDriver_->outDatagrams_.size(), 1);
+  EXPECT_EQ(socketDriver_->outDatagrams_[0].chainLength(), 11);
+  socketDriver_->addDatagram(getH3Datagram(0, makeBuf(10), folly::none));
+  socketDriver_->addDatagramsAvailableReadEvent();
+  EXPECT_CALL(*handler_, _onDatagram(testing::_)).WillOnce(Invoke([](auto dg) {
+    EXPECT_EQ(dg->computeChainDataLength(), 10);
+  }));
+  eventBase_.loopOnce();
   closeWTSession();
 }
 

@@ -65,7 +65,7 @@ class mstch_go_program : public mstch_program {
       mstch_element_position pos,
       go::codegen_data* data)
       : mstch_program(p, ctx, pos), data_(*data) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"program:go_pkg_name", &mstch_go_program::go_pkg_name},
@@ -75,8 +75,6 @@ class mstch_go_program : public mstch_program {
             {"program:docs?", &mstch_go_program::go_has_docs},
             {"program:docs", &mstch_go_program::go_doc_comment},
             {"program:compat?", &mstch_go_program::go_gen_compat},
-            {"program:compat_getters?",
-             &mstch_go_program::go_gen_compat_getters},
             {"program:compat_setters?",
              &mstch_go_program::go_gen_compat_setters},
             {"program:thrift_imports", &mstch_go_program::thrift_imports},
@@ -87,7 +85,6 @@ class mstch_go_program : public mstch_program {
              &mstch_go_program::thrift_metadata_import},
             {"program:go_package_alias", &mstch_go_program::go_package_alias},
             {"program:gen_metadata?", &mstch_go_program::should_gen_metadata},
-            {"program:gen_builders?", &mstch_go_program::should_gen_builders},
             {"program:import_metadata_package?",
              &mstch_go_program::should_import_metadata_package},
             {"program:metadata_qualifier",
@@ -109,7 +106,6 @@ class mstch_go_program : public mstch_program {
   mstch::node go_has_docs() { return program_->has_doc(); }
   mstch::node go_doc_comment() { return doc_comment(program_); }
   mstch::node go_gen_compat() { return data_.compat; }
-  mstch::node go_gen_compat_getters() { return data_.compat_getters; }
   mstch::node go_gen_compat_setters() { return data_.compat_setters; }
   mstch::node thrift_imports() {
     mstch::array a;
@@ -128,7 +124,6 @@ class mstch_go_program : public mstch_program {
     return data_.get_go_package_alias(program_);
   }
   mstch::node should_gen_metadata() { return data_.gen_metadata; }
-  mstch::node should_gen_builders() { return data_.gen_builders; }
   mstch::node should_import_metadata_package() {
     // We don't need to import the metadata package if we are
     // generating metadata inside the metadata package itself. Duh.
@@ -167,7 +162,7 @@ class mstch_go_enum : public mstch_enum {
       mstch_element_position pos,
       go::codegen_data* data)
       : mstch_enum(e, ctx, pos), data_(*data) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"enum:go_name", &mstch_go_enum::go_name},
@@ -197,7 +192,6 @@ class mstch_go_enum_value : public mstch_enum_value {
       go::codegen_data* data)
       : mstch_enum_value(v, ctx, pos), data_(*data) {
     (void)data_;
-    register_methods(this, {});
   }
 
  private:
@@ -216,7 +210,7 @@ class mstch_go_const : public mstch_const {
       go::codegen_data* data)
       : mstch_const(c, ctx, pos, current_const, expected_type, field),
         data_(*data) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"constant:go_name", &mstch_go_const::go_name},
@@ -259,7 +253,7 @@ class mstch_go_const_value : public mstch_const_value {
       : mstch_const_value(cv, ctx, pos, current_const, expected_type),
         data_(*data) {
     (void)data_;
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"value:go_quoted_value", &mstch_go_const_value::go_quoted_value},
@@ -285,7 +279,7 @@ class mstch_go_field : public mstch_field {
       go::codegen_data* data)
       : mstch_field(f, ctx, pos, field_context), data_(*data) {
     (void)data_;
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"field:go_name", &mstch_go_field::go_name},
@@ -450,7 +444,7 @@ class mstch_go_struct : public mstch_struct {
       mstch_element_position pos,
       go::codegen_data* data)
       : mstch_struct(s, ctx, pos), data_(*data) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"struct:go_name", &mstch_go_struct::go_name},
@@ -543,7 +537,7 @@ class mstch_go_service : public mstch_service {
       mstch_element_position pos,
       go::codegen_data* data)
       : mstch_service(s, ctx, pos), data_(*data) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"service:go_name", &mstch_go_service::go_name},
@@ -591,7 +585,7 @@ class mstch_go_function : public mstch_function {
       go::codegen_data* data)
       : mstch_function(f, ctx, pos, iface), data_(*data) {
     (void)data_;
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"function:go_name", &mstch_go_function::go_name},
@@ -680,7 +674,7 @@ class mstch_go_type : public mstch_type {
       go::codegen_data* data)
       : mstch_type(t, ctx, pos), data_(*data) {
     (void)data_;
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"type:go_comparable?", &mstch_go_type::is_go_comparable},
@@ -720,7 +714,7 @@ class mstch_go_typedef : public mstch_typedef {
       mstch_element_position pos,
       go::codegen_data* data)
       : mstch_typedef(t, ctx, pos), data_(*data) {
-    register_methods(
+    register_cached_methods(
         this,
         {
             {"typedef:go_name", &mstch_go_typedef::go_name},
@@ -803,9 +797,6 @@ void t_mstch_go_generator::generate_program() {
   }
   if (auto gen_metadata = get_option("gen_metadata")) {
     data_.gen_metadata = (gen_metadata.value() == "true");
-  }
-  if (auto gen_builders = get_option("gen_builders")) {
-    data_.gen_builders = (gen_builders.value() == "true");
   }
 
   const auto& prog = cached_program(program);

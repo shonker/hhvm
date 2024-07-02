@@ -543,7 +543,7 @@ struct SparseHeap {
    * instead of handling them to slab manager.
    */
   static void PrepareToStop(bool val = true) {
-    s_shutdown.exchange(val, std::memory_order_release);
+    s_shutdown.store(val, std::memory_order_release);
   }
 
  protected:
@@ -783,7 +783,7 @@ struct MemoryManager {
    * to track it are performed with relaxed ordering constraints.
    */
   static ssize_t getAllMMUsage() {
-    return s_req_heap_usage.load(std::memory_order_relaxed);
+    return s_req_heap_usage.load(std::memory_order_acquire);
   }
 
   /*

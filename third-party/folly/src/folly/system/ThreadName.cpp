@@ -43,12 +43,8 @@
 // This looks a bit weird, but it's necessary to avoid
 // having an undefined compiler function called.
 #if defined(__GLIBC__) && !defined(__APPLE__) && !defined(__ANDROID__)
-#if __GLIBC_PREREQ(2, 12)
 // has pthread_setname_np(pthread_t, const char*) (2 params)
 #define FOLLY_HAS_PTHREAD_SETNAME_NP_THREAD_NAME 1
-#else
-#define FOLLY_HAS_PTHREAD_SETNAME_NP_THREAD_NAME 0
-#endif
 // pthread_setname_np was introduced in Android NDK version 9
 #elif defined(__ANDROID__) && __ANDROID_API__ >= 9
 #define FOLLY_HAS_PTHREAD_SETNAME_NP_THREAD_NAME 1
@@ -57,17 +53,7 @@
 #endif
 
 #if defined(__APPLE__)
-#if defined(__MAC_OS_X_VERSION_MIN_REQUIRED) && \
-    __MAC_OS_X_VERSION_MIN_REQUIRED >= 1060
-// macOS 10.6+ has pthread_setname_np(const char*) (1 param)
 #define FOLLY_HAS_PTHREAD_SETNAME_NP_NAME 1
-#elif defined(__IPHONE_OS_VERSION_MIN_REQUIRED) && \
-    __IPHONE_OS_VERSION_MIN_REQUIRED >= 30200
-// iOS 3.2+ has pthread_setname_np(const char*) (1 param)
-#define FOLLY_HAS_PTHREAD_SETNAME_NP_NAME 1
-#else
-#define FOLLY_HAS_PTHREAD_SETNAME_NP_NAME 0
-#endif
 #else
 #define FOLLY_HAS_PTHREAD_SETNAME_NP_NAME 0
 #endif // defined(__APPLE__)

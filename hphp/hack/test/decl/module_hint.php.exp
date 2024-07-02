@@ -37,7 +37,8 @@ File root|module_hint.php--here.php
                    fp_type = (Rhint ([7:23-28]), Tmixed);
                    fp_flags =
                    { Typing_defs_flags.FunParam.accept_disposable = false;
-                     inout = false; has_default = false; readonly = false };
+                     inout = false; has_default = false; readonly = false;
+                     ignore_readonly_error = false };
                    fp_def_value = None }
                   ];
                 ft_implicit_params = { capability = (CapDefaults [7:19-22]) };
@@ -57,7 +58,8 @@ File root|module_hint.php--here.php
             php_std_lib = false; support_dynamic_type = false };
           sm_attributes = []; sm_sort_text = None }
          ];
-       sc_user_attributes = []; sc_enum_type = None; sc_docs_url = None }))
+       sc_user_attributes = []; sc_enum_type = None; sc_docs_url = None;
+       sc_package_override = None }))
   ]
 
 File root|module_hint.php--there.php
@@ -74,7 +76,7 @@ File root|module_hint.php--there.php
        sc_support_dynamic_type = false; sc_consts = []; sc_typeconsts = [];
        sc_props = []; sc_sprops = []; sc_constructor = None;
        sc_static_methods = []; sc_methods = []; sc_user_attributes = [];
-       sc_enum_type = None; sc_docs_url = None }));
+       sc_enum_type = None; sc_docs_url = None; sc_package_override = None }));
   ("\\G",
    (Shallow_decl_defs.Class
       { Shallow_decl_defs.sc_mode = Mstrict; sc_final = false;
@@ -93,7 +95,7 @@ File root|module_hint.php--there.php
         sc_support_dynamic_type = false; sc_consts = []; sc_typeconsts = [];
         sc_props = []; sc_sprops = []; sc_constructor = None;
         sc_static_methods = []; sc_methods = []; sc_user_attributes = [];
-        sc_enum_type = None; sc_docs_url = None }));
+        sc_enum_type = None; sc_docs_url = None; sc_package_override = None }));
   ("\\E",
    (Shallow_decl_defs.Class
       { Shallow_decl_defs.sc_mode = Mstrict; sc_final = false;
@@ -122,14 +124,14 @@ File root|module_hint.php--there.php
         sc_enum_type =
         (Some { Typing_defs.te_base = (Rhint ([9:19-22]), (Tprim Tint));
                 te_constraint = None; te_includes = [] });
-        sc_docs_url = None }))
+        sc_docs_url = None; sc_package_override = None }))
   ]
 
 File root|module_hint.php--everywhere.php
 [("\\genfun",
   (Shallow_decl_defs.Fun
      { Typing_defs.fe_deprecated = None; fe_module = None;
-       fe_internal = false;
+       fe_package_override = None; fe_internal = false;
        fe_type =
        (Rwitness_from_decl ([3:10-16]),
         (Tfun
@@ -147,7 +149,8 @@ File root|module_hint.php--everywhere.php
                  (Toption (Rhint ([3:21-22]), (Tgeneric ("T", [])))));
                 fp_flags =
                 { Typing_defs_flags.FunParam.accept_disposable = false;
-                  inout = false; has_default = false; readonly = false };
+                  inout = false; has_default = false; readonly = false;
+                  ignore_readonly_error = false };
                 fp_def_value = None }
                ];
              ft_implicit_params = { capability = (CapDefaults [3:10-16]) };
@@ -183,5 +186,5 @@ File root|module_hint.php--everywhere.php
         sc_support_dynamic_type = false; sc_consts = []; sc_typeconsts = [];
         sc_props = []; sc_sprops = []; sc_constructor = None;
         sc_static_methods = []; sc_methods = []; sc_user_attributes = [];
-        sc_enum_type = None; sc_docs_url = None }))
+        sc_enum_type = None; sc_docs_url = None; sc_package_override = None }))
   ]

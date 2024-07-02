@@ -627,18 +627,41 @@ std::string show(const Type& t) {
         return !isObj && !dcls.containsNonRegular() ? "<-" : "<=";
       };
 
+      auto const eq = [&] (res::Class cls) {
+        return isObj || dcls.containsNonRegular() || cls.hasCompleteChildren()
+          ? "=" : "=-";
+      };
+
       std::string ret;
       if (dcls.isExact()) {
-        folly::toAppend("=", show(dcls.cls()), &ret);
+        folly::toAppend(eq(dcls.cls()), show(dcls.cls()), &ret);
       } else if (dcls.isSub()) {
         folly::toAppend(lt(), show(dcls.cls()), &ret);
-      } else {
+      } else if (dcls.isIsect()) {
         folly::toAppend(
           lt(),
           "{",
           [&] {
             using namespace folly::gen;
             return from(dcls.isect())
+              | map([] (res::Class c) { return show(c); })
+              | unsplit<std::string>("&");
+          }(),
+          "}",
+          &ret
+        );
+      } else {
+        auto const [e, i] = dcls.isectAndExact();
+        folly::toAppend(
+          eq(e),
+          "{",
+          show(e),
+          "}&",
+          lt(),
+          "{",
+          [&, i=i] {
+            using namespace folly::gen;
+            return from(*i)
               | map([] (res::Class c) { return show(c); })
               | unsplit<std::string>("&");
           }(),
@@ -767,7 +790,10 @@ std::string show(const Type& t) {
 
 std::string show(Context ctx) {
   if (!ctx.func) {
-    if (!ctx.cls) return "-";
+    if (!ctx.cls) {
+      if (!ctx.unit) return "-";
+      return ctx.unit->toCppString();
+    }
     return ctx.cls->name->toCppString();
   }
   auto ret = std::string{};
@@ -794,11 +820,13 @@ std::string show(const MethRef& m) {
 
 //////////////////////////////////////////////////////////////////////
 
-std::string show(FuncOrCls fc) {
-  if (auto const f = fc.left()) {
+std::string show(FuncClsUnit fc) {
+  if (auto const f = fc.func()) {
     return folly::sformat("func {}", f->name);
-  } else if (auto const c = fc.right()) {
+  } else if (auto const c = fc.cls()) {
     return folly::sformat("class {}", c->name);
+  } else if (auto const u = fc.unit()) {
+    return folly::sformat("unit {}", u->filename);
   } else {
     return "(null)";
   }
@@ -838,9 +866,10 @@ std::string show(const ClsConstLookupResult& r) {
 
 std::string show(const ClsTypeConstLookupResult& r) {
   return folly::sformat(
-    "{{ty:{},fail:{},found:{},abstract:{}}}",
+    "{{ty:{},fail:{},sens:{},found:{},abstract:{}}}",
     show(r.resolution.type),
     r.resolution.mightFail,
+    r.resolution.contextSensitive,
     show(r.found),
     show(r.abstract)
   );

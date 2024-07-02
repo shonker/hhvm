@@ -24,21 +24,20 @@
 #include <unordered_map>
 #include <vector>
 
+#include <folly/Conv.h>
 #include <folly/Optional.h>
 #include <folly/python/error.h>
 
 #include <thrift/lib/cpp2/protocol/TableBasedSerializer.h>
 
-namespace apache {
-namespace thrift {
-namespace python {
+namespace apache::thrift::python {
 
-inline PyObject* const* toPyObjectPtr(const void* object) {
-  return static_cast<PyObject* const*>(object);
+inline PyObject* const* toPyObjectPtr(const void* objectPtr) {
+  return static_cast<PyObject* const*>(objectPtr);
 }
 
-inline PyObject** toPyObjectPtr(void* object) {
-  return static_cast<PyObject**>(object);
+inline PyObject** toPyObjectPtr(void* objectPtr) {
+  return static_cast<PyObject**>(objectPtr);
 }
 
 inline const PyObject* toPyObject(const void* object) {
@@ -71,6 +70,17 @@ inline T convInt(V v) {
   LOG(FATAL) << "int out of range";
 }
 
+/**
+ * Creates a new "union tuple" initialized for an empty union.
+ *
+ * The returned tuple has 2 items:
+ *  1. The enum value of the field that is currently set for this union, or
+ *     the special "empty" (with value 0) if the union is empty.
+ *  2. The value of the current field for this enum, or Py_None if the union
+ *     is empty.
+ *
+ * The tuple returned by this function always has values `(0, Py_None)`.
+ */
 PyObject* createUnionTuple();
 
 /***
@@ -89,7 +99,8 @@ PyObject* createUnionTuple();
 PyObject* createStructTuple(int16_t numFields);
 
 /**
- * Returns a new "struct tuple" with all its elements initialized.
+ * Returns a new "struct tuple" associated with an immutable Thrift struct,
+ * all elements initialized with default values.
  *
  * As in `createStructTuple()`, the first element of the tuple is a
  * 0-initialized bytearray with `numFields` bytes (to be used as isset flags).
@@ -116,16 +127,31 @@ PyObject* createStructTuple(int16_t numFields);
  * various `*TypeInfo` Python classes). For example, `false` is actually
  * `Py_False`.
  */
-PyObject* createStructTupleWithDefaultValues(
+PyObject* createImmutableStructTupleWithDefaultValues(
+    const detail::StructInfo& structInfo);
+
+/**
+ * Returns a new "struct tuple" associated with an mutable Thrift struct,
+ * all elements initialized with default values.
+ *
+ * This function is very similar to its immutable counterpart. Please see the
+ * `createImmutableStructTupleWithDefaultValues()` documentation for more
+ * details.
+ *
+ * The following list only highlights the difference for the "standard" value
+ * for the corresponding type:
+ *   * In the mutable version, the standard value for lists is an empty `list`.
+ */
+PyObject* createMutableStructTupleWithDefaultValues(
     const detail::StructInfo& structInfo);
 
 /**
  * Sets the "isset" flag of the `index`-th field of the given struct tuple
  * `object` to the given `value`.
  *
- * @param object Pointer to a "struct tuple" (see `createStructTuple() above).
- *        This is assumed to be a `PyTupleObject`, whose memory holds the
- *        elements (starting with the "isset" bytearray) after a header
+ * @param objectPtr Pointer to a "struct tuple" (see `createStructTuple()
+ *        above). This is assumed to be a `PyTupleObject`, whose memory holds
+ *        the elements (starting with the "isset" bytearray) after a header
  *        consisting of `PyVarObject`. The memory immediately after the
  *        `sizeof(PyVarObject)` bytes is expected to correspond to a
  *        `PyBytesObject` that holds the isset flags bytearray (see above).
@@ -136,7 +162,57 @@ PyObject* createStructTupleWithDefaultValues(
  * @throws if unable to read a bytearray from the expected isset flags bytearray
  *         (see `object` param documentation above).
  */
-void setStructIsset(void* object, int16_t index, bool value);
+void setStructIsset(void* objectPtr, int16_t index, bool value);
+
+/*
+ * Returns a new "struct tuple" with all its elements set to `None`
+ * (i.e., `Py_None`).
+ *
+ * As in `createStructTuple()`, the first element of the tuple is a
+ * 0-initialized bytearray with `numFields` bytes (to be used as isset flags).
+ *
+ * However, the remaining elements (1 through `numFields + 1`) are set to `None`
+ *
+ */
+PyObject* createStructTupleWithNones(const detail::StructInfo& structInfo);
+
+/**
+ * Populates unset fields of a immutable Thrift struct's "struct tuple" with
+ * default values.
+ *
+ * The `object` should be a valid `tuple` created by `createStructTuple()`
+ *
+ * Iterates through the elements (from 1 to `numFields + 1`). If a field
+ * is unset, it gets populated with the corresponding default value.
+ *
+ * Throws on error
+ *
+ */
+void populateImmutableStructTupleUnsetFieldsWithDefaultValues(
+    PyObject* object, const detail::StructInfo& structInfo);
+
+/**
+ * Populates unset fields of a mutable Thrift struct's "struct tuple" with
+ * default values.
+ *
+ * This function is very similar to its immutable counterpart. Please see the
+ * `populateImmutableStructTupleUnsetFieldsWithDefaultValues()` documentation.
+ * The only difference is the "standard" value for the corresponding type.
+ *
+ * See `getStandard{Mutable,Immutable}DefaultValueForType()` documentation.
+ *
+ * Throws on error
+ */
+void populateMutableStructTupleUnsetFieldsWithDefaultValues(
+    PyObject* object, const detail::StructInfo& structInfo);
+
+/**
+ * Resets the field at `index` of the "struct tuple" with the default value.
+ *
+ * Throws on error
+ */
+void resetFieldToStandardDefault(
+    PyObject* tuple, const detail::StructInfo& structInfo, int index);
 
 struct PyObjectDeleter {
   void operator()(PyObject* p) { Py_XDECREF(p); }
@@ -145,16 +221,16 @@ struct PyObjectDeleter {
 using UniquePyObjectPtr = std::unique_ptr<PyObject, PyObjectDeleter>;
 
 /**
- * Sets the Python object pointed to by `object` to the given `value` (releasing
- * the previous one, if any).
+ * Sets the Python object pointed to by `objectPtr` to the given `value`
+ * (releasing the previous one, if any).
  *
- * @params object double pointer to a `PyObject` (i.e., `PyObject**`).
+ * @params objectPtr double pointer to a `PyObject` (i.e., `PyObject**`).
  *
  * @return the newly set Python object pointer, i.e. the pointer previously held
- *         by the `value` parameter (and now pointed to by `object`).
+ *         by the `value` parameter (and now pointed to by `objectPtr`).
  */
-inline PyObject* setPyObject(void* object, UniquePyObjectPtr value) {
-  PyObject** pyObjPtr = toPyObjectPtr(object);
+inline PyObject* setPyObject(void* objectPtr, UniquePyObjectPtr value) {
+  PyObject** pyObjPtr = toPyObjectPtr(objectPtr);
   PyObject* oldObject = *pyObjPtr;
   *pyObjPtr = value.release();
   Py_XDECREF(oldObject);
@@ -269,14 +345,14 @@ inline detail::ThriftValue primitivePythonToCpp<float>(PyObject* object) {
 template <typename PrimitiveType, protocol::TType Type>
 struct PrimitiveTypeInfo {
   static detail::OptionalThriftValue get(
-      const void* object, const detail::TypeInfo& /* typeInfo */) {
-    PyObject* pyObj = *toPyObjectPtr(object);
+      const void* objectPtr, const detail::TypeInfo& /* typeInfo */) {
+    PyObject* pyObj = *toPyObjectPtr(objectPtr);
     return folly::make_optional<detail::ThriftValue>(
         primitivePythonToCpp<PrimitiveType>(pyObj));
   }
 
-  static void set(void* object, PrimitiveType value) {
-    setPyObject(object, primitiveCppToPython(value));
+  static void set(void* objectPtr, PrimitiveType value) {
+    setPyObject(objectPtr, primitiveCppToPython(value));
   }
 
   static const detail::TypeInfo typeInfo;
@@ -302,32 +378,66 @@ extern const detail::TypeInfo binaryTypeInfo;
 extern const detail::TypeInfo iobufTypeInfo;
 
 detail::OptionalThriftValue getStruct(
-    const void* object, const detail::TypeInfo& /* typeInfo */);
-inline void* setContainer(void* object) {
-  if (!setPyObject(object, UniquePyObjectPtr{PyTuple_New(0)})) {
+    const void* objectPtr, const detail::TypeInfo& /* typeInfo */);
+
+inline void* setContainer(void* objectPtr) {
+  if (!setPyObject(objectPtr, UniquePyObjectPtr{PyTuple_New(0)})) {
     THRIFT_PY3_CHECK_ERROR();
   }
-  return object;
+  return objectPtr;
 }
 
-inline void* setFrozenSet(void* object) {
-  if (!setPyObject(object, UniquePyObjectPtr{PyFrozenSet_New(nullptr)})) {
+inline void* setFrozenSet(void* objectPtr) {
+  if (!setPyObject(objectPtr, UniquePyObjectPtr{PyFrozenSet_New(nullptr)})) {
     THRIFT_PY3_CHECK_ERROR();
   }
-  return object;
+  return objectPtr;
+}
+
+/**
+ * Sets the Python object pointed to by `object` to an empty Python `list`
+ * (Releases a strong reference to the previous object, if there was one).
+ *
+ * @param objectPtr A double pointer to a `PyObject` (i.e., `PyObject**`).
+ *
+ * @return The newly set Python object pointer that points to an empty Python
+ * `list`.
+ */
+inline void* setList(void* objectPtr) {
+  if (!setPyObject(objectPtr, UniquePyObjectPtr{PyList_New(0)})) {
+    THRIFT_PY3_CHECK_ERROR();
+  }
+  return objectPtr;
+}
+
+// Sets the Python object pointed to by `objectPtr` to an empty Python `set`
+inline void* setMutableSet(void* objectPtr) {
+  if (!setPyObject(objectPtr, UniquePyObjectPtr{PySet_New(nullptr)})) {
+    THRIFT_PY3_CHECK_ERROR();
+  }
+  return objectPtr;
+}
+
+// Sets the Python object pointed to by `objectPtr` to an empty Python
+// `dictionary`
+inline void* setMutableMap(void* objectPtr) {
+  if (!setPyObject(objectPtr, UniquePyObjectPtr{PyDict_New()})) {
+    THRIFT_PY3_CHECK_ERROR();
+  }
+  return objectPtr;
 }
 
 class ListTypeInfo {
  public:
   static std::uint32_t size(const void* object) {
-    return PyTuple_GET_SIZE(toPyObject(object));
+    return folly::to<std::uint32_t>(PyTuple_GET_SIZE(toPyObject(object)));
   }
 
   static void clear(void* object) { setContainer(object); }
 
   static void read(
       const void* context,
-      void* object,
+      void* objectPtr,
       std::uint32_t listSize,
       void (*reader)(const void* /*context*/, void* /*val*/));
   static size_t write(
@@ -362,17 +472,71 @@ class ListTypeInfo {
   const detail::TypeInfo typeinfo_;
 };
 
-class SetTypeInfo {
+/**
+ * `MutableListTypeInfo` is a counterpart to `ListTypeInfo`, specifically
+ * tailored for mutable Thrift struct. They differ in their internal data
+ * representation. `MutableListTypeInfo` uses a Python `list` for mutability,
+ * whereas its counterpart, `ListTypeInfo`, uses a Python `tuple`.
+ */
+class MutableListTypeInfo {
  public:
   static std::uint32_t size(const void* object) {
-    return PySet_GET_SIZE(toPyObject(object));
+    return folly::to<std::uint32_t>(PyList_GET_SIZE(toPyObject(object)));
   }
 
-  static void clear(void* object) { setFrozenSet(object); }
+  static void clear(void* object) { setList(object); }
 
   static void read(
       const void* context,
+      void* objectPtr,
+      std::uint32_t listSize,
+      void (*reader)(const void* /*context*/, void* /*val*/));
+
+  static size_t write(
+      const void* context,
+      const void* object,
+      size_t (*writer)(const void* /*context*/, const void* /*val*/));
+
+  static void consumeElem(
+      const void* context,
       void* object,
+      void (*reader)(const void* /*context*/, void* /*val*/));
+
+  explicit MutableListTypeInfo(const detail::TypeInfo* valInfo)
+      : ext_{
+            /* .valInfo */ valInfo,
+            /* .size */ size,
+            /* .clear */ clear,
+            /* .consumeElem */ consumeElem,
+            /* .readList */ read,
+            /* .writeList */ write,
+        },
+        typeinfo_{
+            protocol::TType::T_LIST,
+            getStruct,
+            reinterpret_cast<detail::VoidFuncPtr>(setList),
+            &ext_,
+        } {}
+
+  inline const detail::TypeInfo* get() const { return &typeinfo_; }
+
+ private:
+  const detail::ListFieldExt ext_;
+  const detail::TypeInfo typeinfo_;
+};
+
+template <typename T>
+class SetTypeInfoTemplate {
+ public:
+  static std::uint32_t size(const void* object) {
+    return folly::to<std::uint32_t>(PySet_GET_SIZE(toPyObject(object)));
+  }
+
+  static void clear(void* object) { T::clear(object); }
+
+  static void read(
+      const void* context,
+      void* objectPtr,
       std::uint32_t setSize,
       void (*reader)(const void* /*context*/, void* /*val*/));
 
@@ -387,7 +551,7 @@ class SetTypeInfo {
       void* object,
       void (*reader)(const void* /*context*/, void* /*val*/));
 
-  explicit SetTypeInfo(const detail::TypeInfo* valInfo)
+  explicit SetTypeInfoTemplate(const detail::TypeInfo* valInfo)
       : ext_{
             /* .valInfo */ valInfo,
             /* .size */ size,
@@ -399,7 +563,7 @@ class SetTypeInfo {
         typeinfo_{
             protocol::TType::T_SET,
             getStruct,
-            reinterpret_cast<detail::VoidFuncPtr>(setFrozenSet),
+            reinterpret_cast<detail::VoidFuncPtr>(T::clear),
             &ext_,
         } {}
   const detail::TypeInfo* get() const { return &typeinfo_; }
@@ -409,17 +573,129 @@ class SetTypeInfo {
   const detail::TypeInfo typeinfo_;
 };
 
+template <typename T>
+void SetTypeInfoTemplate<T>::read(
+    const void* context,
+    void* objectPtr,
+    std::uint32_t setSize,
+    void (*reader)(const void* /*context*/, void* /*val*/)) {
+  UniquePyObjectPtr set{T::create(nullptr)};
+  if (!set) {
+    THRIFT_PY3_CHECK_ERROR();
+  }
+  for (std::uint32_t i = 0; i < setSize; ++i) {
+    PyObject* elem{};
+    reader(context, &elem);
+    if (PySet_Add(set.get(), elem) == -1) {
+      THRIFT_PY3_CHECK_ERROR();
+    }
+    Py_DECREF(elem);
+  }
+  setPyObject(objectPtr, std::move(set));
+}
+
+template <typename T>
+size_t SetTypeInfoTemplate<T>::write(
+    const void* context,
+    const void* object,
+    bool protocolSortKeys,
+    size_t (*writer)(const void* /*context*/, const void* /*val*/)) {
+  size_t written = 0;
+  PyObject* set = const_cast<PyObject*>(toPyObject(object));
+  UniquePyObjectPtr iter;
+  if (protocolSortKeys) {
+    UniquePyObjectPtr seq{PySequence_List(set)};
+    if (!seq) {
+      THRIFT_PY3_CHECK_ERROR();
+    }
+    if (PyList_Sort(seq.get()) == -1) {
+      THRIFT_PY3_CHECK_ERROR();
+    }
+    iter = UniquePyObjectPtr{PyObject_GetIter(seq.get())};
+  } else {
+    iter = UniquePyObjectPtr{PyObject_GetIter(set)};
+  }
+  if (!iter) {
+    THRIFT_PY3_CHECK_ERROR();
+  }
+  PyObject* elem;
+  while ((elem = PyIter_Next(iter.get())) != nullptr) {
+    written += writer(context, &elem);
+    Py_DECREF(elem);
+  }
+  return written;
+}
+
+// keep until python3.9, where Py_SET_REFCNT is available officially
+inline void _fbthrift_Py_SET_REFCNT(PyObject* ob, Py_ssize_t refcnt) {
+  ob->ob_refcnt = refcnt;
+}
+
+template <typename T>
+void SetTypeInfoTemplate<T>::consumeElem(
+    const void* context,
+    void* objectPtr,
+    void (*reader)(const void* /*context*/, void* /*val*/)) {
+  PyObject** pyObjPtr = toPyObjectPtr(objectPtr);
+  DCHECK(*pyObjPtr);
+  PyObject* elem = nullptr;
+  reader(context, &elem);
+  DCHECK(elem);
+  // This is nasty hack since Cython generated code will incr the refcnt
+  // so PySet_Add will fail. Need to temporarily decrref.
+  auto currentRefCnt = Py_REFCNT(*pyObjPtr);
+  _fbthrift_Py_SET_REFCNT(*pyObjPtr, 1);
+  if (PySet_Add(*pyObjPtr, elem) == -1) {
+    _fbthrift_Py_SET_REFCNT(*pyObjPtr, currentRefCnt);
+    THRIFT_PY3_CHECK_ERROR();
+  }
+  Py_DECREF(elem);
+  _fbthrift_Py_SET_REFCNT(*pyObjPtr, currentRefCnt);
+}
+
+/**
+ * This class is intended to be used as a template parameter for the
+ * `SetTypeInfoTemplate` class.
+ *
+ * Immutable Thrift structs utilize Python's `Frozenset` for internal data
+ * representation. The `ImmutableSetHandler` class provides methods to create
+ * and clear the set.
+ */
+struct ImmutableSetHandler {
+  static PyObject* create(PyObject* iterable) {
+    return PyFrozenSet_New(iterable);
+  }
+  static void* clear(void* object) { return setFrozenSet(object); }
+};
+
+using SetTypeInfo = SetTypeInfoTemplate<ImmutableSetHandler>;
+
+/**
+ * This class is intended to be used as a template parameter for the
+ * `SetTypeInfoTemplate` class.
+ *
+ * Mutable Thrift structs utilize Python's `set` for internal data
+ * representation. The `MutableSetHandler` class provides methods to create
+ * and clear the set.
+ */
+struct MutableSetHandler {
+  static PyObject* create(PyObject* iterable) { return PySet_New(iterable); }
+  static void* clear(void* object) { return setMutableSet(object); }
+};
+
+using MutableSetTypeInfo = SetTypeInfoTemplate<MutableSetHandler>;
+
 class MapTypeInfo {
  public:
   static std::uint32_t size(const void* object) {
-    return PyTuple_GET_SIZE(toPyObject(object));
+    return folly::to<std::uint32_t>(PyTuple_GET_SIZE(toPyObject(object)));
   }
 
   static void clear(void* object) { setContainer(object); }
 
   static void read(
       const void* context,
-      void* object,
+      void* objectPtr,
       std::uint32_t mapSize,
       void (*keyReader)(const void* context, void* key),
       void (*valueReader)(const void* context, void* val));
@@ -461,8 +737,105 @@ class MapTypeInfo {
   const detail::TypeInfo typeinfo_;
 };
 
+class MutableMapTypeInfo {
+ public:
+  static std::uint32_t size(const void* object) {
+    return folly::to<std::uint32_t>(
+        PyDict_Size(const_cast<PyObject*>(toPyObject(object))));
+  }
+
+  static void clear(void* objectPtr) { setMutableMap(objectPtr); }
+
+  /**
+   * Deserializes a dict (with `mapSize` key/value pairs) into `objectPtr`.
+   *
+   * The function pointer arguments (`keyReader` and `valueReader`) are expected
+   * to take two (type-erased, i.e. `void*`) arguments:
+   *   1. The given `context`
+   *   2. A pointer to a `PyObject*`, that should be set by the function to the
+   *      (next) key and value, respectively.
+   *
+   * @param context Will be passed to every call to `keyReader` and
+   *        `valueReader`.
+   * @param objectPtr Pointer to a `PyObject*`, that will be set to a new
+   *        `PyDict` instance containing `mapSize` elements whose keys and
+   *        values are obtained by calling the given `*Reader` functions.
+   */
+  static void read(
+      const void* context,
+      void* objectPtr,
+      std::uint32_t mapSize,
+      void (*keyReader)(const void* context, void* key),
+      void (*valueReader)(const void* context, void* val));
+
+  /**
+   * Serializes the dict given in `object`.
+   *
+   * The `writer` function will be called for every item in the dict pointed by
+   * the given `object`. It is expected to take the arguments described below,
+   * and return the number of bytes written:
+   *   1. The given `context`
+   *   2 & 3. `PyObject**` pointing to the next key and value from dict,
+   * respectively.
+   *
+   * @param context Passed to `writer` on every call.
+   * @param object Input `PyObject*`, holds the `PyDict` to serialize.
+   *
+   * @return Total number of bytes written.
+   */
+  static size_t write(
+      const void* context,
+      const void* object,
+      bool protocolSortKeys,
+      size_t (*writer)(
+          const void* context, const void* keyElem, const void* valueElem));
+
+  /**
+   * Deserializes a single key, value pair (using the given function pointers)
+   * and adds it to the given dict.
+   *
+   * See `read()` for the expectations on `keyReader` and `valueReader`.
+   *
+   * @param context Passed to `keyReader` and `valueReader` on every call.
+   * @param objectPtr Pointer to a `PyObject*` that holds a dict, to which the
+   *        new key/value pair will be added.
+   */
+  static void consumeElem(
+      const void* context,
+      void* object,
+      void (*keyReader)(const void* /*context*/, void* /*val*/),
+      void (*valueReader)(const void* /*context*/, void* /*val*/));
+
+  explicit MutableMapTypeInfo(
+      const detail::TypeInfo* keyInfo, const detail::TypeInfo* valInfo)
+      : tableBasedSerializerMapFieldExt_{
+            /* .keyInfo */ keyInfo,
+            /* .valInfo */ valInfo,
+            /* .size */ size,
+            /* .clear */ clear,
+            /* .consumeElem */ consumeElem,
+            /* .readSet */ read,
+            /* .writeSet */ write,
+        },
+        tableBasedSerializerTypeinfo_{
+            protocol::TType::T_MAP,
+            getStruct,
+            reinterpret_cast<detail::VoidFuncPtr>(setMutableMap),
+            &tableBasedSerializerMapFieldExt_,
+        } {}
+  const detail::TypeInfo* get() const { return &tableBasedSerializerTypeinfo_; }
+
+ private:
+  const detail::MapFieldExt tableBasedSerializerMapFieldExt_;
+  const detail::TypeInfo tableBasedSerializerTypeinfo_;
+};
+
 using FieldValueMap = std::unordered_map<int16_t, PyObject*>;
 
+/**
+ * Holds the information required to (de)serialize a thrift-python structured
+ * type (i.e., struct, union or exception).
+ */
 class DynamicStructInfo {
  public:
   DynamicStructInfo(const char* name, int16_t numFields, bool isUnion = false);
@@ -474,13 +847,16 @@ class DynamicStructInfo {
   ~DynamicStructInfo();
 
   /**
-   * Returns the underlying `StructInfo`, populated with all field infos and
-   * values added via the `addField*()` methods.
+   * Returns the underlying (table-based) serializer `StructInfo`, populated
+   * with all field infos and values added via the `addField*()` methods.
    */
-  const detail::StructInfo& getStructInfo() const { return *structInfo_; }
+  const detail::StructInfo& getStructInfo() const {
+    return *tableBasedSerializerStructInfo_;
+  }
 
   /**
-   * Adds information for a new field to the underlying `StructInfo`.
+   * Adds information for a new field to the underlying (table-based) serializer
+   * `StructInfo`.
    *
    * The order of `FieldInfo` in the underlying `StructInfo` corresponds to the
    * order in which this method is called. Calling this method more than the
@@ -493,6 +869,7 @@ class DynamicStructInfo {
       const char* name,
       const detail::TypeInfo* typeInfo);
 
+  // DO_BEFORE(aristidis,20240729): Rename to set(Default?)FieldValue.
   /**
    * Sets the value for the field with the given `index`.
    *
@@ -505,33 +882,15 @@ class DynamicStructInfo {
    */
   void addFieldValue(int16_t index, PyObject* fieldValue);
 
-  bool isUnion() const { return structInfo_->unionExt != nullptr; }
+  bool isUnion() const {
+    return tableBasedSerializerStructInfo_->unionExt != nullptr;
+  }
 
  private:
   /**
-   * Pointer to a region of memory that holds a `StructInfo` followed by
-   * `numFields` instances of `FieldInfo` (accessible through
-   * `structInfo->fieldInfos`).
-   *
-   * ------------------------------------------------
-   * | StructInfo    |  FieldInfo | ... | FieldInfo |
-   * ------------------------------------------------
-   * ^                      (numFields times)
-   *
-   * The `customExt` field of this StructInfo points to `fieldValues_`.
+   * Name of this Thrift type (struct/union/exception).
    */
-  detail::StructInfo* structInfo_;
-
   std::string name_;
-
-  /**
-   * Names of the fields added via `addFieldInfo()`, in the order they were
-   * added.
-   *
-   * The same order is used for the corresponding `FieldInfo` entries in
-   * `structInfo_`.
-   */
-  std::vector<std::string> fieldNames_;
 
   /**
    * Default values (if any) for each field (indexed by field position in
@@ -542,12 +901,37 @@ class DynamicStructInfo {
    * classes).
    */
   FieldValueMap fieldValues_;
+
+  /**
+   * Pointer to a region of memory that holds a (table-based) serializer
+   * `StructInfo` followed by `numFields` instances of `FieldInfo` (accessible
+   * through `structInfo->fieldInfos`).
+   *
+   * ------------------------------------------------
+   * | StructInfo    |  FieldInfo | ... | FieldInfo |
+   * ------------------------------------------------
+   * ^                      (numFields times)
+   *
+   * The `customExt` field of this StructInfo points to `fieldValues_`.
+   */
+  detail::StructInfo* tableBasedSerializerStructInfo_;
+
+  /**
+   * Names of the fields added via `addFieldInfo()`, in the order they were
+   * added.
+   *
+   * The same order is used for the corresponding `FieldInfo` entries in
+   * `tableBasedSerializerStructInfo_`.
+   */
+  std::vector<std::string> fieldNames_;
 };
 
-detail::TypeInfo createStructTypeInfo(
+detail::TypeInfo createImmutableStructTypeInfo(
     const DynamicStructInfo& dynamicStructInfo);
 
-namespace capi {
+} // namespace apache::thrift::python
+
+namespace apache::thrift::python::capi {
 /**
  * Retrieves internal _fbthrift_data from `StructOrUnion`. On import failure,
  * returns nullptr. Caller is responsible for clearing Err indicator on failure.
@@ -575,8 +959,4 @@ int setStructField(PyObject* struct_tuple, int16_t index, PyObject* value);
  */
 PyObject* unionTupleFromValue(int64_t type_key, PyObject* value);
 
-} // namespace capi
-
-} // namespace python
-} // namespace thrift
-} // namespace apache
+} // namespace apache::thrift::python::capi

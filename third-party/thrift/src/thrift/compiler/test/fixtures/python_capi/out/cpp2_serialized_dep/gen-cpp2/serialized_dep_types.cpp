@@ -33,7 +33,7 @@ void TccStructTraits<::test::fixtures::python_capi::SerializedStruct>::translate
 } // namespace thrift
 } // namespace apache
 
-namespace test { namespace fixtures { namespace python_capi {
+namespace test::fixtures::python_capi {
 
 const char* SerializedStruct::__fbthrift_thrift_uri() {
   return "test.dev/fixtures/python_capi/SerializedStruct";
@@ -78,7 +78,7 @@ SerializedStruct::SerializedStruct(apache::thrift::FragileConstructor, ::std::st
     __fbthrift_field_s(std::move(s__arg)),
     __fbthrift_field_i(std::move(i__arg)),
     __fbthrift_field_os(std::move(os__arg)),
-    __fbthrift_field_rs(std::move(rs__arg)) {
+    __fbthrift_field_rs(std::move(rs__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
   __isset.set(folly::index_constant<2>(), true);
@@ -129,7 +129,7 @@ template uint32_t SerializedStruct::serializedSize<>(apache::thrift::CompactProt
 template uint32_t SerializedStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // test::fixtures::python_capi
+} // namespace test::fixtures::python_capi
 
 namespace apache {
 namespace thrift {
@@ -165,7 +165,7 @@ bool TEnumTraits<::test::fixtures::python_capi::SerializedUnion::Type>::findValu
   return ::apache::thrift::detail::st::enum_find_value(name, out);
 }
 }} // apache::thrift
-namespace test { namespace fixtures { namespace python_capi {
+namespace test::fixtures::python_capi {
 
 const char* SerializedUnion::__fbthrift_thrift_uri() {
   return "test.dev/fixtures/python_capi/SerializedUnion";
@@ -267,7 +267,7 @@ template uint32_t SerializedUnion::serializedSize<>(apache::thrift::CompactProto
 template uint32_t SerializedUnion::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // test::fixtures::python_capi
+} // namespace test::fixtures::python_capi
 
 namespace apache {
 namespace thrift {
@@ -290,7 +290,7 @@ void TccStructTraits<::test::fixtures::python_capi::SerializedError>::translateF
 } // namespace thrift
 } // namespace apache
 
-namespace test { namespace fixtures { namespace python_capi {
+namespace test::fixtures::python_capi {
 
 const char* SerializedError::__fbthrift_thrift_uri() {
   return "test.dev/fixtures/python_capi/SerializedError";
@@ -331,7 +331,7 @@ SerializedError& SerializedError::operator=([[maybe_unused]] SerializedError&& o
 SerializedError::SerializedError(apache::thrift::FragileConstructor, ::std::string msg__arg, ::std::string os__arg, ::std::string rs__arg) :
     __fbthrift_field_msg(std::move(msg__arg)),
     __fbthrift_field_os(std::move(os__arg)),
-    __fbthrift_field_rs(std::move(rs__arg)) {
+    __fbthrift_field_rs(std::move(rs__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
 }
@@ -379,7 +379,7 @@ template uint32_t SerializedError::serializedSize<>(apache::thrift::CompactProto
 template uint32_t SerializedError::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // test::fixtures::python_capi
+} // namespace test::fixtures::python_capi
 
 namespace apache {
 namespace thrift {
@@ -402,7 +402,7 @@ void TccStructTraits<::test::fixtures::python_capi::MarshalStruct>::translateFie
 } // namespace thrift
 } // namespace apache
 
-namespace test { namespace fixtures { namespace python_capi {
+namespace test::fixtures::python_capi {
 
 const char* MarshalStruct::__fbthrift_thrift_uri() {
   return "test.dev/fixtures/python_capi/MarshalStruct";
@@ -447,7 +447,7 @@ MarshalStruct::MarshalStruct(apache::thrift::FragileConstructor, ::std::string s
     __fbthrift_field_s(std::move(s__arg)),
     __fbthrift_field_i(std::move(i__arg)),
     __fbthrift_field_os(std::move(os__arg)),
-    __fbthrift_field_rs(std::move(rs__arg)) {
+    __fbthrift_field_rs(std::move(rs__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
   __isset.set(folly::index_constant<2>(), true);
@@ -498,7 +498,7 @@ template uint32_t MarshalStruct::serializedSize<>(apache::thrift::CompactProtoco
 template uint32_t MarshalStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // test::fixtures::python_capi
+} // namespace test::fixtures::python_capi
 
 namespace apache {
 namespace thrift {
@@ -534,7 +534,7 @@ bool TEnumTraits<::test::fixtures::python_capi::MarshalUnion::Type>::findValue(s
   return ::apache::thrift::detail::st::enum_find_value(name, out);
 }
 }} // apache::thrift
-namespace test { namespace fixtures { namespace python_capi {
+namespace test::fixtures::python_capi {
 
 const char* MarshalUnion::__fbthrift_thrift_uri() {
   return "test.dev/fixtures/python_capi/MarshalUnion";
@@ -636,7 +636,7 @@ template uint32_t MarshalUnion::serializedSize<>(apache::thrift::CompactProtocol
 template uint32_t MarshalUnion::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // test::fixtures::python_capi
+} // namespace test::fixtures::python_capi
 
 namespace apache {
 namespace thrift {
@@ -659,7 +659,7 @@ void TccStructTraits<::test::fixtures::python_capi::MarshalError>::translateFiel
 } // namespace thrift
 } // namespace apache
 
-namespace test { namespace fixtures { namespace python_capi {
+namespace test::fixtures::python_capi {
 
 const char* MarshalError::__fbthrift_thrift_uri() {
   return "test.dev/fixtures/python_capi/MarshalError";
@@ -700,7 +700,7 @@ MarshalError& MarshalError::operator=([[maybe_unused]] MarshalError&& other) noe
 MarshalError::MarshalError(apache::thrift::FragileConstructor, ::std::string msg__arg, ::std::string os__arg, ::std::string rs__arg) :
     __fbthrift_field_msg(std::move(msg__arg)),
     __fbthrift_field_os(std::move(os__arg)),
-    __fbthrift_field_rs(std::move(rs__arg)) {
+    __fbthrift_field_rs(std::move(rs__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
 }
@@ -748,11 +748,11 @@ template uint32_t MarshalError::serializedSize<>(apache::thrift::CompactProtocol
 template uint32_t MarshalError::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // test::fixtures::python_capi
+} // namespace test::fixtures::python_capi
 
-namespace test { namespace fixtures { namespace python_capi { namespace {
+namespace test::fixtures::python_capi { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}}}} // test::fixtures::python_capi
+}} // namespace test::fixtures::python_capi
 namespace apache::thrift::detail::annotation {
 }

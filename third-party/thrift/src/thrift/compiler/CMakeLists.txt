@@ -58,7 +58,7 @@ endif ()
 add_library(
   compiler_ast
 
-  ast/t_base_type.cc
+  ast/t_primitive_type.cc
   ast/t_const.cc
   ast/t_const_value.cc
   ast/t_enum.cc
@@ -73,7 +73,6 @@ add_library(
   ast/t_structured.cc
   ast/t_type.cc
   ast/t_typedef.cc
-  ast/visitor.cc
 )
 target_link_libraries(
   compiler_ast
@@ -88,6 +87,7 @@ add_library(
   STATIC
 
   detail/system.cc
+  detail/pluggable_functions.cc
   diagnostic.cc
   source_location.cc
 
@@ -131,6 +131,8 @@ add_library(
   lib/go/util.cc
   lib/java/util.cc
   lib/rust/util.cc
+  lib/py3/util.cpp
+  lib/python/util.cc
 )
 target_link_libraries(
   compiler
@@ -149,7 +151,11 @@ add_library(
   detail/mustache/token.cpp
   detail/mustache/utils.cpp
 )
-target_link_libraries(mustache Boost::boost)
+target_link_libraries(
+  mustache
+  Boost::boost
+  fmt::fmt
+)
 
 add_subdirectory(generate)
 

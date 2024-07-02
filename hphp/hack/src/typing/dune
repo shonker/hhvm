@@ -44,7 +44,9 @@
 (library
   (name typing_error)
   (wrapped false)
-  (modules typing_error)
+  (modules
+    typing_error
+    typing_warning)
   (libraries
     ast
     pos
@@ -58,7 +60,9 @@
 (library
   (name typing_error_utils)
   (wrapped false)
-  (modules typing_error_utils)
+  (modules
+    typing_error_utils
+    typing_warning_utils)
   (libraries
     core_kernel
     custom_error_eval
@@ -66,6 +70,9 @@
     error_codes
     pos
     pos_or_decl
+    lints_codes
+    lints_core
+    lints_errors
     typing_error
     typing_env_types
     typing_env
@@ -119,16 +126,14 @@
   (pps ppx_deriving.std)))
 
 (library
- (name typing_heap)
+ (name folded_class)
  (wrapped false)
- (modules typing_classes_heap)
+ (modules folded_class)
  (libraries
   core_kernel
   decl
   decl_counters
   decl_folded_class
-  deferred_decl
-  naming_provider
   shallow_decl_defs
   typing_class_types
   typing_defs)
@@ -184,7 +189,7 @@
   typing_defs
   typing_env
   typing_algebra
-  typing_heap
+  folded_class
   global_config)
  (preprocess
   (pps ppx_deriving.std)))
@@ -203,6 +208,11 @@
   (modules typing_modules)
   (libraries typing_env typing_env_types decl_provider))
 
+(library
+  (name typing_packages)
+  (wrapped false)
+  (modules typing_packages)
+  (libraries typing_env typing_env_types))
 
 (library
  (name typing)
@@ -216,13 +226,13 @@
   typing_array_access
   typing_async
   typing_attributes
+  typing_class_pointers
   typing_debug
   typing_escape
   typing_expand
   typing_exts
   typing_func_terminality
   typing_generic_rules
-  typing_helpers
   typing_lenv
   typing_local_ops
   typing_native
@@ -251,7 +261,8 @@
   type_mapper
   typing_modules)
  (preprocess
-  (pps ppx_deriving.std)))
+  (pps
+   ppx_deriving.std)))
 
 (library
  (name typing_skeleton)
@@ -271,7 +282,10 @@
   typing_toplevel
   typing_typedef
   typing_toplevel_profile)
- (libraries tast_check typing typing_wellformedness))
+ (libraries tast_check typing typing_wellformedness)
+ (preprocess
+  (pps
+   ppx_deriving.show)))
 
 (library
  (name typing_wellformedness)
@@ -283,7 +297,7 @@
   typing_requirements
   typing_subtype_method
   typing_type_wellformedness)
- (libraries typing_algebra typing_common typing_modules typing_skeleton)
+ (libraries typing_algebra typing_common typing_modules typing_packages typing_skeleton)
  (preprocess
   (pps ppx_deriving.std)))
 
@@ -316,6 +330,7 @@
   typing_enum
   typing_intersection
   typing_generic_constraint
+  typing_helpers
   typing_kinding
   typing_logic_helpers
   typing_object_get
@@ -350,7 +365,7 @@
  (name typing_visibility)
  (wrapped false)
  (modules typing_visibility)
- (libraries typing_modules typing_utils)
+ (libraries typing_modules typing_packages typing_utils)
  (preprocess
   (pps ppx_deriving.std)))
 

@@ -34,21 +34,21 @@
          m_params =
          [{ param_annotation = (dict<string, dynamic>);
             param_type_hint = ((dict<string, dynamic>), (Some ([7:14-37], (Happly (([7:14-20], "\\HH\\dict"), [([7:21-27], (Hprim Tstring)); ([7:29-36], Hdynamic)]))))); 
-            param_is_variadic = false; param_pos = [7:38-49]; param_name = "$attributes"; 
-            param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-            param_user_attributes = []; param_visibility = (Some Public) };
+            param_pos = [7:38-49]; param_name = "$attributes"; param_info = Param_required; 
+            param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+            param_visibility = (Some Public) };
            { param_annotation = (vec<dynamic>); param_type_hint = ((vec<dynamic>), (Some ([8:14-29], (Happly (([8:14-20], "\\HH\\vec"), [([8:21-28], Hdynamic)]))))); 
-             param_is_variadic = false; param_pos = [8:30-39]; param_name = "$children"; 
-             param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-             param_user_attributes = []; param_visibility = (Some Public) };
+             param_pos = [8:30-39]; param_name = "$children"; param_info = Param_required; 
+             param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+             param_visibility = (Some Public) };
            { param_annotation = (string); param_type_hint = ((string), (Some ([9:14-20], (Hprim Tstring)))); 
-             param_is_variadic = false; param_pos = [9:21-26]; param_name = "$file"; 
-             param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-             param_user_attributes = []; param_visibility = (Some Public) };
+             param_pos = [9:21-26]; param_name = "$file"; param_info = Param_required; 
+             param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+             param_visibility = (Some Public) };
            { param_annotation = (int); param_type_hint = ((int), (Some ([10:14-17], (Hprim Tint)))); 
-             param_is_variadic = false; param_pos = [10:18-23]; param_name = "$line"; 
-             param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-             param_user_attributes = []; param_visibility = (Some Public) }
+             param_pos = [10:18-23]; param_name = "$line"; param_info = Param_required; 
+             param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+             param_visibility = (Some Public) }
            ];
          m_ctxs = None; m_unsafe_ctxs = None;
          m_body =
@@ -88,7 +88,7 @@
       c_namespace =
       { Namespace_env.ns_ns_uses = <opaque>; ns_class_uses = <opaque>; 
         ns_fun_uses = <opaque>; ns_const_uses = <opaque>; ns_name = (Some "XhpSimple"); 
-        ns_is_codegen = false; ns_disable_xhp_element_mangling = false };
+        ns_mode = Namespace_env.ForTypecheck; ns_disable_xhp_element_mangling = false };
       c_user_attributes = [{ ua_name = ([4:9-17], "__SupportDynamicType"); ua_params = [] }]; 
       c_file_attributes = []; c_docs_url = None; c_enum = None; c_doc_comment = None; 
       c_emit_id = None; c_internal = false; c_module = None });
@@ -96,16 +96,16 @@
      { fd_namespace =
        { Namespace_env.ns_ns_uses = <opaque>; ns_class_uses = <opaque>; 
          ns_fun_uses = <opaque>; ns_const_uses = <opaque>; ns_name = (Some "XhpSimple"); 
-         ns_is_codegen = false; ns_disable_xhp_element_mangling = false };
+         ns_mode = Namespace_env.ForTypecheck; ns_disable_xhp_element_mangling = false };
        fd_file_attributes = []; fd_mode = Mstrict; fd_name = ([14:12-32], "\\XhpSimple\\xhp_simple_attribute");
        fd_fun =
        { f_span = [14:3-17:4]; f_readonly_this = None; f_annotation = (); 
          f_readonly_ret = None; f_ret = ((void), (Some ([14:48-52], (Hprim Tvoid))));
          f_params =
          [{ param_annotation = (string); param_type_hint = ((string), (Some ([14:33-39], (Hprim Tstring)))); 
-            param_is_variadic = false; param_pos = [14:40-45]; param_name = "$prop"; 
-            param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-            param_user_attributes = []; param_visibility = None }
+            param_pos = [14:40-45]; param_name = "$prop"; param_info = Param_required; 
+            param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+            param_visibility = None }
            ];
          f_ctxs = None; f_unsafe_ctxs = None;
          f_body =
@@ -166,21 +166,21 @@
           m_name = ([6:21-32], "__construct"); m_tparams = []; m_where_constraints = [];
           m_params =
           [{ param_annotation = (dynamic); param_type_hint = ((dynamic), (Some ([7:14-37], (Happly (([7:14-20], "\\HH\\dict"), [([7:21-27], (Hprim Tstring)); ([7:29-36], Hdynamic)])))));
-             param_is_variadic = false; param_pos = [7:38-49]; param_name = "$attributes"; 
-             param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-             param_user_attributes = []; param_visibility = (Some Public) };
+             param_pos = [7:38-49]; param_name = "$attributes"; param_info = Param_required; 
+             param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+             param_visibility = (Some Public) };
             { param_annotation = (dynamic); param_type_hint = ((dynamic), (Some ([8:14-29], (Happly (([8:14-20], "\\HH\\vec"), [([8:21-28], Hdynamic)]))))); 
-              param_is_variadic = false; param_pos = [8:30-39]; param_name = "$children"; 
-              param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-              param_user_attributes = []; param_visibility = (Some Public) };
+              param_pos = [8:30-39]; param_name = "$children"; param_info = Param_required; 
+              param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+              param_visibility = (Some Public) };
             { param_annotation = (string); param_type_hint = ((string), (Some ([9:14-20], (Hprim Tstring)))); 
-              param_is_variadic = false; param_pos = [9:21-26]; param_name = "$file"; 
-              param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-              param_user_attributes = []; param_visibility = (Some Public) };
+              param_pos = [9:21-26]; param_name = "$file"; param_info = Param_required; 
+              param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+              param_visibility = (Some Public) };
             { param_annotation = (int); param_type_hint = ((int), (Some ([10:14-17], (Hprim Tint)))); 
-              param_is_variadic = false; param_pos = [10:18-23]; param_name = "$line"; 
-              param_expr = None; param_readonly = None; param_callconv = Pnormal; 
-              param_user_attributes = []; param_visibility = (Some Public) }
+              param_pos = [10:18-23]; param_name = "$line"; param_info = Param_required; 
+              param_readonly = None; param_callconv = Pnormal; param_user_attributes = []; 
+              param_visibility = (Some Public) }
             ];
           m_ctxs = None; m_unsafe_ctxs = None;
           m_body =
@@ -223,7 +223,7 @@
        c_namespace =
        { Namespace_env.ns_ns_uses = <opaque>; ns_class_uses = <opaque>; 
          ns_fun_uses = <opaque>; ns_const_uses = <opaque>; ns_name = (Some "XhpSimple"); 
-         ns_is_codegen = false; ns_disable_xhp_element_mangling = false };
+         ns_mode = Namespace_env.ForTypecheck; ns_disable_xhp_element_mangling = false };
        c_user_attributes = [{ ua_name = ([4:9-17], "__SupportDynamicType"); ua_params = [] }]; 
        c_file_attributes = []; c_docs_url = None; c_enum = None; c_doc_comment = None; 
        c_emit_id = None; c_internal = false; c_module = None })

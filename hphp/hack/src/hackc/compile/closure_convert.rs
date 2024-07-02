@@ -45,6 +45,7 @@ use oxidized::ast::Expr_;
 use oxidized::ast::FunDef;
 use oxidized::ast::FunKind;
 use oxidized::ast::FunParam;
+use oxidized::ast::FunParamInfo;
 use oxidized::ast::Fun_;
 use oxidized::ast::FuncBody;
 use oxidized::ast::Hint;
@@ -721,10 +722,13 @@ pub fn make_fn_param(pos: Pos, lid: &LocalId, is_variadic: bool, is_inout: bool)
     FunParam {
         annotation: (),
         type_hint: TypeHint((), None),
-        is_variadic,
         pos: pos.clone(),
         name: local_id::get_name(lid).clone(),
-        expr: None,
+        info: if is_variadic {
+            FunParamInfo::ParamVariadic
+        } else {
+            FunParamInfo::ParamRequired
+        },
         callconv: if is_inout {
             ParamKind::Pinout(pos)
         } else {
@@ -1120,7 +1124,7 @@ impl<'a: 'b, 'b> ClosureVisitor<'a, 'b> {
         pos: &Pos,
     ) -> Result<Expr_> {
         let force = if let Expr_::Id(ref id) = x.func.2 {
-            strip_id(id).eq_ignore_ascii_case("HH\\dynamic_meth_caller_force")
+            strip_id(id) == "HH\\dynamic_meth_caller_force"
         } else {
             false
         };
@@ -1422,9 +1426,10 @@ fn strip_unsafe_casts(e: &mut Expr_) -> Expr_ {
 
 fn is_dyn_meth_caller(x: &CallExpr) -> bool {
     if let Expr_::Id(ref id) = (x.func).2 {
-        let name = strip_id(id);
-        name.eq_ignore_ascii_case("HH\\dynamic_meth_caller")
-            || name.eq_ignore_ascii_case("HH\\dynamic_meth_caller_force")
+        match strip_id(id) {
+            "HH\\dynamic_meth_caller" | "HH\\dynamic_meth_caller_force" => true,
+            _ => false,
+        }
     } else {
         false
     }
@@ -1432,8 +1437,10 @@ fn is_dyn_meth_caller(x: &CallExpr) -> bool {
 
 fn is_meth_caller(x: &CallExpr) -> bool {
     if let Expr_::Id(ref id) = x.func.2 {
-        let name = strip_id(id);
-        name.eq_ignore_ascii_case("HH\\meth_caller") || name.eq_ignore_ascii_case("meth_caller")
+        match strip_id(id) {
+            "HH\\meth_caller" | "meth_caller" => true,
+            _ => false,
+        }
     } else {
         false
     }

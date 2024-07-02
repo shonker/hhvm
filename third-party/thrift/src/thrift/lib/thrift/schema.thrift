@@ -629,6 +629,12 @@ union Definition {
 @python.Py3Hidden
 typedef list<Definition> DefinitionList
 
+typedef standard.ByteString DefinitionKey
+
+/** A map of definitions (Structs, Enums, Services, etc), accessible by `DefinitionKey`. */
+@python.Py3Hidden
+typedef map<DefinitionKey, Definition> DefinitionMap
+
 /**
  * A Thrift program.
  *
@@ -650,6 +656,13 @@ struct Program {
   1: DefinitionAttrs attrs;
 
   /**
+  * The id of the program in this snapshot of the schema.
+  * In hash mode we still store programs as a list so the root program can be easily identified.
+  * This field would otherwise be the key into the map of programs.
+  **/
+  2: id.ProgramId id;
+
+  /**
    * The included programs, in the order included in the IDL/AST.
    *
    * Changing the order of includes is always backward compatible.
@@ -665,6 +678,11 @@ struct Program {
   // TODO(afuller): Fix type resolution order bugs in the parser to make this
   // comment true in all cases.
   4: DefinitionIds definitions;
+
+  /**
+ * As above, but for accessing `definitionsMap`
+ */
+  8: list<DefinitionKey> definitionKeys;
 
   /**
    * The raw path used to identify this program's file to the compiler.
@@ -688,6 +706,10 @@ struct Program {
 @python.Py3Hidden
 typedef list<Program> ProgramList
 
+/** A hash of the value, but stored internally as ValueId */
+@python.Py3Hidden
+typedef id.ValueId ValueKey
+
 /**
  * A Thrift schema represented as a collection of Thrift programs and associated
  * schema values.
@@ -709,8 +731,14 @@ struct Schema {
   /** The values, accessible by `ValueId`. */
   2: list<protocol.Value> values;
 
+  /** The values, accessible by `ValueKey`. */
+  3: map<ValueKey, protocol.Value> valuesMap;
+
   /** The definitions, accessible by `DefinitionId`. */
   4: DefinitionList definitions;
+
+  /** The definitions, accessible by `DefinitionKey`. */
+  8: DefinitionMap definitionsMap;
 
   /**
    * DEPRECATED! Get the information from the Program struct.

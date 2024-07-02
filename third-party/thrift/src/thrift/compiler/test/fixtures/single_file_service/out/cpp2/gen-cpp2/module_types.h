@@ -31,7 +31,7 @@ APACHE_THRIFT_DEFINE_ACCESSOR(value);
 // BEGIN forward_declare
 namespace cpp2 {
 class Foo;
-} // cpp2
+} // namespace cpp2
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -92,6 +92,8 @@ class Foo final  {
  public:
   using __fbthrift_cpp2_type = Foo;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -202,4 +204,4 @@ unsigned long Foo::read(Protocol_* iprot) {
 }
 
 
-} // cpp2
+} // namespace cpp2

@@ -62,7 +62,7 @@ folly::coro::Task<std::unique_ptr<::std::string>> apache::thrift::ServiceHandler
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::DbMixedStackArguments>::async_tm_getDataByKey0(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::string>>> callback, std::unique_ptr<::std::string> p_key) {
+void apache::thrift::ServiceHandler<::cpp2::DbMixedStackArguments>::async_tm_getDataByKey0(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::string>> callback, std::unique_ptr<::std::string> p_key) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -120,7 +120,7 @@ determineInvocationType:
       {
         ::std::string _return;
         sync_getDataByKey0(_return, std::move(p_key));
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -174,7 +174,7 @@ folly::coro::Task<std::unique_ptr<::std::string>> apache::thrift::ServiceHandler
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::DbMixedStackArguments>::async_tm_getDataByKey1(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::string>>> callback, std::unique_ptr<::std::string> p_key) {
+void apache::thrift::ServiceHandler<::cpp2::DbMixedStackArguments>::async_tm_getDataByKey1(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::string>> callback, std::unique_ptr<::std::string> p_key) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -232,7 +232,7 @@ determineInvocationType:
       {
         ::std::string _return;
         sync_getDataByKey1(_return, std::move(p_key));
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -253,9 +253,9 @@ determineInvocationType:
 
 namespace cpp2 {
 
-void DbMixedStackArgumentsSvNull::getDataByKey0(::std::string& /*_return*/, std::unique_ptr<::std::string> /*key*/) {}
+void DbMixedStackArgumentsSvNull::getDataByKey0(::std::string& /*_return*/, std::unique_ptr<::std::string> /*key*/) {  }
 
-void DbMixedStackArgumentsSvNull::getDataByKey1(::std::string& /*_return*/, std::unique_ptr<::std::string> /*key*/) {}
+void DbMixedStackArgumentsSvNull::getDataByKey1(::std::string& /*_return*/, std::unique_ptr<::std::string> /*key*/) {  }
 
 
 const char* DbMixedStackArgumentsAsyncProcessor::getServiceName() {
@@ -299,14 +299,14 @@ apache::thrift::ServiceRequestInfoMap const& DbMixedStackArgumentsServiceInfoHol
 apache::thrift::ServiceRequestInfoMap DbMixedStackArgumentsServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"getDataByKey0",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "DbMixedStackArguments.getDataByKey0",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"getDataByKey1",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "DbMixedStackArguments.getDataByKey1",
      std::nullopt,
@@ -316,4 +316,4 @@ apache::thrift::ServiceRequestInfoMap DbMixedStackArgumentsServiceInfoHolder::st
 
   return requestInfoMap;
 }
-} // cpp2
+} // namespace cpp2

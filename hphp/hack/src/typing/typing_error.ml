@@ -165,14 +165,6 @@ module Primary = struct
           trail: Pos_or_decl.t list;
         }
       | Enum_type_typedef_nonnull of Pos.t
-      | Enum_class_label_unknown of {
-          pos: Pos.t;
-          label_name: string;
-          enum_name: string;
-          decl_pos: Pos_or_decl.t;
-          most_similar: (string * Pos_or_decl.t) option;
-          ty_pos: Pos_or_decl.t option;
-        }
       | Enum_class_label_as_expr of Pos.t
       | Enum_class_label_member_mismatch of {
           pos: Pos.t;
@@ -354,6 +346,29 @@ module Primary = struct
     [@@deriving show]
   end
 
+  module Package = struct
+    type t =
+      | Cross_pkg_access of {
+          pos: Pos.t;
+          decl_pos: Pos_or_decl.t;
+          package_pos: Pos.t;
+          current_package_opt: string option;
+          target_package_opt: string option;
+          current_filename: Relative_path.t;
+          target_filename: Relative_path.t;
+        }
+      | Soft_included_access of {
+          pos: Pos.t;
+          decl_pos: Pos_or_decl.t;
+          package_pos: Pos.t;
+          current_package_opt: string option;
+          target_package_opt: string option;
+          current_filename: Relative_path.t;
+          target_filename: Relative_path.t;
+        }
+    [@@deriving show]
+  end
+
   module Xhp = struct
     type t =
       | Xhp_required of {
@@ -369,6 +384,11 @@ module Primary = struct
           pos: Pos.t;
           attr: string;
           ty_reason_msg: Pos_or_decl.t Message.t list Lazy.t;
+        }
+      | Attribute_value of {
+          pos: Pos.t;
+          attr_name: string;
+          valid_values: string list;
         }
     [@@deriving show]
   end
@@ -396,6 +416,7 @@ module Primary = struct
     | Enum of Enum.t
     | Expr_tree of Expr_tree.t
     | Modules of Modules.t
+    | Package of Package.t
     | Readonly of Readonly.t
     | Shape of Shape.t
     | Wellformedness of Wellformedness.t
@@ -798,8 +819,9 @@ module Primary = struct
         pos: Pos.t;
         ty_name: string Lazy.t;
       }
-    | Redundant_covariant of {
+    | Redundant_generic of {
         pos: Pos.t;
+        variance: [ `Co | `Contra ];
         msg: string;
         suggest: string;
       }
@@ -1004,6 +1026,10 @@ module Primary = struct
         decl_pos: Pos_or_decl.t;
       }
     | Protected_meth_caller of {
+        pos: Pos.t;
+        decl_pos: Pos_or_decl.t;
+      }
+    | Internal_meth_caller of {
         pos: Pos.t;
         decl_pos: Pos_or_decl.t;
       }
@@ -1321,6 +1347,10 @@ module Primary = struct
         expr_ty: string Lazy.t;
         unsupported_tys: string Lazy.t list;
       }
+    | Class_pointer_to_string of {
+        pos: Pos.t;
+        cls_name: string;
+      }
   [@@deriving show]
 end
 
@@ -1345,6 +1375,8 @@ module rec Error : sig
   val expr_tree : Primary.Expr_tree.t -> t
 
   val modules : Primary.Modules.t -> t
+
+  val package : Primary.Package.t -> t
 
   val readonly : Primary.Readonly.t -> t
 
@@ -1401,6 +1433,8 @@ end = struct
   let expr_tree err = primary @@ Primary.Expr_tree err
 
   let modules err = primary @@ Primary.Modules err
+
+  let package err = primary @@ Primary.Package err
 
   let readonly err = primary @@ Primary.Readonly err
 
@@ -1562,6 +1596,8 @@ and Secondary : sig
         pos: Pos_or_decl.t;
         name: string;
         decl_pos: Pos_or_decl.t;
+        reason_sub: Typing_reason.t;
+        reason_super: Typing_reason.t;
       }
     | Shape_fields_unknown of {
         pos: Pos_or_decl.t;
@@ -1609,6 +1645,8 @@ and Secondary : sig
         decl_pos: Pos_or_decl.t;
         def_pos: Pos_or_decl.t;
         name: string;
+        reason_sub: Typing_reason.t;
+        reason_super: Typing_reason.t;
       }
     | Return_disposable_mismatch of {
         pos_sub: Pos_or_decl.t;
@@ -1754,6 +1792,11 @@ and Secondary : sig
     | Inexact_tconst_access of Pos_or_decl.t * (Pos_or_decl.t * string)
     | Violated_refinement_constraint of {
         cstr: [ `As | `Super ] * Pos_or_decl.t;
+      }
+    | Unknown_label of {
+        enum_name: string;
+        decl_pos: Pos_or_decl.t;
+        most_similar: (string * Pos_or_decl.t) option;
       }
   [@@deriving show]
 end = struct
@@ -1853,6 +1896,8 @@ end = struct
         pos: Pos_or_decl.t;
         name: string;
         decl_pos: Pos_or_decl.t;
+        reason_sub: Typing_reason.t;
+        reason_super: Typing_reason.t;
       }
     | Shape_fields_unknown of {
         pos: Pos_or_decl.t;
@@ -1900,6 +1945,8 @@ end = struct
         decl_pos: Pos_or_decl.t;
         def_pos: Pos_or_decl.t;
         name: string;
+        reason_sub: Typing_reason.t;
+        reason_super: Typing_reason.t;
       }
     | Return_disposable_mismatch of {
         pos_sub: Pos_or_decl.t;
@@ -2045,6 +2092,11 @@ end = struct
     | Inexact_tconst_access of Pos_or_decl.t * (Pos_or_decl.t * string)
     | Violated_refinement_constraint of {
         cstr: [ `As | `Super ] * Pos_or_decl.t;
+      }
+    | Unknown_label of {
+        enum_name: string;
+        decl_pos: Pos_or_decl.t;
+        most_similar: (string * Pos_or_decl.t) option;
       }
   [@@deriving show]
 end

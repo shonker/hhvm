@@ -277,6 +277,7 @@ void parseOptions(int argc, char *argv[]) {
         break;
       case 'S':
         sortBySize = true;
+        [[fallthrough]];
       case 'T':
         if (sscanf(optarg, "%u", &nTopFuncs) != 1) {
           usage();
@@ -342,6 +343,8 @@ void parseOptions(int argc, char *argv[]) {
         if (optopt == 'd' || optopt == 'c' || optopt == 'p' || optopt == 't') {
           fprintf (stderr, "Error: -%c expects an argument\n\n", optopt);
         }
+        usage();
+        exit(1);
       case 'o':
         hostOpcodes = true;
         break;
@@ -1088,7 +1091,7 @@ void printTopBytecodes(const OfflineTransData* tdata,
     const TransFragment& tfrag = ranking[i].second;
     const TransRec* trec = tdata->getTransRec(tfrag.tid);
 
-    Unit* unit = g_repo->getUnit(trec->sha1);
+    Unit* unit = g_repo->getUnit(trec->sn);
     always_assert(unit);
 
     g_logger->printGeneric("\n====================\n");

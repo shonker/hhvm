@@ -23,10 +23,12 @@ use oxidized_by_ref::typing_defs::UserAttributeParam;
 use serde::Deserialize;
 use serde::Serialize;
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize)]
 pub enum TypeKind {
     Class,
     Interface,
+
+    /// Used for legacy enum and enum class
     Enum,
     Trait,
     TypeAlias,
@@ -40,11 +42,47 @@ impl Default for TypeKind {
     }
 }
 
+impl TypeKind {
+    #[inline]
+    pub fn is_classish(&self) -> bool {
+        matches!(
+            self,
+            Self::Class | Self::Interface | Self::Trait | Self::Enum
+        )
+    }
+
+    #[inline]
+    pub fn is_typedef(&self) -> bool {
+        *self == Self::TypeAlias
+    }
+}
+
+// TODO: all variants are represented as string for no good reason;
+// as of april 2024, attributes are encoded as json in sqlite FactsDB.
+// However, attribute values are hack values and only consumed in hack,
+// so hack/php serializing would be much better than json. This will
+// require carefully migrating the FactsDB schema.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum AttrValue {
     Classname(String),
     String(String),
     Int(String),
+}
+
+impl AttrValue {
+    pub fn into_json(self) -> serde_json::Value {
+        match self {
+            Self::Classname(s) | Self::String(s) | Self::Int(s) => serde_json::Value::String(s),
+        }
+    }
+
+    pub fn to_json(&self) -> serde_json::Value {
+        match self {
+            Self::Classname(s) | Self::String(s) | Self::Int(s) => {
+                serde_json::Value::String(s.clone())
+            }
+        }
+    }
 }
 
 pub type Attributes = BTreeMap<String, Vec<AttrValue>>;

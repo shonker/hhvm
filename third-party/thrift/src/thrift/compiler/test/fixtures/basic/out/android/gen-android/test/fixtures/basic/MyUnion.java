@@ -107,15 +107,15 @@ public class MyUnion extends TUnion<MyUnion> {
         if (__field.type == FLOAT_SET_FIELD_DESC.type) {
           Set<Float> floatSet;
           {
-            TSet _set4 = iprot.readSetBegin();
-            floatSet = new HashSet<Float>(Math.max(0, 2*_set4.size));
-            for (int _i5 = 0; 
-                 (_set4.size < 0) ? iprot.peekSet() : (_i5 < _set4.size); 
-                 ++_i5)
+            TSet _set19 = iprot.readSetBegin();
+            floatSet = new HashSet<Float>(Math.max(0, 2*_set19.size));
+            for (int _i20 = 0; 
+                 (_set19.size < 0) ? iprot.peekSet() : (_i20 < _set19.size); 
+                 ++_i20)
             {
-              Float _elem6;
-              _elem6 = iprot.readFloat();
-              floatSet.add(_elem6);
+              Float _elem21;
+              _elem21 = iprot.readFloat();
+              floatSet.add(_elem21);
             }
             iprot.readSetEnd();
           }
@@ -146,8 +146,8 @@ public class MyUnion extends TUnion<MyUnion> {
         Set<Float> floatSet = (Set<Float>)getFieldValue();
         {
           oprot.writeSetBegin(new TSet(TType.FLOAT, floatSet.size()));
-          for (Float _iter7 : floatSet)          {
-            oprot.writeFloat(_iter7);
+          for (Float _iter22 : floatSet)          {
+            oprot.writeFloat(_iter22);
           }
           oprot.writeSetEnd();
         }
@@ -195,18 +195,10 @@ public class MyUnion extends TUnion<MyUnion> {
     value_ = __value;
   }
 
-  /**
-   * 
-   * @see MyEnum
-   */
   public MyEnum getMyEnum() {
     return (MyEnum) __getValue(MYENUM);
   }
 
-  /**
-   * 
-   * @see MyEnum
-   */
   public void setMyEnum(MyEnum __value) {
     __setValue(MYENUM, __value);
   }

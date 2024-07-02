@@ -10,12 +10,24 @@ Code action title: Add override for MyParent::methodInGrandParent
 JSON for selected code action:
 ------------------------------------------
 {
+  "command":{
+    "arguments":[
+      {"end":{"character":4,"line":17},"start":{"character":4,"line":17}},
+      {
+        "arguments":[],
+        "command":"editor.action.inlineSuggest.trigger",
+        "title":"Trigger Inline Suggest"
+      }
+    ],
+    "command":"hack.setSelection",
+    "title":"Set Cursor Selection"
+  },
   "diagnostics":[],
   "edit":{
     "changes":{
       "FILE.php":[
         {
-          "newText":"\n  <<__Override>>\n  public function methodInGrandParent(): void {}\n\n",
+          "newText":"\n  <<__Override>>\n  public function methodInGrandParent(): void {\n    \n  }\n\n",
           "range":{"end":{"character":32,"line":14},"start":{"character":32,"line":14}}
         }
       ]
@@ -43,7 +55,9 @@ trait MyTrait {
 
 class MyClass extends MyParent {
   <<__Override>>
-  public function methodInGrandParent(): void {}
+  public function methodInGrandParent(): void {
+    >||<
+  }
 
 
   //                  ^ at-caret
@@ -56,12 +70,24 @@ Code action title: Add override for MyParent::methodInParent
 JSON for selected code action:
 ------------------------------------------
 {
+  "command":{
+    "arguments":[
+      {"end":{"character":4,"line":17},"start":{"character":4,"line":17}},
+      {
+        "arguments":[],
+        "command":"editor.action.inlineSuggest.trigger",
+        "title":"Trigger Inline Suggest"
+      }
+    ],
+    "command":"hack.setSelection",
+    "title":"Set Cursor Selection"
+  },
   "diagnostics":[],
   "edit":{
     "changes":{
       "FILE.php":[
         {
-          "newText":"\n  <<__Override>>\n  public function methodInParent(): void {}\n\n",
+          "newText":"\n  <<__Override>>\n  public function methodInParent(): void {\n    \n  }\n\n",
           "range":{"end":{"character":32,"line":14},"start":{"character":32,"line":14}}
         }
       ]
@@ -89,7 +115,9 @@ trait MyTrait {
 
 class MyClass extends MyParent {
   <<__Override>>
-  public function methodInParent(): void {}
+  public function methodInParent(): void {
+    >||<
+  }
 
 
   //                  ^ at-caret

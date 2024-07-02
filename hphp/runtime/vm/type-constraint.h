@@ -26,8 +26,9 @@
 #include "hphp/runtime/vm/type-profile.h"
 #include "hphp/runtime/vm/containers.h"
 
-#include "hphp/util/functional.h"
 #include "hphp/util/check-size.h"
+#include "hphp/util/configs/eval.h"
+#include "hphp/util/functional.h"
 #include "hphp/util/trace.h"
 
 #include <functional>
@@ -589,11 +590,23 @@ private:
   friend struct TcUnionPieceIterator;
   friend struct TcUnionPieceView;
 
+  enum class ResolvedType {
+    // We haven't yet specified a resolved or unresolved class.
+    Unspecified,
+    // We only have unresolved classes.
+    Unresolved,
+    // We only have resolved classes.
+    Resolved,
+    // We have a mix of resolved and unresolved classes. This isn't legal in a
+    // TypeConstraint so it has to be dealt with before finishing.
+    Mixed,
+  };
+
   struct UnionBuilder {
     const LowStringPtr m_typeName;
     TypeConstraintFlags m_flags = TypeConstraintFlags::Union;
     UnionTypeMask m_preciseTypeMask = 0;
-    Optional<bool> m_resolved;
+    ResolvedType m_resolved = ResolvedType::Unspecified;
     UnionClassList m_classes;
     bool m_containsNonnull = false;
 
@@ -760,7 +773,7 @@ bool tcCouldBeReified(const Func*, uint32_t);
 inline bool setOpNeedsTypeCheck(const TypeConstraint& tc,
                                 SetOpOp op,
                                 tv_rval lhs) {
-  if (RuntimeOption::EvalCheckPropTypeHints <= 0 || !tc.isCheckable()) {
+  if (Cfg::Eval::CheckPropTypeHints <= 0 || !tc.isCheckable()) {
     return false;
   }
   if (op != SetOpOp::ConcatEqual) return true;

@@ -7,8 +7,6 @@
 
 pub mod services;
 
-pub mod errors;
-
 #[allow(unused_imports)]
 pub(crate) use crate as types;
 
@@ -55,10 +53,17 @@ impl ::fbthrift::GetTType for self::ThereAreNoPascalCaseKeywords {
     const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
 }
 
+impl ::fbthrift::GetTypeNameType for self::ThereAreNoPascalCaseKeywords {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::ThereAreNoPascalCaseKeywords
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("ThereAreNoPascalCaseKeywords");
         p.write_field_begin("return", ::fbthrift::TType::Bool, 1);
@@ -76,6 +81,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::ThereAreNoPascalCaseKeywords
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("return", ::fbthrift::TType::Bool, 1),

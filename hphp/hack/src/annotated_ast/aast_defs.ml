@@ -347,26 +347,10 @@ and ('ex, 'en) function_ptr_id =
 and ('ex, 'en) expression_tree = {
   et_class: class_name;
       (** The hint before the backtick, so Foo in this example. *)
-  et_splices: ('ex, 'en) stmt list;
-      (** The values spliced into expression tree at runtime are assigned
-       * to temporaries.
-       *
-       *     $0tmp1 = $x; $0tmp2 = bar(); *)
-  et_function_pointers: ('ex, 'en) stmt list;
-      (** The list of global functions and static methods assigned to
-       * temporaries.
-       *
-       *     $0fp1 = foo<>; *)
   et_runtime_expr: ('ex, 'en) expr;
       (** The expression that's executed at runtime.
        *
        *     Foo::makeTree($v ==> $v->visitBinOp(...)) *)
-  et_dollardollar_pos: pos option; [@transform.opaque]
-      (** Position of the first $$ in a splice that refers
-       * to a variable outside the Expression Tree
-       *
-       *     $x |> Code`${ $$ }` // Pos of the $$
-       *     Code`${ $x |> foo($$) }` // None *)
 }
 
 and ('ex, 'en) as_ = {
@@ -374,6 +358,15 @@ and ('ex, 'en) as_ = {
   hint: hint;
   is_nullable: bool;
   enforce_deep: bool;
+}
+
+and ('ex, 'en) et_splice = {
+  extract_client_type: bool;
+      (** The spliced_expr should have type Spliceble<t1, t2, t3>, and if extract_client_type is true, the
+          overall type should be t3. If false, the entire Spliceable should be the type. *)
+  contains_await: bool;
+      (** Does the spliced_expr contain an await expression *)
+  spliced_expr: ('ex, 'en) expr;
 }
 
 and ('ex, 'en) expr_ =
@@ -721,7 +714,7 @@ and ('ex, 'en) expr_ =
       (** Pair literal.
        *
        *     Pair {$foo, $bar} *)
-  | ET_Splice of ('ex, 'en) expr
+  | ET_Splice of ('ex, 'en) et_splice
       (** Expression tree splice expression. Only valid inside an
        * expression tree literal (backticks). See also `ExpressionTree`.
        *
@@ -813,15 +806,21 @@ and ('ex, 'en) xhp_attribute =
   | Xhp_simple of ('ex, 'en) xhp_simple
   | Xhp_spread of ('ex, 'en) expr
 
-and is_variadic = bool [@@transform.opaque]
+(**
+ * Param_optional None = `optional int $i`
+ * Param_optional (Some e) = `int $i = e`
+ *)
+and ('ex, 'en) fun_param_info =
+  | Param_optional of ('ex, 'en) expr option
+  | Param_required
+  | Param_variadic
 
 and ('ex, 'en) fun_param = {
   param_annotation: 'ex;
   param_type_hint: 'ex type_hint;
-  param_is_variadic: is_variadic;
   param_pos: pos; [@transform.opaque]
   param_name: string;
-  param_expr: ('ex, 'en) expr option;
+  param_info: ('ex, 'en) fun_param_info;
   param_readonly: Ast_defs.readonly_kind option; [@transform.opaque]
   param_callconv: Ast_defs.param_kind; [@transform.opaque]
   param_user_attributes: ('ex, 'en) user_attributes;

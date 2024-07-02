@@ -7,27 +7,30 @@
  *)
 open Hh_prelude
 
-(** These severity levels are based on those provided by Arcanist. "Advice"
- * means notify the user of the lint without requiring confirmation if the lint
- * is benign; "Warning" will raise a confirmation prompt if the lint applies to
- * a line that was changed in the given diff; and "Error" will always raise a
- * confirmation prompt, regardless of where the lint occurs in the file. *)
+(** These severity levels are based on those provided by Arcanist:
+  - Error: when it fires, it will require confirmation
+  - Warning: when it fires, it shows up visibly before landing
+  - Advice: Similar to warning, but implies lesser severity
+  - Disabled: Hidden from most UI, but it is useful for telemetry
+ *)
 type severity =
   | Lint_error
   | Lint_warning
   | Lint_advice
+  | Lint_disabled
 [@@deriving show]
 
 let string_of_severity = function
   | Lint_error -> "error"
   | Lint_warning -> "warning"
   | Lint_advice -> "advice"
+  | Lint_disabled -> "disabled"
 
 type 'pos t = {
-  code: int;
+  code: int; (* Determines ordering (1st priority) *)
   severity: severity;
-  pos: 'pos; [@opaque]
-  message: string;
+  pos: 'pos; [@opaque] (* Determines ordering (2nd priority) *)
+  message: string; (* Determines ordering (3rd priority) *)
   bypass_changed_lines: bool;
       (** Normally, lint warnings and lint advice only get shown by arcanist if the
        * lines they are raised on overlap with lines changed in a diff. This
@@ -36,6 +39,16 @@ type 'pos t = {
   check_status: Tast.check_status option;
 }
 [@@deriving show]
+
+(* Code, position, and message imply the rest of the fields *)
+let compare_lint a b =
+  match Int.compare a.code b.code with
+  | 0 -> begin
+    match Pos.compare a.pos b.pos with
+    | 0 -> String.compare a.message b.message
+    | n -> n
+  end
+  | n -> n
 
 let (lint_list : Pos.t t list option ref) = ref None
 
@@ -88,13 +101,21 @@ let to_contextual_string lint =
     match lint.severity with
     | Lint_error -> Tty.Red
     | Lint_warning -> Tty.Yellow
-    | Lint_advice -> Tty.Default
+    | Lint_advice
+    | Lint_disabled ->
+      Tty.Default
   in
-  User_error.make_absolute lint.code [(lint.pos, lint.message)]
+  User_error.make_absolute
+    User_error.Warning
+    lint.code
+    [(lint.pos, lint.message)]
   |> Contextual_error_formatter.to_string ~claim_color
 
 let to_highlighted_string (lint : string Pos.pos t) =
-  User_error.make_absolute lint.code [(lint.pos, lint.message)]
+  User_error.make_absolute
+    User_error.Warning
+    lint.code
+    [(lint.pos, lint.message)]
   |> Highlighted_error_formatter.to_string
 
 let to_json { pos; code; severity; message; bypass_changed_lines; autofix; _ } =
@@ -210,4 +231,5 @@ let do_ f =
   in
   let out = filter_out_unsound_lints out in
   lint_list := list_copy;
-  (List.rev out, result)
+  let uniq = List.dedup_and_sort out ~compare:compare_lint in
+  (uniq, result)

@@ -46,10 +46,13 @@ THRIFT_PLUGGABLE_FUNC_REGISTER(
 ThriftRequestCore::ThriftRequestCore(
     server::ServerConfigs& serverConfigs,
     RequestRpcMetadata&& metadata,
-    Cpp2ConnContext& connContext)
+    Cpp2ConnContext& connContext,
+    apache::thrift::detail::ServiceInterceptorRequestStorageContext
+        serviceInterceptorsStorage)
     : serverConfigs_(serverConfigs),
       kind_(metadata.kind_ref().value_or(
           RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE)),
+      metricCollector_{serverConfigs_.getMetricCollector()},
       checksumRequested_(metadata.crc32c_ref().has_value()),
       loadMetric_(
           metadata.loadMetric_ref()
@@ -59,7 +62,8 @@ ThriftRequestCore::ThriftRequestCore(
           &connContext,
           &header_,
           metadata.name_ref() ? std::move(*metadata.name_ref()).str()
-                              : std::string{}),
+                              : std::string{},
+          std::move(serviceInterceptorsStorage)),
       queueTimeout_(*this),
       taskTimeout_(*this, serverConfigs_),
       stateMachine_(
@@ -121,6 +125,7 @@ ThriftRequestCore::ThriftRequestCore(
   if (auto* observer = serverConfigs_.getObserver()) {
     observer->receivedRequest(&reqContext_.getMethodName());
   }
+  metricCollector_.requestReceived();
 }
 
 bool ThriftRequestCore::includeInRecentRequestsCount(
@@ -148,7 +153,9 @@ void ThriftRequestCore::LogRequestSampleCallback::sendQueued() {
 }
 
 void ThriftRequestCore::LogRequestSampleCallback::messageSent() {
-  SCOPE_EXIT { delete this; };
+  SCOPE_EXIT {
+    delete this;
+  };
   requestLoggingContext_.timestamps.writeEnd = std::chrono::steady_clock::now();
   if (chainedCallback_ != nullptr) {
     chainedCallback_->messageSent();
@@ -157,7 +164,9 @@ void ThriftRequestCore::LogRequestSampleCallback::messageSent() {
 
 void ThriftRequestCore::LogRequestSampleCallback::messageSendError(
     folly::exception_wrapper&& e) {
-  SCOPE_EXIT { delete this; };
+  SCOPE_EXIT {
+    delete this;
+  };
   requestLoggingContext_.timestamps.writeEnd = std::chrono::steady_clock::now();
   if (chainedCallback_ != nullptr) {
     chainedCallback_->messageSendError(std::move(e));
@@ -213,6 +222,8 @@ ThriftRequestCore::LogRequestSampleCallback::buildRequestLoggingContext(
   if (const auto* requestId = reqContext->getClientRequestId()) {
     requestLoggingContext.requestId = *requestId;
   }
+  requestLoggingContext.requestAttemptId = reqContext->getRequestAttemptId();
+
   requestLoggingContext.requestStartedProcessing =
       thriftRequest.isStartedProcessing();
 

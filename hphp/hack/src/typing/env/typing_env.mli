@@ -9,7 +9,7 @@
 open Typing_env_types
 open Decl_provider
 open Typing_defs
-module Cls = Decl_provider.Class
+module Cls = Folded_class
 module TPEnv = Type_parameter_env
 
 type 'a class_or_typedef_result =
@@ -135,9 +135,7 @@ val get_fun :
 val get_typedef : env -> type_key -> typedef_decl Decl_entry.t
 
 val get_class_or_typedef :
-  env ->
-  type_key ->
-  Typing_classes_heap.Api.t class_or_typedef_result Decl_entry.t
+  env -> type_key -> Folded_class.t class_or_typedef_result Decl_entry.t
 
 (** Get class constant declaration from the appropriate backend and add dependency. *)
 val get_const : env -> class_decl -> string -> class_const option
@@ -271,6 +269,11 @@ val set_no_auto_likes : env -> bool -> env
 val get_module : env -> module_key -> module_decl option
 
 val get_current_module : env -> string option
+
+val set_current_package_override_from_file_attributes :
+  env -> ('ex, 'en) Aast_defs.file_attribute list -> env
+
+val get_current_package_override : env -> string option
 
 (** Register the current top-level structure as being dependent on the current
     module *)
@@ -547,6 +550,8 @@ val mark_inconsistent : env -> env
 
 val get_package_for_module : env -> string -> Package.t option
 
+val get_package_for_file : env -> Relative_path.t -> Package.t option
+
 val get_package_by_name : env -> string -> Package.t option
 
 val load_packages : env -> SSet.t -> env
@@ -556,6 +561,10 @@ val load_cross_packages_from_attr : env -> ('a, 'b) Aast.user_attributes -> env
 val with_packages : env -> SSet.t -> (env -> env * 'a) -> env * 'a
 
 val is_package_loaded : env -> string -> bool
+
+val package_v2 : env -> bool
+
+val package_v2_bypass_package_check_for_class_const : env -> bool
 
 (** Remove solved variable from environment by replacing it by its binding. *)
 val remove_var :

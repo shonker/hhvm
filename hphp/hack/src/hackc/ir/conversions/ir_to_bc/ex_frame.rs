@@ -10,8 +10,8 @@ use ir::TryCatchId;
 pub(crate) fn collect_tc_sections(func: &ir::Func) -> Vec<BlockIdOrExFrame> {
     let mut root: ExFrame = ExFrame::default();
 
-    for bid in func.block_ids() {
-        let tcid = func.block(bid).tcid;
+    for bid in func.repr.block_ids() {
+        let tcid = func.repr.block(bid).tcid;
         let frame = get_frame(&mut root, func, tcid);
         let bid = BlockIdOrExFrame::Block(bid);
         frame.push(bid);
@@ -68,7 +68,7 @@ impl ExFrame {
     fn sort_fn(_func: &ir::Func, a: &BlockIdOrExFrame, b: &BlockIdOrExFrame) -> std::cmp::Ordering {
         let a_bid = a.bid();
         let b_bid = b.bid();
-        if a_bid == ir::Func::ENTRY_BID || b_bid == ir::Func::ENTRY_BID {
+        if a_bid == ir::IrRepr::ENTRY_BID || b_bid == ir::IrRepr::ENTRY_BID {
             return a_bid.cmp(&b_bid);
         }
         a_bid.cmp(&b_bid)
@@ -105,7 +105,7 @@ fn find_or_insert_frame<'c>(
     func: &ir::Func,
     exid: ir::ExFrameId,
 ) -> &'c mut ExFrame {
-    let parent_tcid: TryCatchId = func.ex_frames[&exid].parent;
+    let parent_tcid: TryCatchId = func.repr.ex_frames[&exid].parent;
     let parent_frame = get_frame(root, func, parent_tcid);
     if let Some(frame) = find_frame(parent_frame, exid) {
         parent_frame[frame].frame_mut()
@@ -167,15 +167,16 @@ mod test {
                 tcid,
                 ..Block::default()
             };
-            assert!(bid == func.blocks.len());
-            func.blocks.push(block);
+            assert!(bid == func.repr.blocks.len());
+            func.repr.blocks.push(block);
         }
 
         for (exid, (parent, catch_bid)) in ex_frames {
             let exid = ir::ExFrameId::from_usize(exid);
             let parent = parent.map_or(TryCatchId::None, conv_tcid);
             let catch_bid = BlockId::from_usize(catch_bid);
-            func.ex_frames
+            func.repr
+                .ex_frames
                 .insert(exid, ir::func::ExFrame { parent, catch_bid });
         }
 

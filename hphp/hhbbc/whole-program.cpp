@@ -155,40 +155,6 @@ std::vector<Context> all_unit_contexts(const Index& index,
   return ret;
 }
 
-std::vector<Context> const_pass_contexts(const Index& index) {
-  /*
-   * Set of functions that should be processed in the constant
-   * propagation pass.
-   *
-   * None are needed for correctness. cinit, pinit, sinit, and linit
-   * functions are processed to improve overall performance.
-   */
-  std::vector<Context> ret;
-  for (auto const& c : index.program().classes) {
-    for (auto const& m : c->methods) {
-      if (!is_86init_func(*m)) continue;
-      ret.emplace_back(
-        Context {
-          c->unit,
-          m.get(),
-          c.get()
-        }
-      );
-    }
-  }
-  for (auto const& f : index.program().funcs) {
-    if (!Constant::nameFromFuncName(f->name)) continue;
-    ret.emplace_back(
-      Context {
-        f->unit,
-        f.get(),
-        nullptr
-      }
-    );
-  }
-  return ret;
-}
-
 // Return all the WorkItems we'll need to start analyzing this
 // program.
 std::vector<WorkItem> initial_work(const Index& index) {
@@ -196,11 +162,7 @@ std::vector<WorkItem> initial_work(const Index& index) {
 
   auto const& program = index.program();
   for (auto const& c : program.classes) {
-    if (c->closureContextCls) {
-      // For class-at-a-time analysis, closures that are associated
-      // with a class context are analyzed as part of that context.
-      continue;
-    }
+    assertx(!c->closureContextCls);
     if (is_used_trait(*c)) {
       for (auto const& f : c->methods) {
         ret.emplace_back(
@@ -496,14 +458,8 @@ struct AnalyzeConstantsJob {
                     VU<php::Func> depFuncs,
                     VU<php::Unit> depUnits,
                     AnalysisInput::Meta meta) {
-    // Pre-populate the worklist with everything to begin with.
-    AnalysisWorklist start;
-    for (auto const& c : classes.vals) start.schedule(c.get());
-    for (auto const& f : funcs.vals)   start.schedule(f.get());
-    // Make a copy of it. We'll need the original list after the index
-    // is frozen.
-    auto worklist = start;
-
+    // AnalysisIndex ctor will initialize the worklist appropriately.
+    AnalysisWorklist worklist;
     AnalysisIndex index{
       worklist,
       std::move(classes.vals),
@@ -517,20 +473,22 @@ struct AnalyzeConstantsJob {
       std::move(depClasses.vals),
       std::move(depFuncs.vals),
       std::move(depUnits.vals),
-      std::move(meta)
+      std::move(meta),
+      AnalysisIndex::Mode::Constants
     };
 
     // Keep processing work until we reach a fixed-point (nothing new
     // gets put on the worklist).
     while (process(index, worklist)) {}
     // Freeze the index. Nothing is allowed to update the index after
-    // this.
+    // this. This will also re-load the worklist with all of the
+    // classes which will end up in the output.
     index.freeze();
     // Now do a pass through the original work items again. Now that
     // the index is frozen, we'll gather up any dependencies from the
     // analysis. Since we already reached a fixed point, this should
     // not cause any updates (and if it does, we'll assert).
-    while (process(index, start)) {}
+    while (process(index, worklist)) {}
     // Everything is analyzed and dependencies are recorded. Turn the
     // index data into AnalysisIndex::Output and return it from this
     // job.
@@ -543,38 +501,44 @@ private:
   static bool process(AnalysisIndex& index,
                       AnalysisWorklist& worklist) {
     auto const w = worklist.next();
-    if (auto const c = w.right()) {
-      auto results = analyze(*c, index);
-      for (auto& r : results) update(std::move(r), index);
-    } else if (auto const f = w.left()) {
+    if (auto const c = w.cls()) {
+      update(analyze(*c, index), index);
+    } else if (auto const f = w.func()) {
       update(analyze(*f, index), index);
+    } else if (auto const u = w.unit()) {
+      update(analyze(*u, index), index);
     } else {
       return false;
     }
     return true;
   }
 
-  static FuncAnalysisResult analyze(const php::Func& f, AnalysisIndex& index) {
+  static FuncAnalysisResult analyze(const php::Func& f,
+                                    const AnalysisIndex& index) {
     auto const wf = php::WideFunc::cns(&f);
     AnalysisContext ctx{ f.unit, wf, f.cls };
     return analyze_func(AnalysisIndexAdaptor{ index }, ctx, CollectionOpts{});
   }
 
-  static std::vector<FuncAnalysisResult> analyze(const php::Class& c,
-                                                 AnalysisIndex& index) {
-    std::vector<FuncAnalysisResult> results;
-    results.reserve(c.methods.size());
-    for (auto const& m : c.methods) {
-      if (!is_86init_func(*m)) continue;
-      results.emplace_back(analyze(*m, index));
-    }
-    return results;
+  static ClassAnalysis analyze(const php::Class& c,
+                               const AnalysisIndex& index) {
+    return analyze_class_constants(
+      AnalysisIndexAdaptor { index },
+      Context { c.unit, nullptr, &c }
+    );
+  }
+
+  static UnitAnalysis analyze(const php::Unit& u, const AnalysisIndex& index) {
+    return analyze_unit(index, Context { u.filename, nullptr, nullptr });
   }
 
   static void update(FuncAnalysisResult fa, AnalysisIndex& index) {
     SCOPE_ASSERT_DETAIL("update func") {
       return "Updating Func: " + show(fa.ctx);
     };
+
+    auto const UNUSED bump =
+      trace_bump(fa.ctx, Trace::hhbbc, Trace::hhbbc_cfg, Trace::hhbbc_index);
     AnalysisIndexAdaptor adaptor{index};
     ContextPusher _{adaptor, fa.ctx};
     index.refine_return_info(fa);
@@ -582,6 +546,31 @@ private:
     index.refine_class_constants(fa);
     index.update_prop_initial_values(fa);
     index.update_bytecode(fa);
+  }
+
+  static void update(ClassAnalysis ca, AnalysisIndex& index) {
+    SCOPE_ASSERT_DETAIL("update class") {
+      return "Updating Class: " + show(ca.ctx);
+    };
+
+    {
+      auto const UNUSED bump =
+        trace_bump(ca.ctx, Trace::hhbbc, Trace::hhbbc_cfg, Trace::hhbbc_index);
+      AnalysisIndexAdaptor adaptor{index};
+      ContextPusher _{adaptor, ca.ctx};
+      index.update_type_consts(ca);
+    }
+    for (auto& fa : ca.methods)  update(std::move(fa), index);
+    for (auto& fa : ca.closures) update(std::move(fa), index);
+  }
+
+  static void update(UnitAnalysis ua, AnalysisIndex& index) {
+    SCOPE_ASSERT_DETAIL("update unit") {
+      return "Updating Unit: " + show(ua.ctx);
+    };
+    AnalysisIndexAdaptor adaptor{index};
+    ContextPusher _{adaptor, ua.ctx};
+    index.update_type_aliases(ua);
   }
 };
 
@@ -591,6 +580,7 @@ void analyze_constants(Index& index) {
   trace_time tracer{"analyze constants", index.sample()};
 
   constexpr size_t kBucketSize = 2000;
+  constexpr size_t kMaxBucketSize = 30000;
 
   using namespace folly::gen;
 
@@ -603,8 +593,14 @@ void analyze_constants(Index& index) {
   for (auto const func : index.constant_init_funcs()) {
     scheduler.registerFunc(func);
   }
+  for (auto const unit : index.units_with_type_aliases()) {
+    scheduler.registerUnit(unit);
+  }
 
-  auto const run = [&] (AnalysisInput input) -> coro::Task<void> {
+  auto const run = [&] (AnalysisInput input,
+                        CoroLatch& latch) -> coro::Task<void> {
+    auto guard = folly::makeGuard([&] { latch.count_down(); });
+
     co_await coro::co_reschedule_on_current_executor;
 
     if (input.empty()) co_return;
@@ -618,39 +614,58 @@ void analyze_constants(Index& index) {
       index.configRef().getCopy()
     );
 
-    // Run the job
+    auto classNames = input.classNames();
+    auto cinfoNames = input.cinfoNames();
+    auto minfoNames = input.minfoNames();
+    auto funcNames = input.funcNames();
+    auto unitNames = input.unitNames();
+    auto tuple = input.toTuple(std::move(inputMeta));
+
+    // Signal we're done touching the Index.
+    guard.dismiss();
+    latch.count_down();
+
     auto outputs = co_await index.client().exec(
       s_analyzeConstantsJob,
       std::move(config),
-      singleton_vec(input.toTuple(std::move(inputMeta))),
+      singleton_vec(std::move(tuple)),
       std::move(metadata)
     );
+
+    // Run the job
     always_assert(outputs.size() == 1);
     auto& [clsRefs, funcRefs, unitRefs,
            clsBCRefs, funcBCRefs,
            cinfoRefs, finfoRefs,
            minfoRefs, metaRef] = outputs[0];
 
+    // We cannot call scheduler.record below until all co-routines have called
+    // input.toTuple (record modifies the Index and toTuple reads from it), so
+    // block here until the latch is cleared. Technically we only need to wait
+    // on this before scheduler.record, but by doing this before the load, we
+    // avoid blocking while holding onto a lot of memory.
+    co_await latch.wait();
+
     auto meta = co_await index.client().load(std::move(metaRef));
 
-    auto classNames = input.classNames();
-    auto cinfoNames = input.cinfoNames();
-    auto minfoNames = input.minfoNames();
+    funcNames.erase(
+      std::remove_if(
+        begin(funcNames),
+        end(funcNames),
+        [&] (SString n) { return meta.removedFuncs.count(n); }
+      ),
+      end(funcNames)
+    );
+
     always_assert(clsRefs.size() == classNames.size());
     always_assert(clsBCRefs.size() == classNames.size());
     always_assert(cinfoRefs.size() == cinfoNames.size());
     always_assert(minfoRefs.size() == minfoNames.size());
     always_assert(meta.classDeps.size() == classNames.size());
-
-    auto funcNames = from(input.funcNames())
-      | filter([&] (SString n) { return !meta.removedFuncs.count(n); })
-      | as<std::vector>();
     always_assert(funcRefs.size() == funcNames.size());
     always_assert(funcBCRefs.size() == funcNames.size());
     always_assert(finfoRefs.size() == funcNames.size());
     always_assert(meta.funcDeps.size() == funcNames.size());
-
-    auto unitNames = input.unitNames();
     always_assert(unitRefs.size() == unitNames.size());
 
     // Inform the scheduler
@@ -682,13 +697,13 @@ void analyze_constants(Index& index) {
       folly::sformat("round {} -- {} work items", round, workItems)
     };
     // Get the work buckets from the scheduler.
-    auto const work = [&] {
+    auto work = [&] {
       trace_time trace2{
         "analyze constants schedule",
         folly::sformat("round {}", round)
       };
       trace2.ignore_client_stats();
-      return scheduler.schedule(kBucketSize);
+      return scheduler.schedule(kBucketSize, kMaxBucketSize);
     }();
     // Work shouldn't be empty because we add non-zero work items this
     // round.
@@ -702,11 +717,14 @@ void analyze_constants(Index& index) {
         folly::sformat("round {}", round)
       };
       trace2.ignore_client_stats();
+
+      CoroLatch latch{work.size()};
       coro::blockingWait(coro::collectAllRange(
         from(work)
           | move
-          | map([&] (AnalysisInput input) {
-              return run(std::move(input)).scheduleOn(index.executor().sticky());
+          | map([&] (AnalysisInput&& input) {
+              return run(std::move(input), latch)
+                .scheduleOn(index.executor().sticky());
             })
           | as<std::vector>()
       ));
@@ -787,9 +805,8 @@ struct WholeProgramInput::Key::Impl {
     LSString name;
     LSString context;
     LSString unit;
+    std::vector<SString> closures;
     std::vector<SString> dependencies;
-    bool isClosure;
-    bool closureDeclInFunc;
     bool has86init;
     Optional<TypeMapping> typeMapping;
     UnresolvedTypes unresolvedTypes;
@@ -797,9 +814,8 @@ struct WholeProgramInput::Key::Impl {
       sd(name)
         (context)
         (unit)
+        (closures)
         (dependencies)
-        (isClosure)
-        (closureDeclInFunc)
         (has86init)
         (typeMapping)
         (unresolvedTypes, string_data_lt_type{})
@@ -994,34 +1010,68 @@ WholeProgramInput::make(std::unique_ptr<UnitEmitter> ue) {
     }
     add(std::move(info), std::move(parsed.unit));
   }
-  for (auto& c : parsed.classes) {
-    auto const name = c->name;
-    auto const context = c->closureContextCls;
-    auto const isClosure = is_closure(*c);
-    auto const declFunc = c->closureDeclFunc;
-    auto const unit = c->unit;
-    auto deps = Index::Input::makeDeps(*c);
-    auto has86init = false;
 
-    php::ClassBytecode bc{name};
-    KeyI::UnresolvedTypes types;
+  auto const onCls = [&] (std::unique_ptr<php::Class>& c,
+                          php::ClassBytecode& bc,
+                          KeyI::UnresolvedTypes& types,
+                          std::vector<SString>& deps,
+                          bool& has86init) {
+    assertx(IMPLIES(is_closure(*c), c->methods.size() == 1));
+
     for (auto& m : c->methods) {
       addFuncTypes(types, *m, c.get());
       bc.methodBCs.emplace_back(m->name, std::move(m->rawBlocks));
+      assertx(IMPLIES(is_closure(*c), !is_86init_func(*m)));
       has86init |= is_86init_func(*m);
     }
     for (auto const& p : c->properties) {
       addType(types, p.typeConstraint, c.get(), &p.ubs);
     }
 
+    auto const d = Index::Input::makeDeps(*c);
+    deps.insert(end(deps), begin(d), end(d));
+
+    assertx(IMPLIES(is_closure(*c), !(c->attrs & AttrEnum)));
+  };
+
+  for (auto& c : parsed.classes) {
+    auto const name = c->name;
+    auto const declFunc = c->closureDeclFunc;
+    auto const unit = c->unit;
+
+    assertx(IMPLIES(is_closure(*c), !c->closureContextCls));
+    assertx(IMPLIES(is_closure(*c), declFunc));
+
+    auto has86init = false;
+    php::ClassBytecode bc{name};
+    KeyI::UnresolvedTypes types;
+    std::vector<SString> deps;
+    std::vector<SString> closures;
+
+    onCls(c, bc, types, deps, has86init);
+    for (auto& clo : c->closures) {
+      assertx(is_closure(*clo));
+      onCls(clo, bc, types, deps, has86init);
+      closures.emplace_back(clo->name);
+    }
+
     Optional<TypeMapping> typeMapping;
     if (c->attrs & AttrEnum) {
+      assertx(!is_closure(*c));
       auto tc = c->enumBaseTy;
       assertx(!tc.isNullable());
       addType(types, tc, nullptr);
       if (tc.isMixed()) tc.setType(AnnotType::ArrayKey);
       typeMapping.emplace(TypeMapping{c->name, c->name, tc, false});
     }
+
+    std::sort(begin(deps), end(deps), string_data_lt_type{});
+    deps.erase(
+      std::unique(begin(deps), end(deps), string_data_tsame{}),
+      end(deps)
+    );
+
+    std::sort(begin(closures), end(closures), string_data_lt_type{});
 
     add(
       KeyI::ClassBytecodeInfo{name},
@@ -1030,11 +1080,10 @@ WholeProgramInput::make(std::unique_ptr<UnitEmitter> ue) {
     add(
       KeyI::ClassInfo{
         name,
-        declFunc ? declFunc : context,
+        declFunc,
         unit,
+        std::move(closures),
         std::move(deps),
-        isClosure,
-        (bool)declFunc,
         has86init,
         std::move(typeMapping),
         std::move(types)
@@ -1042,6 +1091,7 @@ WholeProgramInput::make(std::unique_ptr<UnitEmitter> ue) {
       std::move(c)
     );
   }
+
   for (auto& f : parsed.funcs) {
     auto const name = f->name;
     auto const unit = f->unit;
@@ -1129,9 +1179,8 @@ Index::Input make_index_input(WholeProgramInput input) {
               p.first.m_impl->cls.name,
               std::move(p.first.m_impl->cls.dependencies),
               p.first.m_impl->cls.context,
+              std::move(p.first.m_impl->cls.closures),
               p.first.m_impl->cls.unit,
-              p.first.m_impl->cls.isClosure,
-              p.first.m_impl->cls.closureDeclInFunc,
               p.first.m_impl->cls.has86init,
               std::move(p.first.m_impl->cls.typeMapping),
               std::vector<SString>{

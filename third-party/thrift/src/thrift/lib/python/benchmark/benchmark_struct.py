@@ -17,6 +17,8 @@ from __future__ import annotations
 
 import timeit
 
+import click
+
 from tabulate import tabulate
 
 
@@ -24,15 +26,13 @@ NAMESPACES = {
     "py-deprecated": "ttypes",
     "py3": "types",
     "python": "thrift_types",
+    "mutable-python": "thrift_mutable_types",
 }
 
 table = []
 
-val_list = list(range(100))
-val_set = set(range(100))
 
-
-INIT_STATEMENT = f"""
+INIT_STATEMENT_MyStruct = """
 inst = MyStruct(
     val_bool=True,
     val_i32=42,
@@ -41,6 +41,7 @@ inst = MyStruct(
     val_binary=b"hello world",
     val_list={val_list},
     val_set={val_set},
+    val_map={val_map},
 )
 """
 
@@ -77,9 +78,9 @@ def benchmark_import():
     )
 
 
-def benchmark_init():
+def benchmark_init(init_statement: str, desc: str):
     def benchmark_single(flavor) -> float:
-        timer = timeit.Timer(stmt=INIT_STATEMENT, setup=get_import(flavor))
+        timer = timeit.Timer(stmt=init_statement, setup=get_import(flavor))
         results = timer.repeat(REPEAT, 1)
         min_value_ms = min(results) * 1000
         return f"{min_value_ms:.6f} ms"
@@ -88,7 +89,7 @@ def benchmark_init():
     print(
         tabulate(
             table,
-            headers=["Init", ""],
+            headers=[f"Init ({desc})", ""],
             tablefmt="github",
         )
     )
@@ -97,7 +98,12 @@ def benchmark_init():
 def benchmark_field_access():
     def benchmark_single(flavor, field_name, cached) -> float:
         access = f"_ = inst.{field_name}"
-        setup = f"{get_import(flavor)}; {INIT_STATEMENT}"
+        val_list = list(range(100))
+        val_set = set(range(100))
+        init_statement = INIT_STATEMENT_MyStruct.format(
+            val_list=val_list, val_set=val_set, val_map={}
+        )
+        setup = f"{get_import(flavor)}; {init_statement}"
         if cached:
             setup = f"{setup}\n{access}"
         timer = timeit.Timer(
@@ -162,20 +168,18 @@ def benchmark_containers():
     INIT_FOR_CONTAINER = """
 val_map = {
     i: f"str_{i}"
-    for i in range(100)
+    for i in range(30)
 }
 
 val_map_structs = {
-    i: Included()
-    for i in range(100)
+    k: Included(vals=[f"str_{i}_{k}" for i in range(10)])
+    for k in range(30)
 }
-val_map_structs[50] = Included(vals=[f"str_{i}" for i in range(100)])
 inst = MyStruct(
-    val_list=list(range(100)),
-    val_set=set(range(100)),
+    val_list=list(range(30)),
+    val_set=set(range(30)),
     val_map=val_map,
     val_map_structs=val_map_structs,
-
 )
 """
 
@@ -192,10 +196,13 @@ inst = MyStruct(
         return f"{min_value_ms:.6f} ms"
 
     fields = {
-        "list field": "_ = inst.val_list[50]",
-        "set field": "_ = 50 in inst.val_set",
-        "map field": "_ = inst.val_map[50]",
-        "map struct list field": "_ = inst.val_map_structs[50].vals[50]",
+        "list field iter": "_ = [item for item in inst.val_list]",
+        "list field idx": "_ = inst.val_list[10]",
+        "set field iter": "_ = [item for item in inst.val_set]",
+        "set field lookup": "_ = 10 in inst.val_set",
+        "map field lookup one": "_ = inst.val_map[10]",
+        "map field lookup all": "_ = [inst.val_map[k] for k in range(30)]",
+        "map struct list field": "_ = [string for incl in inst.val_map_structs.values() for string in incl.vals]",
     }
 
     table = [
@@ -265,11 +272,19 @@ from thrift.py3.serializer import deserialize, serialize
     "python": """
 from thrift.python.serializer import deserialize, serialize
 """,
+    "mutable-python": """
+from thrift.python.mutable_serializer import deserialize, serialize
+""",
 }
 
 
 def get_serialize_setup(flavor: str) -> str:
-    return f"{get_import(flavor)}\n{INIT_STATEMENT}\n{SERIALIZER_IMPORT[flavor]}"
+    val_list = list(range(100))
+    val_set = set(range(100))
+    init_statement = INIT_STATEMENT_MyStruct.format(
+        val_list=val_list, val_set=val_set, val_map={}
+    )
+    return f"{get_import(flavor)}\n{init_statement}\n{SERIALIZER_IMPORT[flavor]}"
 
 
 def get_deserialize_setup(flavor: str) -> str:
@@ -316,16 +331,75 @@ def benchmark_serializer():
     )
 
 
-def main() -> None:
+@click.group()
+def cli():
+    pass
+
+
+@click.command()
+def import_benchmark() -> None:
     benchmark_import()
-    print("\n")
-    benchmark_init()
-    print("\n")
+
+
+@click.command()
+def init_benchmark() -> None:
+    for size in [1, 100, 1000]:
+        val_list = list(range(size))
+        val_set = set(range(size))
+        init_statement = INIT_STATEMENT_MyStruct.format(
+            val_list=val_list, val_set=val_set, val_map={}
+        )
+        benchmark_init(
+            init_statement, f"MyStruct with {size} elements for set and list"
+        )
+        print("\n")
+
+    for size in [1, 100, 1000]:
+        val_map = {i: f"str_{i}" for i in range(size)}
+        init_statement = INIT_STATEMENT_MyStruct.format(
+            val_list=[], val_set=[], val_map=val_map
+        )
+        benchmark_init(init_statement, f"MyStruct with {size} elements for map")
+        print("\n")
+
+
+@click.command()
+def field_access_benchmark() -> None:
     benchmark_field_access()
-    print("\n")
+
+
+@click.command()
+def container_benchmark() -> None:
     benchmark_containers()
-    print("\n")
+
+
+@click.command()
+def serializer_benchmark() -> None:
     benchmark_serializer()
+
+
+@click.command()
+@click.pass_context
+def run_all(ctx) -> None:
+    ctx.invoke(import_benchmark)
+    print("\n")
+    ctx.invoke(init_benchmark)
+    print("\n")
+    ctx.invoke(field_access_benchmark)
+    print("\n")
+    ctx.invoke(container_benchmark)
+    print("\n")
+    ctx.invoke(serializer_benchmark)
+
+
+def main() -> None:
+    cli.add_command(run_all)
+    cli.add_command(import_benchmark)
+    cli.add_command(init_benchmark)
+    cli.add_command(field_access_benchmark)
+    cli.add_command(container_benchmark)
+    cli.add_command(serializer_benchmark)
+    cli()
 
 
 if __name__ == "__main__":

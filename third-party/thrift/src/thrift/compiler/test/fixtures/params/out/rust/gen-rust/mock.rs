@@ -3,10 +3,11 @@
 
 //! Mock definitions for `module`.
 //!
-//! Client mocks. For every service, a struct mock::TheService that implements
+//! Client mocks. For every service, a struct TheService that implements
 //! client::TheService.
 //!
-//! As an example of the generated API, for the following thrift service:
+//! As an example of the generated API, for the following thrift service in
+//! example.thrift:
 //!
 //! ```thrift
 //! service MyService {
@@ -21,19 +22,15 @@
 //! }
 //! ```
 //!
-//! we would end up with this mock object under crate::mock::MyService:
+//! we would end up with this mock object in an `example_mocks` crate:
 //!
 //! ```
 //! # const _: &str = stringify! {
-//! impl crate::client::MyService for MyService<'mock> {...}
+//! impl example_clients::MyService for MyService<'mock> {...}
 //!
 //! pub struct MyService<'mock> {
 //!     pub myFunction: myFunction<'mock>,
 //!     // ...
-//! }
-//!
-//! impl dyn crate::client::MyService {
-//!     pub fn mock<'mock>() -> MyService<'mock>;
 //! }
 //!
 //! impl myFunction<'mock> {
@@ -49,17 +46,14 @@
 //!     // invoke closure to compute response
 //!     pub fn mock_result(
 //!         &self,
-//!         mock: impl FnMut(FunctionRequest) -> Result<FunctionResponse, crate::services::MyService::MyFunctionExn> + Send + Sync + 'mock,
+//!         mock: impl FnMut(FunctionRequest) -> Result<FunctionResponse, example_services::errors::MyFunctionExn> + Send + Sync + 'mock,
 //!     );
 //!
 //!     // return one of the function's declared exceptions
 //!     pub fn throw<E>(&self, exception: E)
 //!     where
-//!         E: Clone + Into<crate::services::MyService::MyFunctionExn> + Send + Sync + 'mock;
+//!         E: Clone + Into<example_services::errors::MyFunctionExn> + Send + Sync + 'mock;
 //! }
-//!
-//! impl From<StorageException> for MyFunctionExn {...}
-//! impl From<NotFoundException> for MyFunctionExn {...}
 //! # };
 //! ```
 //!
@@ -68,11 +62,11 @@
 //! ```
 //! # const _: &str = stringify! {
 //! use std::sync::Arc;
-//! use thrift_if::client::MyService;
+//! use example_clients::MyService;
 //!
-//! #[test]
-//! fn test_my_client() {
-//!     let mock = Arc::new(<dyn MyService>::mock());
+//! #[tokio::test]
+//! async fn test_my_client() {
+//!     let mock = Arc::new(example_mocks::new::<dyn MyService>());
 //!
 //!     // directly return a success response
 //!     let resp = FunctionResponse {...};
@@ -87,15 +81,34 @@
 //!     // or compute a Result (useful if your exceptions aren't Clone)
 //!     mock.myFunction.mock_result(|request| Err(...));
 //!
-//!     let out = do_the_thing(mock).wait().unwrap();
+//!     let out = do_the_thing(mock).await.unwrap();
 //!     assert!(out.what_i_expected());
 //! }
 //!
-//! fn do_the_thing(
+//! async fn do_the_thing(
 //!     client: Arc<dyn MyService + Send + Sync + 'static>,
-//! ) -> impl Future<Item = Out> {...}
+//! ) -> Out {...}
 //! # };
 //! ```
+
+#![recursion_limit = "100000000"]
+#![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, unused_crate_dependencies, unused_imports, clippy::all)]
+
+pub(crate) use :: as types;
+pub(crate) use :: as client;
+pub(crate) use ::::errors;
+
+pub fn new<'mock, Client>() -> Client::Mock<'mock>
+where
+    Client: ?::std::marker::Sized + DynClient,
+{
+    Client::mock()
+}
+
+pub trait DynClient {
+    type Mock<'mock>;
+    fn mock<'mock>() -> Self::Mock<'mock>;
+}
 
 pub struct NestedContainers<'mock> {
     pub mapList: r#impl::nested_containers::mapList<'mock>,
@@ -106,8 +119,9 @@ pub struct NestedContainers<'mock> {
     _marker: ::std::marker::PhantomData<&'mock ()>,
 }
 
-impl dyn super::client::NestedContainers {
-    pub fn mock<'mock>() -> NestedContainers<'mock> {
+impl crate::DynClient for dyn ::::NestedContainers {
+    type Mock<'mock> = NestedContainers<'mock>;
+    fn mock<'mock>() -> Self::Mock<'mock> {
         NestedContainers {
             mapList: r#impl::nested_containers::mapList::unimplemented(),
             mapSet: r#impl::nested_containers::mapSet::unimplemented(),
@@ -119,7 +133,7 @@ impl dyn super::client::NestedContainers {
     }
 }
 
-impl<'mock> super::client::NestedContainers for NestedContainers<'mock> {
+impl<'mock> ::::NestedContainers for NestedContainers<'mock> {
     fn mapList(
         &self,
         arg_foo: &::std::collections::BTreeMap<::std::primitive::i32, ::std::vec::Vec<::std::primitive::i32>>,
@@ -169,7 +183,7 @@ pub mod r#impl {
             pub(crate) closure: ::std::sync::Mutex<::std::boxed::Box<
                 dyn ::std::ops::FnMut(::std::collections::BTreeMap<::std::primitive::i32, ::std::vec::Vec<::std::primitive::i32>>) -> ::std::result::Result<
                     (),
-                    crate::errors::nested_containers::MapListError,
+                    ::::errors::nested_containers::MapListError,
                 > + ::std::marker::Send + ::std::marker::Sync + 'mock,
             >>,
         }
@@ -195,14 +209,14 @@ pub mod r#impl {
                 *closure = ::std::boxed::Box::new(move |foo| ::std::result::Result::Ok(mock(foo)));
             }
 
-            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::collections::BTreeMap<::std::primitive::i32, ::std::vec::Vec<::std::primitive::i32>>) -> ::std::result::Result<(), crate::errors::nested_containers::MapListError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
+            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::collections::BTreeMap<::std::primitive::i32, ::std::vec::Vec<::std::primitive::i32>>) -> ::std::result::Result<(), ::::errors::nested_containers::MapListError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
                 let mut closure = self.closure.lock().unwrap();
                 *closure = ::std::boxed::Box::new(move |foo| mock(foo));
             }
 
             pub fn throw<E>(&self, exception: E)
             where
-                E: ::std::convert::Into<crate::errors::nested_containers::MapListError>,
+                E: ::std::convert::Into<::::errors::nested_containers::MapListError>,
                 E: ::std::clone::Clone + ::std::marker::Send + ::std::marker::Sync + 'mock,
             {
                 let mut closure = self.closure.lock().unwrap();
@@ -214,7 +228,7 @@ pub mod r#impl {
             pub(crate) closure: ::std::sync::Mutex<::std::boxed::Box<
                 dyn ::std::ops::FnMut(::std::collections::BTreeMap<::std::primitive::i32, ::std::collections::BTreeSet<::std::primitive::i32>>) -> ::std::result::Result<
                     (),
-                    crate::errors::nested_containers::MapSetError,
+                    ::::errors::nested_containers::MapSetError,
                 > + ::std::marker::Send + ::std::marker::Sync + 'mock,
             >>,
         }
@@ -240,14 +254,14 @@ pub mod r#impl {
                 *closure = ::std::boxed::Box::new(move |foo| ::std::result::Result::Ok(mock(foo)));
             }
 
-            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::collections::BTreeMap<::std::primitive::i32, ::std::collections::BTreeSet<::std::primitive::i32>>) -> ::std::result::Result<(), crate::errors::nested_containers::MapSetError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
+            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::collections::BTreeMap<::std::primitive::i32, ::std::collections::BTreeSet<::std::primitive::i32>>) -> ::std::result::Result<(), ::::errors::nested_containers::MapSetError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
                 let mut closure = self.closure.lock().unwrap();
                 *closure = ::std::boxed::Box::new(move |foo| mock(foo));
             }
 
             pub fn throw<E>(&self, exception: E)
             where
-                E: ::std::convert::Into<crate::errors::nested_containers::MapSetError>,
+                E: ::std::convert::Into<::::errors::nested_containers::MapSetError>,
                 E: ::std::clone::Clone + ::std::marker::Send + ::std::marker::Sync + 'mock,
             {
                 let mut closure = self.closure.lock().unwrap();
@@ -259,7 +273,7 @@ pub mod r#impl {
             pub(crate) closure: ::std::sync::Mutex<::std::boxed::Box<
                 dyn ::std::ops::FnMut(::std::vec::Vec<::std::collections::BTreeMap<::std::primitive::i32, ::std::primitive::i32>>) -> ::std::result::Result<
                     (),
-                    crate::errors::nested_containers::ListMapError,
+                    ::::errors::nested_containers::ListMapError,
                 > + ::std::marker::Send + ::std::marker::Sync + 'mock,
             >>,
         }
@@ -285,14 +299,14 @@ pub mod r#impl {
                 *closure = ::std::boxed::Box::new(move |foo| ::std::result::Result::Ok(mock(foo)));
             }
 
-            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::vec::Vec<::std::collections::BTreeMap<::std::primitive::i32, ::std::primitive::i32>>) -> ::std::result::Result<(), crate::errors::nested_containers::ListMapError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
+            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::vec::Vec<::std::collections::BTreeMap<::std::primitive::i32, ::std::primitive::i32>>) -> ::std::result::Result<(), ::::errors::nested_containers::ListMapError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
                 let mut closure = self.closure.lock().unwrap();
                 *closure = ::std::boxed::Box::new(move |foo| mock(foo));
             }
 
             pub fn throw<E>(&self, exception: E)
             where
-                E: ::std::convert::Into<crate::errors::nested_containers::ListMapError>,
+                E: ::std::convert::Into<::::errors::nested_containers::ListMapError>,
                 E: ::std::clone::Clone + ::std::marker::Send + ::std::marker::Sync + 'mock,
             {
                 let mut closure = self.closure.lock().unwrap();
@@ -304,7 +318,7 @@ pub mod r#impl {
             pub(crate) closure: ::std::sync::Mutex<::std::boxed::Box<
                 dyn ::std::ops::FnMut(::std::vec::Vec<::std::collections::BTreeSet<::std::primitive::i32>>) -> ::std::result::Result<
                     (),
-                    crate::errors::nested_containers::ListSetError,
+                    ::::errors::nested_containers::ListSetError,
                 > + ::std::marker::Send + ::std::marker::Sync + 'mock,
             >>,
         }
@@ -330,14 +344,14 @@ pub mod r#impl {
                 *closure = ::std::boxed::Box::new(move |foo| ::std::result::Result::Ok(mock(foo)));
             }
 
-            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::vec::Vec<::std::collections::BTreeSet<::std::primitive::i32>>) -> ::std::result::Result<(), crate::errors::nested_containers::ListSetError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
+            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::vec::Vec<::std::collections::BTreeSet<::std::primitive::i32>>) -> ::std::result::Result<(), ::::errors::nested_containers::ListSetError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
                 let mut closure = self.closure.lock().unwrap();
                 *closure = ::std::boxed::Box::new(move |foo| mock(foo));
             }
 
             pub fn throw<E>(&self, exception: E)
             where
-                E: ::std::convert::Into<crate::errors::nested_containers::ListSetError>,
+                E: ::std::convert::Into<::::errors::nested_containers::ListSetError>,
                 E: ::std::clone::Clone + ::std::marker::Send + ::std::marker::Sync + 'mock,
             {
                 let mut closure = self.closure.lock().unwrap();
@@ -349,7 +363,7 @@ pub mod r#impl {
             pub(crate) closure: ::std::sync::Mutex<::std::boxed::Box<
                 dyn ::std::ops::FnMut(::std::vec::Vec<::std::vec::Vec<::std::collections::BTreeMap<::std::primitive::i32, ::std::collections::BTreeMap<::std::primitive::i32, ::std::collections::BTreeSet<::std::primitive::i32>>>>>) -> ::std::result::Result<
                     (),
-                    crate::errors::nested_containers::TurtlesError,
+                    ::::errors::nested_containers::TurtlesError,
                 > + ::std::marker::Send + ::std::marker::Sync + 'mock,
             >>,
         }
@@ -375,14 +389,14 @@ pub mod r#impl {
                 *closure = ::std::boxed::Box::new(move |foo| ::std::result::Result::Ok(mock(foo)));
             }
 
-            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::vec::Vec<::std::vec::Vec<::std::collections::BTreeMap<::std::primitive::i32, ::std::collections::BTreeMap<::std::primitive::i32, ::std::collections::BTreeSet<::std::primitive::i32>>>>>) -> ::std::result::Result<(), crate::errors::nested_containers::TurtlesError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
+            pub fn mock_result(&self, mut mock: impl ::std::ops::FnMut(::std::vec::Vec<::std::vec::Vec<::std::collections::BTreeMap<::std::primitive::i32, ::std::collections::BTreeMap<::std::primitive::i32, ::std::collections::BTreeSet<::std::primitive::i32>>>>>) -> ::std::result::Result<(), ::::errors::nested_containers::TurtlesError> + ::std::marker::Send + ::std::marker::Sync + 'mock) {
                 let mut closure = self.closure.lock().unwrap();
                 *closure = ::std::boxed::Box::new(move |foo| mock(foo));
             }
 
             pub fn throw<E>(&self, exception: E)
             where
-                E: ::std::convert::Into<crate::errors::nested_containers::TurtlesError>,
+                E: ::std::convert::Into<::::errors::nested_containers::TurtlesError>,
                 E: ::std::clone::Clone + ::std::marker::Send + ::std::marker::Sync + 'mock,
             {
                 let mut closure = self.closure.lock().unwrap();

@@ -25,7 +25,8 @@ from libcpp.vector cimport vector
 from libcpp.pair cimport pair
 
 from thrift.py3.std_libcpp cimport string_view, sv_to_str
-from thrift.py3.common cimport Protocol, cThriftMetadata
+from thrift.python.common cimport cThriftMetadata
+from thrift.python.protocol cimport Protocol
 
 # This was changed in cython to have except+ which breaks thrift-py3
 cdef extern from "<memory>" namespace "std" nogil:
@@ -167,7 +168,6 @@ cdef class List(Container):
     cdef int _normalize_index(self, int index) except *
     cdef _get_slice(self, slice index_obj)
     cdef _get_single_item(self, size_t index)
-    cdef _check_item_type(self, item)
 
 cdef class Set(Container):
     cdef _fbthrift_py_richcmp(self, other, int op)
@@ -175,7 +175,7 @@ cdef class Set(Container):
 
 
 cdef class Map(Container):
-    cdef _check_key_type(self, key)
+    pass
 
 
 cdef class CompiledEnum:

@@ -40,16 +40,11 @@ class codegen_data {
   // whether to generate code compatible with the old Go generator
   // (to make the migration easier)
   bool compat = true;
-  // whether to generate "legacy" getters which do not properly support optional
-  // fields (to make the migration easier)
-  bool compat_getters = true;
   // whether to generate "legacy" setters which do not properly support optional
   // fields (to make the migration easier)
   bool compat_setters = true;
   // whether to generate Thrift metadata
   bool gen_metadata = true;
-  // whether to generate struct builders
-  bool gen_builders = true;
 
   // Records field names for every struct in the program.
   // This is needed to resolve some edge case name collisions.

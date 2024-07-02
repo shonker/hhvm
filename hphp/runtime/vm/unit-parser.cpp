@@ -51,6 +51,7 @@
 #include "hphp/runtime/vm/unit-emitter.h"
 #include "hphp/runtime/vm/unit-gen-helpers.h"
 #include "hphp/util/atomic-vector.h"
+#include "hphp/util/configs/eval.h"
 #include "hphp/util/configs/hacklang.h"
 #include "hphp/util/configs/jit.h"
 #include "hphp/util/embedded-data.h"
@@ -69,8 +70,6 @@ namespace HPHP {
 TRACE_SET_MOD(unit_parse);
 
 UnitEmitterCacheHook g_unit_emitter_cache_hook = nullptr;
-
-void non_utf8_log(CodeSource, folly::StringPiece code, size_t);
 
 namespace {
 
@@ -125,13 +124,6 @@ CompilerResult hackc_compile(
   hackc::NativeEnv native_env{
     .decl_provider = reinterpret_cast<uint64_t>(provider),
     .filepath = filename,
-    .hhbc_flags = hackc::HhbcFlags {
-      .log_extern_compiler_perf = RO::EvalLogExternCompilerPerf,
-      .enable_intrinsics_extension = RO::EnableIntrinsicsExtension,
-      .emit_cls_meth_pointers = RO::EvalEmitClsMethPointers,
-      .fold_lazy_class_keys = RO::EvalFoldLazyClassKeys,
-      .enable_native_enum_class_labels = RO::EvalEmitNativeEnumClassLabels,
-    },
     .parser_flags = hackc::ParserFlags {
       .enable_class_level_where_clauses = Cfg::HackLang::EnableClassLevelWhereClauses,
     },
@@ -151,24 +143,6 @@ CompilerResult hackc_compile(
     }
   }
 
-  switch (RO::EvalStrictUtf8Mode) {
-    case 0:
-      native_env.parser_flags.strict_utf8 = false;
-      break;
-    case 1: {
-      if (codeSource == CodeSource::Eval) {
-        native_env.parser_flags.strict_utf8 = false;
-      } else {
-        native_env.parser_flags.strict_utf8 = true;
-      }
-      break;
-    }
-    case 2:
-      native_env.parser_flags.strict_utf8 = true;
-      break;
-    default: not_reached();
-  }
-
   rust::Box<hackc::UnitWrapper> unit_wrapped = [&] {
     tracing::Block _{
       "hackc_translator",
@@ -186,10 +160,6 @@ CompilerResult hackc_compile(
 
   auto const bcSha1 = SHA1(hash_unit(*unit_wrapped));
   const hackc::hhbc::Unit* unit = hackCUnitRaw(unit_wrapped);
-
-  if (codeSource != CodeSource::User && !unit->valid_utf8) {
-    non_utf8_log(codeSource, code.data(), unit->invalid_utf8_offset);
-  }
 
   auto hackCResult = unitEmitterFromHackCUnitHandleErrors(
     *unit, filename, sha1, bcSha1, extension,

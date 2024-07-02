@@ -17,7 +17,7 @@ typedef apache::thrift::ThriftPresult<true, apache::thrift::FieldData<0, ::apach
 typedef apache::thrift::ThriftPresult<false, apache::thrift::FieldData<1, ::apache::thrift::type_class::integral, ::std::int64_t*>, apache::thrift::FieldData<2, ::apache::thrift::type_class::string, ::std::string*>> MyServiceFast_putDataById_pargs;
 typedef apache::thrift::ThriftPresult<true> MyServiceFast_putDataById_presult;
 typedef apache::thrift::ThriftPresult<false, apache::thrift::FieldData<1, ::apache::thrift::type_class::integral, ::std::int64_t*>, apache::thrift::FieldData<2, ::apache::thrift::type_class::string, ::std::string*>> MyServiceFast_lobDataById_pargs;
-} // cpp2
+} // namespace cpp2
 template <typename Protocol_, typename RpcOptions>
 void apache::thrift::Client<::cpp2::MyServiceFast>::hasDataByIdT(Protocol_* prot, RpcOptions&& rpcOptions, std::shared_ptr<apache::thrift::transport::THeader> header, apache::thrift::ContextStack* contextStack, apache::thrift::RequestClientCallback::Ptr callback, ::std::int64_t p_id) {
 
@@ -209,7 +209,7 @@ apache::thrift::Client<::cpp2::MyServiceFast>::sync_complete_hasDataById(
   	tryResponse.emplaceException(std::move(returnState.exception()));
   } else {
     tryResponse.emplace();
-    tryResponse->responseContext.rpcSizeStats = returnState.getRpcSizeStats();
+    tryResponse->responseContext.rpcTransportStats = returnState.getRpcTransportStats();
     if (auto* header = returnState.header()) {
       if (!header->getHeaders().empty()) {
   	    tryResponse->responseContext.headers = header->releaseHeaders();
@@ -444,7 +444,7 @@ apache::thrift::Client<::cpp2::MyServiceFast>::sync_complete_getDataById(
   	tryResponse.emplaceException(std::move(returnState.exception()));
   } else {
     tryResponse.emplace();
-    tryResponse->responseContext.rpcSizeStats = returnState.getRpcSizeStats();
+    tryResponse->responseContext.rpcTransportStats = returnState.getRpcTransportStats();
     if (auto* header = returnState.header()) {
       if (!header->getHeaders().empty()) {
   	    tryResponse->responseContext.headers = header->releaseHeaders();
@@ -677,7 +677,7 @@ apache::thrift::Client<::cpp2::MyServiceFast>::sync_complete_putDataById(
   	tryResponse.emplaceException(std::move(returnState.exception()));
   } else {
     tryResponse.emplace();
-    tryResponse->responseContext.rpcSizeStats = returnState.getRpcSizeStats();
+    tryResponse->responseContext.rpcTransportStats = returnState.getRpcTransportStats();
     if (auto* header = returnState.header()) {
       if (!header->getHeaders().empty()) {
   	    tryResponse->responseContext.headers = header->releaseHeaders();

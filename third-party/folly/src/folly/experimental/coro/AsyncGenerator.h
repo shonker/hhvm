@@ -24,6 +24,7 @@
 #include <folly/ExceptionWrapper.h>
 #include <folly/Traits.h>
 #include <folly/Try.h>
+#include <folly/experimental/coro/AutoCleanup-fwd.h>
 #include <folly/experimental/coro/Coroutine.h>
 #include <folly/experimental/coro/CurrentExecutor.h>
 #include <folly/experimental/coro/Invoke.h>
@@ -245,9 +246,14 @@ class FOLLY_NODISCARD AsyncGenerator {
 
   CleanupSemiAwaitable cleanup() && {
     static_assert(RequiresCleanup);
-    CHECK(coro_) << "cleanup() has been already called!";
-    SCOPE_EXIT { std::exchange(coro_, {}).destroy(); };
-    return CleanupSemiAwaitable{coro_.promise().scopeExit_};
+    if (coro_) {
+      SCOPE_EXIT {
+        std::exchange(coro_, {}).destroy();
+      };
+      return CleanupSemiAwaitable{coro_.promise().scopeExit_};
+    } else {
+      return CleanupSemiAwaitable{{}};
+    }
   }
 
   AsyncGenerator& operator=(AsyncGenerator&& other) noexcept {
@@ -504,7 +510,14 @@ class AsyncGeneratorPromise final
   };
 
  public:
-  AsyncGeneratorPromise() noexcept {}
+  template <typename... Args>
+  AsyncGeneratorPromise(Args&... args) {
+    if constexpr (RequiresCleanup) {
+      scheduleAutoCleanupIfNeeded(
+          coroutine_handle<AsyncGeneratorPromise>::from_promise(*this),
+          args...);
+    }
+  }
 
   ~AsyncGeneratorPromise() {
     switch (state_) {
@@ -616,7 +629,7 @@ class AsyncGeneratorPromise final
 
   void unhandled_exception() noexcept {
     DCHECK(state_ == State::INVALID);
-    folly::coro::detail::activate(exceptionWrapper_, std::current_exception());
+    folly::coro::detail::activate(exceptionWrapper_, current_exception());
     state_ = State::EXCEPTION_WRAPPER;
   }
 
@@ -694,6 +707,11 @@ class AsyncGeneratorPromise final
     if (hasValue()) {
       state_ = State::INVALID;
       folly::coro::detail::deactivate(value_);
+    } else {
+      DCHECK(state_ != State::DONE)
+          << "Using generator after receiving completion.";
+      DCHECK(state_ != State::EXCEPTION_WRAPPER)
+          << "Using generator after receiving exception.";
     }
   }
 
@@ -763,6 +781,13 @@ class AsyncGeneratorPromise final
 };
 
 } // namespace detail
+
+template <typename Reference, typename Value>
+auto tag_invoke(
+    cpo_t<co_cleanup>, CleanableAsyncGenerator<Reference, Value>&& gen) {
+  return std::move(gen).cleanup();
+}
+
 } // namespace coro
 } // namespace folly
 

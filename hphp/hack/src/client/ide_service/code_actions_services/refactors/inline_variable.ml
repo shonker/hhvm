@@ -304,6 +304,8 @@ let refactor_of_candidate ~path ~source_text candidate =
       title = Printf.sprintf "Inline variable %s" candidate.name;
       edits;
       kind = `Refactor;
+      selection = None;
+      trigger_inline_suggest = false;
     }
 
 let find ~entry selection ctx =

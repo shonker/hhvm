@@ -131,7 +131,7 @@ void Package::writeVirtualFileSystem(const std::string& path) {
   auto writer = VirtualFileSystemWriter(path);
   for (auto const& dir : m_directories) {
     std::vector<std::string> files;
-    FileUtil::find(files, m_root, dir, /* php */ false,
+    FileUtil::find(files, m_root, dir, /* php */ false, /* failHard */ true,
                    &Option::PackageExcludeStaticDirs,
                    &Option::PackageExcludeStaticFiles);
     Option::FilterFiles(files, Option::PackageExcludeStaticPatterns);
@@ -144,7 +144,7 @@ void Package::writeVirtualFileSystem(const std::string& path) {
   }
   for (auto const& dir : m_staticDirectories) {
     std::vector<std::string> files;
-    FileUtil::find(files, m_root, dir, /* php */ false);
+    FileUtil::find(files, m_root, dir, /* php */ false, /* failHard */ true);
     for (auto& file : files) {
       auto const rpath = file.substr(m_root.size());
       if (writer.addFile(rpath.c_str(), file.c_str())) {
@@ -496,7 +496,7 @@ coro::Task<Package::GroupResult> Package::groupDirectories(
   std::vector<coro::Task<GroupResult>> dirs;
 
   FileUtil::find(
-    m_root, path, /* php */ true,
+    m_root, path, /* php */ true, /* failHard*/ true,
     [&] (const std::string& name, bool dir, size_t size) {
       if (!dir) {
         if (filterFiles) {
@@ -1579,7 +1579,7 @@ coro::Task<Package::OndemandInfo> Package::emitGroup(
     // indicies of each unit.
     auto parseMetasAndItemsToSkip = co_await callback(group.m_files);
     auto& [parseMetas, itemsToSkip] = parseMetasAndItemsToSkip;
-    if (RO::EvalActiveDeployment.empty()) {
+    if (Cfg::Eval::ActiveDeployment.empty()) {
       // If a deployment is not set, then we should have gotten results for
       // all files
       always_assert(parseMetas.size() == workItems);
@@ -1601,7 +1601,7 @@ coro::Task<Package::OndemandInfo> Package::emitGroup(
         fprintf(stderr, "%s", meta.m_abort.c_str());
         _Exit(HPHP_EXIT_FAILURE);
       }
-      if (Option::ForceEnableSymbolRefs || RO::EvalActiveDeployment.empty()) {
+      if (Option::ForceEnableSymbolRefs || Cfg::Eval::ActiveDeployment.empty()) {
         auto const filename = makeStaticString(group.m_files[i].native());
         // Resolve any symbol refs into files to parse ondemand
         resolveOnDemand(ondemand, filename, meta.m_symbol_refs, index);

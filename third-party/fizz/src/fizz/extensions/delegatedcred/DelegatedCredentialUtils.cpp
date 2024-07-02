@@ -5,8 +5,8 @@
  *  This source code is licensed under the BSD-style license found in the
  *  LICENSE file in the root directory of this source tree.
  */
+#include <fizz/backend/openssl/certificate/CertUtils.h>
 #include <fizz/extensions/delegatedcred/DelegatedCredentialUtils.h>
-#include <fizz/protocol/CertUtils.h>
 #include <folly/ssl/OpenSSLCertUtils.h>
 
 namespace fizz {
@@ -36,6 +36,7 @@ void DelegatedCredentialUtils::checkExtensions(
 
 namespace {
 static constexpr folly::StringPiece kDelegatedOid{"1.3.6.1.4.1.44363.44"};
+static const auto kMaxDelegatedCredentialLifetime = std::chrono::hours(24 * 7);
 
 folly::ssl::ASN1ObjUniquePtr generateCredentialOid() {
   folly::ssl::ASN1ObjUniquePtr oid;
@@ -94,21 +95,26 @@ DelegatedCredential DelegatedCredentialUtils::generateCredential(
   }
 
   std::vector<SignatureScheme> credKeySchemes;
-  switch (CertUtils::getKeyType(credKey)) {
-    case KeyType::RSA:
-      credKeySchemes = CertUtils::getSigSchemes<KeyType::RSA>();
+  switch (openssl::CertUtils::getKeyType(credKey)) {
+    case openssl::KeyType::RSA:
+      credKeySchemes =
+          openssl::CertUtils::getSigSchemes<openssl::KeyType::RSA>();
       break;
-    case KeyType::P256:
-      credKeySchemes = CertUtils::getSigSchemes<KeyType::P256>();
+    case openssl::KeyType::P256:
+      credKeySchemes =
+          openssl::CertUtils::getSigSchemes<openssl::KeyType::P256>();
       break;
-    case KeyType::P384:
-      credKeySchemes = CertUtils::getSigSchemes<KeyType::P384>();
+    case openssl::KeyType::P384:
+      credKeySchemes =
+          openssl::CertUtils::getSigSchemes<openssl::KeyType::P384>();
       break;
-    case KeyType::P521:
-      credKeySchemes = CertUtils::getSigSchemes<KeyType::P521>();
+    case openssl::KeyType::P521:
+      credKeySchemes =
+          openssl::CertUtils::getSigSchemes<openssl::KeyType::P521>();
       break;
-    case KeyType::ED25519:
-      credKeySchemes = CertUtils::getSigSchemes<KeyType::ED25519>();
+    case openssl::KeyType::ED25519:
+      credKeySchemes =
+          openssl::CertUtils::getSigSchemes<openssl::KeyType::ED25519>();
       break;
   }
 
@@ -156,6 +162,29 @@ DelegatedCredential DelegatedCredentialUtils::generateCredential(
       toSign->coalesce());
 
   return cred;
+}
+
+void DelegatedCredentialUtils::checkCredentialTimeValidity(
+    const folly::ssl::X509UniquePtr& parentCert,
+    const DelegatedCredential& credential,
+    const std::shared_ptr<Clock>& clock) {
+  auto notBefore = X509_get0_notBefore(parentCert.get());
+  auto notBeforeTime =
+      folly::ssl::OpenSSLCertUtils::asnTimeToTimepoint(notBefore);
+  auto credentialExpiresTime =
+      notBeforeTime + std::chrono::seconds(credential.valid_time);
+  auto now = clock->getCurrentTime();
+  if (now >= credentialExpiresTime) {
+    throw FizzException(
+        "credential is no longer valid", AlertDescription::illegal_parameter);
+  }
+
+  // Credentials may be valid for max 1 week according to spec
+  if (credentialExpiresTime - now > kMaxDelegatedCredentialLifetime) {
+    throw FizzException(
+        "credential validity is longer than a week from now",
+        AlertDescription::illegal_parameter);
+  }
 }
 } // namespace extensions
 } // namespace fizz

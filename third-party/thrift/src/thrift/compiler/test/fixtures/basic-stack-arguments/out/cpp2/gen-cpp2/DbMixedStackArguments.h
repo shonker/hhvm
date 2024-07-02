@@ -31,7 +31,7 @@ class DbMixedStackArgumentsServiceInfoHolder : public apache::thrift::ServiceInf
    apache::thrift::ServiceRequestInfoMap const& requestInfoMap() const override;
    static apache::thrift::ServiceRequestInfoMap staticRequestInfoMap();
 };
-} // cpp2
+} // namespace cpp2
 
 namespace apache::thrift {
 template <>
@@ -54,7 +54,7 @@ class ServiceHandler<::cpp2::DbMixedStackArguments> : public apache::thrift::Ser
   virtual folly::coro::Task<std::unique_ptr<::std::string>> co_getDataByKey0(std::unique_ptr<::std::string> p_key);
   virtual folly::coro::Task<std::unique_ptr<::std::string>> co_getDataByKey0(apache::thrift::RequestParams params, std::unique_ptr<::std::string> p_key);
 #endif
-  virtual void async_tm_getDataByKey0(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::string>>> callback, std::unique_ptr<::std::string> p_key);
+  virtual void async_tm_getDataByKey0(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::string>> callback, std::unique_ptr<::std::string> p_key);
   virtual void sync_getDataByKey1(::std::string& /*_return*/, const ::std::string& /*key*/);
   [[deprecated("Use sync_getDataByKey1 instead")]] virtual void getDataByKey1(::std::string& /*_return*/, const ::std::string& /*key*/);
   virtual folly::Future<::std::string> future_getDataByKey1(const ::std::string& p_key);
@@ -63,7 +63,7 @@ class ServiceHandler<::cpp2::DbMixedStackArguments> : public apache::thrift::Ser
   virtual folly::coro::Task<::std::string> co_getDataByKey1(const ::std::string& p_key);
   virtual folly::coro::Task<::std::string> co_getDataByKey1(apache::thrift::RequestParams params, const ::std::string& p_key);
 #endif
-  virtual void async_tm_getDataByKey1(std::unique_ptr<apache::thrift::HandlerCallback<::std::string>> callback, const ::std::string& p_key);
+  virtual void async_tm_getDataByKey1(apache::thrift::HandlerCallbackPtr<::std::string> callback, const ::std::string& p_key);
  private:
   static ::cpp2::DbMixedStackArgumentsServiceInfoHolder __fbthrift_serviceInfoHolder;
   std::atomic<apache::thrift::detail::si::InvocationType> __fbthrift_invocation_getDataByKey0{apache::thrift::detail::si::InvocationType::AsyncTm};
@@ -74,7 +74,7 @@ class ServiceHandler<::cpp2::DbMixedStackArguments> : public apache::thrift::Ser
 
 namespace cpp2 {
 using DbMixedStackArgumentsSvIf [[deprecated("Use apache::thrift::ServiceHandler<DbMixedStackArguments> instead")]] = ::apache::thrift::ServiceHandler<DbMixedStackArguments>;
-} // cpp2
+} // namespace cpp2
 namespace cpp2 {
 class DbMixedStackArgumentsSvNull : public ::apache::thrift::ServiceHandler<DbMixedStackArguments> {
  public:
@@ -121,4 +121,4 @@ class DbMixedStackArgumentsAsyncProcessor : public ::apache::thrift::GeneratedAs
   ~DbMixedStackArgumentsAsyncProcessor() override {}
 };
 
-} // cpp2
+} // namespace cpp2

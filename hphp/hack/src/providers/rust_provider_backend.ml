@@ -327,7 +327,7 @@ module Decl = struct
     set_decl_store t;
     with_ctx_proxy_opt t ctx @@ fun () -> Modules.get t name
 
-  let get_folded_class t ctx name =
+  let get_folded_class t ctx name : FoldedClasses.value option =
     set_decl_store t;
     with_ctx_proxy_opt t ctx @@ fun () -> FoldedClasses.get t name
 
@@ -400,7 +400,7 @@ let pop_local_changes t =
   pop_local_changes_ffi t
 
 module File = struct
-  external get_contents : t -> Relative_path.t -> string
+  external get_contents : t -> Relative_path.t -> string option
     = "hh_rust_provider_backend_file_provider_get_contents"
 
   external provide_file_for_tests : t -> Relative_path.t -> string -> unit

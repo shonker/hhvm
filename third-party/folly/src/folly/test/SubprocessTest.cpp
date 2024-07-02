@@ -27,13 +27,13 @@
 #include <folly/FileUtil.h>
 #include <folly/Format.h>
 #include <folly/String.h>
-#include <folly/experimental/TestUtil.h>
 #include <folly/experimental/io/FsUtil.h>
 #include <folly/gen/Base.h>
 #include <folly/gen/File.h>
 #include <folly/gen/String.h>
 #include <folly/portability/GTest.h>
 #include <folly/portability/Unistd.h>
+#include <folly/testing/TestUtil.h>
 
 FOLLY_GNU_DISABLE_WARNING("-Wdeprecated-declarations")
 
@@ -231,9 +231,7 @@ TEST(
 
 TEST(SubprocessTest, FatalOnDestroy) {
   EXPECT_DEATH(
-      []() {
-        Subprocess proc(std::vector<std::string>{"/bin/sleep", "10"});
-      }(),
+      []() { Subprocess proc(std::vector<std::string>{"/bin/sleep", "10"}); }(),
       "Subprocess destroyed without reaping child");
 }
 

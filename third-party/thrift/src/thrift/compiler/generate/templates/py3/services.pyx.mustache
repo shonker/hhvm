@@ -45,10 +45,11 @@ from libcpp.utility cimport move as cmove
 from libcpp.pair cimport pair
 from cython.operator cimport dereference as deref
 from cpython.ref cimport PyObject
-from thrift.py3.exceptions cimport (
-    cTApplicationException,
+from thrift.python.exceptions cimport (
     ApplicationError as __ApplicationError,
-    cTApplicationExceptionType__UNKNOWN)
+    cTApplicationException,
+    cTApplicationExceptionType__UNKNOWN,
+)
 from thrift.py3.server cimport ServiceInterface, RequestContext, Cpp2RequestContext
 from thrift.py3.server import RequestContext
 from folly cimport (
@@ -56,7 +57,7 @@ from folly cimport (
   cFollyUnit,
   c_unit,
 )
-from thrift.py3.common cimport (
+from thrift.python.common cimport (
     cThriftServiceMetadataResponse as __fbthrift_cThriftServiceMetadataResponse,
     ServiceMetadata,
     MetadataBox as __MetadataBox,
@@ -89,6 +90,7 @@ cimport {{#includeNamespace}}{{value}}.{{/includeNamespace}}types as _{{#include
 {{/hasTypes?}}
 {{/program:includeNamespaces}}
 
+import {{#program:py3Namespaces}}{{value}}.{{/program:py3Namespaces}}{{program:name}}.services_reflection as _services_reflection
 cimport {{#program:py3Namespaces}}{{value}}.{{/program:py3Namespaces}}{{program:name}}.services_reflection as _services_reflection
 
 import asyncio
@@ -153,7 +155,7 @@ async def runGenerator_{{service:name}}_{{function:name}}(object generator, Prom
     {{#function:stream_exceptions}}
     {{#field:type}}
     except {{> types/cython_python_type}} as ex:
-        promise.cPromise.setException(deref((<{{> types/cython_python_type}}> ex)._cpp_obj))
+        promise.cPromise.setException(deref((<{{> types/cython_python_type}}> ex).{{> types/cpp_obj}}))
     {{/field:type}}
     {{/function:stream_exceptions}}
     except __ApplicationError as ex:
@@ -163,14 +165,14 @@ async def runGenerator_{{service:name}}_{{function:name}}(object generator, Prom
         ))
     except Exception as ex:
         print(
-            "Unexpected error in {{service:name.}}{{function:name}}:",
+            "Unexpected error in {{service:name}}.{{function:name}}:",
             file=sys.stderr)
         traceback.print_exc()
         promise.cPromise.setException(cTApplicationException(
             cTApplicationExceptionType__UNKNOWN, repr(ex).encode('UTF-8')
         ))
     except asyncio.CancelledError as ex:
-        print("Coroutine was cancelled in service handler {{service:name.}}{{function:name}}:", file=sys.stderr)
+        print("Coroutine was cancelled in service handler {{service:name}}.{{function:name}}:", file=sys.stderr)
         traceback.print_exc()
         promise.cPromise.setException(cTApplicationException(
             cTApplicationExceptionType__UNKNOWN, (f'Application was cancelled on the server with message: {str(ex)}').encode('UTF-8')

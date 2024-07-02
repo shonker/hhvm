@@ -33,7 +33,7 @@ void TccStructTraits<::some::ns::IncludedB>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace some { namespace ns {
+namespace some::ns {
 
 std::string_view IncludedB::__fbthrift_get_field_name(::apache::thrift::FieldOrdinal ord) {
   if (ord == ::apache::thrift::FieldOrdinal{0}) { return {}; }
@@ -68,7 +68,7 @@ IncludedB& IncludedB::operator=([[maybe_unused]] IncludedB&& other) noexcept {
 
 IncludedB::IncludedB(apache::thrift::FragileConstructor, ::std::int32_t i32Field__arg, ::std::string strField__arg) :
     __fbthrift_field_i32Field(std::move(i32Field__arg)),
-    __fbthrift_field_strField(std::move(strField__arg)) {
+    __fbthrift_field_strField(std::move(strField__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
 }
@@ -114,11 +114,11 @@ template uint32_t IncludedB::serializedSize<>(apache::thrift::CompactProtocolWri
 template uint32_t IncludedB::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}} // some::ns
+} // namespace some::ns
 
-namespace some { namespace ns { namespace {
+namespace some::ns { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}}} // some::ns
+}} // namespace some::ns
 namespace apache::thrift::detail::annotation {
 }

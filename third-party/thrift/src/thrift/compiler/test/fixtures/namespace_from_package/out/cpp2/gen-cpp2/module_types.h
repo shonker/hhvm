@@ -28,9 +28,9 @@ APACHE_THRIFT_DEFINE_ACCESSOR(MyInt);
 
 // END declare_enums
 // BEGIN forward_declare
-namespace test { namespace namespace_from_package { namespace module {
+namespace test::namespace_from_package::module {
 class Foo;
-}}} // test::namespace_from_package::module
+} // namespace test::namespace_from_package::module
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -40,7 +40,7 @@ namespace apache::thrift::detail::qualifier {
 
 // BEGIN hash_and_equal_to
 // END hash_and_equal_to
-namespace test { namespace namespace_from_package { namespace module {
+namespace test::namespace_from_package::module {
 using ::apache::thrift::detail::operator!=;
 using ::apache::thrift::detail::operator>;
 using ::apache::thrift::detail::operator<=;
@@ -92,6 +92,8 @@ class Foo final  {
  public:
   using __fbthrift_cpp2_type = Foo;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -197,4 +199,4 @@ unsigned long Foo::read(Protocol_* iprot) {
 }
 
 
-}}} // test::namespace_from_package::module
+} // namespace test::namespace_from_package::module

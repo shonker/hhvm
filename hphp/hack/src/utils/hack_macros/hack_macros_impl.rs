@@ -18,6 +18,8 @@ use oxidized::ast::Def;
 use oxidized::ast::Pos;
 use oxidized::ast::Program;
 use oxidized::errors;
+use oxidized::experimental_features::FeatureName;
+use oxidized::namespace_env::Mode;
 use oxidized::parser_options::ParserOptions;
 use parser_core_types::indexed_source_text::IndexedSourceText;
 use parser_core_types::source_text::SourceText;
@@ -31,7 +33,6 @@ use regex::Match;
 use regex::Regex;
 use relative_path::Prefix;
 use relative_path::RelativePath;
-use rust_parser_errors::UnstableFeatures;
 use syn::parse::ParseStream;
 use syn::parse::Parser;
 use syn::punctuated::Punctuated;
@@ -121,7 +122,6 @@ fn parse_stmts(src: &str, internal_offset: usize, span: Span) -> Result<Vec<ast:
             Some(Def::SetModule(module)) if module.1 == special_modules::DEFAULT => {
                 // if the program did not specify a module, the default module would
                 // have been automatically inserted here and can be safely ignored
-                ()
             }
             _ => panic!("Expected a single Def"),
         }
@@ -472,14 +472,13 @@ fn parse_repl_var(input: &str, span: Span, default_pos: &TokenStream) -> Result<
 
 fn parse_aast_from_string(input: &str, internal_offset: usize, span: Span) -> Result<Program> {
     let parser_options = ParserOptions {
-        tco_union_intersection_type_hints: true,
-        po_allow_unstable_features: true,
-        po_strict_utf8: true,
+        union_intersection_type_hints: true,
+        allow_unstable_features: true,
         ..ParserOptions::default()
     };
 
     let env = Env {
-        codegen: true,
+        mode: Mode::ForCodegen,
         elaborate_namespaces: false,
         include_line_comments: false,
         parser_options,
@@ -496,8 +495,8 @@ fn parse_aast_from_string(input: &str, internal_offset: usize, span: Span) -> Re
     let indexed_source_text = IndexedSourceText::new(source_text);
 
     let mut default_unstable_features = HashSet::default();
-    default_unstable_features.insert(UnstableFeatures::TypedLocalVariables);
-    default_unstable_features.insert(UnstableFeatures::PipeAwait);
+    default_unstable_features.insert(FeatureName::TypedLocalVariables);
+    default_unstable_features.insert(FeatureName::PipeAwait);
 
     let aast =
         aast_parser::AastParser::from_text(&env, &indexed_source_text, default_unstable_features)

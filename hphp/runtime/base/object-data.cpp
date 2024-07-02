@@ -49,6 +49,8 @@
 
 #include "hphp/system/systemlib.h"
 
+#include "hphp/util/configs/eval.h"
+
 #include <folly/Hash.h>
 #include <folly/ScopeGuard.h>
 
@@ -72,7 +74,7 @@ void verifyTypeHint(const Class* thisCls,
                     tv_lval val) {
   assertx(tvIsPlausible(*val));
   assertx(type(val) != KindOfUninit);
-  if (!prop || RuntimeOption::EvalCheckPropTypeHints <= 0) return;
+  if (!prop || Cfg::Eval::CheckPropTypeHints <= 0) return;
   if (prop->typeConstraint.isCheckable()) {
     prop->typeConstraint.verifyProperty(val, thisCls, prop->cls, prop->name);
   }
@@ -85,7 +87,7 @@ void verifyTypeHint(const Class* thisCls,
 
 ALWAYS_INLINE
 void unsetTypeHint(const Class::Prop* prop) {
-  if (RuntimeOption::EvalCheckPropTypeHints <= 0) return;
+  if (Cfg::Eval::CheckPropTypeHints <= 0) return;
   if (!prop || prop->typeConstraint.isMixedResolved()) return;
   raise_property_typehint_unset_error(
     prop->cls,
@@ -126,7 +128,7 @@ bool ObjectData::assertTypeHint(tv_rval prop, Slot slot) const {
   }
 
   // If we're not hard enforcing, then the prop might contain anything.
-  if (RuntimeOption::EvalCheckPropTypeHints <= 2) return true;
+  if (Cfg::Eval::CheckPropTypeHints <= 2) return true;
   if (!propDecl.typeConstraint.isCheckable() ||
       propDecl.typeConstraint.isSoft()) return true;
   if (prop.type() == KindOfNull && !(propDecl.attrs & AttrNoImplicitNullable)) {
@@ -619,7 +621,7 @@ size_t getPropertyIfAccessible(ObjectData* obj,
 
 }
 
-Array ObjectData::o_toIterArray(const String& context) {
+Array ObjectData::o_toIterArray(const Class* ctx) {
   if (!m_cls->numDeclProperties()) {
     if (getAttribute(HasDynPropArr)) {
       auto const props = dynPropArray();
@@ -642,10 +644,6 @@ Array ObjectData::o_toIterArray(const String& context) {
   }
   Array retArray { Array::attach(VanillaDict::MakeReserveDict(size)) };
 
-  Class* ctx = nullptr;
-  if (!context.empty()) {
-    ctx = Class::lookup(context.get());
-  }
   auto const propCtx =
     ctx ? MemberLookupContext(ctx, ctx->moduleName()) : nullctx;
 
@@ -760,11 +758,11 @@ Variant ObjectData::o_invoke_few_args(const String& s,
   TypedValue args[5];
   switch(count) {
     default: not_implemented();
-    case  5: tvCopy(*a4.asTypedValue(), args[4]);
-    case  4: tvCopy(*a3.asTypedValue(), args[3]);
-    case  3: tvCopy(*a2.asTypedValue(), args[2]);
-    case  2: tvCopy(*a1.asTypedValue(), args[1]);
-    case  1: tvCopy(*a0.asTypedValue(), args[0]);
+    case  5: tvCopy(*a4.asTypedValue(), args[4]); [[fallthrough]];
+    case  4: tvCopy(*a3.asTypedValue(), args[3]); [[fallthrough]];
+    case  3: tvCopy(*a2.asTypedValue(), args[2]); [[fallthrough]];
+    case  2: tvCopy(*a1.asTypedValue(), args[1]); [[fallthrough]];
+    case  1: tvCopy(*a0.asTypedValue(), args[0]); [[fallthrough]];
     case  0: break;
   }
 
@@ -1529,7 +1527,7 @@ TypedValue ObjectData::incDecProp(const MemberLookupContext& ctx, IncDecOp op, c
      * that case.
      */
     auto const fast = [&]{
-      if (RuntimeOption::EvalCheckPropTypeHints <= 0) return true;
+      if (Cfg::Eval::CheckPropTypeHints <= 0) return true;
       auto const isAnyCheckable = lookup.prop && [&] {
         if (lookup.prop->typeConstraint.isCheckable()) return true;
         for (auto const& ub : lookup.prop->ubs.m_constraints) {

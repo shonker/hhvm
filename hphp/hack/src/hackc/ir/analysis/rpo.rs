@@ -5,6 +5,7 @@
 
 use ir_core::BlockId;
 use ir_core::Func;
+use ir_core::IrRepr;
 use newtype::IdVec;
 
 /// Compute the Block post-order for a Func. In the returned Vec a BlockId will
@@ -36,7 +37,7 @@ fn compute_general_po(
     func: &Func,
     splitter: impl Fn(&[BlockId]) -> Option<(&BlockId, &[BlockId])>,
 ) -> Vec<BlockId> {
-    let blocks = &func.blocks;
+    let blocks = &func.repr.blocks;
     let mut result = Vec::with_capacity(blocks.len());
     if blocks.is_empty() {
         return result;
@@ -47,9 +48,9 @@ fn compute_general_po(
     let mut stack = Vec::new();
     let mut already_pushed = IdVec::new_from_vec(vec![false; blocks.len()]);
 
-    mark_block(&mut stack, &mut already_pushed, func, Func::ENTRY_BID);
+    mark_block(&mut stack, &mut already_pushed, func, IrRepr::ENTRY_BID);
 
-    for (_, dv) in &func.params {
+    for (_, dv) in &func.repr.params {
         if let Some(dv) = dv {
             mark_block(&mut stack, &mut already_pushed, func, dv.init);
         }
@@ -61,8 +62,8 @@ fn compute_general_po(
         func: &'a Func,
         bid: BlockId,
     ) {
-        let edges = func.edges(bid);
-        let catch_bid = func.catch_target(bid);
+        let edges = func.repr.edges(bid);
+        let catch_bid = func.repr.catch_target(bid);
         stack.push((bid, edges, catch_bid));
         already_pushed[bid.as_usize()] = true;
     }
@@ -84,8 +85,8 @@ fn compute_general_po(
         // Remember to revisit the parent once this child is done.
         stack.push(parent);
 
-        let child_edges = func.edges(bid);
-        let child_catch_bid = func.catch_target(bid);
+        let child_edges = func.repr.edges(bid);
+        let child_catch_bid = func.repr.catch_target(bid);
         stack.push((bid, child_edges, child_catch_bid));
         true
     }

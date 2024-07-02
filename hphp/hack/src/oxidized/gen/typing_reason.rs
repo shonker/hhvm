@@ -3,7 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the "hack" directory of this source tree.
 //
-// @generated SignedSource<<aa6c005dfd889852f5d2b36779d2fd0b>>
+// @generated SignedSource<<db871cfc03ca5f2503dcfe5ebdbc6a1a>>
 //
 // To regenerate this file, run:
 //   hphp/hack/src/oxidized_regen.sh
@@ -126,6 +126,99 @@ pub enum Blame {
     Blame(pos::Pos, BlameSource),
 }
 
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Deserialize,
+    Eq,
+    EqModuloPos,
+    FromOcamlRep,
+    FromOcamlRepIn,
+    Hash,
+    NoPosHash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    ToOcamlRep
+)]
+#[rust_to_ocaml(attr = "deriving hash")]
+#[repr(u8)]
+pub enum FieldKind {
+    Absent,
+    Optional,
+    Required,
+}
+impl TrivialDrop for FieldKind {}
+arena_deserializer::impl_deserialize_in_arena!(FieldKind);
+
+#[derive(
+    Clone,
+    Debug,
+    Deserialize,
+    Eq,
+    EqModuloPos,
+    FromOcamlRep,
+    Hash,
+    NoPosHash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    ToOcamlRep
+)]
+#[rust_to_ocaml(attr = "deriving hash")]
+#[repr(C, u8)]
+pub enum PrjSymm {
+    #[rust_to_ocaml(name = "Prj_symm_neg")]
+    PrjSymmNeg,
+    #[rust_to_ocaml(name = "Prj_symm_class")]
+    PrjSymmClass(String, isize, ast_defs::Variance),
+    #[rust_to_ocaml(name = "Prj_symm_newtype")]
+    PrjSymmNewtype(String, isize, ast_defs::Variance),
+    #[rust_to_ocaml(name = "Prj_symm_tuple")]
+    PrjSymmTuple(isize),
+    #[rust_to_ocaml(name = "Prj_symm_shape")]
+    PrjSymmShape(String, FieldKind, FieldKind),
+    #[rust_to_ocaml(name = "Prj_symm_fn_arg")]
+    PrjSymmFnArg(isize, isize, ast_defs::Variance),
+    #[rust_to_ocaml(name = "Prj_symm_fn_ret")]
+    PrjSymmFnRet,
+    #[rust_to_ocaml(name = "Prj_symm_access")]
+    PrjSymmAccess,
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Deserialize,
+    Eq,
+    EqModuloPos,
+    FromOcamlRep,
+    FromOcamlRepIn,
+    Hash,
+    NoPosHash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    ToOcamlRep
+)]
+#[rust_to_ocaml(attr = "deriving hash")]
+#[repr(u8)]
+pub enum PrjAsymm {
+    #[rust_to_ocaml(name = "Prj_asymm_union")]
+    PrjAsymmUnion,
+    #[rust_to_ocaml(name = "Prj_asymm_inter")]
+    PrjAsymmInter,
+    #[rust_to_ocaml(name = "Prj_asymm_neg")]
+    PrjAsymmNeg,
+}
+impl TrivialDrop for PrjAsymm {}
+arena_deserializer::impl_deserialize_in_arena!(PrjAsymm);
+
 /// The reason why something is expected to have a certain type
 #[derive(
     Clone,
@@ -241,8 +334,10 @@ pub enum T_ {
     #[rust_to_ocaml(name = "Rtconst_no_cstr")]
     RtconstNoCstr(PosId),
     Rpredicated(pos::Pos, String),
-    Ris(pos::Pos),
-    Ras(pos::Pos),
+    #[rust_to_ocaml(name = "Ris_refinement")]
+    RisRefinement(pos::Pos),
+    #[rust_to_ocaml(name = "Ras_refinement")]
+    RasRefinement(pos::Pos),
     Requal(pos::Pos),
     #[rust_to_ocaml(name = "Rvarray_or_darray_key")]
     RvarrayOrDarrayKey(pos_or_decl::PosOrDecl),
@@ -257,8 +352,8 @@ pub enum T_ {
     RdynamicConstruct(pos::Pos),
     #[rust_to_ocaml(name = "Ridx_dict")]
     RidxDict(pos::Pos),
-    #[rust_to_ocaml(name = "Rset_element")]
-    RsetElement(pos::Pos),
+    #[rust_to_ocaml(name = "Ridx_set_element")]
+    RidxSetElement(pos::Pos),
     #[rust_to_ocaml(name = "Rmissing_optional_field")]
     RmissingOptionalField(pos_or_decl::PosOrDecl, String),
     #[rust_to_ocaml(name = "Runset_field")]
@@ -330,6 +425,72 @@ pub enum T_ {
     #[rust_to_ocaml(name = "Runsafe_cast")]
     RunsafeCast(pos::Pos),
     Rpattern(pos::Pos),
+    Rflow(Box<T_>, Box<T_>),
+    Rrev(Box<T_>),
+    #[rust_to_ocaml(name = "Rprj_symm")]
+    RprjSymm(PrjSymm, Box<T_>),
+    #[rust_to_ocaml(name = "Rprj_asymm_left")]
+    RprjAsymmLeft(PrjAsymm, Box<T_>),
+    #[rust_to_ocaml(name = "Rprj_asymm_right")]
+    RprjAsymmRight(PrjAsymm, Box<T_>),
+    #[rust_to_ocaml(name = "Rmissing_field")]
+    RmissingField,
+    #[rust_to_ocaml(name = "Rpessimised_this")]
+    RpessimisedThis(pos_or_decl::PosOrDecl),
+}
+
+#[derive(
+    Clone,
+    Copy,
+    Debug,
+    Deserialize,
+    Eq,
+    EqModuloPos,
+    FromOcamlRep,
+    FromOcamlRepIn,
+    Hash,
+    NoPosHash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    ToOcamlRep
+)]
+#[repr(u8)]
+pub enum Direction {
+    Fwd,
+    Bwd,
+}
+impl TrivialDrop for Direction {}
+arena_deserializer::impl_deserialize_in_arena!(Direction);
+
+#[derive(
+    Clone,
+    Debug,
+    Deserialize,
+    Eq,
+    EqModuloPos,
+    FromOcamlRep,
+    Hash,
+    NoPosHash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    ToOcamlRep
+)]
+#[repr(C, u8)]
+pub enum PathElem {
+    Flow(Direction),
+    #[rust_to_ocaml(name = "Prj_symm_lhs")]
+    PrjSymmLhs(PrjSymm),
+    #[rust_to_ocaml(name = "Prj_symm_rhs")]
+    PrjSymmRhs(PrjSymm),
+    #[rust_to_ocaml(name = "Prj_asymm_left")]
+    PrjAsymmLeft(PrjAsymm),
+    #[rust_to_ocaml(name = "Prj_asymm_right")]
+    PrjAsymmRight(PrjAsymm),
+    Witness(T_),
 }
 
 pub type Reason = T_;
@@ -411,4 +572,5 @@ pub enum Ureason {
     URstrInterp,
     #[rust_to_ocaml(name = "URdynamic_prop")]
     URdynamicProp,
+    URlabel,
 }

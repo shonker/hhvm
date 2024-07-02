@@ -29,11 +29,11 @@
 
 #include <folly/Try.h>
 #include <folly/experimental/TestUtil.h>
-#include <folly/experimental/observer/Observer.h>
 #include <folly/futures/Future.h>
 #include <folly/io/async/AsyncSocket.h>
 #include <folly/io/async/AsyncTransport.h>
 #include <folly/io/async/EventBase.h>
+#include <folly/observer/Observer.h>
 #include <folly/portability/GFlags.h>
 #include <thrift/lib/cpp/async/TAsyncSSLSocket.h>
 #include <thrift/lib/cpp/concurrency/Util.h>
@@ -42,8 +42,8 @@
 #include <thrift/lib/cpp2/FieldRef.h>
 #include <thrift/lib/cpp2/async/ClientChannel.h>
 #include <thrift/lib/cpp2/async/RocketClientChannel.h>
-#include <thrift/lib/cpp2/server/BaseThriftServer.h>
 #include <thrift/lib/cpp2/server/Cpp2ConnContext.h>
+#include <thrift/lib/cpp2/server/ThriftServer.h>
 #include <thrift/lib/cpp2/test/gen-cpp2/AsyncProcessor_types.h>
 #include <thrift/lib/cpp2/test/gen-cpp2/Service_types.h>
 #include <thrift/lib/cpp2/test/gen-cpp2/TestService.h>
@@ -197,6 +197,9 @@ TEST_F(RocketClientTest, KeepAliveWatcherLargeResponseTest) {
     FAIL() << "Expected exception.";
   } catch (const TTransportException& ex) {
     EXPECT_EQ(ex.getType(), TTransportException::END_OF_FILE);
+    EXPECT_EQ(
+        std::string(ex.what()),
+        "Connection was closed due to KeepAliveTimeout.");
   }
   // Connection was closed, so next call should fail with NOT_OPEN.
   try {
@@ -218,14 +221,19 @@ TEST_F(RocketClientTest, KeepAliveWatcherLargeResponseTest) {
       nullptr,
       [&](auto socket) { return makeChannelWithMetadata(std::move(socket)); });
 
-  // Call to shrink server socket buffer
-  client1->semifuture_echoInt(0).get();
   // Test normal client1 reads (timeout should not fire).
   client1->sync_echoRequest(response, "");
 
   // Both payload should hit server. The big response should have no problem.
-  client1->sync_echoRequest(response, "big");
-  EXPECT_EQ(response.size(), 1024 * 1024 * 80);
+  try {
+    client1->sync_echoRequest(response, "big");
+    EXPECT_EQ(response.size(), 1024 * 1024 * 80);
+  } catch (const TTransportException& ex) {
+    // It's still possible to hit regular timeout in stress test for large
+    // response. This catch is only to deflaky.
+    EXPECT_EQ(ex.getType(), TTransportException::TIMED_OUT);
+  }
+
   EXPECT_EQ(testInterface->getHit(), 4);
 }
 

@@ -98,6 +98,11 @@ else()
   list(APPEND FIZZ_INCLUDE_DIRECTORIES ${LIBEVENT_INCLUDE_DIR})
 endif()
 
+find_package(liboqs CONFIG)
+if (liboqs_FOUND)
+  set(FIZZ_HAVE_OQS TRUE)
+endif()
+
 # Fizz build time options
 include(FizzOptions)
 
@@ -105,6 +110,13 @@ configure_file(fizz-config.h.in ${CMAKE_CURRENT_BINARY_DIR}/generated/fizz/fizz-
 install(FILES ${CMAKE_CURRENT_BINARY_DIR}/generated/fizz/fizz-config.h DESTINATION ${INCLUDE_INSTALL_DIR}/fizz/)
 
 set(FIZZ_HEADER_DIRS
+  backend
+  backend/openssl
+  backend/openssl/certificate
+  backend/openssl/crypto
+  backend/openssl/crypto/aead
+  backend/openssl/crypto/exchange
+  backend/openssl/crypto/signature
   client
   compression
   crypto
@@ -113,6 +125,7 @@ set(FIZZ_HEADER_DIRS
   crypto/hpke
   crypto/signature
   crypto/openssl
+  experimental/crypto/exchange
   experimental/ktls
   experimental/util
   extensions/delegatedcred
@@ -125,7 +138,6 @@ set(FIZZ_HEADER_DIRS
   server
   util
   tool
-  third-party
 )
 
 set(FIZZ_TEST_HEADER_DIRS
@@ -158,23 +170,6 @@ foreach(dir ${FIZZ_TEST_HEADER_DIRS})
     ${headers})
 endforeach()
 
-if(FIZZ_BUILD_AEGIS)
-    set(FIZZ_AESNI_SOURCES
-      third-party/libsodium-aegis/aegis128l/aesni/aead_aegis128l_aesni.c
-      third-party/libsodium-aegis/aegis256/aesni/aead_aegis256_aesni.c
-    )
-    set_source_files_properties(${FIZZ_AESNI_SOURCES} PROPERTIES COMPILE_OPTIONS "-maes;-mssse3")
-
-    set(FIZZ_AEGIS_SOURCES
-      ${FIZZ_AESNI_SOURCES}
-      third-party/libsodium-aegis/aegis128l/aead_aegis128l.c
-      third-party/libsodium-aegis/aegis128l/soft/aead_aegis128l_soft.c
-      third-party/libsodium-aegis/aegis256/aead_aegis256.c
-      third-party/libsodium-aegis/aegis256/soft/aead_aegis256_soft.c
-      third-party/libsodium-aegis/private/softaes.c
-    )
-endif()
-
 set(FIZZ_SOURCES
   compression/CertDecompressionManager.cpp
   compression/ZlibCertificateCompressor.cpp
@@ -182,21 +177,22 @@ set(FIZZ_SOURCES
   compression/ZstdCertificateCompressor.cpp
   compression/ZstdCertificateDecompressor.cpp
   crypto/Utils.cpp
+  crypto/exchange/HybridKeyExchange.cpp
   crypto/exchange/X25519.cpp
-  crypto/aead/OpenSSLEVPCipher.cpp
+  backend/openssl/crypto/aead/OpenSSLEVPCipher.cpp
   crypto/aead/IOBufUtil.cpp
   crypto/aead/AEGISCipher.cpp
-  crypto/signature/Signature.cpp
+  backend/openssl/crypto/signature/Signature.cpp
   crypto/Hkdf.cpp
   crypto/KeyDerivation.cpp
-  crypto/Sha256.cpp
-  crypto/Sha384.cpp
+  crypto/Crypto.cpp
   crypto/hpke/Context.cpp
   crypto/hpke/DHKEM.cpp
   crypto/hpke/Hkdf.cpp
   crypto/hpke/Hpke.cpp
   crypto/hpke/Utils.cpp
-  crypto/openssl/OpenSSLKeyUtils.cpp
+  backend/openssl/crypto/OpenSSLKeyUtils.cpp
+  backend/openssl/crypto/exchange/OpenSSLKeyExchange.cpp
   record/Types.cpp
   record/RecordLayer.cpp
   record/EncryptedRecordLayer.cpp
@@ -216,12 +212,13 @@ set(FIZZ_SOURCES
   protocol/AsyncFizzBase.cpp
   protocol/Types.cpp
   protocol/Exporter.cpp
+  protocol/MultiBackendFactory.cpp
   protocol/DefaultCertificateVerifier.cpp
   protocol/Events.cpp
   protocol/KeyScheduler.cpp
   protocol/Certificate.cpp
-  protocol/CertUtils.cpp
-  protocol/OpenSSLFactory.cpp
+  backend/openssl/certificate/CertUtils.cpp
+  backend/openssl/OpenSSLFactory.cpp
   protocol/Params.cpp
   protocol/clock/SystemClock.cpp
   protocol/ech/Decrypter.cpp
@@ -229,6 +226,7 @@ set(FIZZ_SOURCES
   extensions/delegatedcred/DelegatedCredentialCertManager.cpp
   extensions/delegatedcred/DelegatedCredentialClientExtension.cpp
   extensions/delegatedcred/DelegatedCredentialFactory.cpp
+  extensions/delegatedcred/Serialization.cpp
   extensions/delegatedcred/DelegatedCredentialUtils.cpp
   extensions/delegatedcred/Types.cpp
   extensions/exportedauth/ExportedAuthenticator.cpp
@@ -245,15 +243,19 @@ set(FIZZ_SOURCES
   client/FizzClientContext.cpp
   client/State.cpp
   client/ClientProtocol.cpp
+  client/CertManager.cpp
   client/PskSerializationUtils.cpp
   client/SynchronizedLruPskCache.cpp
   client/EarlyDataRejectionPolicy.cpp
   tool/FizzCommandCommon.cpp
   util/FizzUtil.cpp
   util/Tracing.cpp
-  ${FIZZ_AEGIS_SOURCES}
 )
 
+if (liboqs_FOUND)
+  set(FIZZ_SOURCES ${FIZZ_SOURCES}
+    experimental/crypto/exchange/OQSKeyExchange.cpp)
+endif()
 
 add_library(fizz
   ${FIZZ_HEADERS}
@@ -299,6 +301,10 @@ target_link_libraries(fizz
     ${DOUBLE_CONVERSION_LIBRARY}
     ${CMAKE_DL_LIBS}
     ${LIBRT_LIBRARIES})
+
+if (liboqs_FOUND)
+  target_link_libraries(fizz PRIVATE OQS::oqs)
+endif()
 
 if ($FIZZ_SHINY_DEPENDENCIES)
   add_dependencies(fizz ${FIZZ_SHINY_DEPENDENCIES})
@@ -428,19 +434,20 @@ if(BUILD_TESTS)
   add_gtest(client/test/SynchronizedLruPskCacheTest.cpp SyncronizedLruPskCacheTest)
   add_gtest(client/test/AsyncFizzClientTest.cpp AsyncFizzClientTest)
   add_gtest(client/test/ClientProtocolTest.cpp ClientProtocolTest)
+  add_gtest(client/test/CertManagerTest.cpp ClientCertManagerTest)
   add_gtest(client/test/FizzClientTest.cpp FizzClientTest)
   add_gtest(compression/test/CertDecompressionManagerTest.cpp CertDecompressionManagerTest)
   add_gtest(compression/test/ZlibCertificateCompressorTest.cpp ZlibCertificateCompressorTest)
-  add_gtest(crypto/aead/test/EVPCipherTest.cpp EVPCipherTest)
+  add_gtest(backend/openssl/crypto/aead/test/EVPCipherTest.cpp EVPCipherTest)
   add_gtest(crypto/aead/test/IOBufUtilTest.cpp IOBufUtilTest)
   add_gtest(crypto/exchange/test/X25519KeyExchangeTest.cpp X25519KeyExchangeTest)
-  add_gtest(crypto/exchange/test/ECKeyExchangeTest.cpp ECKeyExchangeTest)
+  add_gtest(backend/openssl/crypto/exchange/test/ECKeyExchangeTest.cpp ECKeyExchangeTest)
   add_gtest(crypto/hpke/test/ContextTest.cpp ContextTest)
   add_gtest(crypto/hpke/test/DHKEMTest.cpp DHKEMTest)
   add_gtest(crypto/hpke/test/HpkeTest.cpp HpkeTest)
-  add_gtest(crypto/openssl/test/OpenSSLKeyUtilsTest.cpp OpenSSLKeyUtilsTest)
-  add_gtest(crypto/signature/test/RSAPSSSignatureTest.cpp RSAPSSSignatureTest)
-  add_gtest(crypto/signature/test/ECSignatureTest.cpp ECSignatureTest)
+  add_gtest(backend/openssl/crypto/test/OpenSSLKeyUtilsTest.cpp OpenSSLKeyUtilsTest)
+  add_gtest(backend/openssl/crypto/signature/test/RSAPSSSignatureTest.cpp RSAPSSSignatureTest)
+  add_gtest(backend/openssl/crypto/signature/test/ECSignatureTest.cpp ECSignatureTest)
   add_gtest(crypto/test/HkdfTest.cpp HkdfTest)
   add_gtest(crypto/test/KeyDerivationTest.cpp KeyDerivationTest)
   add_gtest(crypto/test/RandomGeneratorTest.cpp RandomGeneratorTest)
@@ -475,7 +482,7 @@ if(BUILD_TESTS)
   add_gtest(record/test/HandshakeTypesTest.cpp HandshakeTypesTest)
   add_gtest(record/test/RecordTest.cpp RecordTest)
   add_gtest(record/test/PlaintextRecordTest.cpp PlaintextRecordTest)
-  add_gtest(server/test/CertManagerTest.cpp CertManagerTest)
+  add_gtest(server/test/CertManagerTest.cpp ServerCertManagerTest)
   add_gtest(server/test/CookieCipherTest.cpp CookieCipherTest)
   add_gtest(server/test/DualTicketCipherTest.cpp DualTicketCipherTest)
   add_gtest(server/test/AeadTicketCipherTest.cpp AeadTicketCipherTest)

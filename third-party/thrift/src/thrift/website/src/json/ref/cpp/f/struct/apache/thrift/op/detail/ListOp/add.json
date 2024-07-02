@@ -32,7 +32,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp2/op/detail/ContainerOp.h",
         "line": "95",
-        "column": "1",
+        "column": "16",
         "bodyfile": "fbcode/thrift/lib/cpp2/op/detail/ContainerOp.h",
         "bodystart": "95",
         "bodyend": "97"
@@ -75,7 +75,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp2/op/detail/ContainerOp.h",
         "line": "98",
-        "column": "1",
+        "column": "15",
         "bodyfile": "fbcode/thrift/lib/cpp2/op/detail/ContainerOp.h",
         "bodystart": "98",
         "bodyend": "98"
@@ -100,5 +100,11 @@
   "brief_html": "",
   "groupname_html": "",
   "href": "/ref/cpp/f/struct/apache/thrift/op/detail/ListOp/add",
-  "refid": "/ref/cpp/f/struct/apache/thrift/op/detail/ListOp/add"
+  "refid": "/ref/cpp/f/struct/apache/thrift/op/detail/ListOp/add",
+  "parent_links": [
+    {
+      "text_html": "ListOp",
+      "href": "/ref/cpp/struct/apache/thrift/op/detail/ListOp"
+    }
+  ]
 }

@@ -23,7 +23,6 @@ use direct_decl_parser::DeclParserOptions;
 use direct_decl_parser::ParsedFile;
 use external_decl_provider::ExternalDeclProvider;
 use hhbc::Unit;
-use options::HhbcFlags;
 use options::Hhvm;
 use options::ParserOptions;
 use parser_core_types::source_text::SourceText;
@@ -62,40 +61,6 @@ mod ffi {
         enable_ir: bool,
     }
 
-    /// compiler::HhbcFlags exposed to C++
-    struct HhbcFlags {
-        ltr_assign: bool,
-        uvs: bool,
-        log_extern_compiler_perf: bool,
-        enable_intrinsics_extension: bool,
-        emit_cls_meth_pointers: bool,
-        fold_lazy_class_keys: bool,
-        optimize_reified_param_checks: bool,
-        stress_shallow_decl_deps: bool,
-        stress_folded_decl_deps: bool,
-        enable_native_enum_class_labels: bool,
-        optimize_param_lifetimes: bool,
-        optimize_local_lifetimes: bool,
-        optimize_local_iterators: bool,
-        optimize_is_type_checks: bool,
-    }
-
-    struct ParserFlags {
-        abstract_static_props: bool,
-        allow_unstable_features: bool,
-        const_default_func_args: bool,
-        const_static_props: bool,
-        disable_lval_as_an_expression: bool,
-        disallow_inst_meth: bool,
-        disable_xhp_element_mangling: bool,
-        disallow_func_ptrs_in_constants: bool,
-        enable_xhp_class_modifier: bool,
-        enable_class_level_where_clauses: bool,
-        disallow_static_constants_in_default_func_args: bool,
-        disallow_direct_superglobals_refs: bool,
-        strict_utf8: bool,
-    }
-
     struct DeclParserConfig {
         aliased_namespaces: Vec<StringMapEntry>,
         disable_xhp_element_mangling: bool,
@@ -125,6 +90,7 @@ mod ffi {
     pub struct ExtDeclAttribute {
         name: String,
         args: Vec<String>,
+        raw_val: String,
     }
 
     #[derive(Debug, PartialEq)]
@@ -489,6 +455,7 @@ mod ffi {
         /// Extract TypeDecls from DeclsHolder.
         fn get_file(decls: &DeclsHolder) -> ExtDeclFile;
         fn get_type_structure(decls: &DeclsHolder, name: &str) -> Vec<ExtDeclTypeStructure>;
+        fn get_shape_keys(decls: &DeclsHolder, name: &str) -> Vec<String>;
 
         fn get_classes(decls: &DeclsHolder) -> Vec<ExtDeclClass>;
         fn get_class(decls: &DeclsHolder, name: &str) -> Vec<ExtDeclClass>;
@@ -539,6 +506,13 @@ mod ffi {
         /// call in this process.
         unsafe fn deref_bytes(i: u32) -> &'static [u8];
     }
+
+    extern "C++" {
+        include!("hphp/hack/src/hackc/compile/options_gen.h");
+
+        type HhbcFlags = options::HhbcFlags;
+        type ParserFlags = options::ParserFlags;
+    }
 }
 
 // Opaque to C++, so we don't need repr(C).
@@ -566,52 +540,13 @@ impl ffi::NativeEnv {
                     .map(|e| (e.key.clone().into(), e.value.clone().into()))
                     .collect(),
                 parser_options: ParserOptions {
-                    po_auto_namespace_map: (self.aliased_namespaces.iter())
+                    auto_namespace_map: (self.aliased_namespaces.iter())
                         .map(|e| (e.key.clone(), e.value.clone()))
                         .collect(),
-                    po_abstract_static_props: self.parser_flags.abstract_static_props,
-                    po_allow_unstable_features: self.parser_flags.allow_unstable_features,
-                    po_const_default_func_args: self.parser_flags.const_default_func_args,
-                    tco_const_static_props: self.parser_flags.const_static_props,
-                    po_disable_lval_as_an_expression: self
-                        .parser_flags
-                        .disable_lval_as_an_expression,
-                    po_disable_xhp_element_mangling: self.parser_flags.disable_xhp_element_mangling,
-                    po_disallow_func_ptrs_in_constants: self
-                        .parser_flags
-                        .disallow_func_ptrs_in_constants,
-                    po_enable_xhp_class_modifier: self.parser_flags.enable_xhp_class_modifier,
-                    po_enable_class_level_where_clauses: self
-                        .parser_flags
-                        .enable_class_level_where_clauses,
-                    po_disallow_static_constants_in_default_func_args: self
-                        .parser_flags
-                        .disallow_static_constants_in_default_func_args,
-                    po_disallow_direct_superglobals_refs: self
-                        .parser_flags
-                        .disallow_direct_superglobals_refs,
-                    po_nameof_precedence: true,
-                    po_strict_utf8: self.parser_flags.strict_utf8,
-                    ..Default::default()
+                    ..self.parser_flags.to_parser_options()
                 },
             },
-            hhbc_flags: HhbcFlags {
-                ltr_assign: self.hhbc_flags.ltr_assign,
-                uvs: self.hhbc_flags.uvs,
-                log_extern_compiler_perf: self.hhbc_flags.log_extern_compiler_perf,
-                enable_intrinsics_extension: self.hhbc_flags.enable_intrinsics_extension,
-                emit_cls_meth_pointers: self.hhbc_flags.emit_cls_meth_pointers,
-                fold_lazy_class_keys: self.hhbc_flags.fold_lazy_class_keys,
-                optimize_reified_param_checks: self.hhbc_flags.optimize_reified_param_checks,
-                stress_shallow_decl_deps: self.hhbc_flags.stress_shallow_decl_deps,
-                stress_folded_decl_deps: self.hhbc_flags.stress_folded_decl_deps,
-                enable_native_enum_class_labels: self.hhbc_flags.enable_native_enum_class_labels,
-                optimize_param_lifetimes: self.hhbc_flags.optimize_param_lifetimes,
-                optimize_local_lifetimes: self.hhbc_flags.optimize_local_lifetimes,
-                optimize_local_iterators: self.hhbc_flags.optimize_local_iterators,
-                optimize_is_type_checks: self.hhbc_flags.optimize_is_type_checks,
-                ..Default::default()
-            },
+            hhbc_flags: self.hhbc_flags,
             flags: EnvFlags {
                 is_systemlib: self.flags.is_systemlib,
                 for_debugger_eval: self.flags.for_debugger_eval,
@@ -952,6 +887,10 @@ fn get_file(holder: &DeclsHolder) -> ffi::ExtDeclFile {
 
 fn get_type_structure(holder: &DeclsHolder, name: &str) -> Vec<ffi::ExtDeclTypeStructure> {
     ext_decl::get_type_structure(&holder.parsed_file, name)
+}
+
+fn get_shape_keys(holder: &DeclsHolder, name: &str) -> Vec<String> {
+    ext_decl::get_shape_keys(&holder.parsed_file, name)
 }
 
 // SAFETY: i must be a raw bitcast from a valid BytesId

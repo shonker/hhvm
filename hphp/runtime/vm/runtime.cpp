@@ -432,6 +432,7 @@ void moduleBoundaryViolationImpl(
   const StringData* fromModule,
   bool soft
 ) {
+  assertx(RO::EvalEnforceModules);
   // Internal symbols must always have a module
   assertx(symbolModule != nullptr);
   assertx(fromModule != nullptr);
@@ -448,7 +449,9 @@ void moduleBoundaryViolationImpl(
       ? "the default module"
       : folly::sformat("module {}", fromModule)
   );
-  if (!soft) SystemLib::throwModuleBoundaryViolationExceptionObject(errMsg);
+  if (RO::EvalEnforceModules > 1 && !soft) {
+    SystemLib::throwModuleBoundaryViolationExceptionObject(errMsg);
+  }
   raise_warning(errMsg);
 }
 
@@ -460,6 +463,7 @@ void raiseModulePropertyViolation(
   const StringData* callerModule,
   bool is_static = false
 ) {
+  if (!RO::EvalEnforceModules) return;
   assertx(cls);
   assertx(prop);
   auto const attrs = [&] {
@@ -485,6 +489,8 @@ void raiseModulePropertyViolation(
 void raiseModuleBoundaryViolation(const Class* ctx,
                                   const Func* callee,
                                   const StringData* callerModule) {
+  if (!RO::EvalEnforceModules) return;
+
   assertx(callee);
   assertx(IMPLIES(callee->isMethod(), ctx));
   assertx(callee->isInternal());
@@ -500,6 +506,8 @@ void raiseModuleBoundaryViolation(const Class* ctx,
 
 void raiseModuleBoundaryViolation(const Class* cls,
                                   const StringData* callerModule) {
+  if (!RO::EvalEnforceModules) return;
+
   assertx(cls);
   assertx(cls->isInternal());
   auto const symbolType =
@@ -544,48 +552,6 @@ void raiseDeploymentBoundaryViolation(const Class* cls) {
     if (folly::Random::rand32(rate) != 0) return;
     raise_warning(errMsg);
   }
-}
-
-void raiseImplicitContextStateInvalid(const Func* func,
-                                      ImplicitContext::State state) {
-  auto const msg = folly::sformat(
-    "{} is a [defaults] memoized function, "
-    "but it is called with {} state implicit context",
-    func->fullName(),
-    ImplicitContext::stateToString(state)
-  );
-  if (!ImplicitContext::isStateSoft(state)) {
-    SystemLib::throwInvalidOperationExceptionObject(msg);
-  }
-  raise_warning(msg);
-}
-
-void raiseImplicitContextSoftInaccessibleStateInvalid(const Func* func,
-                                                      ImplicitContext::State state) {
-  auto const msg = folly::sformat(
-    "{} is a soft IC inaccessible memoized function, "
-    "but it is called with {} state implicit context",
-    func->fullName(),
-    ImplicitContext::stateToString(state)
-  );
-  if (!ImplicitContext::isStateSoft(state)) {
-    SystemLib::throwInvalidOperationExceptionObject(msg);
-  }
-  raise_warning(msg);
-}
-
-void raiseImplicitContextStateInvalidDispatch(const Func* func) {
-  auto const obj = *ImplicitContext::activeCtx;
-  assertx(obj);
-  auto const context = Native::data<ImplicitContext>(obj);
-
-  if (func->isNoICMemoize()) {
-    raiseImplicitContextStateInvalid(func, context->m_state);
-    return;
-  }
-
-  assertx(func->isSoftMakeICInaccessibleMemoize());
-  raiseImplicitContextSoftInaccessibleStateInvalid(func, context->m_state);
 }
 
 //////////////////////////////////////////////////////////////////////

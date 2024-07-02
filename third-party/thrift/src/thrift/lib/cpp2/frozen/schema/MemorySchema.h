@@ -32,9 +32,11 @@
     size_t operator()(const T& x) const; \
   };                                     \
   }
-#define THRIFT_IMPL_HASH(T)                                         \
-  namespace std {                                                   \
-  size_t hash<T>::operator()(const T& x) const { return x.hash(); } \
+#define THRIFT_IMPL_HASH(T)                      \
+  namespace std {                                \
+  size_t hash<T>::operator()(const T& x) const { \
+    return x.hash();                             \
+  }                                              \
   }
 
 namespace apache {
@@ -66,7 +68,6 @@ namespace schema {
 class MemoryField {
  public:
   MemoryField() = default;
-  ~MemoryField() = default;
 
   inline size_t hash() const {
     return folly::hash::hash_combine(id, layoutId, offset);

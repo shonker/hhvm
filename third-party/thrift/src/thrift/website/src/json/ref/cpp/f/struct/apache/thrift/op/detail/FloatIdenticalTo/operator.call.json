@@ -27,11 +27,11 @@
       ],
       "location": {
         "file": "fbcode/thrift/lib/cpp2/op/detail/Compare.h",
-        "line": "269",
-        "column": "1",
+        "line": "274",
+        "column": "8",
         "bodyfile": "fbcode/thrift/lib/cpp2/op/detail/Compare.h",
-        "bodystart": "269",
-        "bodyend": "274"
+        "bodystart": "274",
+        "bodyend": "279"
       },
       "definition": {
         "simple_html": "bool operator()(F lhs, F rhs) const",
@@ -53,5 +53,11 @@
   "brief_html": "",
   "groupname_html": "",
   "href": "/ref/cpp/f/struct/apache/thrift/op/detail/FloatIdenticalTo/operator.call",
-  "refid": "/ref/cpp/f/struct/apache/thrift/op/detail/FloatIdenticalTo/operator.call"
+  "refid": "/ref/cpp/f/struct/apache/thrift/op/detail/FloatIdenticalTo/operator.call",
+  "parent_links": [
+    {
+      "text_html": "FloatIdenticalTo",
+      "href": "/ref/cpp/struct/apache/thrift/op/detail/FloatIdenticalTo"
+    }
+  ]
 }

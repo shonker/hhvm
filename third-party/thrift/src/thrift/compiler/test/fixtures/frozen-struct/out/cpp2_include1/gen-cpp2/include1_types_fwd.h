@@ -7,7 +7,7 @@
 #pragma once
 
 // BEGIN forward_declare
-namespace some { namespace ns {
+namespace some::ns {
 class IncludedA;
-}} // some::ns
+} // namespace some::ns
 // END forward_declare

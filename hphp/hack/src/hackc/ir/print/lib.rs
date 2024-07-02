@@ -60,13 +60,16 @@ impl fmt::Display for DisplayFunc<'_> {
         writeln!(w, "}}")?;
 
         if verbose {
-            let mut unused: InstrIdSet = (0..func.instrs.len()).map(InstrId::from_usize).collect();
-            for iid in func.body_iids() {
+            let mut unused: InstrIdSet = (0..func.repr.instrs.len())
+                .map(InstrId::from_usize)
+                .collect();
+            for iid in func.repr.body_iids() {
                 unused.remove(&iid);
             }
             for iid in func
+                .repr
                 .block_ids()
-                .flat_map(|bid| func.block(bid).params.iter().copied())
+                .flat_map(|bid| func.repr.block(bid).params.iter().copied())
             {
                 unused.remove(&iid);
             }
@@ -76,7 +79,7 @@ impl fmt::Display for DisplayFunc<'_> {
 
                 writeln!(w, "unowned:")?;
                 for iid in unused {
-                    writeln!(w, "  {iid}: {:?}", func.instrs[iid])?;
+                    writeln!(w, "  {iid}: {:?}", func.repr.instrs[iid])?;
                 }
             }
         }

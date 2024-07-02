@@ -278,6 +278,8 @@ module UserAttributes = struct
 
   let uaReturnDisposable = "__ReturnDisposable"
 
+  let uaIgnoreReadonlyError = "__IgnoreReadonlyError"
+
   let uaLSB = "__LSB"
 
   let uaSealed = "__Sealed"
@@ -378,6 +380,8 @@ module UserAttributes = struct
 
   let uaUnsafeAllowMultipleInstantiations =
     "__UNSAFE_AllowMultipleInstantiations"
+
+  let uaPackageOverride = "__PackageOverride"
 
   type attr_info = {
     contexts: string list;
@@ -488,6 +492,13 @@ module UserAttributes = struct
                 ^ " Normally these values cannot be passed to functions."
                 ^ "\n\nYou cannot save references to `__AcceptDisposable` parameters, to ensure they are disposed at the end of their using block.";
             } );
+          ( uaIgnoreReadonlyError,
+            {
+              contexts = [parameter];
+              autocomplete = false;
+              doc =
+                "Allows passing function values that are non-readonly even if a readonly function is expected.";
+            } );
           ( uaReturnDisposable,
             {
               contexts = [fn; mthd; lambda];
@@ -507,10 +518,10 @@ module UserAttributes = struct
             } );
           ( uaSealed,
             {
-              contexts = [cls; enumcls; enum];
+              contexts = [cls; enumcls; enum; mthd];
               autocomplete = true;
               doc =
-                "Only the named classes can extend this class or interface."
+                "Only the named classes can extend this class or interface, or override this method."
                 ^ " Child classes may still be extended unless they are marked `final`.";
             } );
           ( uaLateInit,
@@ -781,6 +792,13 @@ module UserAttributes = struct
               doc =
                 "Enables strict switch checking for all switches in function or method.";
             } );
+          ( uaPackageOverride,
+            {
+              contexts = [file];
+              autocomplete = true;
+              doc =
+                "Overrides the PACKAGES.toml declaration, grouping the file into the specified package.";
+            } );
         ])
 
   (* These are names which are allowed in the systemlib but not in normal programs *)
@@ -941,8 +959,6 @@ end
 
 module StdlibFunctions = struct
   let is_array = "\\is_array"
-
-  let is_null = "\\is_null"
 
   let get_class = "\\get_class"
 

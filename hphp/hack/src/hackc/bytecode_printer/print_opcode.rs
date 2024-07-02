@@ -9,7 +9,7 @@ use std::io::Result;
 use std::io::Write;
 
 use hash::HashSet;
-use hhbc::AdataId;
+use hhbc::AdataState;
 use hhbc::AsTypeStructExceptionKind;
 use hhbc::BareThisOp;
 use hhbc::BytesId;
@@ -50,11 +50,13 @@ use hhbc::StringId;
 use hhbc::SwitchKind;
 use hhbc::TypeStructEnforceKind;
 use hhbc::TypeStructResolveOp;
+use hhbc::TypedValue;
 use hhbc_string_utils::float;
 use print_opcode::PrintOpcode;
 use print_opcode::PrintOpcodeTypes;
 
 use crate::print;
+use crate::write::angle;
 
 #[derive(PrintOpcode)]
 #[print_opcode(override = "SSwitch")]
@@ -201,7 +203,8 @@ print_with_debug!(
     AsTypeStructExceptionKind
 );
 
-fn print_adata_id(w: &mut dyn Write, id: &AdataId) -> Result<()> {
+fn print_adata_id(w: &mut dyn Write, v: &TypedValue, adata: &AdataState) -> Result<()> {
+    let id = adata.index_of(v).unwrap();
     write!(w, "@{}", id)
 }
 
@@ -226,6 +229,11 @@ fn print_iter_args(
     iter_args: &IterArgs,
     local_names: &[StringId],
 ) -> Result<()> {
+    angle(w, |w| {
+        let flags = hhvm_hhbc_defs_ffi::ffi::iter_args_flags_to_string_ffi(iter_args.flags);
+        write!(w, "{}", flags)
+    })?;
+    w.write_all(b" ")?;
     print_iterator_id(w, &iter_args.iter_id)?;
     if iter_args.key_id.is_valid() {
         w.write_all(b" K:")?;
@@ -242,9 +250,9 @@ fn print_iterator_id(w: &mut dyn Write, i: &IterId) -> Result<()> {
 }
 
 fn print_local(w: &mut dyn Write, local: &Local, local_names: &[StringId]) -> Result<()> {
-    match local_names.get(local.idx as usize) {
+    match local_names.get(local.index()) {
         Some(name) => write!(w, "{}", name.as_str()),
-        None => write!(w, "_{}", local.idx),
+        None => write!(w, "_{}", local),
     }
 }
 

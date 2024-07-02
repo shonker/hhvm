@@ -8,83 +8,257 @@ pub mod nested_containers {
 
     pub type MapListError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::nested_containers::MapListExn> for
-        ::std::result::Result<(), MapListError>
-    {
-        fn from(e: crate::services::nested_containers::MapListExn) -> Self {
-            match e {
-                crate::services::nested_containers::MapListExn::Success(res) => {
-                    ::std::result::Result::Ok(res)
+
+    pub(crate) enum MapListReader {}
+
+    impl ::fbthrift::help::DeserializeExn for MapListReader {
+        type Success = ();
+        type Error = MapListError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Void, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::result::Result::Ok(());
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Void, 0i32), false) => {
+                        once = true;
+                        alt = ::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?);
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "MapListError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
                 }
-                crate::services::nested_containers::MapListExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(MapListError::ApplicationException(aexn)),
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            ::std::result::Result::Ok(alt)
         }
     }
 
     pub type MapSetError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::nested_containers::MapSetExn> for
-        ::std::result::Result<(), MapSetError>
-    {
-        fn from(e: crate::services::nested_containers::MapSetExn) -> Self {
-            match e {
-                crate::services::nested_containers::MapSetExn::Success(res) => {
-                    ::std::result::Result::Ok(res)
+
+    pub(crate) enum MapSetReader {}
+
+    impl ::fbthrift::help::DeserializeExn for MapSetReader {
+        type Success = ();
+        type Error = MapSetError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Void, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::result::Result::Ok(());
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Void, 0i32), false) => {
+                        once = true;
+                        alt = ::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?);
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "MapSetError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
                 }
-                crate::services::nested_containers::MapSetExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(MapSetError::ApplicationException(aexn)),
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            ::std::result::Result::Ok(alt)
         }
     }
 
     pub type ListMapError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::nested_containers::ListMapExn> for
-        ::std::result::Result<(), ListMapError>
-    {
-        fn from(e: crate::services::nested_containers::ListMapExn) -> Self {
-            match e {
-                crate::services::nested_containers::ListMapExn::Success(res) => {
-                    ::std::result::Result::Ok(res)
+
+    pub(crate) enum ListMapReader {}
+
+    impl ::fbthrift::help::DeserializeExn for ListMapReader {
+        type Success = ();
+        type Error = ListMapError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Void, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::result::Result::Ok(());
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Void, 0i32), false) => {
+                        once = true;
+                        alt = ::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?);
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "ListMapError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
                 }
-                crate::services::nested_containers::ListMapExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(ListMapError::ApplicationException(aexn)),
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            ::std::result::Result::Ok(alt)
         }
     }
 
     pub type ListSetError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::nested_containers::ListSetExn> for
-        ::std::result::Result<(), ListSetError>
-    {
-        fn from(e: crate::services::nested_containers::ListSetExn) -> Self {
-            match e {
-                crate::services::nested_containers::ListSetExn::Success(res) => {
-                    ::std::result::Result::Ok(res)
+
+    pub(crate) enum ListSetReader {}
+
+    impl ::fbthrift::help::DeserializeExn for ListSetReader {
+        type Success = ();
+        type Error = ListSetError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Void, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::result::Result::Ok(());
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Void, 0i32), false) => {
+                        once = true;
+                        alt = ::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?);
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "ListSetError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
                 }
-                crate::services::nested_containers::ListSetExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(ListSetError::ApplicationException(aexn)),
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            ::std::result::Result::Ok(alt)
         }
     }
 
     pub type TurtlesError = ::fbthrift::NonthrowingFunctionError;
 
-    impl ::std::convert::From<crate::services::nested_containers::TurtlesExn> for
-        ::std::result::Result<(), TurtlesError>
-    {
-        fn from(e: crate::services::nested_containers::TurtlesExn) -> Self {
-            match e {
-                crate::services::nested_containers::TurtlesExn::Success(res) => {
-                    ::std::result::Result::Ok(res)
+
+    pub(crate) enum TurtlesReader {}
+
+    impl ::fbthrift::help::DeserializeExn for TurtlesReader {
+        type Success = ();
+        type Error = TurtlesError;
+
+        fn read_result<P>(p: &mut P) -> ::anyhow::Result<::std::result::Result<Self::Success, Self::Error>>
+        where
+            P: ::fbthrift::ProtocolReader,
+        {
+            static RETURNS: &[::fbthrift::Field] = &[
+                ::fbthrift::Field::new("Success", ::fbthrift::TType::Void, 0),
+            ];
+            let _ = p.read_struct_begin(|_| ())?;
+            let mut once = false;
+            let mut alt = ::std::result::Result::Ok(());
+            loop {
+                let (_, fty, fid) = p.read_field_begin(|_| (), RETURNS)?;
+                match ((fty, fid as ::std::primitive::i32), once) {
+                    ((::fbthrift::TType::Stop, _), _) => {
+                        p.read_field_end()?;
+                        break;
+                    }
+                    ((::fbthrift::TType::Void, 0i32), false) => {
+                        once = true;
+                        alt = ::std::result::Result::Ok(::fbthrift::Deserialize::read(p)?);
+                    }
+                    ((ty, _id), false) => p.skip(ty)?,
+                    ((badty, badid), true) => return ::std::result::Result::Err(::std::convert::From::from(
+                        ::fbthrift::ApplicationException::new(
+                            ::fbthrift::ApplicationExceptionErrorCode::ProtocolError,
+                            format!(
+                                "unwanted extra union {} field ty {:?} id {}",
+                                "TurtlesError",
+                                badty,
+                                badid,
+                            ),
+                        )
+                    )),
                 }
-                crate::services::nested_containers::TurtlesExn::ApplicationException(aexn) =>
-                    ::std::result::Result::Err(TurtlesError::ApplicationException(aexn)),
+                p.read_field_end()?;
             }
+            p.read_struct_end()?;
+            ::std::result::Result::Ok(alt)
         }
     }
 
 }
+
+#[doc(inline)]
+#[allow(ambiguous_glob_reexports)]
+pub use self::nested_containers::*;
 

@@ -17,11 +17,11 @@
       "name_html": "ensure",
       "location": {
         "file": "fbcode/thrift/lib/cpp2/FieldRef.h",
-        "line": "2081",
-        "column": "1",
+        "line": "2066",
+        "column": "30",
         "bodyfile": "fbcode/thrift/lib/cpp2/FieldRef.h",
-        "bodystart": "2081",
-        "bodyend": "2086"
+        "bodystart": "2066",
+        "bodyend": "2071"
       },
       "definition": {
         "simple_html": "FOLLY_ERASE reference_type ensure()",
@@ -43,5 +43,11 @@
   "brief_html": "",
   "groupname_html": "",
   "href": "/ref/cpp/f/class/apache/thrift/union_field_ref/ensure",
-  "refid": "/ref/cpp/f/class/apache/thrift/union_field_ref/ensure"
+  "refid": "/ref/cpp/f/class/apache/thrift/union_field_ref/ensure",
+  "parent_links": [
+    {
+      "text_html": "union_field_ref",
+      "href": "/ref/cpp/class/apache/thrift/union_field_ref"
+    }
+  ]
 }

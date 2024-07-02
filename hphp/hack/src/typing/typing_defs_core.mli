@@ -155,6 +155,7 @@ val user_attribute_param_to_string : user_attribute_param -> string
 type user_attribute = {
   ua_name: pos_id;
   ua_params: user_attribute_param list;
+  ua_raw_val: string option;
 }
 [@@deriving eq, show]
 
@@ -183,12 +184,21 @@ type enforcement =
 
     The predicate would be `is Bool`
   *)
-type type_predicate = IsBool [@@deriving eq, ord, hash, show]
+type type_predicate =
+  | IsBool
+  | IsInt
+  | IsString
+  | IsArraykey
+  | IsFloat
+  | IsNum
+  | IsResource
+  | IsNull
+  | IsTupleOf of type_predicate list
+[@@deriving eq, ord, hash, show]
 
 (** Negation types represent the type of values that fail an `is` test
     for either a primitive type, or a class-ish type C<_> *)
 type neg_type =
-  | Neg_prim of Aast.tprim  (** The negation of a primitive type *)
   | Neg_class of pos_id
       (** The negation of a class. If we think of types as denoting sets
        of values, then (Neg_class C) is complement (Union tyl. C<tyl>), that is
@@ -374,6 +384,8 @@ and _ ty_ =
    *)
   | Tclass : pos_id * exact * locl_ty list -> locl_phase ty_
   | Tneg : neg_type -> locl_phase ty_
+  | Tlabel : string -> locl_phase ty_
+      (** The type of the label expression #ID *)
 
 and exact =
   | Exact
@@ -467,11 +479,14 @@ module Flags : sig
     accept_disposable:bool ->
     has_default:bool ->
     readonly:bool ->
+    ignore_readonly_error:bool ->
     Typing_defs_flags.FunParam.t
 
   val get_fp_accept_disposable : 'a fun_param -> bool
 
   val get_fp_has_default : 'a fun_param -> bool
+
+  val get_fp_ignore_readonly_error : 'a fun_param -> bool
 
   val get_fp_mode : 'a fun_param -> param_mode
 end
@@ -622,6 +637,11 @@ type constraint_type_ =
   | Thas_type_member of has_type_member
       (** [Thas_type_member('T',lo,hi)] is a supertype of all concrete class
           types that have a type member [::T] satisfying [lo <: T <: hi] *)
+  | Thas_const of {
+      name: string;
+      ty: locl_ty;
+    }
+      (** Check if the given type has a class constant that is compatible with [ty] *)
   | Tcan_index of can_index
   | Tcan_traverse of can_traverse
   | Tdestructure of destructure

@@ -19,8 +19,8 @@
 #include <cstdio>
 #include <memory>
 
-#include <folly/experimental/TestUtil.h>
 #include <folly/portability/GTest.h>
+#include <folly/testing/TestUtil.h>
 
 namespace folly {
 namespace test {
@@ -75,7 +75,9 @@ TEST(ExceptionTest, Simple) {
   auto exnpath = tmpdir.path() / "ExceptionTest";
   auto fp = fopen(exnpath.string().c_str(), "w+b");
   ASSERT_TRUE(fp != nullptr);
-  SCOPE_EXIT { fclose(fp); };
+  SCOPE_EXIT {
+    fclose(fp);
+  };
 
   EXPECT_NO_THROW(checkFopenError(fp, "hello", " world"));
   errno = ERANGE;

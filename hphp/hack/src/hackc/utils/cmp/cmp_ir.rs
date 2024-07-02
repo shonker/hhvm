@@ -100,7 +100,7 @@ fn cmp_class(a: &Class, b: &Class) -> Result {
         name: a_name,
         properties: a_properties,
         requirements: a_requirements,
-        src_loc: a_src_loc,
+        span: a_span,
         type_constants: a_type_constants,
         upper_bounds: a_upper_bounds,
         uses: a_uses,
@@ -119,18 +119,28 @@ fn cmp_class(a: &Class, b: &Class) -> Result {
         name: b_name,
         properties: b_properties,
         requirements: b_requirements,
-        src_loc: b_src_loc,
+        span: b_span,
         type_constants: b_type_constants,
         upper_bounds: b_upper_bounds,
         uses: b_uses,
     } = b;
 
     cmp_attributes(a_attributes, b_attributes).qualified("attributes")?;
-    cmp_option(a_base.as_ref(), b_base.as_ref(), cmp_eq).qualified("base")?;
+    cmp_option(
+        a_base.as_ref().into_option(),
+        b_base.as_ref().into_option(),
+        cmp_eq,
+    )
+    .qualified("base")?;
     cmp_map_t(a_constants, b_constants, cmp_constant).qualified("constants")?;
     cmp_map_t(a_ctx_constants, b_ctx_constants, cmp_ctx_constant).qualified("ctx_constants")?;
     cmp_eq(a_doc_comment, b_doc_comment).qualified("doc_comment")?;
-    cmp_option(a_enum_type.as_ref(), b_enum_type.as_ref(), cmp_type_info).qualified("enum_type")?;
+    cmp_option(
+        a_enum_type.as_ref().into_option(),
+        b_enum_type.as_ref().into_option(),
+        cmp_type_info,
+    )
+    .qualified("enum_type")?;
     cmp_slice(a_enum_includes.iter(), b_enum_includes.iter(), cmp_eq).qualified("enum_includes")?;
     cmp_eq(a_flags, b_flags).qualified("flags")?;
     cmp_slice(a_implements.iter(), b_implements.iter(), cmp_eq).qualified("implements")?;
@@ -138,7 +148,7 @@ fn cmp_class(a: &Class, b: &Class) -> Result {
     cmp_eq(a_name, b_name).qualified("name")?;
     cmp_map_t(a_properties, b_properties, cmp_property).qualified("properties")?;
     cmp_slice(a_requirements, b_requirements, cmp_requirement).qualified("requirements")?;
-    cmp_src_loc(a_src_loc, b_src_loc).qualified("src_loc")?;
+    cmp_span(a_span, b_span).qualified("span")?;
     cmp_slice(a_type_constants, b_type_constants, cmp_type_constant).qualified("type_constants")?;
     cmp_slice(a_upper_bounds, b_upper_bounds, cmp_upper_bounds).qualified("upper_bounds")?;
     cmp_slice(a_uses.iter(), b_uses.iter(), cmp_eq).qualified("uses")?;
@@ -200,45 +210,20 @@ fn cmp_imm(a_const: &Immediate, b_const: &Immediate) -> Result {
     )?;
 
     match (a_const, b_const) {
-        (Immediate::Array(a), Immediate::Array(b)) => cmp_typed_value(a, b).qualified("array")?,
-        (Immediate::Bool(a), Immediate::Bool(b)) => cmp_eq(a, b).qualified("bool")?,
         (Immediate::EnumClassLabel(a), Immediate::EnumClassLabel(b)) => {
             cmp_eq(*a, *b).qualified("enum_class_label")?
         }
-        (Immediate::Float(a), Immediate::Float(b)) => cmp_eq(a, b).qualified("float")?,
-        (Immediate::Int(a), Immediate::Int(b)) => cmp_eq(a, b).qualified("int")?,
-        (Immediate::LazyClass(a), Immediate::LazyClass(b)) => {
-            cmp_eq(a, b).qualified("lazy_class")?
-        }
         (Immediate::Named(a), Immediate::Named(b)) => cmp_eq(a, b).qualified("named")?,
         (Immediate::NewCol(a), Immediate::NewCol(b)) => cmp_eq(a, b).qualified("new_col")?,
-        (Immediate::String(a), Immediate::String(b)) => cmp_eq(*a, *b).qualified("string")?,
         (Immediate::Dir, Immediate::Dir)
         | (Immediate::File, Immediate::File)
         | (Immediate::FuncCred, Immediate::FuncCred)
-        | (Immediate::Method, Immediate::Method)
-        | (Immediate::Null, Immediate::Null)
-        | (Immediate::Uninit, Immediate::Uninit) => {}
-
-        // these should never happen
-        (
-            Immediate::Array(_)
-            | Immediate::Bool(_)
-            | Immediate::EnumClassLabel(_)
-            | Immediate::Float(_)
-            | Immediate::Int(_)
-            | Immediate::LazyClass(_)
-            | Immediate::Named(_)
-            | Immediate::NewCol(_)
-            | Immediate::String(_)
-            | Immediate::Dir
-            | Immediate::File
-            | Immediate::FuncCred
-            | Immediate::Method
-            | Immediate::Null
-            | Immediate::Uninit,
-            _,
-        ) => unreachable!(),
+        | (Immediate::Method, Immediate::Method) => {}
+        (a, b) => cmp_typed_value(
+            &a.clone().try_into().unwrap(),
+            &b.clone().try_into().unwrap(),
+        )
+        .qualified("typed_value")?,
     }
 
     Ok(())
@@ -288,44 +273,50 @@ fn cmp_fatal(a: &Fatal, b: &Fatal) -> Result {
     Ok(())
 }
 
-fn cmp_func(a: &Func, b: &Func) -> Result {
+fn cmp_body(a: &Func, b: &Func) -> Result {
     let Func {
         attributes: a_attributes,
         attrs: a_attrs,
-        blocks: a_blocks,
         coeffects: a_coeffects,
-        imms: _,
         doc_comment: a_doc_comment,
-        ex_frames: a_ex_frames,
-        instrs: a_instrs,
         is_memoize_wrapper: a_is_memoize_wrapper,
         is_memoize_wrapper_lsb: a_is_memoize_wrapper_lsb,
-        loc_id: a_loc_id,
-        locs: _,
+        span: a_span,
         num_iters: a_num_iters,
-        params: a_params,
         return_type: a_return_type,
         shadowed_tparams: a_shadowed_tparams,
         upper_bounds: a_upper_bounds,
+        repr:
+            ir::IrRepr {
+                blocks: a_blocks,
+                imms: _,
+                ex_frames: a_ex_frames,
+                instrs: a_instrs,
+                locs: _,
+                params: a_params,
+            },
     } = a;
     let Func {
         attributes: b_attributes,
         attrs: b_attrs,
-        blocks: b_blocks,
         coeffects: b_coeffects,
-        imms: _,
         doc_comment: b_doc_comment,
-        ex_frames: b_ex_frames,
-        instrs: b_instrs,
         is_memoize_wrapper: b_is_memoize_wrapper,
         is_memoize_wrapper_lsb: b_is_memoize_wrapper_lsb,
-        loc_id: b_loc_id,
-        locs: _,
+        span: b_span,
         num_iters: b_num_iters,
-        params: b_params,
         return_type: b_return_type,
         shadowed_tparams: b_shadowed_tparams,
         upper_bounds: b_upper_bounds,
+        repr:
+            ir::IrRepr {
+                blocks: b_blocks,
+                imms: _,
+                ex_frames: b_ex_frames,
+                instrs: b_instrs,
+                locs: _,
+                params: b_params,
+            },
     } = b;
 
     cmp_attributes(a_attributes, b_attributes).qualified("attributes")?;
@@ -337,7 +328,12 @@ fn cmp_func(a: &Func, b: &Func) -> Result {
         .qualified("is_memoize_wrapper_lsb")?;
     cmp_eq(a_num_iters, b_num_iters).qualified("num_iters")?;
     cmp_slice(a_params, b_params, cmp_param).qualified("params")?;
-    cmp_type_info(a_return_type, b_return_type).qualified("return_type")?;
+    cmp_option(
+        a_return_type.as_ref().into(),
+        b_return_type.as_ref().into(),
+        cmp_type_info,
+    )
+    .qualified("return_type")?;
     cmp_slice(a_shadowed_tparams.iter(), b_shadowed_tparams.iter(), cmp_eq)
         .qualified("shadowed_tparams")?;
 
@@ -357,7 +353,7 @@ fn cmp_func(a: &Func, b: &Func) -> Result {
     )
     .qualified("instrs")?;
 
-    cmp_loc_id((*a_loc_id, a), (*b_loc_id, b)).qualified("loc_id")?;
+    cmp_span(a_span, b_span).qualified("span")?;
 
     Ok(())
 }
@@ -366,17 +362,17 @@ fn cmp_function(a: &Function, b: &Function) -> Result {
     let Function {
         flags: a_flags,
         name: a_name,
-        func: a_func,
+        body: a_body,
     } = a;
     let Function {
         flags: b_flags,
         name: b_name,
-        func: b_func,
+        body: b_body,
     } = b;
 
     cmp_eq(a_flags, b_flags).qualified("flags")?;
     cmp_eq(a_name, b_name).qualified("name")?;
-    cmp_func(a_func, b_func).qualified("func")?;
+    cmp_body(a_body, b_body).qualified("body")?;
 
     Ok(())
 }
@@ -492,7 +488,9 @@ fn cmp_operand((a, a_func): (ValueId, &Func), (b, b_func): (ValueId, &Func)) -> 
         (I::Instr(a), I::Instr(b)) => cmp_eq(a, b).qualified("instr")?,
         (I::Instr(_), _) => bail!("Mismatch in ValueId (instr)"),
 
-        (I::Imm(a), I::Imm(b)) => cmp_imm(a_func.imm(a), b_func.imm(b)).qualified("constant")?,
+        (I::Imm(a), I::Imm(b)) => {
+            cmp_imm(a_func.repr.imm(a), b_func.repr.imm(b)).qualified("constant")?
+        }
         (I::Imm(_), _) => bail!("Mismatch in ValueId (immediate)"),
     }
 
@@ -661,7 +659,7 @@ fn cmp_instr_hhbc((a, a_func): (&Hhbc, &Func), (b, b_func): (&Hhbc, &Func)) -> R
             cmp_eq(x0, x1).qualified("InitProp param x")?;
             cmp_eq(y0, y1).qualified("InitProp param y")?;
         }
-        (Hhbc::InstanceOfD(_, x0, _), Hhbc::InstanceOfD(_, x1, _)) => {
+        (Hhbc::InstanceOfD(_, x0, _, _), Hhbc::InstanceOfD(_, x1, _, _)) => {
             cmp_eq(x0, x1).qualified("InstanceOfD param x")?;
         }
         (Hhbc::IsTypeC(_, x0, _), Hhbc::IsTypeC(_, x1, _)) => {
@@ -794,7 +792,7 @@ fn cmp_instr_hhbc((a, a_func): (&Hhbc, &Func), (b, b_func): (&Hhbc, &Func)) -> R
         | (Hhbc::ContValid(_), _)
         | (Hhbc::CreateCl { .. }, _)
         | (Hhbc::CreateCont(_), _)
-        | (Hhbc::CreateSpecialImplicitContext(_, _), _)
+        | (Hhbc::GetInaccessibleImplicitContext(_), _)
         | (Hhbc::Div(_, _), _)
         | (Hhbc::EnumClassLabelName(_, _), _)
         | (Hhbc::GetClsRGProp(_, _), _)
@@ -805,6 +803,7 @@ fn cmp_instr_hhbc((a, a_func): (&Hhbc, &Func), (b, b_func): (&Hhbc, &Func)) -> R
         | (Hhbc::IssetG(_, _), _)
         | (Hhbc::IssetL(_, _), _)
         | (Hhbc::IssetS(_, _), _)
+        | (Hhbc::IterBase(_, _), _)
         | (Hhbc::LateBoundCls(_), _)
         | (Hhbc::LazyClassFromClass(_, _), _)
         | (Hhbc::LockObj(_, _), _)
@@ -833,7 +832,6 @@ fn cmp_instr_hhbc((a, a_func): (&Hhbc, &Func), (b, b_func): (&Hhbc, &Func)) -> R
         | (Hhbc::ThrowNonExhaustiveSwitch(_), _)
         | (Hhbc::UnsetG(_, _), _)
         | (Hhbc::UnsetL(_, _), _)
-        | (Hhbc::VerifyImplicitContextState(_), _)
         | (Hhbc::VerifyOutType(_, _, _), _)
         | (Hhbc::VerifyParamType(_, _, _), _)
         | (Hhbc::VerifyParamTypeTS(_, _, _), _)
@@ -1126,8 +1124,8 @@ fn cmp_instr_terminator(a: &Terminator, b: &Terminator) -> Result {
              Terminator::Fatal(_, b_op, _)) => {
                 cmp_eq(a_op, b_op)?;
             }
-            (Terminator::IterInit(a_iterator, _),
-             Terminator::IterInit(b_iterator, _))
+            (Terminator::IterInit(a_iterator),
+             Terminator::IterInit(b_iterator))
                 | (Terminator::IterNext(a_iterator),
                    Terminator::IterNext(b_iterator)) => {
                     cmp_instr_iterator(a_iterator, b_iterator)?;
@@ -1181,15 +1179,17 @@ fn cmp_instr_terminator(a: &Terminator, b: &Terminator) -> Result {
 }
 
 fn cmp_instr_iterator(a: &IteratorArgs, b: &IteratorArgs) -> Result {
-    // Ignore LocId, ValueIds and LocalIds - those are checked elsewhere.
+    // Ignore IterArgsFlags, LocId, ValueIds and LocalIds - those are checked elsewhere.
     let IteratorArgs {
         iter_id: a_iter_id,
+        flags: _,
         locals: _,
         targets: _,
         loc: _,
     } = a;
     let IteratorArgs {
         iter_id: b_iter_id,
+        flags: _,
         locals: _,
         targets: _,
         loc: _,
@@ -1199,26 +1199,26 @@ fn cmp_instr_iterator(a: &IteratorArgs, b: &IteratorArgs) -> Result {
 }
 
 fn cmp_loc_id((a, a_func): (LocId, &Func), (b, b_func): (LocId, &Func)) -> Result {
-    let a_src_loc = a_func.get_loc(a);
-    let b_src_loc = b_func.get_loc(b);
+    let a_src_loc = a_func.repr.get_loc(a);
+    let b_src_loc = b_func.repr.get_loc(b);
     cmp_option(a_src_loc, b_src_loc, cmp_src_loc)
 }
 
 fn cmp_method(a: &Method, b: &Method) -> Result {
     let Method {
         flags: a_flags,
-        func: a_func,
+        body: a_body,
         name: a_name,
         visibility: a_visibility,
     } = a;
     let Method {
         flags: b_flags,
-        func: b_func,
+        body: b_body,
         name: b_name,
         visibility: b_visibility,
     } = b;
     cmp_eq(a_flags, b_flags).qualified("flags")?;
-    cmp_func(a_func, b_func).qualified("func")?;
+    cmp_body(a_body, b_body).qualified("body")?;
     cmp_eq(a_name, b_name).qualified("name")?;
     cmp_eq(a_visibility, b_visibility).qualified("visibility")?;
     Ok(())
@@ -1445,7 +1445,7 @@ fn cmp_typed_value(a: &TypedValue, b: &TypedValue) -> Result {
             cmp_eq(*a, *b).qualified("lazy_class")?
         }
         (TypedValue::Vec(a), TypedValue::Vec(b)) => {
-            cmp_slice(a, b, cmp_typed_value).qualified("vec")?;
+            cmp_slice(a.iter(), b.iter(), cmp_typed_value).qualified("vec")?;
         }
         (TypedValue::Keyset(a), TypedValue::Keyset(b)) => {
             cmp_slice(a.iter(), b.iter(), cmp_typed_value).qualified("keyset")?;
@@ -1528,6 +1528,8 @@ fn cmp_unit(a_unit: &Unit, b_unit: &Unit) -> Result {
         module_use: a_module_use,
         symbol_refs: a_symbol_refs,
         typedefs: a_typedefs,
+        error_symbols: _,
+        missing_symbols: _,
     } = a_unit;
     let Unit {
         classes: b_classes,
@@ -1539,15 +1541,22 @@ fn cmp_unit(a_unit: &Unit, b_unit: &Unit) -> Result {
         module_use: b_module_use,
         symbol_refs: b_symbol_refs,
         typedefs: b_typedefs,
+        error_symbols: _,
+        missing_symbols: _,
     } = b_unit;
 
     cmp_map_t(a_classes, b_classes, cmp_class).qualified("classes")?;
     cmp_map_t(a_constants, b_constants, cmp_constant).qualified("constants")?;
     cmp_attributes(a_file_attributes, b_file_attributes).qualified("file_attributes")?;
     cmp_map_t(a_functions, b_functions, cmp_function).qualified("functions")?;
-    cmp_option(a_fatal.as_ref(), b_fatal.as_ref(), cmp_fatal).qualified("fatal")?;
+    cmp_option(a_fatal.as_ref().into(), b_fatal.as_ref().into(), cmp_fatal).qualified("fatal")?;
     cmp_map_t(a_modules, b_modules, cmp_module).qualified("modules")?;
-    cmp_option(a_module_use.as_ref(), b_module_use.as_ref(), cmp_eq).qualified("module_use")?;
+    cmp_option(
+        a_module_use.as_ref().into_option(),
+        b_module_use.as_ref().into_option(),
+        cmp_eq,
+    )
+    .qualified("module_use")?;
     cmp_symbol_refs(a_symbol_refs, b_symbol_refs).qualified("symbol_refs")?;
     cmp_map_t(a_typedefs, b_typedefs, cmp_typedef).qualified("typedefs")?;
 

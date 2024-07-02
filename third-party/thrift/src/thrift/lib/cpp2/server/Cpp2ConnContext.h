@@ -35,7 +35,8 @@
 #include <thrift/lib/cpp/transport/THeader.h>
 #include <thrift/lib/cpp2/PluggableFunction.h>
 #include <thrift/lib/cpp2/async/Interaction.h>
-#include <thrift/lib/cpp2/util/TypeErasedStorage.h>
+#include <thrift/lib/cpp2/server/ServiceInterceptorStorage.h>
+#include <thrift/lib/cpp2/util/TypeErasedValue.h>
 #include <thrift/lib/thrift/gen-cpp2/RpcMetadata_types.h>
 #include <wangle/ssl/SSLUtil.h>
 
@@ -71,7 +72,7 @@ class ClientMetadataRef {
 };
 
 namespace detail {
-using ConnectionInternalFieldsT = util::TypeErasedValue<64>;
+using ConnectionInternalFieldsT = util::TypeErasedValue<128>;
 THRIFT_PLUGGABLE_FUNC_DECLARE(
     ConnectionInternalFieldsT, createPerConnectionInternalFields);
 using RequestInternalFieldsT = util::TypeErasedValue<128>;
@@ -103,11 +104,13 @@ class Cpp2ConnContext : public apache::thrift::server::TConnectionContext {
       apache::thrift::ClientIdentityHook clientIdentityHook,
       const Cpp2Worker* worker,
       const IOWorkerContext* workerContext,
+      std::size_t numServiceInterceptors,
       detail::ConnectionInternalFieldsT internalFields)
       : transport_(transport),
         manager_(manager),
         worker_(worker),
         workerContext_(workerContext),
+        serviceInterceptorsStorage_(numServiceInterceptors),
         internalFields_(std::move(internalFields)) {
     if (address) {
       transportInfo_.peerAddress = *address;
@@ -152,6 +155,7 @@ class Cpp2ConnContext : public apache::thrift::server::TConnectionContext {
       std::shared_ptr<X509> peerCert /*overridden from socket*/,
       apache::thrift::ClientIdentityHook clientIdentityHook,
       const WorkerT* worker,
+      std::size_t numServiceInterceptors,
       detail::ConnectionInternalFieldsT internalFields)
       : Cpp2ConnContext(
             address,
@@ -161,6 +165,7 @@ class Cpp2ConnContext : public apache::thrift::server::TConnectionContext {
             std::move(clientIdentityHook),
             worker,
             worker,
+            numServiceInterceptors,
             std::move(internalFields)) {}
 
  public:
@@ -175,7 +180,8 @@ class Cpp2ConnContext : public apache::thrift::server::TConnectionContext {
       const folly::AsyncTransport* transport = nullptr,
       folly::EventBaseManager* manager = nullptr,
       std::shared_ptr<X509> peerCert = nullptr /*overridden from socket*/,
-      apache::thrift::ClientIdentityHook clientIdentityHook = nullptr)
+      apache::thrift::ClientIdentityHook clientIdentityHook = nullptr,
+      std::size_t numServiceInterceptors = 0)
       : Cpp2ConnContext(
             address,
             transport,
@@ -184,6 +190,7 @@ class Cpp2ConnContext : public apache::thrift::server::TConnectionContext {
             std::move(clientIdentityHook),
             nullptr,
             nullptr,
+            numServiceInterceptors,
             detail::createPerConnectionInternalFields()) {}
 
   template <typename WorkerT>
@@ -193,7 +200,8 @@ class Cpp2ConnContext : public apache::thrift::server::TConnectionContext {
       folly::EventBaseManager* manager,
       std::shared_ptr<X509> peerCert /*overridden from socket*/,
       apache::thrift::ClientIdentityHook clientIdentityHook,
-      const WorkerT* worker)
+      const WorkerT* worker,
+      std::size_t numServiceInterceptors)
       : Cpp2ConnContext(
             address,
             transport,
@@ -202,6 +210,7 @@ class Cpp2ConnContext : public apache::thrift::server::TConnectionContext {
             std::move(clientIdentityHook),
             worker,
             worker,
+            numServiceInterceptors,
             detail::createPerConnectionInternalFields()) {}
 
   ~Cpp2ConnContext() override { DCHECK(tiles_.empty()); }
@@ -362,6 +371,12 @@ class Cpp2ConnContext : public apache::thrift::server::TConnectionContext {
       return {};
     }
     return ClientMetadataRef{*clientMetadata_};
+  }
+
+  detail::ServiceInterceptorOnConnectionStorage*
+  getStorageForServiceInterceptorOnConnectionByIndex(std::size_t index) {
+    DCHECK_LT(index, serviceInterceptorsStorage_.size());
+    return &serviceInterceptorsStorage_[index];
   }
 
   template <class T>
@@ -535,6 +550,8 @@ class Cpp2ConnContext : public apache::thrift::server::TConnectionContext {
   std::optional<TransportType> transportType_;
   std::optional<CLIENT_TYPE> clientType_;
   std::optional<ClientMetadata> clientMetadata_;
+  std::vector<detail::ServiceInterceptorOnConnectionStorage>
+      serviceInterceptorsStorage_;
   detail::ConnectionInternalFieldsT internalFields_;
 };
 
@@ -545,21 +562,27 @@ class Cpp2RequestContext : public apache::thrift::server::TConnectionContext {
    * because this may result in a security SEV**/
   Cpp2RequestContext(
       Cpp2ConnContext* ctx,
+      apache::thrift::detail::ServiceInterceptorRequestStorageContext
+          serviceInterceptorsStorage,
       detail::RequestInternalFieldsT internalFields,
       apache::thrift::transport::THeader* header = nullptr,
       std::string methodName = std::string{})
       : TConnectionContext(header),
         ctx_(ctx),
         methodName_(std::move(methodName)),
+        serviceInterceptorsStorage_(std::move(serviceInterceptorsStorage)),
         internalFields_(std::move(internalFields)) {}
 
  public:
   explicit Cpp2RequestContext(
       Cpp2ConnContext* ctx,
       apache::thrift::transport::THeader* header = nullptr,
-      std::string methodName = std::string{})
+      std::string methodName = std::string{},
+      apache::thrift::detail::ServiceInterceptorRequestStorageContext
+          serviceInterceptorsStorage = {})
       : Cpp2RequestContext(
             ctx,
+            std::move(serviceInterceptorsStorage),
             detail::createPerRequestInternalFields(),
             header,
             std::move(methodName)) {}
@@ -655,7 +678,7 @@ class Cpp2RequestContext : public apache::thrift::server::TConnectionContext {
 
   void setInteractionId(int64_t id) { interactionId_ = id; }
 
-  int64_t getInteractionId() { return interactionId_; }
+  int64_t getInteractionId() const { return interactionId_; }
 
   void setFrameworkMetadata(folly::IOBuf frameworkMetadata) {
     frameworkMetadata_ = std::move(frameworkMetadata);
@@ -668,6 +691,10 @@ class Cpp2RequestContext : public apache::thrift::server::TConnectionContext {
   }
 
   folly::Optional<InteractionCreate>& getInteractionCreate() {
+    return interactionCreate_;
+  }
+
+  const folly::Optional<InteractionCreate>& getInteractionCreate() const {
     return interactionCreate_;
   }
 
@@ -705,6 +732,18 @@ class Cpp2RequestContext : public apache::thrift::server::TConnectionContext {
     return nullptr;
   }
 
+  int getRequestAttemptId() const {
+    if (auto* header = getHeader()) {
+      if (const auto& loggingContext = header->loggingContext()) {
+        if (const auto attemptIdRef = loggingContext->requestAttemptId();
+            attemptIdRef.is_set()) {
+          return *attemptIdRef;
+        }
+      }
+    }
+    return 0;
+  }
+
   const std::string* getRoutingTarget() const {
     if (auto* header = getHeader()) {
       if (const auto& loggingContext = header->loggingContext()) {
@@ -727,6 +766,13 @@ class Cpp2RequestContext : public apache::thrift::server::TConnectionContext {
     return nullptr;
   }
 
+  detail::ServiceInterceptorOnRequestStorage*
+  getStorageForServiceInterceptorOnRequestByIndex(std::size_t index) {
+    DCHECK_NE(serviceInterceptorsStorage_.onRequest.get(), nullptr);
+    DCHECK_LE(index, serviceInterceptorsStorage_.count);
+    return &serviceInterceptorsStorage_.onRequest[index];
+  }
+
  protected:
   apache::thrift::server::TServerObserver::CallTimestamps timestamps_;
 
@@ -744,6 +790,8 @@ class Cpp2RequestContext : public apache::thrift::server::TConnectionContext {
   concurrency::ThreadManager::ExecutionScope executionScope_{
       concurrency::PRIORITY::NORMAL};
   folly::IOBuf frameworkMetadata_;
+  apache::thrift::detail::ServiceInterceptorRequestStorageContext
+      serviceInterceptorsStorage_;
   detail::RequestInternalFieldsT internalFields_;
 };
 

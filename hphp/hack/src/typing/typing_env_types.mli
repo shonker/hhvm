@@ -42,6 +42,7 @@ type env = {
   decl_env: Decl_env.env;
   in_loop: bool;
   in_try: bool;
+  in_lambda: bool;
   in_expr_tree: expr_tree_env option;
       (** If set to Some(_), then we are performing type checking within a
           expression tree. *)
@@ -64,6 +65,8 @@ type env = {
       (** This is only filled in after type-checking the function in question *)
   loaded_packages: SSet.t;
       (** The set of packages loaded via a "package <pkg>" expression *)
+  emit_string_coercion_error: bool;
+      (** Gates which expressions emit class pointer to string coercion errors *)
 }
 
 and genv = {
@@ -87,6 +90,9 @@ and genv = {
       (** The file containing the top-level definition that we are checking *)
   current_module: Ast_defs.id option;
       (** The module of the top-level definition that we are checking *)
+  current_package_override: string option;
+      (** The overridden package membership of a top-level definition that we're checking,
+          specified in the file attribute __PackageOverride *)
   this_internal: bool;
       (** Is the definition that we are checking marked internal? *)
   this_support_dynamic_type: bool;

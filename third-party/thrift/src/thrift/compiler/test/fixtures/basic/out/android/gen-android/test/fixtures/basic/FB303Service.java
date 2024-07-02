@@ -132,17 +132,17 @@ public class FB303Service {
       super(protocolFactory, clientManager, transport);
     }
 
-    public void simple_rpc(Integer int_parameter, AsyncMethodCallback resultHandler18) throws TException {
+    public void simple_rpc(Integer int_parameter, AsyncMethodCallback resultHandler33) throws TException {
       checkReady();
-      simple_rpc_call method_call = new simple_rpc_call(int_parameter, resultHandler18, this, ___protocolFactory, ___transport);
+      simple_rpc_call method_call = new simple_rpc_call(int_parameter, resultHandler33, this, ___protocolFactory, ___transport);
       this.___currentMethod = method_call;
       ___manager.call(method_call);
     }
 
     public static class simple_rpc_call extends TAsyncMethodCall {
       private Integer int_parameter;
-      public simple_rpc_call(Integer int_parameter, AsyncMethodCallback resultHandler19, TAsyncClient client15, TProtocolFactory protocolFactory16, TNonblockingTransport transport17) throws TException {
-        super(client15, protocolFactory16, transport17, resultHandler19, false);
+      public simple_rpc_call(Integer int_parameter, AsyncMethodCallback resultHandler34, TAsyncClient client30, TProtocolFactory protocolFactory31, TNonblockingTransport transport32) throws TException {
+        super(client30, protocolFactory31, transport32, resultHandler34, false);
         this.int_parameter = int_parameter;
       }
 

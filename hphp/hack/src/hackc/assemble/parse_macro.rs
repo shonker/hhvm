@@ -70,6 +70,7 @@ pub fn parse(input: proc_macro::TokenStream) -> proc_macro::TokenStream {
 const DEBUG: bool = false;
 
 #[derive(Debug)]
+#[allow(dead_code)] // field `0` is never read
 struct ParseError(Span, String);
 type Result<T> = std::result::Result<T, ParseError>;
 
@@ -742,6 +743,7 @@ trait MyTokenIter {
     fn expect_peek(&mut self) -> Result<&TokenTree>;
     fn expect_tt(&mut self) -> Result<TokenTree>;
     fn expect_ident(&mut self) -> Result<TokenTree>;
+    #[allow(dead_code)]
     fn expect_token<F: FnOnce(&TokenTree) -> bool>(
         &mut self,
         what: &str,

@@ -80,11 +80,7 @@ module.exports = {
         type: 'doc',
         id: 'idl/index',
       },
-      items: [
-        'idl/field-qualifiers',
-        'idl/annotations',
-        'idl/mixins',
-      ],
+      items: ['idl/field-qualifiers', 'idl/annotations', 'idl/mixins'],
     },
     {
       type: 'category',
@@ -106,7 +102,10 @@ module.exports = {
             type: 'doc',
             id: 'features/serialization/index',
           },
-          items: ['features/serialization/protocols'],
+          items: [
+            'features/serialization/protocols',
+            'features/serialization/cursor',
+          ],
         },
         'features/operators',
         'features/universal-name',
@@ -141,7 +140,7 @@ module.exports = {
               label: 'Patch',
               link: {
                 type: 'doc',
-                id: 'features/patch/patch',
+                id: 'fb/features/patch',
               },
               items: [...fbInternalOnly(['fb/features/patch-compat'])],
             },
@@ -312,6 +311,7 @@ module.exports = {
         items: [
           'fb/server/howto',
           'fb/server/server-lifecycle',
+          'fb/server/server-modules',
           'fb/server/background-tasks',
           'fb/server/flavors-of-main',
           'fb/server/components',
@@ -368,8 +368,7 @@ module.exports = {
                   type: 'doc',
                   id: 'fb/server/overload-protection/dls/index',
                 },
-                items: [
-                ],
+                items: [],
               },
               // 'fb/server/overload-protection/dls/index',
               'fb/server/overload-protection/adaptive-concurrency',
@@ -384,6 +383,15 @@ module.exports = {
               id: 'fb/server/resource-pools/index',
             },
             items: ['fb/server/resource-pools/api'],
+          },
+          {
+            type: 'category',
+            label: 'Quota Management',
+            link: {
+              type: 'doc',
+              id: 'fb/server/quota-management/index',
+            },
+            items: [],
           },
         ],
       },
@@ -470,6 +478,7 @@ module.exports = {
             ],
           },
           'fb/troubleshooting/fb303-counters',
+          'fb/troubleshooting/overload',
         ],
       },
     ]),
@@ -582,7 +591,14 @@ module.exports = {
         },
       ],
     },
-
-    'glossary',
+    {
+      type: 'category',
+      label: 'Glossary',
+      link: {
+        type: 'doc',
+        id: 'glossary/index',
+      },
+      items: ['glossary/kinds-of-types'],
+    },
   ],
 };

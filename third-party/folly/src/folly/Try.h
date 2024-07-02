@@ -79,7 +79,7 @@ class TryBase {
       : contains_(Contains::VALUE), value_(std::move(v)) {}
 
   template <typename... Args>
-  explicit TryBase(in_place_t, Args&&... args) noexcept(
+  explicit TryBase(std::in_place_t, Args&&... args) noexcept(
       std::is_nothrow_constructible<T, Args&&...>::value)
       : contains_(Contains::VALUE), value_(static_cast<Args&&>(args)...) {}
 
@@ -714,10 +714,8 @@ auto unwrapTryTuple(Tuple&&);
 template <typename T>
 void tryAssign(Try<T>& t, Try<T>&& other) noexcept;
 
-#if FOLLY_CPLUSPLUS >= 201703L
 template <typename T>
 Try(T&&) -> Try<std::decay_t<T>>;
-#endif
 
 } // namespace folly
 

@@ -48,7 +48,7 @@ enum class B {
 
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace std {
 template<> struct hash<::cpp2::B> :
@@ -89,7 +89,7 @@ namespace cpp2 {
 class A;
 class U;
 class Bang;
-} // cpp2
+} // namespace cpp2
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -152,6 +152,8 @@ class A final  {
  public:
   using __fbthrift_cpp2_type = A;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -304,6 +306,8 @@ class U final  {
   using __fbthrift_cpp2_type = U;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -580,6 +584,8 @@ class FOLLY_EXPORT Bang : public virtual apache::thrift::TException {
   using __fbthrift_cpp2_type = Bang;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -694,7 +700,7 @@ unsigned long Bang::read(Protocol_* iprot) {
 }
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache { namespace thrift {
 

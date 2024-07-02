@@ -71,6 +71,12 @@ bool ensure_module_imported() {
   static constexpr std::int16_t _fbthrift__IncompleteMap__tuple_pos[1] = {
     1
   };
+  static constexpr std::int16_t _fbthrift__CompleteMap__tuple_pos[1] = {
+    1
+  };
+  static constexpr std::int16_t _fbthrift__CompleteList__tuple_pos[1] = {
+    1
+  };
   static constexpr std::int16_t _fbthrift__AdaptedListDep__tuple_pos[1] = {
     1
   };
@@ -282,8 +288,15 @@ PyObject* Constructor<::apache::thrift::fixtures::types::ContainerStruct>::opera
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__apache__thrift__fixtures__types__module__ContainerStruct(
-      detail::serialize_to_iobuf(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__apache__thrift__fixtures__types__module__ContainerStruct(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -356,8 +369,15 @@ PyObject* Constructor<::apache::thrift::fixtures::types::CppTypeStruct>::operato
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__apache__thrift__fixtures__types__module__CppTypeStruct(
-      detail::serialize_to_iobuf(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__apache__thrift__fixtures__types__module__CppTypeStruct(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -1109,8 +1129,15 @@ PyObject* Constructor<::apache::thrift::fixtures::types::MinPaddingWithCustomTyp
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__apache__thrift__fixtures__types__module__MinPaddingWithCustomType(
-      detail::serialize_to_iobuf(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__apache__thrift__fixtures__types__module__MinPaddingWithCustomType(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -1908,37 +1935,34 @@ PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
 
 ExtractorResult<::apache::thrift::fixtures::types::CompleteMap>
 Extractor<::apache::thrift::fixtures::types::CompleteMap>::operator()(PyObject* obj) {
-  if (!ensure_module_imported()) {
-    DCHECK(PyErr_Occurred() != nullptr);
-    return extractorError<::apache::thrift::fixtures::types::CompleteMap>(
-      "Module apache.thrift.fixtures.types.module import error");
+  int tCheckResult = typeCheck(obj);
+  if (tCheckResult != 1) {
+      if (tCheckResult == 0) {
+        PyErr_SetString(PyExc_TypeError, "Not a CompleteMap");
+      }
+      return extractorError<::apache::thrift::fixtures::types::CompleteMap>(
+          "Marshal error: CompleteMap");
   }
-  std::unique_ptr<folly::IOBuf> val(
-      extract__apache__thrift__fixtures__types__module__CompleteMap(obj));
-  if (!val) {
-    CHECK(PyErr_Occurred());
-    return extractorError<::apache::thrift::fixtures::types::CompleteMap>(
-        "Thrift serialize error: CompleteMap");
-  }
-  return detail::deserialize_iobuf<::apache::thrift::fixtures::types::CompleteMap>(std::move(val));
+  StrongRef fbThriftData(getThriftData(obj));
+  return Extractor<::apache::thrift::python::capi::ComposedStruct<
+      ::apache::thrift::fixtures::types::CompleteMap>>{}(*fbThriftData);
 }
-
 
 ExtractorResult<::apache::thrift::fixtures::types::CompleteMap>
 Extractor<::apache::thrift::python::capi::ComposedStruct<
-    ::apache::thrift::fixtures::types::CompleteMap>>::operator()(PyObject* fbthrift_data) {
-  if (!ensure_module_imported()) {
-    DCHECK(PyErr_Occurred() != nullptr);
-    return extractorError<::apache::thrift::fixtures::types::CompleteMap>(
-      "Module apache.thrift.fixtures.types.module import error");
+    ::apache::thrift::fixtures::types::CompleteMap>>::operator()(PyObject* fbThriftData) {
+  ::apache::thrift::fixtures::types::CompleteMap cpp;
+  std::optional<std::string_view> error;
+  Extractor<map<int32_t, ::apache::thrift::python::capi::ComposedStruct<::apache::thrift::fixtures::types::CompleteMapDep>, std::unordered_map<native_t<int32_t>, native_t<::apache::thrift::python::capi::ComposedStruct<::apache::thrift::fixtures::types::CompleteMapDep>>>>>{}.extractInto(
+      cpp.field_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__CompleteMap__tuple_pos[0]),
+      error);
+  if (error) {
+    return folly::makeUnexpected(*error);
   }
-  auto obj = StrongRef(init__apache__thrift__fixtures__types__module__CompleteMap(fbthrift_data));
-  if (!obj) {
-      return extractorError<::apache::thrift::fixtures::types::CompleteMap>(
-          "Init from fbthrift error: CompleteMap");
-  }
-  return Extractor<::apache::thrift::fixtures::types::CompleteMap>{}(*obj);
+  return cpp;
 }
+
 
 int Extractor<::apache::thrift::fixtures::types::CompleteMap>::typeCheck(PyObject* obj) {
   if (!ensure_module_imported()) {
@@ -1961,24 +1985,39 @@ PyObject* Constructor<::apache::thrift::fixtures::types::CompleteMap>::operator(
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__apache__thrift__fixtures__types__module__CompleteMap(
-      detail::serialize_to_iobuf(val));
-  if (!ptr) {
-    CHECK(PyErr_Occurred());
+  Constructor<::apache::thrift::python::capi::ComposedStruct<
+        ::apache::thrift::fixtures::types::CompleteMap>> ctor;
+  StrongRef fbthrift_data(ctor(val));
+  if (!fbthrift_data) {
+    return nullptr;
   }
-  return ptr;
+  return init__apache__thrift__fixtures__types__module__CompleteMap(*fbthrift_data);
 }
-
 
 PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
         ::apache::thrift::fixtures::types::CompleteMap>>::operator()(
-    const ::apache::thrift::fixtures::types::CompleteMap& val) {
-  auto obj = StrongRef(Constructor<::apache::thrift::fixtures::types::CompleteMap>{}(val));
-  if (!obj) {
+    [[maybe_unused]] const ::apache::thrift::fixtures::types::CompleteMap& val) {
+  StrongRef fbthrift_data(createStructTuple(1));
+  StrongRef _fbthrift__field(
+    Constructor<map<int32_t, ::apache::thrift::python::capi::ComposedStruct<::apache::thrift::fixtures::types::CompleteMapDep>, std::unordered_map<native_t<int32_t>, native_t<::apache::thrift::python::capi::ComposedStruct<::apache::thrift::fixtures::types::CompleteMapDep>>>>>{}
+    .constructFrom(val.field_ref()));
+  if (_fbthrift__field.isNone()) {
+    Py_INCREF(Py_None);
+    PyTuple_SET_ITEM(
+      *fbthrift_data,
+      _fbthrift__CompleteMap__tuple_pos[0],
+      Py_None);
+  } else
+  if (!_fbthrift__field ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__CompleteMap__tuple_pos[0],
+          *_fbthrift__field) == -1) {
     return nullptr;
   }
-  return getThriftData(*obj);
+  return std::move(fbthrift_data).release();
 }
+
 
 ExtractorResult<::apache::thrift::fixtures::types::CompleteMapDep>
 Extractor<::apache::thrift::fixtures::types::CompleteMapDep>::operator()(PyObject* obj) {
@@ -2095,8 +2134,15 @@ PyObject* Constructor<::apache::thrift::fixtures::types::IncompleteList>::operat
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__apache__thrift__fixtures__types__module__IncompleteList(
-      detail::serialize_to_iobuf(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__apache__thrift__fixtures__types__module__IncompleteList(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -2176,37 +2222,34 @@ PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
 
 ExtractorResult<::apache::thrift::fixtures::types::CompleteList>
 Extractor<::apache::thrift::fixtures::types::CompleteList>::operator()(PyObject* obj) {
-  if (!ensure_module_imported()) {
-    DCHECK(PyErr_Occurred() != nullptr);
-    return extractorError<::apache::thrift::fixtures::types::CompleteList>(
-      "Module apache.thrift.fixtures.types.module import error");
+  int tCheckResult = typeCheck(obj);
+  if (tCheckResult != 1) {
+      if (tCheckResult == 0) {
+        PyErr_SetString(PyExc_TypeError, "Not a CompleteList");
+      }
+      return extractorError<::apache::thrift::fixtures::types::CompleteList>(
+          "Marshal error: CompleteList");
   }
-  std::unique_ptr<folly::IOBuf> val(
-      extract__apache__thrift__fixtures__types__module__CompleteList(obj));
-  if (!val) {
-    CHECK(PyErr_Occurred());
-    return extractorError<::apache::thrift::fixtures::types::CompleteList>(
-        "Thrift serialize error: CompleteList");
-  }
-  return detail::deserialize_iobuf<::apache::thrift::fixtures::types::CompleteList>(std::move(val));
+  StrongRef fbThriftData(getThriftData(obj));
+  return Extractor<::apache::thrift::python::capi::ComposedStruct<
+      ::apache::thrift::fixtures::types::CompleteList>>{}(*fbThriftData);
 }
-
 
 ExtractorResult<::apache::thrift::fixtures::types::CompleteList>
 Extractor<::apache::thrift::python::capi::ComposedStruct<
-    ::apache::thrift::fixtures::types::CompleteList>>::operator()(PyObject* fbthrift_data) {
-  if (!ensure_module_imported()) {
-    DCHECK(PyErr_Occurred() != nullptr);
-    return extractorError<::apache::thrift::fixtures::types::CompleteList>(
-      "Module apache.thrift.fixtures.types.module import error");
+    ::apache::thrift::fixtures::types::CompleteList>>::operator()(PyObject* fbThriftData) {
+  ::apache::thrift::fixtures::types::CompleteList cpp;
+  std::optional<std::string_view> error;
+  Extractor<list<::apache::thrift::python::capi::ComposedStruct<::apache::thrift::fixtures::types::CompleteListDep>, folly::small_vector<native_t<::apache::thrift::python::capi::ComposedStruct<::apache::thrift::fixtures::types::CompleteListDep>>>>>{}.extractInto(
+      cpp.field_ref(),
+      PyTuple_GET_ITEM(fbThriftData, _fbthrift__CompleteList__tuple_pos[0]),
+      error);
+  if (error) {
+    return folly::makeUnexpected(*error);
   }
-  auto obj = StrongRef(init__apache__thrift__fixtures__types__module__CompleteList(fbthrift_data));
-  if (!obj) {
-      return extractorError<::apache::thrift::fixtures::types::CompleteList>(
-          "Init from fbthrift error: CompleteList");
-  }
-  return Extractor<::apache::thrift::fixtures::types::CompleteList>{}(*obj);
+  return cpp;
 }
+
 
 int Extractor<::apache::thrift::fixtures::types::CompleteList>::typeCheck(PyObject* obj) {
   if (!ensure_module_imported()) {
@@ -2229,24 +2272,39 @@ PyObject* Constructor<::apache::thrift::fixtures::types::CompleteList>::operator
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__apache__thrift__fixtures__types__module__CompleteList(
-      detail::serialize_to_iobuf(val));
-  if (!ptr) {
-    CHECK(PyErr_Occurred());
+  Constructor<::apache::thrift::python::capi::ComposedStruct<
+        ::apache::thrift::fixtures::types::CompleteList>> ctor;
+  StrongRef fbthrift_data(ctor(val));
+  if (!fbthrift_data) {
+    return nullptr;
   }
-  return ptr;
+  return init__apache__thrift__fixtures__types__module__CompleteList(*fbthrift_data);
 }
-
 
 PyObject* Constructor<::apache::thrift::python::capi::ComposedStruct<
         ::apache::thrift::fixtures::types::CompleteList>>::operator()(
-    const ::apache::thrift::fixtures::types::CompleteList& val) {
-  auto obj = StrongRef(Constructor<::apache::thrift::fixtures::types::CompleteList>{}(val));
-  if (!obj) {
+    [[maybe_unused]] const ::apache::thrift::fixtures::types::CompleteList& val) {
+  StrongRef fbthrift_data(createStructTuple(1));
+  StrongRef _fbthrift__field(
+    Constructor<list<::apache::thrift::python::capi::ComposedStruct<::apache::thrift::fixtures::types::CompleteListDep>, folly::small_vector<native_t<::apache::thrift::python::capi::ComposedStruct<::apache::thrift::fixtures::types::CompleteListDep>>>>>{}
+    .constructFrom(val.field_ref()));
+  if (_fbthrift__field.isNone()) {
+    Py_INCREF(Py_None);
+    PyTuple_SET_ITEM(
+      *fbthrift_data,
+      _fbthrift__CompleteList__tuple_pos[0],
+      Py_None);
+  } else
+  if (!_fbthrift__field ||
+      setStructField(
+          *fbthrift_data,
+          _fbthrift__CompleteList__tuple_pos[0],
+          *_fbthrift__field) == -1) {
     return nullptr;
   }
-  return getThriftData(*obj);
+  return std::move(fbthrift_data).release();
 }
+
 
 ExtractorResult<::apache::thrift::fixtures::types::CompleteListDep>
 Extractor<::apache::thrift::fixtures::types::CompleteListDep>::operator()(PyObject* obj) {
@@ -2363,8 +2421,15 @@ PyObject* Constructor<::apache::thrift::fixtures::types::AdaptedList>::operator(
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__apache__thrift__fixtures__types__module__AdaptedList(
-      detail::serialize_to_iobuf(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__apache__thrift__fixtures__types__module__AdaptedList(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -2516,8 +2581,15 @@ PyObject* Constructor<::apache::thrift::fixtures::types::DependentAdaptedList>::
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__apache__thrift__fixtures__types__module__DependentAdaptedList(
-      detail::serialize_to_iobuf(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__apache__thrift__fixtures__types__module__DependentAdaptedList(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }
@@ -2939,8 +3011,15 @@ PyObject* Constructor<::apache::thrift::fixtures::types::TypedefStruct>::operato
     DCHECK(PyErr_Occurred() != nullptr);
     return nullptr;
   }
-  auto ptr = construct__apache__thrift__fixtures__types__module__TypedefStruct(
-      detail::serialize_to_iobuf(val));
+  ::std::unique_ptr<::folly::IOBuf> serialized;
+  try {
+    serialized = detail::serialize_to_iobuf(val);
+  } catch (const apache::thrift::TProtocolException& e) {
+    detail::handle_protocol_error(e);
+    return nullptr;
+  }
+  DCHECK(serialized);
+  auto ptr = construct__apache__thrift__fixtures__types__module__TypedefStruct(std::move(serialized));
   if (!ptr) {
     CHECK(PyErr_Occurred());
   }

@@ -22,11 +22,12 @@
 #include <folly/MapUtil.h>
 #include <folly/Random.h>
 
-#include <hphp/runtime/base/datatype.h>
+#include "hphp/util/configs/eval.h"
 #include "hphp/util/match.h"
 #include "hphp/util/trace.h"
 
 #include "hphp/runtime/base/autoload-handler.h"
+#include "hphp/runtime/base/datatype.h"
 #include "hphp/runtime/base/execution-context.h"
 #include "hphp/runtime/base/runtime-error.h"
 #include "hphp/runtime/base/type-structure-helpers.h"
@@ -243,18 +244,34 @@ Optional<TypeConstraint> TypeConstraint::UnionBuilder::recordConstraint(const Ty
       assertx(tc.typeName());
       m_classes.m_list.emplace_back(tc.m_u.single.class_);
       m_preciseTypeMask |= kUnionTypeClass;
-      // We should never get both resolved and unresolved objects in a single union.
-      assertx(m_resolved.value_or(true));
-      m_resolved = true;
+      switch (m_resolved) {
+      case ResolvedType::Unspecified:
+        m_resolved = ResolvedType::Resolved;
+        break;
+      case ResolvedType::Unresolved:
+        m_resolved = ResolvedType::Mixed;
+        break;
+      case ResolvedType::Resolved:
+      case ResolvedType::Mixed:
+        break;
+      }
       break;
     }
     case AnnotType::Unresolved: {
       assertx(tc.typeName());
       m_classes.m_list.emplace_back(tc.m_u.single.class_);
       m_preciseTypeMask |= kUnionTypeClass;
-      // We should never get both resolved and unresolved objects in a single union.
-      assertx(!m_resolved.value_or(false));
-      m_resolved = false;
+      switch (m_resolved) {
+      case ResolvedType::Unspecified:
+        m_resolved = ResolvedType::Unresolved;
+        break;
+      case ResolvedType::Resolved:
+        m_resolved = ResolvedType::Mixed;
+        break;
+      case ResolvedType::Unresolved:
+      case ResolvedType::Mixed:
+        break;
+      }
       break;
     }
   }
@@ -281,6 +298,26 @@ TypeConstraint TypeConstraint::UnionBuilder::finish() && {
     }
   }
 
+  if (!m_preciseTypeMask) {
+    // Canonicalization: An empty union mask can either be nullable, which case
+    // the type is precisely null, or non-nullable in which case the type is
+    // nothing.
+    assertx(m_classes.m_list.empty());
+    if (contains(m_flags, TypeConstraintFlags::Nullable)) {
+      return TypeConstraint{
+        AnnotType::Null,
+        TypeConstraintFlags::ExtendedHint | TypeConstraintFlags::Resolved,
+        ClassConstraint { m_typeName }
+      };
+    } else {
+      return TypeConstraint{
+        AnnotType::Nothing,
+        TypeConstraintFlags::ExtendedHint | TypeConstraintFlags::Resolved,
+        ClassConstraint { m_typeName }
+      };
+    }
+  }
+
   if (m_classes.m_list.size() > RuntimeOption::EvalMaxCaseTypeVariants) {
     auto msg = folly::sformat(
       "Case type '{}' exceeds allowed variants of {} ({} requested)",
@@ -297,8 +334,14 @@ TypeConstraint TypeConstraint::UnionBuilder::finish() && {
 
   // If we haven't seen any objects or unresolved then we're just simple
   // primitives - which are resolved.
-  if (m_resolved.value_or(true)) {
+  switch (m_resolved) {
+  case ResolvedType::Unspecified:
+  case ResolvedType::Resolved:
     m_flags |= TypeConstraintFlags::Resolved;
+    break;
+  case ResolvedType::Unresolved:
+  case ResolvedType::Mixed:
+    break;
   }
 
   return TypeConstraint{ m_flags, m_preciseTypeMask, m_typeName, classes };
@@ -1086,9 +1129,8 @@ bool TypeConstraint::checkNamedTypeNonObj(tv_rval val) const {
       Optional<AnnotAction> fallback;
       for (auto const& tc : eachTypeConstraintInUnion(td.value->value)) {
         auto type = tc.type();
-        auto klass = type == AnnotType::SubObject
-          ? tc.clsNamedType()->getCachedClass() : nullptr;
-        auto result = annotCompat(val.type(), type, klass ? klass->name() : nullptr);
+        auto const name = tc.isSubObject() ? tc.clsName() : tc.typeName();
+        auto result = annotCompat(val.type(), type, name);
         switch (result) {
           case AnnotAction::Pass: return true;
           case AnnotAction::Fail: continue;
@@ -1104,8 +1146,8 @@ bool TypeConstraint::checkNamedTypeNonObj(tv_rval val) const {
             continue;
           case AnnotAction::WarnClassname:
             assertx(isClassType(val.type()) || isLazyClassType(val.type()));
-            assertx(RuntimeOption::EvalClassPassesClassname);
-            assertx(RuntimeOption::EvalClassnameNoticesSampleRate > 0);
+            assertx(Cfg::Eval::ClassPassesClassname);
+            assertx(Cfg::Eval::ClassnameNoticesSampleRate > 0);
             if (Assert) return true;
             fallback = fallback ? std::min(*fallback, result) : result;
             continue;
@@ -1124,7 +1166,7 @@ bool TypeConstraint::checkNamedTypeNonObj(tv_rval val) const {
           // verify*Fail will deal with the conversion/warning
           return false;
         case AnnotAction::WarnClassname:
-          if (folly::Random::oneIn(RO::EvalClassnameNoticesSampleRate)) {
+          if (folly::Random::oneIn(Cfg::Eval::ClassnameNoticesSampleRate)) {
             raise_notice(Strings::CLASS_TO_CLASSNAME);
           }
           return true;
@@ -1328,8 +1370,8 @@ bool TypeConstraint::checkImpl(tv_rval val,
       case AnnotAction::WarnClassname:
         if (!isPasses) {
           assertx(isClassType(val.type()) || isLazyClassType(val.type()));
-          assertx(RuntimeOption::EvalClassPassesClassname);
-          assertx(RuntimeOption::EvalClassnameNoticesSampleRate > 0);
+          assertx(Cfg::Eval::ClassPassesClassname);
+          assertx(Cfg::Eval::ClassnameNoticesSampleRate > 0);
           if (isAssert) return true;
           fallback = fallback ? std::min(*fallback, result) : result;
         }
@@ -1347,7 +1389,7 @@ bool TypeConstraint::checkImpl(tv_rval val,
       // verify*Fail will deal with the conversion/warning
       return false;
     case AnnotAction::WarnClassname:
-      if (folly::Random::oneIn(RO::EvalClassnameNoticesSampleRate)) {
+      if (folly::Random::oneIn(Cfg::Eval::ClassnameNoticesSampleRate)) {
         raise_notice(Strings::CLASS_TO_CLASSNAME);
       }
       return true;
@@ -1508,7 +1550,7 @@ void TypeConstraint::verifyProperty(tv_lval val,
                                     const Class* thisCls,
                                     const Class* declCls,
                                     const StringData* propName) const {
-  assertx(RuntimeOption::EvalCheckPropTypeHints > 0);
+  assertx(Cfg::Eval::CheckPropTypeHints > 0);
   assertx(validForProp());
   if (UNLIKELY(!checkImpl<CheckMode::ExactProp>(val, thisCls))) {
     verifyPropFail(thisCls, declCls, val, propName, false);
@@ -1519,7 +1561,7 @@ void TypeConstraint::verifyStaticProperty(tv_lval val,
                                           const Class* thisCls,
                                           const Class* declCls,
                                           const StringData* propName) const {
-  assertx(RuntimeOption::EvalCheckPropTypeHints > 0);
+  assertx(Cfg::Eval::CheckPropTypeHints > 0);
   assertx(validForProp());
   if (UNLIKELY(!checkImpl<CheckMode::ExactProp>(val, thisCls))) {
     verifyPropFail(thisCls, declCls, val, propName, true);
@@ -1643,7 +1685,7 @@ bool TypeConstraint::tryCommonCoercions(tv_lval val, const Class* ctx,
 
   if ((isClassType(val.type()) || isLazyClassType(val.type())) &&
       checkStringCompatible()) {
-    if (folly::Random::oneIn(RO::EvalClassStringHintNoticesSampleRate)) {
+    if (folly::Random::oneIn(Cfg::Eval::ClassStringHintNoticesSampleRate)) {
       raise_notice(Strings::CLASS_TO_STRING_IMPLICIT, tcInfo().c_str());
     }
     val.val().pstr = isClassType(val.type()) ?
@@ -1707,7 +1749,7 @@ void TypeConstraint::verifyPropFail(const Class* thisCls,
                                     tv_lval val,
                                     const StringData* propName,
                                     bool isStatic) const {
-  assertx(RuntimeOption::EvalCheckPropTypeHints > 0);
+  assertx(Cfg::Eval::CheckPropTypeHints > 0);
   assertx(validForProp());
 
   auto const tcInfo = [&]{ return folly::sformat("property {}", propName);};
@@ -1876,7 +1918,7 @@ MemoKeyConstraint memoKeyConstraintFromTC(const TypeConstraint& tc) {
 
   // Soft constraints aren't useful because they're not enforced.
   if (!tc.hasConstraint() || tc.isTypeVar() ||
-      tc.isTypeConstant() || tc.isSoft()) {
+      tc.isTypeConstant() || tc.isSoft() || tc.isUnion()) {
     return MK::None;
   }
 

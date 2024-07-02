@@ -15,7 +15,7 @@
  */
 
 include "thrift/annotation/cpp.thrift"
-include "thrift/lib/thrift/patch.thrift"
+include "thrift/annotation/thrift.thrift"
 include "thrift/test/python_capi/thrift_dep.thrift"
 include "thrift/test/python_capi/serialized_dep.thrift"
 include "thrift/lib/thrift/id.thrift"
@@ -50,7 +50,6 @@ enum AnnoyingEnum {
   BAR = 2,
 }
 
-@patch.GeneratePatch
 struct MyStruct {
   1: i64 inty;
   2: string stringy;
@@ -63,7 +62,6 @@ struct MyStruct {
   8: set<i32> intSetty;
 }
 
-@patch.GeneratePatch
 struct MyDataItem {
   1: string s;
 }

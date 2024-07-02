@@ -4,26 +4,21 @@
 // LICENSE file in the "hack" directory of this source tree.
 
 use bitflags::bitflags;
-use ffi::Vector;
-use hhvm_types_ffi::ffi::Attr;
 use serde::Serialize;
 
-use crate::Attribute;
-use crate::Body;
-use crate::Coeffects;
+use crate::BodyImpl;
 use crate::FunctionName;
 use crate::ParamEntry;
 
-#[derive(Debug, Serialize)]
-#[repr(C)]
-pub struct Function {
-    pub attributes: Vector<Attribute>,
-    pub name: FunctionName,
-    pub body: Body,
+pub type Function = FunctionImpl<crate::BcRepr>;
 
-    pub coeffects: Coeffects,
+/// A top-level Hack function.
+#[derive(Debug, Clone, Serialize)]
+#[repr(C)]
+pub struct FunctionImpl<R> {
+    pub name: FunctionName,
+    pub body: BodyImpl<R>,
     pub flags: FunctionFlags,
-    pub attrs: Attr,
 }
 
 bitflags! {
@@ -55,6 +50,6 @@ impl Function {
     }
 
     pub fn params(&self) -> &[ParamEntry] {
-        self.body.params.as_ref()
+        self.body.repr.params.as_ref()
     }
 }

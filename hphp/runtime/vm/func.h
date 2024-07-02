@@ -737,12 +737,6 @@ public:
   bool isSoftMakeICInaccessibleMemoize() const;
 
   /*
-   * What rate should we sample soft make IC inaccessible memoized function?
-   * Requires: isSoftMakeICInaccessibleMemoize()
-   */
-  uint32_t softMakeICInaccessibleSampleRate() const;
-
-  /*
    * Is this string the name of a memoize implementation.
    */
   static bool isMemoizeImplName(const StringData*);
@@ -1466,11 +1460,10 @@ private:
     int m_sn;       // Only read if SharedData::m_sn is kSmallDeltaLimit
     RuntimeCoeffects m_coeffectEscapes{RuntimeCoeffects::none()};
     int64_t m_dynCallSampleRate;
-    uint32_t m_softMakeICInaccessibleSampleRate;
     LowStringPtr m_docComment;
     LowStringPtr m_originalModuleName;
   };
-  static_assert(CheckSize<ExtendedSharedData, use_lowptr ? 296 : 336>(), "");
+  static_assert(CheckSize<ExtendedSharedData, use_lowptr ? 288 : 328>(), "");
 
   /*
    * SharedData accessors for internal use.
@@ -1558,16 +1551,16 @@ private:
     explicit AtomicAttr(Attr attrs) : m_attrs{attrs} {}
 
     AtomicAttr(const AtomicAttr& o)
-      : m_attrs{o.m_attrs.load(std::memory_order_relaxed)}
+      : m_attrs{o.m_attrs.load(std::memory_order_acquire)}
     {}
 
     AtomicAttr& operator=(Attr attrs) {
-      m_attrs.store(attrs, std::memory_order_relaxed);
+      m_attrs.store(attrs, std::memory_order_release);
       return *this;
     }
 
     /* implicit */ operator Attr() const {
-      return m_attrs.load(std::memory_order_relaxed);
+      return m_attrs.load(std::memory_order_acquire);
     }
 
   private:
@@ -1614,7 +1607,7 @@ private:
 
     // Assignments
     UnionWrapper& operator=(UnionWrapper r) {
-      m_u.store(r.m_u, std::memory_order_relaxed);
+      m_u.store(r.m_u, std::memory_order_release);
       return *this;
     }
 
@@ -1622,15 +1615,15 @@ private:
     void setCls(Class *cls) {
       U u;
       u.m_cls = to_low(cls);
-      m_u.store(u, std::memory_order_relaxed);
+      m_u.store(u, std::memory_order_release);
     }
     Class* cls() const {
-      auto cls = m_u.load(std::memory_order_relaxed).m_cls;
+      auto cls = m_u.load(std::memory_order_acquire).m_cls;
       assertx(!(cls & kMethCallerBit));
       return reinterpret_cast<Class*>(cls);
     }
     StringData* name() const {
-     auto n = m_u.load(std::memory_order_relaxed).m_methCallerClsName;
+     auto n = m_u.load(std::memory_order_acquire).m_methCallerClsName;
      assertx(n & kMethCallerBit);
      return reinterpret_cast<StringData*>(n - kMethCallerBit);
     }
@@ -1653,6 +1646,7 @@ public:
     Optimized        = 1 << 0,
     Locked           = 1 << 1,
     MaybeIntercepted = 1 << 2,
+    LockedForPrologueGen = 1 << 3,
   };
 
  /*
@@ -1666,13 +1660,13 @@ public:
     AtomicFlags& operator=(const AtomicFlags&) = delete;
 
     bool set(Flags flags) {
-      auto const prev = m_flags.fetch_or(flags, std::memory_order_release);
+      auto const prev = m_flags.fetch_or(flags, std::memory_order_acq_rel);
       return prev & flags;
     }
 
     bool unset(Flags flags) {
       auto const prev =
-        m_flags.fetch_and(~uint8_t(flags), std::memory_order_release);
+        m_flags.fetch_and(~uint8_t(flags), std::memory_order_acq_rel);
       return prev & flags;
     }
 

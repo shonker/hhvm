@@ -47,6 +47,7 @@ impl<'a, P: Pos> ToOxidized<'a> for UserAttribute<P> {
         arena.alloc(obr::typing_defs::UserAttribute {
             name: self.name.to_oxidized(arena),
             params: self.params.to_oxidized(arena),
+            raw_val: self.raw_val.as_deref().to_oxidized(arena),
         })
     }
 }
@@ -482,6 +483,7 @@ impl<'a, R: Reason> ToOxidized<'a> for folded::FoldedClass<R> {
             docs_url,
             allow_multiple_instantiations,
             sort_text,
+            package_override,
         } = self;
         arena.alloc(obr::decl_defs::DeclClassType {
             name: name.to_oxidized(arena),
@@ -525,6 +527,7 @@ impl<'a, R: Reason> ToOxidized<'a> for folded::FoldedClass<R> {
             docs_url: docs_url.as_deref().to_oxidized(arena),
             allow_multiple_instantiations: *allow_multiple_instantiations,
             sort_text: sort_text.as_deref().to_oxidized(arena),
+            package_override: package_override.as_deref().to_oxidized(arena),
         })
     }
 }
@@ -715,6 +718,7 @@ impl<'a, R: Reason> ToOxidized<'a> for shallow::ClassDecl<R> {
             user_attributes,
             enum_type,
             docs_url,
+            package_override,
         } = self;
 
         arena.alloc(obr::shallow_decl_defs::ClassDecl {
@@ -754,6 +758,9 @@ impl<'a, R: Reason> ToOxidized<'a> for shallow::ClassDecl<R> {
             docs_url: docs_url
                 .as_ref()
                 .map(|s| bumpalo::collections::String::from_str_in(s, arena).into_bump_str()),
+            package_override: package_override
+                .as_ref()
+                .map(|s| bumpalo::collections::String::from_str_in(s, arena).into_bump_str()),
         })
     }
 }
@@ -765,6 +772,7 @@ impl<'a, R: Reason> ToOxidized<'a> for shallow::FunDecl<R> {
         let Self {
             deprecated,
             module,
+            package_override,
             internal,
             ty,
             pos,
@@ -789,6 +797,7 @@ impl<'a, R: Reason> ToOxidized<'a> for shallow::FunDecl<R> {
                 let (pos, id) = m.to_oxidized(arena);
                 obr::ast_defs::Id(pos, id)
             }),
+            package_override: package_override.as_deref().to_oxidized(arena),
         })
     }
 }
@@ -809,6 +818,7 @@ impl<'a, R: Reason> ToOxidized<'a> for shallow::TypedefDecl<R> {
             attributes,
             internal,
             docs_url,
+            package_override,
         } = self;
         arena.alloc(obr::shallow_decl_defs::TypedefDecl {
             module: module.as_ref().map(|m| {
@@ -825,6 +835,7 @@ impl<'a, R: Reason> ToOxidized<'a> for shallow::TypedefDecl<R> {
             attributes: attributes.to_oxidized(arena),
             internal: *internal,
             docs_url: docs_url.as_deref().to_oxidized(arena),
+            package_override: package_override.as_deref().to_oxidized(arena),
         })
     }
 }

@@ -40,6 +40,10 @@ inline bool Class::validate() const {
   return true;
 }
 
+inline const ClassId Class::classId() const {
+  return m_classId;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Class::PropInitVec.
 
@@ -209,13 +213,13 @@ inline bool Class::classofNonIFace(const Class* cls) const {
 }
 
 inline bool Class::classof(const Class* cls) const {
-  auto const bit = cls->m_instanceBitsIndex.load(std::memory_order_relaxed);
+  auto const bit = cls->m_instanceBitsIndex.load(std::memory_order_acquire);
   assertx(bit == kNoInstanceBit || kProfileInstanceBit || bit > 0);
   if (bit > 0) {
     return m_instanceBits.test(bit);
-  } else if (bit == kProfileInstanceBit) {
-    InstanceBits::profile(cls->name());
   }
+
+  if (this == cls) return true;
 
   // If `cls' is an interface, we can simply check to see if cls is in
   // this->m_interfaces.  Otherwise, if `this' is not an interface, the
@@ -226,7 +230,6 @@ inline bool Class::classof(const Class* cls) const {
   // non-interfaces, while this->classVec is either empty, or contains
   // interfaces).
   if (UNLIKELY(isInterface(cls))) {
-    if (this == cls) return true;
     auto const slot = cls->preClass()->ifaceVtableSlot();
     if (slot != kInvalidSlot && isConcreteNormalClass(this)) {
       assertx(RO::RepoAuthoritative);
@@ -238,8 +241,6 @@ inline bool Class::classof(const Class* cls) const {
   }
   return classofNonIFace(cls);
 }
-
-inline bool Class::subtypeOf(const Class* cls) const { return classof(cls); }
 
 inline bool Class::ifaceofDirect(const StringData* name) const {
   return m_interfaces.contains(name);
@@ -533,6 +534,15 @@ Class::sPropLink(Slot index) const {
   return m_sPropCache[index];
 }
 
+inline bool Class::declaredOnThisClass(const SProp& sProp) const {
+  return sProp.cls == this || (sProp.attrs & AttrLSB);
+}
+
+inline bool Class::inherited(const SProp& parentProp) const {
+  return !(parentProp.attrs & AttrPrivate) ||
+    (parentProp.attrs & AttrLSB);
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Constants.
 
@@ -613,6 +623,26 @@ inline bool Class::checkInstanceBit(unsigned int bit) const {
   return m_instanceBits[bit];
 }
 
+inline void Class::incInstanceCheckCount(uint64_t inc) const {
+  if (inc & 1) ++inc;
+  uint64_t curr = m_instanceCheckCount.load(std::memory_order_acquire);
+  while (true) {
+    if (curr & 1) return;               // no longer used as a counter
+    auto updated = curr + inc;
+    if (m_instanceCheckCount.compare_exchange_weak(
+            curr, updated, std::memory_order_acq_rel)) {
+      return;
+    }
+  }
+}
+
+inline uint64_t Class::getInstanceCheckCount() const {
+  assertx(m_instanceBitsIndex.load() == kProfileInstanceBit);
+  auto res = m_instanceCheckCount.load(std::memory_order_acquire);
+  assertx((res & 1) == 0);
+  return res;
+}
+
 ///////////////////////////////////////////////////////////////////////////////
 // Throwable initialization.
 
@@ -689,7 +719,7 @@ inline MaybeDataType Class::enumBaseTy() const {
 }
 
 inline EnumValues* Class::getEnumValues() const {
-  return m_extra->m_enumValues.load(std::memory_order_relaxed);
+  return m_extra->m_enumValues.load(std::memory_order_acquire);
 }
 
 ///////////////////////////////////////////////////////////////////////////////
@@ -744,7 +774,7 @@ inline bool classHasPersistentRDS(const Class* cls) {
 
 inline const StringData* classToStringHelper(const Class* cls,
                                              const char* source) {
-  if (folly::Random::oneIn(RO::EvalRaiseClassConversionNoticeSampleRate)) {
+  if (folly::Random::oneIn(Cfg::Eval::RaiseClassConversionNoticeSampleRate)) {
     raise_class_to_string_conversion_notice(source);
  }
  return cls->name();
@@ -754,62 +784,60 @@ inline const StringData* classToStringHelper(const Class* cls,
 // Lookup.
 
 inline Class* Class::lookup(const StringData* name) {
-  if (name->isSymbol()) {
-    if (auto const result = name->getCachedClass()) return result;
-  }
-  auto const nt = NamedType::getNoCreate(name);
-  if (!nt) return nullptr;
-  auto const result = nt->getCachedClass();
-  if (name->isSymbol() && result && classHasPersistentRDS(result)) {
-    const_cast<StringData*>(name)->setCachedClass(result);
-  }
-  return result;
+  return get(name, false);
 }
 
-inline const Class* Class::lookupUniqueInContext(const NamedType* ne,
-                                                 const Class* ctx,
-                                                 const Unit* unit) {
+ /*
+ * Check whether a Class* can be trusted to not change in the given context.
+ * We can use a Class* if:
+ * (1) Its persistent. It will never change.
+ * (2) We are currently jitting a translation that will be invalidated
+ *     whenever the Class* changes.
+ *     For method translations, we need to check that loading class ctx
+ *         will also load cls. see Class::avail()
+ *     For function translations, these are only invalidated when the unit
+ *         they are defined in changes. Therefore, we'd need to ensure that
+ *         all classes loaded as a result of loading cls are contained inside 
+ *         the unit. 
+ *     As a conservative approximation of this, we are currently just checking
+ *     if ctx is a subtype of cls, but we can certainly do better.
+ */
+
+inline const Class* Class::lookupKnown(const Class* cls, const Class* ctx) {
+  auto const res = lookupKnownMaybe(cls, ctx);
+  switch (res.tag) {
+    case Class::ClassLookupResult::None:
+    case Class::ClassLookupResult::Maybe:
+      return nullptr;
+    case Class::ClassLookupResult::Exact:
+      return res.cls;
+  }
+}
+
+inline Class::ClassLookup Class::lookupKnownMaybe(const Class* cls,
+                                                  const Class* ctx) {
+  auto const tag = [&]() {
+    if (UNLIKELY(cls == nullptr)) return Class::ClassLookupResult::None;
+    if (cls->attrs() & AttrPersistent) return Class::ClassLookupResult::Exact;
+    if (ctx && ctx->classof(cls)) return Class::ClassLookupResult::Exact;
+    return ClassLookupResult::Maybe;
+  }();
+  return Class::ClassLookup { tag, cls };
+}
+
+inline const Class* Class::lookupKnown(const NamedType* ne,
+                                       const Class* ctx) {
   Class* cls = ne->clsList();
-  if (UNLIKELY(cls == nullptr)) return nullptr;
-  if (cls->attrs() & AttrPersistent) return cls;
-  if (unit && cls->preClass()->unit() == unit) return cls;
-  if (!ctx) return nullptr;
-  return ctx->getClassDependency(cls->name());
+  return lookupKnown(cls, ctx);
 }
 
-inline const Class* Class::lookupUniqueInContext(const StringData* name,
-                                                 const Class* ctx,
-                                                 const Unit* unit) {
-  return lookupUniqueInContext(NamedType::getOrCreate(name), ctx, unit);
+inline const Class* Class::lookupKnown(const StringData* name,
+                                       const Class* ctx) {
+  return lookupKnown(NamedType::getOrCreate(name), ctx);
 }
 
 inline Class* Class::load(const StringData* name) {
-  if (name->isSymbol()) {
-    if (auto const result = name->getCachedClass()) return result;
-  }
-  auto const orig = name;
-
-  auto const result = [&]() -> Class* {
-    String normStr;
-    auto ne = NamedType::getNoCreate(name, &normStr);
-
-    // Try to fetch from cache
-    if (ne) {
-      Class* class_ = ne->getCachedClass();
-      if (LIKELY(class_ != nullptr)) return class_;
-    }
-
-    // Normalize the namespace
-    if (normStr) name = normStr.get();
-
-    // Autoload the class
-    return load(ne, name);
-  }();
-
-  if (orig->isSymbol() && result && classHasPersistentRDS(result)) {
-    const_cast<StringData*>(orig)->setCachedClass(result);
-  }
-  return result;
+  return get(name, true);
 }
 
 inline Class* Class::get(const StringData* name, bool tryAutoload) {
@@ -819,12 +847,10 @@ inline Class* Class::get(const StringData* name, bool tryAutoload) {
   auto const orig = name;
   String normStr;
   auto ne = NamedType::getNoCreate(name, &normStr);
-  if (!ne && !tryAutoload) {
-    return nullptr;
-  }
-  if (normStr) {
-    name = normStr.get();
-  }
+
+  if (!ne && !tryAutoload) return nullptr;
+  if (normStr) name = normStr.get();
+
   auto const result = get(ne, name, tryAutoload);
   if (orig->isSymbol() && result && classHasPersistentRDS(result)) {
     const_cast<StringData*>(orig)->setCachedClass(result);

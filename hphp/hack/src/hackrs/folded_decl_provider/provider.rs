@@ -8,7 +8,7 @@ use std::sync::Arc;
 use datastore::Store;
 use hash::IndexMap;
 use hash::IndexSet;
-use oxidized::global_options::GlobalOptions;
+use oxidized::decl_fold_options::DeclFoldOptions;
 use oxidized::naming_types::KindOfType;
 use pos::Positioned;
 use pos::TypeName;
@@ -32,14 +32,14 @@ use super::TypeDecl;
 /// `ShallowDeclProvider`.
 #[derive(Debug)]
 pub struct LazyFoldedDeclProvider<R: Reason> {
-    opts: Arc<GlobalOptions>,
+    opts: Arc<DeclFoldOptions>,
     store: Arc<dyn Store<TypeName, Arc<FoldedClass<R>>>>,
     shallow_decl_provider: Arc<dyn ShallowDeclProvider<R>>,
 }
 
 impl<R: Reason> LazyFoldedDeclProvider<R> {
     pub fn new(
-        opts: Arc<GlobalOptions>,
+        opts: Arc<DeclFoldOptions>,
         store: Arc<dyn Store<TypeName, Arc<FoldedClass<R>>>>,
         shallow_decl_provider: Arc<dyn ShallowDeclProvider<R>>,
     ) -> Self {
@@ -175,7 +175,7 @@ impl<R: Reason> LazyFoldedDeclProvider<R> {
         };
         stack.insert(name);
         let parents = self.decl_class_parents(stack, &mut errors, &shallow_class)?;
-        stack.remove(&name);
+        stack.swap_remove(&name);
         Ok(Some(DeclFolder::decl_class(
             &self.opts,
             &shallow_class,

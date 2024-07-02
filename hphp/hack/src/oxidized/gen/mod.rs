@@ -3,7 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the "hack" directory of this source tree.
 //
-// @generated SignedSource<<7b82771b6bb6415dbab7cb83929776d8>>
+// @generated SignedSource<<051c9ec462efee8bee55c23376397a38>>
 //
 // To regenerate this file, run:
 //   hphp/hack/src/oxidized_regen.sh
@@ -14,11 +14,13 @@ pub mod classish_positions_types;
 pub mod custom_error;
 pub mod custom_error_config;
 pub mod decl_defs;
+pub mod decl_fold_options;
 pub mod decl_parser_options;
 pub mod decl_reference;
 pub mod error_codes;
 pub mod error_message;
 pub mod errors;
+pub mod experimental_features;
 pub mod full_fidelity_parser_env;
 pub mod global_options;
 pub mod map_reduce_ffi;
@@ -61,4 +63,5 @@ pub mod typing_tyvar_occurrences;
 pub mod user_error;
 pub mod user_error_flags;
 pub mod validation_err;
+pub mod warnings_saved_state;
 pub mod xhp_attribute;

@@ -26,58 +26,29 @@ namespace HPHP {
 
 rds::Link<ObjectData*, rds::Mode::Normal> ImplicitContext::activeCtx;
 
-std::string ImplicitContext::stateToString(ImplicitContext::State state) {
-  switch (state) {
-    case ImplicitContext::State::Value:
-      return "a value";
-    case ImplicitContext::State::Inaccessible:
-      return "an inaccessible";
-    case ImplicitContext::State::SoftInaccessible:
-      return "a soft inaccessible";
-    case ImplicitContext::State::SoftSet:
-      return "a soft set";
-  }
-  not_reached();
+rds::Link<ObjectData*, rds::Mode::Normal> ImplicitContext::emptyCtx;
+
+void ImplicitContext::setActive(Object&& ctx) {
+  assertx(*ImplicitContext::activeCtx);
+  (*ImplicitContext::activeCtx)->decRefCount();
+  *ImplicitContext::activeCtx = ctx.detach();
 }
 
-bool ImplicitContext::isStateSoft(ImplicitContext::State state) {
-  switch (state) {
-    case ImplicitContext::State::Value:
-    case ImplicitContext::State::Inaccessible:
-      return false;
-    case ImplicitContext::State::SoftInaccessible:
-    case ImplicitContext::State::SoftSet:
-      return true;
-  }
-  not_reached();
+ImplicitContext::Saver::Saver() {
+  m_context = *ImplicitContext::activeCtx;
+  setActive(Object{*ImplicitContext::emptyCtx});
+}
+
+ImplicitContext::Saver::~Saver() {
+  setActive(Object{m_context});
 }
 
 Variant ImplicitContext::getBlameVectors() {
-  auto const obj = *ImplicitContext::activeCtx;
-  if (!obj) return init_null_variant;
-  auto const context = Native::data<ImplicitContext>(obj);
-  if (context->m_blameFromSoftInaccessible.empty() &&
-      context->m_blameFromSoftSet.empty()) {
-    // Optimization to not waste memory in case they are both empty
-    return init_null_variant;
-  }
-
-  VecInit ret(2);
-  {
-    VecInit inaccessible(context->m_blameFromSoftInaccessible.size());
-    for (auto const& s : context->m_blameFromSoftInaccessible) {
-      inaccessible.append(String{const_cast<StringData*>(s)});
-    }
-    ret.append(inaccessible.toArray());
-  }
-  {
-    VecInit set(context->m_blameFromSoftSet.size());
-    for (auto const& s : context->m_blameFromSoftSet) {
-      set.append(String{const_cast<StringData*>(s)});
-    }
-    ret.append(set.toArray());
-  }
-  return ret.toArray();
+  /*
+   * TODO: once confirmed by privacy org that we don't need
+   * any blame mechanism, rip out this function
+  */
+  return init_null_variant;
 }
 
 } // namespace HPHP

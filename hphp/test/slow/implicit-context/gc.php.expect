@@ -1,2 +1,4 @@
-string(15) "%SoftSet%%ãabc"
+vec(1) {
+  string(14) "%Inaccessible%"
+}
 string(4) "done"

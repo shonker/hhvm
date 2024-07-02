@@ -3,7 +3,7 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the "hack" directory of this source tree.
 //
-// @generated SignedSource<<eb7a10a8579f666aa33f2023d0f694de>>
+// @generated SignedSource<<95ef87950883a72e163afe614f87ff8a>>
 //
 // To regenerate this file, run:
 //   hphp/hack/src/oxidized_regen.sh
@@ -641,27 +641,10 @@ pub enum FunctionPtrId<Ex, En> {
 pub struct ExpressionTree<Ex, En> {
     /// The hint before the backtick, so Foo in this example.
     pub class: ClassName,
-    /// The values spliced into expression tree at runtime are assigned
-    /// to temporaries.
-    ///
-    ///     $0tmp1 = $x; $0tmp2 = bar();
-    pub splices: Vec<Stmt<Ex, En>>,
-    /// The list of global functions and static methods assigned to
-    /// temporaries.
-    ///
-    ///     $0fp1 = foo<>;
-    pub function_pointers: Vec<Stmt<Ex, En>>,
     /// The expression that's executed at runtime.
     ///
     ///     Foo::makeTree($v ==> $v->visitBinOp(...))
     pub runtime_expr: Expr<Ex, En>,
-    /// Position of the first $$ in a splice that refers
-    /// to a variable outside the Expression Tree
-    ///
-    ///     $x |> Code`${ $$ }` // Pos of the $$
-    ///     Code`${ $x |> foo($$) }` // None
-    #[rust_to_ocaml(attr = "transform.opaque")]
-    pub dollardollar_pos: Option<Pos>,
 }
 
 #[derive(
@@ -685,6 +668,31 @@ pub struct As_<Ex, En> {
     pub hint: Hint,
     pub is_nullable: bool,
     pub enforce_deep: bool,
+}
+
+#[derive(
+    Clone,
+    Debug,
+    Deserialize,
+    Eq,
+    FromOcamlRep,
+    Hash,
+    NoPosHash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    ToOcamlRep
+)]
+#[rust_to_ocaml(and)]
+#[repr(C)]
+pub struct EtSplice<Ex, En> {
+    /// The spliced_expr should have type Spliceble<t1, t2, t3>, and if extract_client_type is true, the
+    /// overall type should be t3. If false, the entire Spliceable should be the type.
+    pub extract_client_type: bool,
+    /// Does the spliced_expr contain an await expression
+    pub contains_await: bool,
+    pub spliced_expr: Expr<Ex, En>,
 }
 
 #[derive(
@@ -1062,7 +1070,7 @@ pub enum Expr_<Ex, En> {
     ///
     ///     ${$foo}
     #[rust_to_ocaml(name = "ET_Splice")]
-    ETSplice(Box<Expr<Ex, En>>),
+    ETSplice(Box<EtSplice<Ex, En>>),
     /// Label used for enum classes.
     ///
     ///     enum_name#label_name or #label_name
@@ -1340,9 +1348,32 @@ pub enum XhpAttribute<Ex, En> {
     XhpSpread(Expr<Ex, En>),
 }
 
+/// Param_optional None = `optional int $i`
+/// Param_optional (Some e) = `int $i = e`
+#[derive(
+    Clone,
+    Debug,
+    Deserialize,
+    Eq,
+    FromOcamlRep,
+    Hash,
+    NoPosHash,
+    Ord,
+    PartialEq,
+    PartialOrd,
+    Serialize,
+    ToOcamlRep
+)]
 #[rust_to_ocaml(and)]
-#[rust_to_ocaml(attr = "transform.opaque")]
-pub type IsVariadic = bool;
+#[repr(C, u8)]
+pub enum FunParamInfo<Ex, En> {
+    #[rust_to_ocaml(name = "Param_optional")]
+    ParamOptional(Option<Expr<Ex, En>>),
+    #[rust_to_ocaml(name = "Param_required")]
+    ParamRequired,
+    #[rust_to_ocaml(name = "Param_variadic")]
+    ParamVariadic,
+}
 
 #[derive(
     Clone,
@@ -1364,11 +1395,10 @@ pub type IsVariadic = bool;
 pub struct FunParam<Ex, En> {
     pub annotation: Ex,
     pub type_hint: TypeHint<Ex>,
-    pub is_variadic: IsVariadic,
     #[rust_to_ocaml(attr = "transform.opaque")]
     pub pos: Pos,
     pub name: String,
-    pub expr: Option<Expr<Ex, En>>,
+    pub info: FunParamInfo<Ex, En>,
     #[rust_to_ocaml(attr = "transform.opaque")]
     pub readonly: Option<ast_defs::ReadonlyKind>,
     #[rust_to_ocaml(attr = "transform.opaque")]

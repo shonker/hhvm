@@ -60,7 +60,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_get(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_get(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -168,7 +168,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_getter(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_getter(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -276,7 +276,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_lists(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_lists(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -384,7 +384,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_maps(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_maps(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -492,7 +492,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_name(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_name(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -600,7 +600,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_name_to_value(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_name_to_value(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -708,7 +708,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_names(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_names(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -816,7 +816,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_prefix_tree(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_prefix_tree(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -924,7 +924,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_sets(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_sets(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -1032,7 +1032,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_setter(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_setter(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -1140,7 +1140,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_str(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_str(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -1248,7 +1248,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_strings(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_strings(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -1356,7 +1356,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_type(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_type(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -1464,7 +1464,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_value(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_value(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -1572,7 +1572,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_value_to_name(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_value_to_name(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -1680,7 +1680,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_values(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_values(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -1788,7 +1788,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_id(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_id(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -1896,7 +1896,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_ids(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_ids(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -2004,7 +2004,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_descriptor(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_descriptor(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -2112,7 +2112,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_descriptors(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_descriptors(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -2220,7 +2220,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_key(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_key(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -2328,7 +2328,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_keys(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_keys(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -2436,7 +2436,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_annotation(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_annotation(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -2544,7 +2544,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_annotations(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_annotations(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -2652,7 +2652,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_member(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_member(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -2760,7 +2760,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_members(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_members(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -2868,7 +2868,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_field(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_field(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -2976,7 +2976,7 @@ folly::coro::Task<::std::int32_t> apache::thrift::ServiceHandler<::test_cpp2::cp
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_fields(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback) {
+void apache::thrift::ServiceHandler<::test_cpp2::cpp_reflection::service_with_special_names>::async_tm_fields(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -3051,117 +3051,117 @@ determineInvocationType:
 }
 
 
-namespace test_cpp2 { namespace cpp_reflection {
+namespace test_cpp2::cpp_reflection {
 
-::std::int32_t service_with_special_namesSvNull::get() {
+::std::int32_t service_with_special_namesSvNull::get() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::getter() {
+::std::int32_t service_with_special_namesSvNull::getter() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::lists() {
+::std::int32_t service_with_special_namesSvNull::lists() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::maps() {
+::std::int32_t service_with_special_namesSvNull::maps() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::name() {
+::std::int32_t service_with_special_namesSvNull::name() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::name_to_value() {
+::std::int32_t service_with_special_namesSvNull::name_to_value() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::names() {
+::std::int32_t service_with_special_namesSvNull::names() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::prefix_tree() {
+::std::int32_t service_with_special_namesSvNull::prefix_tree() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::sets() {
+::std::int32_t service_with_special_namesSvNull::sets() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::setter() {
+::std::int32_t service_with_special_namesSvNull::setter() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::str() {
+::std::int32_t service_with_special_namesSvNull::str() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::strings() {
+::std::int32_t service_with_special_namesSvNull::strings() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::type() {
+::std::int32_t service_with_special_namesSvNull::type() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::value() {
+::std::int32_t service_with_special_namesSvNull::value() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::value_to_name() {
+::std::int32_t service_with_special_namesSvNull::value_to_name() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::values() {
+::std::int32_t service_with_special_namesSvNull::values() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::id() {
+::std::int32_t service_with_special_namesSvNull::id() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::ids() {
+::std::int32_t service_with_special_namesSvNull::ids() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::descriptor() {
+::std::int32_t service_with_special_namesSvNull::descriptor() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::descriptors() {
+::std::int32_t service_with_special_namesSvNull::descriptors() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::key() {
+::std::int32_t service_with_special_namesSvNull::key() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::keys() {
+::std::int32_t service_with_special_namesSvNull::keys() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::annotation() {
+::std::int32_t service_with_special_namesSvNull::annotation() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::annotations() {
+::std::int32_t service_with_special_namesSvNull::annotations() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::member() {
+::std::int32_t service_with_special_namesSvNull::member() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::members() {
+::std::int32_t service_with_special_namesSvNull::members() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::field() {
+::std::int32_t service_with_special_namesSvNull::field() { 
   return 0;
 }
 
-::std::int32_t service_with_special_namesSvNull::fields() {
+::std::int32_t service_with_special_namesSvNull::fields() { 
   return 0;
 }
 
@@ -3337,196 +3337,196 @@ apache::thrift::ServiceRequestInfoMap const& service_with_special_namesServiceIn
 apache::thrift::ServiceRequestInfoMap service_with_special_namesServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"get",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.get",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"getter",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.getter",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"lists",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.lists",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"maps",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.maps",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"name",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.name",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"name_to_value",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.name_to_value",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"names",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.names",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"prefix_tree",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.prefix_tree",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"sets",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.sets",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"setter",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.setter",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"str",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.str",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"strings",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.strings",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"type",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.type",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"value",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.value",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"value_to_name",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.value_to_name",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"values",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.values",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"id",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.id",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"ids",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.ids",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"descriptor",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.descriptor",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"descriptors",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.descriptors",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"key",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.key",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"keys",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.keys",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"annotation",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.annotation",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"annotations",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.annotations",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"member",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.member",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"members",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.members",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"field",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.field",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"fields",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "service_with_special_names.fields",
      std::nullopt,
@@ -3536,4 +3536,4 @@ apache::thrift::ServiceRequestInfoMap service_with_special_namesServiceInfoHolde
 
   return requestInfoMap;
 }
-}} // test_cpp2::cpp_reflection
+} // namespace test_cpp2::cpp_reflection

@@ -24,6 +24,7 @@
 #include "hphp/runtime/ext/vsdebug/debugger.h"
 #include "hphp/runtime/ext/vsdebug/ext_vsdebug.h"
 #include "hphp/runtime/server/http-request-handler.h"
+#include "hphp/runtime/vm/debug/debug.h"
 #include "hphp/runtime/vm/jit/cg-meta.h"
 #include "hphp/runtime/vm/jit/fixup.h"
 #include "hphp/runtime/vm/jit/mcgen.h"
@@ -69,6 +70,7 @@ enum class CrashReportStage {
   DumpTreadmill,
   ReportCppStack,
   ReportPhpStack,
+  ReportTrapPhpStack,
   ReportApproximatePhpStack,
   DumpTransDB,
   DumpProfileData,
@@ -83,10 +85,14 @@ static CrashReportStage s_crash_report_stage;
 // using the helper tool `hphp/tools/extract_from_core.sh`.  They start at
 // kDebugAddr and each start is page size aligned.  These static variables
 // should be kept in sync with that utility.
-static uintptr_t s_jitprof_start;
-static uintptr_t s_jitprof_end;
-static uintptr_t s_stacktrace_start;
-static uintptr_t s_stacktrace_end;
+static uintptr_t s_jitprof_start = 0;
+static uintptr_t s_jitprof_end = 0;
+static uintptr_t s_stacktrace_start = 0;
+static uintptr_t s_stacktrace_end = 0;
+static uintptr_t s_perfmap_start = 0;
+static uintptr_t s_perfmap_end = 0;
+
+static bool s_saw_trap = false;
 
 static const char* s_newIgnorelist[] = {
   "_ZN4HPHP16StackTraceNoHeap",
@@ -105,7 +111,7 @@ void bt_handler(int sigin, siginfo_t* info, void* args) {
   auto tid = Process::GetThreadPid();
   pid_t expected{};
   if (CrashingThread.compare_exchange_strong(expected, tid,
-                                             std::memory_order_relaxed)) {
+                                             std::memory_order_acq_rel)) {
     // We're the first crashing thread, go ahead and report everything.
     if (RuntimeOption::StackTraceTimeout > 0) {
       signal(SIGALRM, bt_timeout_handler);
@@ -137,7 +143,10 @@ void bt_handler(int sigin, siginfo_t* info, void* args) {
   static FILE* stacktraceFile = nullptr;
 
 #ifdef __x86_64__
+  static uintptr_t sig_rbp = ((ucontext_t*) args)->uc_mcontext.gregs[REG_RBP];
   static uintptr_t sig_rip = ((ucontext_t*) args)->uc_mcontext.gregs[REG_RIP];
+#else
+  static uintptr_t sig_rbp = 0;
 #endif
 
   switch (s_crash_report_stage) {
@@ -219,6 +228,7 @@ void bt_handler(int sigin, siginfo_t* info, void* args) {
       if (sig == SIGILL && sig_addr) {
         auto reason = jit::getTrapReason((jit::CTCA)sig_addr);
         if (reason) {
+          s_saw_trap = true;
           dprintf(fd, "Detected jit::trap at %p: from %s:%d\n\n",
                   sig_addr, reason->file, reason->line);
         }
@@ -251,24 +261,54 @@ void bt_handler(int sigin, siginfo_t* info, void* args) {
         write(fd, msg.begin(), msg.size());
       }
       [[fallthrough]];
-    case CrashReportStage::ReportPhpStack:
+    case CrashReportStage::ReportPhpStack: {
       // flush so if php stack-walking crashes, we still have this output so far
       ::fsync(fd);
 
-      s_crash_report_stage = CrashReportStage::ReportApproximatePhpStack;
+      s_crash_report_stage = CrashReportStage::ReportTrapPhpStack;
       // Don't attempt to determine function arguments in the PHP backtrace, as
       // that might involve re-entering the VM.
+      auto done = true;
       if (!g_context.isNull() && !tl_sweeping) {
-        dprintf(fd, "\nPHP Stacktrace:\n\n%s",
-                debug_string_backtrace(
-                    /*skip*/false,
-                    /*ignore_args*/true
-                ).data());
+        VMRegAnchor _(VMRegAnchor::Soft);
+        if (regState() == VMRegState::CLEAN) {
+          dprintf(fd, "\nPHP Stacktrace:\n\n%s",
+                  debug_string_backtrace(
+                      /*skip*/false,
+                      /*ignore_args*/true
+                  ).data());
+        } else {
+          done = false;
+        }
       }
-      ::close(fd);
 
-      s_crash_report_stage = CrashReportStage::DumpTransDB;
+      if (done) {
+        ::close(fd);
+        s_crash_report_stage = CrashReportStage::DumpTransDB;
+      }
+    }
+      [[fallthrough]];
+    case CrashReportStage::ReportTrapPhpStack:
+      if (s_crash_report_stage == CrashReportStage::ReportTrapPhpStack) {
+        s_crash_report_stage = CrashReportStage::ReportApproximatePhpStack;
 
+        if (s_saw_trap) {
+          // We would need to walk the stack to find the previous cfa, but trap
+          // fixups should always be direct so we shouldn't need one.
+          jit::VMFrame frame {(ActRec*)sig_rbp, (jit::TCA)sig_addr, 0};
+
+          if (jit::FixupMap::processFixupForVMFrame(frame)) {
+            regState() = VMRegState::CLEAN;
+            dprintf(fd, "\nPHP Stacktrace:\n\n%s",
+                    debug_string_backtrace(
+                        /*skip*/false,
+                        /*ignore_args*/true
+                    ).data());
+            ::close(fd);
+            s_crash_report_stage = CrashReportStage::DumpTransDB;
+          }
+        }
+      }
       [[fallthrough]];
     case CrashReportStage::ReportApproximatePhpStack:
       if (s_crash_report_stage == CrashReportStage::ReportApproximatePhpStack) {
@@ -276,7 +316,7 @@ void bt_handler(int sigin, siginfo_t* info, void* args) {
         // find a VM frame, fake the vmpc, and attempt again.
         s_crash_report_stage = CrashReportStage::DumpTransDB;
 
-        if (auto const ar = jit::findVMFrameForDebug()) {
+        if (auto const ar = jit::findVMFrameForDebug(sig_rbp)) {
           auto const frame = BTFrame::regular(ar, kInvalidOffset);
           auto const addr = [&] () -> jit::CTCA {
             if (sig != SIGILL && sig != SIGSEGV) return (jit::CTCA) sig_addr;
@@ -334,6 +374,11 @@ void bt_handler(int sigin, siginfo_t* info, void* args) {
       }
       auto const& stacktraceFile = RuntimeOption::StackTraceFilename;
       mapFileIn(stacktraceFile, s_stacktrace_start, s_stacktrace_end);
+      if (RuntimeOption::EvalPerfPidMap) {
+        if (auto const debugInfo = Debug::DebugInfo::Get()) {
+          mapFileIn(debugInfo->perfMapName(), s_perfmap_start, s_perfmap_end);
+        }
+      }
     }
       [[fallthrough]];
     case CrashReportStage::SendEmail:

@@ -70,6 +70,7 @@ type init_env = {
   init_start_t: float;
   init_type: string;
   mergebase: Hg.Rev.t option;
+  mergebase_warning_hashes: Warnings_saved_state.t;
   why_needed_full_check: Init_telemetry.t option;
       (** This is about the first full check (if any) which was deferred after init.
       It gets reset after that first full check is completed.
@@ -145,7 +146,8 @@ module RecheckLoopStats : sig
 
   val empty : recheck_id:string -> t
 
-  (** The format of this json is user-facing, returned from 'hh check --json' *)
+  (** The format of this json is user-facing, returned from 'hh check --json'
+      in field `last_recheck`. *)
   val to_user_telemetry : t -> Telemetry.t
 
   (** Update field [time_first_result] if given timestamp is the

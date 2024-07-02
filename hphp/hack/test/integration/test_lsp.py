@@ -11,6 +11,7 @@ import re
 import sys
 import unittest
 import urllib.parse
+from pathlib import Path
 from typing import Dict, Iterable, List, Mapping, Optional, Tuple
 
 import common_tests
@@ -19,6 +20,11 @@ from lspcommand import LspCommandProcessor, Transcript
 from lsptestspec import line, LspTestSpec, NoResponse
 from test_case import TestCase
 from utils import interpolate_variables, Json, JsonObject
+
+"""
+Existence of this file indicates that a Hack notebook is stopped at a breakpoint
+"""
+_HHVM_IS_PAUSED_FILE: Path = Path.home() / ".vscode-sockets/hhvm-paused"
 
 
 class LspTestDriver(common_tests.CommonTestDriver):
@@ -2584,10 +2590,10 @@ class TestLsp(TestCase[LspTestDriver]):
                     {
                         "uri": "${php_file_uri}",
                         "range": {
-                            "start": {"line": 3, "character": 18},
-                            "end": {"line": 3, "character": 21},
+                            "start": {"line": 7, "character": 18},
+                            "end": {"line": 7, "character": 21},
                         },
-                        "title": "MyParent::foo",
+                        "title": "MyTrait::foo",
                     }
                 ],
                 powered_by="serverless_ide",
@@ -2664,7 +2670,7 @@ class TestLsp(TestCase[LspTestDriver]):
                         "name": "First",
                         "kind": 14,
                         "location": {
-                            "uri": "file://${root_path}/definition.php",
+                            "uri": "${php_file_uri}",
                             "range": {
                                 "start": {"line": 50, "character": 18},
                                 "end": {"line": 50, "character": 47},
@@ -2676,7 +2682,7 @@ class TestLsp(TestCase[LspTestDriver]):
                         "name": "MyEnumClass",
                         "kind": 10,
                         "location": {
-                            "uri": "file://${root_path}/definition.php",
+                            "uri": "${php_file_uri}",
                             "range": {
                                 "start": {"line": 49, "character": 0},
                                 "end": {"line": 52, "character": 1},
@@ -2687,30 +2693,32 @@ class TestLsp(TestCase[LspTestDriver]):
                         "name": "testClassMemberInsideConstructorInvocation",
                         "kind": 12,
                         "location": {
-                            "uri": "file://${root_path}/definition.php",
+                            "uri": "${php_file_uri}",
                             "range": {
                                 "start": {"line": 44, "character": 0},
                                 "end": {"line": 46, "character": 1},
                             },
                         },
+                        "detail": "function(): void",
                     },
                     {
                         "name": "MyString",
                         "kind": 14,
                         "location": {
-                            "uri": "file://${root_path}/definition.php",
+                            "uri": "${php_file_uri}",
                             "range": {
                                 "start": {"line": 41, "character": 8},
                                 "end": {"line": 41, "character": 29},
                             },
                         },
+                        "detail": 'MyString = "myString"',
                         "containerName": "HasString",
                     },
                     {
                         "name": "HasString",
                         "kind": 5,
                         "location": {
-                            "uri": "file://${root_path}/definition.php",
+                            "uri": "${php_file_uri}",
                             "range": {
                                 "start": {"line": 40, "character": 0},
                                 "end": {"line": 42, "character": 1},
@@ -2721,19 +2729,20 @@ class TestLsp(TestCase[LspTestDriver]):
                         "name": "__construct",
                         "kind": 6,
                         "location": {
-                            "uri": "file://${root_path}/definition.php",
+                            "uri": "${php_file_uri}",
                             "range": {
                                 "start": {"line": 37, "character": 2},
                                 "end": {"line": 37, "character": 43},
                             },
                         },
+                        "detail": "function(string $s)",
                         "containerName": "TakesString",
                     },
                     {
                         "name": "TakesString",
                         "kind": 5,
                         "location": {
-                            "uri": "file://${root_path}/definition.php",
+                            "uri": "${php_file_uri}",
                             "range": {
                                 "start": {"line": 36, "character": 0},
                                 "end": {"line": 38, "character": 1},
@@ -2744,7 +2753,7 @@ class TestLsp(TestCase[LspTestDriver]):
                         "name": "FF",
                         "kind": 5,
                         "location": {
-                            "uri": "file://${root_path}/definition.php",
+                            "uri": "${php_file_uri}",
                             "range": {
                                 "start": {"line": 26, "character": 0},
                                 "end": {"line": 26, "character": 11},
@@ -2755,19 +2764,20 @@ class TestLsp(TestCase[LspTestDriver]):
                         "name": "__construct",
                         "kind": 6,
                         "location": {
-                            "uri": "file://${root_path}/definition.php",
+                            "uri": "${php_file_uri}",
                             "range": {
                                 "start": {"line": 21, "character": 2},
                                 "end": {"line": 23, "character": 3},
                             },
                         },
+                        "detail": "function()",
                         "containerName": "EE",
                     },
                     {
                         "name": "EE",
                         "kind": 5,
                         "location": {
-                            "uri": "file://${root_path}/definition.php",
+                            "uri": "${php_file_uri}",
                             "range": {
                                 "start": {"line": 20, "character": 0},
                                 "end": {"line": 24, "character": 1},
@@ -2778,7 +2788,7 @@ class TestLsp(TestCase[LspTestDriver]):
                         "name": "CC",
                         "kind": 5,
                         "location": {
-                            "uri": "file://${root_path}/definition.php",
+                            "uri": "${php_file_uri}",
                             "range": {
                                 "start": {"line": 14, "character": 0},
                                 "end": {"line": 15, "character": 1},
@@ -2789,19 +2799,20 @@ class TestLsp(TestCase[LspTestDriver]):
                         "name": "__construct",
                         "kind": 6,
                         "location": {
-                            "uri": "file://${root_path}/definition.php",
+                            "uri": "${php_file_uri}",
                             "range": {
                                 "start": {"line": 11, "character": 2},
                                 "end": {"line": 11, "character": 40},
                             },
                         },
+                        "detail": "function(int $i)",
                         "containerName": "BB",
                     },
                     {
                         "name": "BB",
                         "kind": 5,
                         "location": {
-                            "uri": "file://${root_path}/definition.php",
+                            "uri": "${php_file_uri}",
                             "range": {
                                 "start": {"line": 10, "character": 0},
                                 "end": {"line": 12, "character": 1},
@@ -2812,29 +2823,31 @@ class TestLsp(TestCase[LspTestDriver]):
                         "name": "a_definition",
                         "kind": 12,
                         "location": {
-                            "uri": "file://${root_path}/definition.php",
+                            "uri": "${php_file_uri}",
                             "range": {
                                 "start": {"line": 2, "character": 0},
                                 "end": {"line": 4, "character": 1},
                             },
                         },
+                        "detail": "function(): int",
                     },
                     {
                         "name": "b_definition",
                         "kind": 12,
                         "location": {
-                            "uri": "file://${root_path}/definition.php",
+                            "uri": "${php_file_uri}",
                             "range": {
                                 "start": {"line": 6, "character": 0},
                                 "end": {"line": 8, "character": 1},
                             },
                         },
+                        "detail": "function(): int",
                     },
                     {
                         "name": "DD",
                         "kind": 5,
                         "location": {
-                            "uri": "file://${root_path}/definition.php",
+                            "uri": "${php_file_uri}",
                             "range": {
                                 "start": {"line": 17, "character": 0},
                                 "end": {"line": 18, "character": 1},
@@ -2845,18 +2858,19 @@ class TestLsp(TestCase[LspTestDriver]):
                         "name": "test",
                         "kind": 12,
                         "location": {
-                            "uri": "file://${root_path}/definition.php",
+                            "uri": "${php_file_uri}",
                             "range": {
                                 "start": {"line": 28, "character": 0},
                                 "end": {"line": 34, "character": 1},
                             },
                         },
+                        "detail": "function(): void",
                     },
                     {
                         "name": "MyEnumClassKind",
                         "kind": 5,
                         "location": {
-                            "uri": "file://${root_path}/definition.php",
+                            "uri": "${php_file_uri}",
                             "range": {
                                 "start": {"line": 48, "character": 0},
                                 "end": {"line": 48, "character": 24},
@@ -6747,6 +6761,7 @@ function aaa(): string {
                                 "end": {"line": 3, "character": 1},
                             },
                         },
+                        "detail": "function(): void",
                     }
                 ],
                 powered_by="serverless_ide",
@@ -7395,13 +7410,23 @@ function expect_type_errors_inside(): void {
 
     def test_notebook_mode(self) -> None:
         """
-        Test that certain error messages are filtered out when the `--notebook-mode` argument
-        is passed to `hh lsp`: for example, **there should be no parse errors for top-level statements**
+        When `--notebook-mode` is passed to `hh lsp`:
+        - There should be NO parse errors for top-level statements
+        - There should be NO error for top-level await
+        - If HHVM is paused at a breakpoint, there should be no undefined vars
+        when not stopped at a breakpoint
         """
+        try:
+            # Ensure magic file not present.
+            # See also `test_notebook_mode_at_breakpoint`, where we test the behavior when
+            # the magic file is present.
+            os.remove(_HHVM_IS_PAUSED_FILE)
+        except FileNotFoundError:
+            pass
         variables = self.write_hhconf_and_naming_table()
         file_base_name = "notebook_mode.php"
         php_file_uri = self.repo_file_uri(file_base_name)
-        contents = """<?hh
+        contents = r"""<?hh
 
 async function gen_bool(): Awaitable<bool> {
     return true;
@@ -7410,6 +7435,17 @@ $s = "";                // OK top-level statement, because we pass '--notebook-m
 $s + 3;                 // Error, expected num but got string
 $i = await gen_bool();  // OK top-level await, because we pass '--notebook-mode' to the LSP
 $i + 3;                 // Error, expected num but got bool
+echo $undefined_var;
+class :el {
+  public function __construct(
+    public darray<string,mixed> $x, // Attributes
+    public varray<mixed> $y, // Children
+    public string $z, // Filename
+    public int $s, // Line number
+  ) {}
+}
+<el />;
+
 """
         variables.update({"php_file_uri": php_file_uri, "contents": contents})
         spec = (
@@ -7436,6 +7472,40 @@ $i + 3;                 // Error, expected num but got bool
                 params={
                     "uri": "${php_file_uri}",
                     "diagnostics": [
+                        {
+                            "range": {
+                                "start": {"line": 9, "character": 5},
+                                "end": {"line": 9, "character": 19},
+                            },
+                            "severity": 1,
+                            "code": 2050,
+                            "source": "Hack",
+                            "message": "Variable $undefined_var is undefined, or not always defined.",
+                            "relatedInformation": [
+                                {
+                                    "location": {
+                                        "uri": "${php_file_uri}",
+                                        "range": {
+                                            "start": {"line": 5, "character": 0},
+                                            "end": {"line": 5, "character": 7},
+                                        },
+                                    },
+                                    "message": "Did you mean $s instead?",
+                                }
+                            ],
+                            "relatedLocations": [
+                                {
+                                    "location": {
+                                        "uri": "${php_file_uri}",
+                                        "range": {
+                                            "start": {"line": 5, "character": 0},
+                                            "end": {"line": 5, "character": 7},
+                                        },
+                                    },
+                                    "message": "Did you mean $s instead?",
+                                }
+                            ],
+                        },
                         {
                             "range": {
                                 "start": {"line": 6, "character": 0},
@@ -7558,3 +7628,267 @@ $i + 3;                 // Error, expected num but got bool
             )
         )
         self.run_spec(spec, variables, lsp_extra_args=["--notebook-mode"])
+
+    def test_notebook_mode_at_breakpoint(self) -> None:
+        """
+        When `--notebook-mode` is passed to `hh lsp` **and HHVM is paused at a breakpoint**:
+        - There should be no errors for undefined vars
+        """
+        os.makedirs(os.path.dirname(_HHVM_IS_PAUSED_FILE), exist_ok=True)
+        with open(_HHVM_IS_PAUSED_FILE, "w") as f:
+            pass
+        contents = """<?hh
+echo $undefined_var_1; // no error
+echo $undefined_var_2; // no error
+1 * true;              // should error
+"""
+        variables = self.write_hhconf_and_naming_table()
+        file_base_name = "notebook_mode.php"
+        php_file_uri = self.repo_file_uri(file_base_name)
+        variables.update({"php_file_uri": php_file_uri, "contents": contents})
+        spec = (
+            self.initialize_spec(LspTestSpec("notebook_mode"))
+            .write_to_disk(
+                comment="create file ${file_base_name}",
+                uri="${php_file_uri}",
+                contents="${contents}",
+                notify=False,
+            )
+            .notification(
+                method="textDocument/didOpen",
+                params={
+                    "textDocument": {
+                        "uri": "${php_file_uri}",
+                        "languageId": "hack",
+                        "version": 1,
+                        "text": "${contents}",
+                    }
+                },
+            )
+            .wait_for_notification(
+                method="textDocument/publishDiagnostics",
+                params={
+                    "uri": "${php_file_uri}",
+                    "diagnostics": [
+                        {
+                            "range": {
+                                "start": {"line": 3, "character": 4},
+                                "end": {"line": 3, "character": 8},
+                            },
+                            "severity": 1,
+                            "code": 4429,
+                            "source": "Hack",
+                            "message": "Typing error",
+                            "relatedInformation": [
+                                {
+                                    "location": {
+                                        "uri": "${php_file_uri}",
+                                        "range": {
+                                            "start": {"line": 3, "character": 0},
+                                            "end": {"line": 3, "character": 8},
+                                        },
+                                    },
+                                    "message": "Expected num because this is used in an arithmetic operation",
+                                },
+                                {
+                                    "location": {
+                                        "uri": "${php_file_uri}",
+                                        "range": {
+                                            "start": {"line": 3, "character": 4},
+                                            "end": {"line": 3, "character": 8},
+                                        },
+                                    },
+                                    "message": "But got bool",
+                                },
+                            ],
+                            "relatedLocations": [
+                                {
+                                    "location": {
+                                        "uri": "${php_file_uri}",
+                                        "range": {
+                                            "start": {"line": 3, "character": 0},
+                                            "end": {"line": 3, "character": 8},
+                                        },
+                                    },
+                                    "message": "Expected num because this is used in an arithmetic operation",
+                                },
+                                {
+                                    "location": {
+                                        "uri": "${php_file_uri}",
+                                        "range": {
+                                            "start": {"line": 3, "character": 4},
+                                            "end": {"line": 3, "character": 8},
+                                        },
+                                    },
+                                    "message": "But got bool",
+                                },
+                            ],
+                        },
+                    ],
+                },
+            )
+            .request(line=line(), method="shutdown", params={}, result=None)
+            .wait_for_notification(
+                comment="shutdown should clear out live squiggles",
+                method="textDocument/publishDiagnostics",
+                params={
+                    "uri": "${php_file_uri}",
+                    "diagnostics": [],
+                },
+            )
+        )
+        self.run_spec(spec, variables, lsp_extra_args=["--notebook-mode"])
+
+    def test_file_outline_detail(self) -> None:
+        """
+        Test that file outline symbols contain [the `detail` field](https://microsoft.github.io/language-server-protocol/specifications/lsp/3.17/specification/#documentSymbol), where applicable.
+        Afaict this field isn't user-visible in VSCode. Our use case is to provide additional context to AI code assist tooling.
+        The key piece of information not already provided is the type hints from the definition site, but we also include additional information that may help tooling,
+        such as parameter names of functions and methods.
+        """
+        variables = self.write_hhconf_and_naming_table()
+        file_base_name = "file_outline.php"
+        php_file_uri = self.repo_file_uri(file_base_name)
+        contents = """<?hh
+class CC {
+  public static abstract final readonly int $prop;
+  const type T = int;
+  const vec<int> NUMBERS = vec[1, 2, 3];
+  public readonly function foo(inout arraykey $x) {
+    $x = 1;
+  }
+  public static async function bar(): Awaitable<void> {}
+}
+
+function baz<T>(readonly T $x): readonly T {
+  return $x;
+}
+"""
+        variables.update({"php_file_uri": php_file_uri, "contents": contents})
+        spec = (
+            self.initialize_spec(LspTestSpec("notebook_mode"))
+            .write_to_disk(
+                comment="create file ${file_base_name}",
+                uri="${php_file_uri}",
+                contents="${contents}",
+                notify=False,
+            )
+            .notification(
+                method="textDocument/didOpen",
+                params={
+                    "textDocument": {
+                        "uri": "${php_file_uri}",
+                        "languageId": "hack",
+                        "version": 1,
+                        "text": "${contents}",
+                    }
+                },
+            )
+            .request(
+                line=line(),
+                method="textDocument/documentSymbol",
+                params={"textDocument": {"uri": "${php_file_uri}"}},
+                result=[
+                    {
+                        "name": "baz",
+                        "kind": 12,
+                        "location": {
+                            "uri": "${php_file_uri}",
+                            "range": {
+                                "start": {"line": 11, "character": 0},
+                                "end": {"line": 13, "character": 1},
+                            },
+                        },
+                        "detail": "function<T>(readonly T $x): readonly T",
+                    },
+                    {
+                        "name": "bar",
+                        "kind": 6,
+                        "location": {
+                            "uri": "${php_file_uri}",
+                            "range": {
+                                "start": {"line": 8, "character": 2},
+                                "end": {"line": 8, "character": 56},
+                            },
+                        },
+                        "detail": "function(): Awaitable<void>",
+                        "containerName": "CC",
+                    },
+                    {
+                        "name": "NUMBERS",
+                        "kind": 14,
+                        "location": {
+                            "uri": "${php_file_uri}",
+                            "range": {
+                                "start": {"line": 4, "character": 17},
+                                "end": {"line": 4, "character": 39},
+                            },
+                        },
+                        "detail": "vec<int> NUMBERS = vec[1, 2, 3]",
+                        "containerName": "CC",
+                    },
+                    {
+                        "name": "prop",
+                        "kind": 7,
+                        "location": {
+                            "uri": "${php_file_uri}",
+                            "range": {
+                                "start": {"line": 2, "character": 44},
+                                "end": {"line": 2, "character": 49},
+                            },
+                        },
+                        "detail": "readonly int $prop",
+                        "containerName": "CC",
+                    },
+                    {
+                        "name": "CC",
+                        "kind": 5,
+                        "location": {
+                            "uri": "${php_file_uri}",
+                            "range": {
+                                "start": {"line": 1, "character": 0},
+                                "end": {"line": 9, "character": 1},
+                            },
+                        },
+                    },
+                    {
+                        "name": "T",
+                        "kind": 5,
+                        "location": {
+                            "uri": "${php_file_uri}",
+                            "range": {
+                                "start": {"line": 3, "character": 2},
+                                "end": {"line": 3, "character": 21},
+                            },
+                        },
+                        "detail": "const type T = int;",
+                        "containerName": "CC",
+                    },
+                    {
+                        "name": "foo",
+                        "kind": 6,
+                        "location": {
+                            "uri": "${php_file_uri}",
+                            "range": {
+                                "start": {"line": 5, "character": 2},
+                                "end": {"line": 7, "character": 3},
+                            },
+                        },
+                        "detail": "function(inout arraykey $x)",
+                        "containerName": "CC",
+                    },
+                ],
+                powered_by="serverless_ide",
+            )
+            .request(
+                line=line(),
+                method="shutdown",
+                params={
+                    "textDocument": {
+                        "uri": "${php_file_uri}",
+                    }
+                },
+                result=None,
+            )
+        )
+        self.run_spec(spec, variables)

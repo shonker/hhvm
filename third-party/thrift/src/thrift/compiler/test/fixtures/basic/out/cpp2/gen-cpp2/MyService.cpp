@@ -61,7 +61,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::test::fixtures::basic::
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_ping(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) {
+void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_ping(apache::thrift::HandlerCallbackPtr<void> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -172,7 +172,7 @@ folly::coro::Task<std::unique_ptr<::std::string>> apache::thrift::ServiceHandler
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_getRandomData(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::string>>> callback) {
+void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_getRandomData(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::string>> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -230,7 +230,7 @@ determineInvocationType:
       {
         ::std::string _return;
         sync_getRandomData(_return);
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -283,7 +283,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::test::fixtures::basic::
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_sink(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback, ::std::int64_t p_sink) {
+void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_sink(apache::thrift::HandlerCallbackPtr<void> callback, ::std::int64_t p_sink) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -393,7 +393,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::test::fixtures::basic::
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_putDataById(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback, ::std::int64_t p_id, std::unique_ptr<::std::string> p_data) {
+void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_putDataById(apache::thrift::HandlerCallbackPtr<void> callback, ::std::int64_t p_id, std::unique_ptr<::std::string> p_data) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -502,7 +502,7 @@ folly::coro::Task<bool> apache::thrift::ServiceHandler<::test::fixtures::basic::
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_hasDataById(std::unique_ptr<apache::thrift::HandlerCallback<bool>> callback, ::std::int64_t p_id) {
+void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_hasDataById(apache::thrift::HandlerCallbackPtr<bool> callback, ::std::int64_t p_id) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -612,7 +612,7 @@ folly::coro::Task<std::unique_ptr<::std::string>> apache::thrift::ServiceHandler
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_getDataById(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::string>>> callback, ::std::int64_t p_id) {
+void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_getDataById(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::string>> callback, ::std::int64_t p_id) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -670,7 +670,7 @@ determineInvocationType:
       {
         ::std::string _return;
         sync_getDataById(_return, p_id);
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -723,7 +723,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::test::fixtures::basic::
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_deleteDataById(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback, ::std::int64_t p_id) {
+void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_deleteDataById(apache::thrift::HandlerCallbackPtr<void> callback, ::std::int64_t p_id) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -833,7 +833,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::test::fixtures::basic::
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_lobDataById(std::unique_ptr<apache::thrift::HandlerCallbackBase> callback, ::std::int64_t p_id, std::unique_ptr<::std::string> p_data) {
+void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_lobDataById(apache::thrift::HandlerCallbackBase::Ptr callback, ::std::int64_t p_id, std::unique_ptr<::std::string> p_data) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -943,7 +943,7 @@ folly::coro::Task<std::unique_ptr<::std::set<float>>> apache::thrift::ServiceHan
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_invalid_return_for_hack(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::set<float>>>> callback) {
+void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_invalid_return_for_hack(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::set<float>>> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -1001,7 +1001,7 @@ determineInvocationType:
       {
         ::std::set<float> _return;
         sync_invalid_return_for_hack(_return);
-        callback->result(_return);
+        callback->result(std::move(_return));
         return;
       }
       default:
@@ -1054,7 +1054,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::test::fixtures::basic::
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_rpc_skipped_codegen(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) {
+void apache::thrift::ServiceHandler<::test::fixtures::basic::MyService>::async_tm_rpc_skipped_codegen(apache::thrift::HandlerCallbackPtr<void> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -1130,39 +1130,39 @@ determineInvocationType:
 }
 
 
-namespace test { namespace fixtures { namespace basic {
+namespace test::fixtures::basic {
 
-void MyServiceSvNull::ping() {
+void MyServiceSvNull::ping() { 
   return;
 }
 
-void MyServiceSvNull::getRandomData(::std::string& /*_return*/) {}
+void MyServiceSvNull::getRandomData(::std::string& /*_return*/) {  }
 
-void MyServiceSvNull::sink(::std::int64_t /*sink*/) {
+void MyServiceSvNull::sink(::std::int64_t /*sink*/) { 
   return;
 }
 
-void MyServiceSvNull::putDataById(::std::int64_t /*id*/, std::unique_ptr<::std::string> /*data*/) {
+void MyServiceSvNull::putDataById(::std::int64_t /*id*/, std::unique_ptr<::std::string> /*data*/) { 
   return;
 }
 
-bool MyServiceSvNull::hasDataById(::std::int64_t /*id*/) {
+bool MyServiceSvNull::hasDataById(::std::int64_t /*id*/) { 
   return 0;
 }
 
-void MyServiceSvNull::getDataById(::std::string& /*_return*/, ::std::int64_t /*id*/) {}
+void MyServiceSvNull::getDataById(::std::string& /*_return*/, ::std::int64_t /*id*/) {  }
 
-void MyServiceSvNull::deleteDataById(::std::int64_t /*id*/) {
+void MyServiceSvNull::deleteDataById(::std::int64_t /*id*/) { 
   return;
 }
 
-void MyServiceSvNull::lobDataById(::std::int64_t /*id*/, std::unique_ptr<::std::string> /*data*/) {
+void MyServiceSvNull::lobDataById(::std::int64_t /*id*/, std::unique_ptr<::std::string> /*data*/) { 
   return;
 }
 
-void MyServiceSvNull::invalid_return_for_hack(::std::set<float>& /*_return*/) {}
+void MyServiceSvNull::invalid_return_for_hack(::std::set<float>& /*_return*/) {  }
 
-void MyServiceSvNull::rpc_skipped_codegen() {
+void MyServiceSvNull::rpc_skipped_codegen() { 
   return;
 }
 
@@ -1248,70 +1248,70 @@ apache::thrift::ServiceRequestInfoMap const& MyServiceServiceInfoHolder::request
 apache::thrift::ServiceRequestInfoMap MyServiceServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"ping",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "MyService.ping",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"getRandomData",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "MyService.getRandomData",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"sink",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "MyService.sink",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"putDataById",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "MyService.putDataById",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"hasDataById",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "MyService.hasDataById",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"getDataById",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "MyService.getDataById",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"deleteDataById",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "MyService.deleteDataById",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"lobDataById",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_NO_RESPONSE,
      "MyService.lobDataById",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"invalid_return_for_hack",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "MyService.invalid_return_for_hack",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"rpc_skipped_codegen",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "MyService.rpc_skipped_codegen",
      std::nullopt,
@@ -1321,4 +1321,4 @@ apache::thrift::ServiceRequestInfoMap MyServiceServiceInfoHolder::staticRequestI
 
   return requestInfoMap;
 }
-}}} // test::fixtures::basic
+} // namespace test::fixtures::basic

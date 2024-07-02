@@ -38,11 +38,13 @@ mod prelude {
     pub use crate::transform::Transform;
 }
 
+use std::path::Path;
 use std::sync::Arc;
 
 use env::Env;
 use env::ProgramSpecificOptions;
 use oxidized::namespace_env;
+use oxidized::namespace_env::Mode;
 use oxidized::naming_phase_error::NamingPhaseError;
 use oxidized::nast;
 use oxidized::typechecker_options::TypecheckerOptions;
@@ -66,12 +68,16 @@ pub fn elaborate_program_for_codegen(
     program: &mut nast::Program,
     opts: &CodegenOpts,
 ) -> Result<(), Vec1<NamingPhaseError>> {
-    assert!(ns_env.is_codegen);
-    let tco = TypecheckerOptions {
-        po_codegen: true,
-        po_disable_xhp_element_mangling: ns_env.disable_xhp_element_mangling,
+    assert!(matches!(ns_env.mode, Mode::ForCodegen));
+    let po = oxidized::parser_options::ParserOptions {
+        codegen: true,
+        disable_xhp_element_mangling: ns_env.disable_xhp_element_mangling,
         // Do not copy the auto_ns_map; it's not read in this crate except via
         // elaborate_namespaces_visitor, which uses the one in `ns_env` here
+        ..Default::default()
+    };
+    let tco = TypecheckerOptions {
+        po,
         ..Default::default()
     };
     elaborate_namespaces_visitor::elaborate_program(ns_env, program);
@@ -80,8 +86,8 @@ pub fn elaborate_program_for_codegen(
     elaborate_package_expr(&env, program);
     elaborate_for_codegen(&env, program, opts);
     // Passes below here can emit errors
-    typed_local::elaborate_program(&mut env, program, tco.po_codegen);
-    lift_await::elaborate_program(&mut env, program, tco.po_codegen);
+    typed_local::elaborate_program(&mut env, program, tco.po.codegen);
+    lift_await::elaborate_program(&mut env, program, tco.po.codegen);
     let errs = env.into_errors();
     match Vec1::try_from_vec(errs) {
         Err(_) => Ok(()),
@@ -97,7 +103,7 @@ pub fn elaborate_program(
     elaborate_namespaces_visitor::elaborate_program(ns_env(tco), program);
     let mut env = make_env(tco, path);
     elaborate_common(&env, program);
-    if tco.po_codegen {
+    if tco.po.codegen {
         return env.into_errors();
     }
     lambda_captures::elaborate_program(&mut env, program);
@@ -114,7 +120,7 @@ pub fn elaborate_fun_def(
     elaborate_namespaces_visitor::elaborate_fun_def(ns_env(tco), f);
     let mut env = make_env(tco, path);
     elaborate_common(&env, f);
-    if tco.po_codegen {
+    if tco.po.codegen {
         return env.into_errors();
     }
     lambda_captures::elaborate_fun_def(&mut env, f);
@@ -131,7 +137,7 @@ pub fn elaborate_class_(
     elaborate_namespaces_visitor::elaborate_class_(ns_env(tco), c);
     let mut env = make_env(tco, path);
     elaborate_common(&env, c);
-    if tco.po_codegen {
+    if tco.po.codegen {
         return env.into_errors();
     }
     lambda_captures::elaborate_class_(&mut env, c);
@@ -148,7 +154,7 @@ pub fn elaborate_module_def(
     elaborate_namespaces_visitor::elaborate_module_def(ns_env(tco), m);
     let mut env = make_env(tco, path);
     elaborate_common(&env, m);
-    if tco.po_codegen {
+    if tco.po.codegen {
         return env.into_errors();
     }
     lambda_captures::elaborate_module_def(&mut env, m);
@@ -163,7 +169,7 @@ pub fn elaborate_gconst(
     elaborate_namespaces_visitor::elaborate_gconst(ns_env(tco), c);
     let mut env = make_env(tco, path);
     elaborate_common(&env, c);
-    if tco.po_codegen {
+    if tco.po.codegen {
         return env.into_errors();
     }
     lambda_captures::elaborate_gconst(&mut env, c);
@@ -178,7 +184,7 @@ pub fn elaborate_typedef(
     elaborate_namespaces_visitor::elaborate_typedef(ns_env(tco), t);
     let mut env = make_env(tco, path);
     elaborate_common(&env, t);
-    if tco.po_codegen {
+    if tco.po.codegen {
         return env.into_errors();
     }
     lambda_captures::elaborate_typedef(&mut env, t);
@@ -193,7 +199,7 @@ pub fn elaborate_stmt(
     elaborate_namespaces_visitor::elaborate_stmt(ns_env(tco), t);
     let mut env = make_env(tco, path);
     elaborate_common(&env, t);
-    if tco.po_codegen {
+    if tco.po.codegen {
         return env.into_errors();
     }
     lambda_captures::elaborate_stmt(&mut env, t);
@@ -202,12 +208,24 @@ pub fn elaborate_stmt(
     elaborate_for_typechecking(env, t)
 }
 
-fn ns_env(tco: &TypecheckerOptions) -> Arc<namespace_env::Env> {
+fn ns_env(tco: &oxidized::global_options::GlobalOptions) -> Arc<namespace_env::Env> {
     Arc::new(namespace_env::Env::empty(
-        tco.po_auto_namespace_map.clone(),
-        tco.po_codegen,
-        tco.po_disable_xhp_element_mangling,
+        tco.po.auto_namespace_map.clone(),
+        if tco.po.codegen {
+            Mode::ForCodegen
+        } else {
+            Mode::ForTypecheck
+        },
+        tco.po.disable_xhp_element_mangling,
     ))
+}
+
+fn filename_in_allowed(allowed_files: &[String], path: &Path) -> bool {
+    allowed_files.iter().any(|spec| {
+        !spec.is_empty()
+            && (spec.ends_with('*') && path.starts_with(&spec[..spec.len() - 1])
+                || path == std::path::Path::new(spec))
+    })
 }
 
 fn make_env(tco: &TypecheckerOptions, rel_path: &RelativePath) -> Env {
@@ -215,20 +233,17 @@ fn make_env(tco: &TypecheckerOptions, rel_path: &RelativePath) -> Env {
     let path = rel_path.path();
 
     let allow_module_declarations = tco.tco_allow_all_files_for_module_declarations
-        || tco
-            .tco_allowed_files_for_module_declarations
-            .iter()
-            .any(|spec| {
-                !spec.is_empty()
-                    && (spec.ends_with('*') && path.starts_with(&spec[..spec.len() - 1])
-                        || path == std::path::Path::new(spec))
-            });
+        || filename_in_allowed(&tco.tco_allowed_files_for_module_declarations, path);
+
+    let allow_ignore_readonly =
+        filename_in_allowed(&tco.tco_allowed_files_for_ignore_readonly, path);
 
     Env::new(
         tco,
         &ProgramSpecificOptions {
             is_hhi,
             allow_module_declarations,
+            allow_ignore_readonly,
         },
     )
 }
@@ -322,9 +337,6 @@ fn elaborate_for_typechecking<T: Transform>(env: Env, node: &mut T) -> Vec<Namin
 
         // Replace invalid `Haccess` root hints with `Herr`
         Box::<passes::elab_hint_haccess::ElabHintHaccessPass>::default(),
-
-        // Replace empty `Tuple`s with invalid expression marker
-        Box::<passes::elab_expr_tuple::ElabExprTuplePass>::default(),
 
         // Validate / replace invalid uses of dynamic classes in `New` and `Class_get`
         // expressions
@@ -449,6 +461,8 @@ fn elaborate_for_typechecking<T: Transform>(env: Env, node: &mut T) -> Vec<Namin
         Box::<passes::validate_expr_list::ValidateExprListPass>::default(),
 
         Box::<passes::validate_like_hint::ValidateLikeHintPass>::default(),
+
+        Box::<passes::validate_clone_return_type::ValidateCloneReturnType>::default(),
     ]};
 
     node.transform(&env, &mut passes);

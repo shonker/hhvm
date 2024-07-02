@@ -26,10 +26,10 @@
 #include <mutex>
 #include <thread>
 
+#include <folly/Chrono.h>
 #include <folly/ExceptionString.h>
 #include <folly/Memory.h>
 #include <folly/String.h>
-#include <folly/experimental/EventCount.h>
 #include <folly/io/async/EventBaseAtomicNotificationQueue.h>
 #include <folly/io/async/EventBaseBackendBase.h>
 #include <folly/io/async/EventBaseLocal.h>
@@ -37,6 +37,7 @@
 #include <folly/lang/Assume.h>
 #include <folly/portability/Unistd.h>
 #include <folly/synchronization/Baton.h>
+#include <folly/synchronization/EventCount.h>
 #include <folly/system/ThreadId.h>
 #include <folly/system/ThreadName.h>
 
@@ -154,52 +155,59 @@ EventBaseBackend::~EventBaseBackend() {
   event_base_free(evb_);
 }
 
-class ExecutionObserverScopeGuard {
- public:
-  ExecutionObserverScopeGuard(
-      folly::ExecutionObserver::List* observerList,
-      void* id,
-      folly::ExecutionObserver::CallbackType callbackType)
-      : observerList_(observerList),
-        id_{reinterpret_cast<uintptr_t>(id)},
-        callbackType_(callbackType) {
-    if (!observerList_->empty()) {
-      for (auto& observer : *observerList_) {
-        observer.starting(id_, callbackType_);
-      }
-    }
-  }
-
-  ~ExecutionObserverScopeGuard() {
-    if (!observerList_->empty()) {
-      for (auto& observer : *observerList_) {
-        observer.stopped(id_, callbackType_);
-      }
-    }
-  }
-
- private:
-  folly::ExecutionObserver::List* observerList_;
-  uintptr_t id_;
-  folly::ExecutionObserver::CallbackType callbackType_;
-};
 } // namespace
 
 namespace folly {
 
+class EventBase::LoopCallbacksDeadline {
+ public:
+  void reset(EventBase& evb) {
+    if (auto timeslice = evb.loopCallbacksTimeslice_; timeslice.count() != 0) {
+      deadline_ = Clock::now() + timeslice;
+    } else {
+      deadline_ = {};
+    }
+  }
+
+  // Should be checked only after at least one callback has been processed, to
+  // guarantee forward progress.
+  bool expired() const {
+    return deadline_ != Clock::time_point{} && Clock::now() >= deadline_;
+  }
+
+ private:
+  // Use the fastest clock, here millisecond granularity is enough.
+  using Clock = folly::chrono::coarse_steady_clock;
+  Clock::time_point deadline_;
+};
+
 class EventBase::FuncRunner {
  public:
-  explicit FuncRunner(EventBase& eventBase) : eventBase_(eventBase) {}
-  void operator()(Func&& func) noexcept {
+  explicit FuncRunner(EventBase& eventBase)
+      : eventBase_(eventBase), curLoopCnt_(eventBase_.nextLoopCnt_) {}
+
+  AtomicNotificationQueueTaskStatus operator()(Func&& func) noexcept {
+    if (eventBase_.nextLoopCnt_ != curLoopCnt_) {
+      // We're the first callaback of this iteration, set a new deadline.
+      deadline_.reset(eventBase_);
+      curLoopCnt_ = eventBase_.nextLoopCnt_;
+    }
+
     ExecutionObserverScopeGuard guard(
         &eventBase_.getExecutionObserverList(),
         &func,
         folly::ExecutionObserver::CallbackType::NotificationQueue);
     std::exchange(func, {})();
+
+    return deadline_.expired()
+        ? AtomicNotificationQueueTaskStatus::CONSUMED_STOP
+        : AtomicNotificationQueueTaskStatus::CONSUMED;
   }
 
  private:
   EventBase& eventBase_;
+  LoopCallbacksDeadline deadline_;
+  size_t curLoopCnt_;
 };
 
 class EventBase::ThreadIdCollector : public WorkerProvider {
@@ -262,6 +270,7 @@ EventBase::EventBase(event_base* evb, bool enableTimeMeasurement)
 EventBase::EventBase(Options options)
     : intervalDuration_(options.timerTickInterval),
       enableTimeMeasurement_(!options.skipTimeMeasurement),
+      loopCallbacksTimeslice_(options.loopCallbacksTimeslice),
       runOnceCallbacks_(nullptr),
       stop_(false),
       queue_(nullptr),
@@ -331,6 +340,7 @@ EventBase::~EventBase() {
   clearCobTimeouts();
 
   DCHECK_EQ(0u, runBeforeLoopCallbacks_.size());
+  DCHECK_EQ(0u, runAfterLoopCallbacks_.size());
 
   runLoopCallbacks();
 
@@ -521,7 +531,9 @@ EventBase::LoopStatus EventBase::loopWithSuspension() {
   DCHECK_NE(evb_->getPollableFd(), -1)
       << "loopWithSuspension() is only supported for backends with pollable fd";
   loopMainSetup();
-  SCOPE_EXIT { loopMainCleanup(); };
+  SCOPE_EXIT {
+    loopMainCleanup();
+  };
   LoopOptions options;
   options.allowSuspension = true;
   return loopMain(EVLOOP_NONBLOCK, options);
@@ -576,10 +588,13 @@ EventBase::LoopStatus EventBase::loopMain(int flags, LoopOptions options) {
         applyLoopKeepAlive();
       }
       ++nextLoopCnt_;
-      // Run the before loop callbacks
+
+      // Run the before-loop callbacks
       LoopCallbackList callbacks;
       callbacks.swap(runBeforeLoopCallbacks_);
-      runLoopCallbacks(callbacks);
+      // Before-loop callbacks must by definition all run regardless of
+      // timeslice, so do not pass a deadline.
+      runLoopCallbackList(callbacks, LoopCallbacksDeadline{});
     }
 
     // nobody can add loop callbacks from within this thread if
@@ -611,6 +626,13 @@ EventBase::LoopStatus EventBase::loopMain(int flags, LoopOptions options) {
     }
 
     bool ranLoopCallbacks = runLoopCallbacks();
+
+    // Run the after-loop callback. Like the before-loop, no deadline.
+    {
+      LoopCallbackList callbacks;
+      callbacks.swap(runAfterLoopCallbacks_);
+      runLoopCallbackList(callbacks, LoopCallbacksDeadline{});
+    }
 
     if (enableTimeMeasurement_) {
       auto now = std::chrono::steady_clock::now();
@@ -859,6 +881,12 @@ void EventBase::runBeforeLoop(LoopCallback* callback) {
   runBeforeLoopCallbacks_.push_back(*callback);
 }
 
+void EventBase::runAfterLoop(LoopCallback* callback) {
+  dcheckIsInEventBaseThread();
+  callback->cancelLoopCallback();
+  runAfterLoopCallbacks_.push_back(*callback);
+}
+
 void EventBase::runInEventBaseThread(Func fn) noexcept {
   // Send the message.
   // It will be received by the FunctionRunner in the EventBase's thread.
@@ -902,7 +930,9 @@ void EventBase::runInEventBaseThreadAndWait(Func fn) noexcept {
 
   Baton<> ready;
   runInEventBaseThread([&ready, fn = std::move(fn)]() mutable {
-    SCOPE_EXIT { ready.post(); };
+    SCOPE_EXIT {
+      ready.post();
+    };
     // A trick to force the stored functor to be executed and then destructed
     // before posting the baton and waking the waiting thread.
     copy(std::move(fn))();
@@ -926,17 +956,28 @@ void EventBase::runImmediatelyOrRunInEventBaseThread(Func fn) noexcept {
   }
 }
 
-void EventBase::runLoopCallbacks(LoopCallbackList& currentCallbacks) {
-  while (!currentCallbacks.empty()) {
+void EventBase::runLoopCallbackList(
+    LoopCallbackList& currentCallbacks, const LoopCallbacksDeadline& deadline) {
+  if (currentCallbacks.empty()) {
+    return;
+  }
+
+  RequestContextSaverScopeGuard ctxGuard;
+  do {
     LoopCallback* callback = &currentCallbacks.front();
     currentCallbacks.pop_front();
-    folly::RequestContextScopeGuard rctx(std::move(callback->context_));
+    // Use setContext() under a RequestContextSaverScopeGuard instead of a
+    // per-callback RequestContextScopeGuard to avoid switching context back and
+    // forth when consecutive callbacks have the same context. This runs the
+    // pop_front() in the previous callback's context, but that is non-blocking
+    // and doesn't run application logic.
+    RequestContext::setContext(std::move(callback->context_));
     ExecutionObserverScopeGuard guard(
         &executionObserverList_,
         callback,
         folly::ExecutionObserver::CallbackType::Loop);
     callback->runLoopCallback();
-  }
+  } while (!currentCallbacks.empty() && !deadline.expired());
 }
 
 bool EventBase::runLoopCallbacks() {
@@ -954,7 +995,13 @@ bool EventBase::runLoopCallbacks() {
     currentCallbacks.swap(loopCallbacks_);
     runOnceCallbacks_ = &currentCallbacks;
 
-    runLoopCallbacks(currentCallbacks);
+    LoopCallbacksDeadline deadline;
+    deadline.reset(*this);
+    runLoopCallbackList(currentCallbacks, deadline);
+
+    // If the deadline expired before the list was fully consumed, prepend the
+    // leftover callbacks to the list to run on the next iteration.
+    loopCallbacks_.splice(loopCallbacks_.begin(), currentCallbacks);
 
     runOnceCallbacks_ = nullptr;
     return true;

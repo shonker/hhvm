@@ -21,6 +21,7 @@
 #include <folly/Overload.h>
 #include <folly/Range.h>
 #include <folly/Utility.h>
+#include <folly/container/Reserve.h>
 #include <folly/io/IOBuf.h>
 #include <thrift/lib/cpp/protocol/TType.h>
 #include <thrift/lib/cpp2/FieldRef.h>
@@ -43,8 +44,8 @@ namespace detail {
 
 template <typename T, typename Tag>
 inline constexpr bool kIsStrongType =
-    std::is_enum<folly::remove_cvref_t<T>>::value&&
-        type::is_a_v<Tag, type::integral_c>;
+    std::is_enum<folly::remove_cvref_t<T>>::value &&
+    type::is_a_v<Tag, type::integral_c>;
 
 template <typename T, typename Tag>
 inline constexpr bool kIsIntegral = type::is_a_v<Tag, type::integral_c>;
@@ -475,6 +476,11 @@ struct Encode<type::binary_t> {
   uint32_t operator()(Protocol& prot, folly::StringPiece s) const {
     return prot.writeBinary(s);
   }
+  template <typename Protocol>
+  uint32_t operator()(
+      Protocol& prot, const std::unique_ptr<folly::IOBuf>& s) const {
+    return prot.writeBinary(s);
+  }
 };
 
 template <class Tag>
@@ -634,8 +640,10 @@ struct MapEncode {
         typeTagToTType<Value>,
         checked_container_size(map.size()));
     for (const auto& kv : map) {
+      xfer += apache::thrift::detail::pm::writeMapValueBegin(prot, true);
       xfer += Encode<Key>{}(prot, kv.first);
       xfer += Encode<Value>{}(prot, kv.second);
+      xfer += apache::thrift::detail::pm::writeMapValueEnd(prot, true);
     }
     xfer += prot.writeMapEnd();
     return xfer;
@@ -837,9 +845,50 @@ struct Decode<type::list<Tag>> {
         consumeElem();
       }
     } else if (typeTagToTType<Tag> == t) {
-      apache::thrift::detail::pm::reserve_if_possible(&list, s);
-      while (s--) {
-        consumeElem();
+#ifndef _MSC_VER
+      constexpr auto should_resize_without_initialization =
+          std::is_trivial_v<typename ListType::value_type> &&
+          folly::is_detected_v<
+              apache::thrift::detail::pm::detect_resize_without_initialization,
+              ListType,
+              decltype(s)>;
+#else
+      // For MSVC, vector layout is not fixed, so resizeWithoutInitialization
+      // is not supported yet
+      constexpr auto should_resize_without_initialization = false;
+#endif
+      constexpr auto should_resize =
+          folly::is_detected_v<
+              apache::thrift::detail::pm::detect_resize,
+              ListType,
+              decltype(s)> &&
+          std::is_trivial_v<typename ListType::value_type>;
+      // Do special treatments for lists of primitive types, as we found
+      // resize is more performant than reserve.
+      if constexpr (should_resize_without_initialization) {
+        folly::resizeWithoutInitialization(list, s);
+        auto outIt = list.begin();
+        const auto outEnd = list.end();
+        try {
+          for (; outIt != outEnd; ++outIt) {
+            Decode<Tag>{}(prot, *outIt);
+          }
+        } catch (...) {
+          // For behaviour parity, initialize the leftover elements when
+          // exceptions happen
+          std::fill(outIt, outEnd, typename ListType::value_type());
+          throw;
+        }
+      } else if constexpr (should_resize) {
+        list.resize(s);
+        for (auto&& elem : list) {
+          Decode<Tag>{}(prot, elem);
+        }
+      } else {
+        folly::reserve_if_available(list, s);
+        while (s--) {
+          consumeElem();
+        }
       }
     } else {
       while (s--) {
@@ -897,7 +946,7 @@ struct Decode<type::set<Tag>> {
 
     bool sorted = true;
     typename Set::container_type tmp(set.get_allocator());
-    apache::thrift::detail::pm::reserve_if_possible(&tmp, set_size);
+    folly::reserve_if_available(tmp, set_size);
     {
       auto& elem0 = apache::thrift::detail::pm::emplace_back_default(tmp);
       Decode<Tag>{}(prot, elem0);
@@ -917,7 +966,7 @@ struct Decode<type::set<Tag>> {
   static std::enable_if_t<
       !apache::thrift::detail::pm::sorted_unique_constructible_v<Set>>
   decode_known_length_set(Protocol& prot, Set& set, std::uint32_t set_size) {
-    apache::thrift::detail::pm::reserve_if_possible(&set, set_size);
+    folly::reserve_if_available(set, set_size);
 
     for (auto i = set_size; i > 0; i--) {
       typename Set::value_type value =
@@ -969,7 +1018,7 @@ struct Decode<type::map<Key, Value>> {
 
     bool sorted = true;
     typename Map::container_type tmp(map.get_allocator());
-    apache::thrift::detail::pm::reserve_if_possible(&tmp, map_size);
+    folly::reserve_if_available(tmp, map_size);
     {
       auto& elem0 =
           apache::thrift::detail::pm::emplace_back_default_map(tmp, map);
@@ -993,7 +1042,7 @@ struct Decode<type::map<Key, Value>> {
   static std::enable_if_t<
       !apache::thrift::detail::pm::sorted_unique_constructible_v<Map>>
   decode_known_length_map(Protocol& prot, Map& map, std::uint32_t map_size) {
-    apache::thrift::detail::pm::reserve_if_possible(&map, map_size);
+    folly::reserve_if_available(map, map_size);
 
     for (auto i = map_size; i--;) {
       typename Map::key_type key = apache::thrift::detail::default_map_key(map);

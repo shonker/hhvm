@@ -10,11 +10,14 @@ on:
     branches:
     - main
 
+permissions:
+  contents: read  #  to fetch code (actions/checkout)
+
 jobs:
   build:
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-22.04
     steps:
-    - uses: actions/checkout@v2
+    - uses: actions/checkout@v4
     - name: Fetch ninja
       run: python3 build/fbcode_builder/getdeps.py fetch --no-tests ninja
     - name: Fetch cmake
@@ -35,6 +38,8 @@ jobs:
       run: python3 build/fbcode_builder/getdeps.py fetch --no-tests glog
     - name: Fetch googletest
       run: python3 build/fbcode_builder/getdeps.py fetch --no-tests googletest
+    - name: Fetch libdwarf
+      run: python3 build/fbcode_builder/getdeps.py fetch --no-tests libdwarf
     - name: Fetch libevent
       run: python3 build/fbcode_builder/getdeps.py fetch --no-tests libevent
     - name: Fetch lz4
@@ -49,6 +54,10 @@ jobs:
       run: python3 build/fbcode_builder/getdeps.py fetch --no-tests libtool
     - name: Fetch libsodium
       run: python3 build/fbcode_builder/getdeps.py fetch --no-tests libsodium
+    - name: Fetch libiberty
+      run: python3 build/fbcode_builder/getdeps.py fetch --no-tests libiberty
+    - name: Fetch libunwind
+      run: python3 build/fbcode_builder/getdeps.py fetch --no-tests libunwind
     - name: Fetch xz
       run: python3 build/fbcode_builder/getdeps.py fetch --no-tests xz
     - name: Fetch folly
@@ -75,6 +84,8 @@ jobs:
       run: python3 build/fbcode_builder/getdeps.py build --no-tests glog
     - name: Build googletest
       run: python3 build/fbcode_builder/getdeps.py build --no-tests googletest
+    - name: Build libdwarf
+      run: python3 build/fbcode_builder/getdeps.py build --no-tests libdwarf
     - name: Build libevent
       run: python3 build/fbcode_builder/getdeps.py build --no-tests libevent
     - name: Build lz4
@@ -89,6 +100,10 @@ jobs:
       run: python3 build/fbcode_builder/getdeps.py build --no-tests libtool
     - name: Build libsodium
       run: python3 build/fbcode_builder/getdeps.py build --no-tests libsodium
+    - name: Build libiberty
+      run: python3 build/fbcode_builder/getdeps.py build --no-tests libiberty
+    - name: Build libunwind
+      run: python3 build/fbcode_builder/getdeps.py build --no-tests libunwind
     - name: Build xz
       run: python3 build/fbcode_builder/getdeps.py build --no-tests xz
     - name: Build folly

@@ -7,7 +7,27 @@
  *)
 open Hh_prelude
 
+type severity =
+  | Err
+  | Warning
+[@@deriving eq, hash, ord, show]
+
+module Severity = struct
+  let to_string = function
+    | Err -> "error"
+    | Warning -> "warning"
+
+  let to_all_caps_string = function
+    | Err -> "ERROR"
+    | Warning -> "WARN"
+
+  let tty_color = function
+    | Err -> Tty.Red
+    | Warning -> Tty.Yellow
+end
+
 type ('prim_pos, 'pos) t = {
+  severity: severity;
   code: int;
   claim: 'prim_pos Message.t;
   reasons: 'pos Message.t list;
@@ -19,6 +39,7 @@ type ('prim_pos, 'pos) t = {
 [@@deriving eq, hash, ord, show]
 
 let make
+    severity
     code
     ?(is_fixmed = false)
     ?(quickfixes = [])
@@ -26,7 +47,13 @@ let make
     ?(flags = User_error_flags.empty)
     claim
     reasons =
-  { code; claim; reasons; quickfixes; custom_msgs; is_fixmed; flags }
+  { severity; code; claim; reasons; quickfixes; custom_msgs; is_fixmed; flags }
+
+let make_err code ?is_fixmed ?quickfixes ?custom_msgs ?flags claim reasons =
+  make Err code ?is_fixmed ?quickfixes ?custom_msgs ?flags claim reasons
+
+let make_warning code ?is_fixmed ?quickfixes ?custom_msgs ?flags claim reasons =
+  make Warning code ?is_fixmed ?quickfixes ?custom_msgs ?flags claim reasons
 
 let get_code { code; _ } = code
 
@@ -39,31 +66,49 @@ let to_list { claim; reasons; _ } = claim :: reasons
 let to_list_ { claim = (pos, claim); reasons; _ } =
   (Pos_or_decl.of_raw_pos pos, claim) :: reasons
 
-let get_messages = to_list
+let get_messages { claim; reasons; _ } = claim :: reasons
 
 let to_absolute
-    { code; claim; reasons; quickfixes; custom_msgs; is_fixmed; flags } =
+    {
+      severity;
+      code;
+      claim;
+      reasons;
+      quickfixes;
+      custom_msgs;
+      is_fixmed;
+      flags;
+    } =
   let claim = (fst claim |> Pos.to_absolute, snd claim) in
   let reasons =
     List.map reasons ~f:(fun (p, s) ->
         (p |> Pos_or_decl.unsafe_to_raw_pos |> Pos.to_absolute, s))
   in
   let quickfixes = List.map quickfixes ~f:Quickfix.to_absolute in
-  { code; claim; reasons; quickfixes; custom_msgs; is_fixmed; flags }
+  { severity; code; claim; reasons; quickfixes; custom_msgs; is_fixmed; flags }
 
 let to_relative
-    { code; claim; reasons; quickfixes; custom_msgs; is_fixmed; flags } :
-    (Pos.t, Pos.t) t =
+    {
+      severity;
+      code;
+      claim;
+      reasons;
+      quickfixes;
+      custom_msgs;
+      is_fixmed;
+      flags;
+    } : (Pos.t, Pos.t) t =
   let claim = (fst claim, snd claim) in
   let reasons =
     List.map reasons ~f:(fun (p, s) -> (p |> Pos_or_decl.unsafe_to_raw_pos, s))
   in
-  { code; claim; reasons; quickfixes; custom_msgs; is_fixmed; flags }
+  { severity; code; claim; reasons; quickfixes; custom_msgs; is_fixmed; flags }
 
-let make_absolute code = function
+let make_absolute severity code = function
   | [] -> failwith "an error must have at least one message"
   | claim :: reasons ->
     {
+      severity;
       code;
       claim;
       reasons;
@@ -75,6 +120,7 @@ let make_absolute code = function
 
 let to_absolute_for_test
     {
+      severity;
       code;
       claim = (claim_pos, claim_msg);
       reasons;
@@ -97,7 +143,7 @@ let to_absolute_for_test
   let claim = f (Pos_or_decl.of_raw_pos claim_pos, claim_msg) in
   let reasons = List.map ~f reasons in
   let quickfixes = List.map quickfixes ~f:Quickfix.to_absolute in
-  { code; claim; reasons; quickfixes; custom_msgs; is_fixmed; flags }
+  { severity; code; claim; reasons; quickfixes; custom_msgs; is_fixmed; flags }
 
 let error_kind error_code =
   match error_code / 1000 with
@@ -107,6 +153,7 @@ let error_kind error_code =
   | 4 -> "Typing"
   | 5 -> "Lint"
   | 8 -> "Init"
+  | 12 -> "Warn"
   | _ -> "Other"
 
 let error_code_to_string error_code =
@@ -114,9 +161,19 @@ let error_code_to_string error_code =
   let error_number = Printf.sprintf "%04d" error_code in
   error_kind ^ "[" ^ error_number ^ "]"
 
+(** The string looks like:
+
+    ERROR/WARN: path/to/file.php line ...
+    You have a problem here (Typing4110)
+      path/to/other/file.php ...
+      Because this is wrong
+      path/to/other/file.php ...
+      And this too
+  *)
 let to_string
     report_pos_from_reason
     {
+      severity;
       code;
       claim;
       reasons;
@@ -138,7 +195,13 @@ let to_string
           ""
       in
       Printf.sprintf
-        "%s\n%s (%s)%s\n"
+        (* /!\ WARNING!!!!!
+           Changing this might break emacs and vim.
+           These are not officially supported, but breaking will piss off users.
+           Fix Emacs at fbcode/emacs_config/emacs-packages/compile-mode-regexes.el
+           Fix Vim at fbcode/shellconfigs/rc_deprecated/vim/plugin/hack.vim, variable hack_errorformat *)
+        "%s: %s\n%s (%s)%s\n"
+        (Severity.to_all_caps_string severity)
         (Pos.string pos1)
         msg1
         error_code
@@ -152,28 +215,51 @@ let to_string
       Buffer.add_string buf msg);
   Buffer.contents buf
 
-let to_json ~filename_to_string error =
-  let (error_code, msgl) = (get_code error, to_list error) in
+let to_json ~(human_formatter : (_ -> string) option) ~filename_to_string error
+    =
+  let {
+    severity;
+    code;
+    claim;
+    reasons;
+    custom_msgs;
+    quickfixes = _;
+    is_fixmed = _;
+    flags;
+  } =
+    error
+  in
+  let msgl = claim :: reasons in
   let elts =
-    List.map msgl ~f:(fun (p, w) ->
+    List.map msgl ~f:(fun (p, msg) ->
         let (line, scol, ecol) = Pos.info_pos p in
         Hh_json.JSON_Object
           [
-            ("descr", Hh_json.JSON_String w);
+            ("descr", Hh_json.JSON_String msg);
             ("path", Hh_json.JSON_String (Pos.filename p |> filename_to_string));
             ("line", Hh_json.int_ line);
             ("start", Hh_json.int_ scol);
             ("end", Hh_json.int_ ecol);
-            ("code", Hh_json.int_ error_code);
+            ("code", Hh_json.int_ code);
           ])
   in
   let custom_msgs =
-    List.map ~f:(fun msg -> Hh_json.JSON_String msg) error.custom_msgs
+    List.map ~f:(fun msg -> Hh_json.JSON_String msg) custom_msgs
   in
-  let flags = User_error_flags.to_json error.flags in
-  Hh_json.JSON_Object
+  let flags = User_error_flags.to_json flags in
+  let human_format = Option.map ~f:(fun f -> f error) human_formatter in
+  let obj =
     [
+      ("severity", Hh_json.JSON_String (Severity.to_string severity));
       ("message", Hh_json.JSON_Array elts);
       ("custom_messages", Hh_json.JSON_Array custom_msgs);
       ("flags", flags);
     ]
+  in
+  let obj =
+    match human_format with
+    | None -> obj
+    | Some human_format ->
+      obj @ [("human_format", Hh_json.JSON_String human_format)]
+  in
+  Hh_json.JSON_Object obj

@@ -61,7 +61,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::cpp2::FooBarBazService>
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::FooBarBazService>::async_tm_foo(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) {
+void apache::thrift::ServiceHandler<::cpp2::FooBarBazService>::async_tm_foo(apache::thrift::HandlerCallbackPtr<void> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -171,7 +171,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::cpp2::FooBarBazService>
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::FooBarBazService>::async_tm_bar(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) {
+void apache::thrift::ServiceHandler<::cpp2::FooBarBazService>::async_tm_bar(apache::thrift::HandlerCallbackPtr<void> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -281,7 +281,7 @@ folly::coro::Task<void> apache::thrift::ServiceHandler<::cpp2::FooBarBazService>
 }
 #endif // FOLLY_HAS_COROUTINES
 
-void apache::thrift::ServiceHandler<::cpp2::FooBarBazService>::async_tm_baz(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback) {
+void apache::thrift::ServiceHandler<::cpp2::FooBarBazService>::async_tm_baz(apache::thrift::HandlerCallbackPtr<void> callback) {
   // It's possible the coroutine versions will delegate to a future-based
   // version. If that happens, we need the RequestParams arguments to be
   // available to the future through the thread-local backchannel, so we create
@@ -359,15 +359,15 @@ determineInvocationType:
 
 namespace cpp2 {
 
-void FooBarBazServiceSvNull::foo() {
+void FooBarBazServiceSvNull::foo() { 
   return;
 }
 
-void FooBarBazServiceSvNull::bar() {
+void FooBarBazServiceSvNull::bar() { 
   return;
 }
 
-void FooBarBazServiceSvNull::baz() {
+void FooBarBazServiceSvNull::baz() { 
   return;
 }
 
@@ -418,21 +418,21 @@ apache::thrift::ServiceRequestInfoMap const& FooBarBazServiceServiceInfoHolder::
 apache::thrift::ServiceRequestInfoMap FooBarBazServiceServiceInfoHolder::staticRequestInfoMap() {
   apache::thrift::ServiceRequestInfoMap requestInfoMap = {
   {"foo",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "FooBarBazService.foo",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"bar",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "FooBarBazService.bar",
      std::nullopt,
      apache::thrift::concurrency::NORMAL,
      std::nullopt}},
   {"baz",
-    {false,
+    { false,
      apache::thrift::RpcKind::SINGLE_REQUEST_SINGLE_RESPONSE,
      "FooBarBazService.baz",
      std::nullopt,
@@ -442,4 +442,4 @@ apache::thrift::ServiceRequestInfoMap FooBarBazServiceServiceInfoHolder::staticR
 
   return requestInfoMap;
 }
-} // cpp2
+} // namespace cpp2

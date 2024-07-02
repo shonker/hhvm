@@ -64,7 +64,7 @@ InitialResponse& InitialResponse::operator=([[maybe_unused]] InitialResponse&& o
 
 
 InitialResponse::InitialResponse(apache::thrift::FragileConstructor, ::std::string content__arg) :
-    __fbthrift_field_content(std::move(content__arg)) {
+    __fbthrift_field_content(std::move(content__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -107,7 +107,7 @@ template uint32_t InitialResponse::serializedSize<>(apache::thrift::CompactProto
 template uint32_t InitialResponse::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -161,7 +161,7 @@ FinalResponse& FinalResponse::operator=([[maybe_unused]] FinalResponse&& other) 
 
 
 FinalResponse::FinalResponse(apache::thrift::FragileConstructor, ::std::string content__arg) :
-    __fbthrift_field_content(std::move(content__arg)) {
+    __fbthrift_field_content(std::move(content__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -204,7 +204,7 @@ template uint32_t FinalResponse::serializedSize<>(apache::thrift::CompactProtoco
 template uint32_t FinalResponse::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -258,7 +258,7 @@ SinkPayload& SinkPayload::operator=([[maybe_unused]] SinkPayload&& other) noexce
 
 
 SinkPayload::SinkPayload(apache::thrift::FragileConstructor, ::std::string content__arg) :
-    __fbthrift_field_content(std::move(content__arg)) {
+    __fbthrift_field_content(std::move(content__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -301,7 +301,7 @@ template uint32_t SinkPayload::serializedSize<>(apache::thrift::CompactProtocolW
 template uint32_t SinkPayload::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -355,7 +355,7 @@ CompatibleWithKeywordSink& CompatibleWithKeywordSink::operator=([[maybe_unused]]
 
 
 CompatibleWithKeywordSink::CompatibleWithKeywordSink(apache::thrift::FragileConstructor, ::std::string sink__arg) :
-    __fbthrift_field_sink(std::move(sink__arg)) {
+    __fbthrift_field_sink(std::move(sink__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -398,7 +398,7 @@ template uint32_t CompatibleWithKeywordSink::serializedSize<>(apache::thrift::Co
 template uint32_t CompatibleWithKeywordSink::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -452,7 +452,7 @@ InitialException& InitialException::operator=([[maybe_unused]] InitialException&
 
 
 InitialException::InitialException(apache::thrift::FragileConstructor, ::std::string reason__arg) :
-    __fbthrift_field_reason(std::move(reason__arg)) {
+    __fbthrift_field_reason(std::move(reason__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -495,7 +495,7 @@ template uint32_t InitialException::serializedSize<>(apache::thrift::CompactProt
 template uint32_t InitialException::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -549,7 +549,7 @@ SinkException1& SinkException1::operator=([[maybe_unused]] SinkException1&& othe
 
 
 SinkException1::SinkException1(apache::thrift::FragileConstructor, ::std::string reason__arg) :
-    __fbthrift_field_reason(std::move(reason__arg)) {
+    __fbthrift_field_reason(std::move(reason__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -592,7 +592,7 @@ template uint32_t SinkException1::serializedSize<>(apache::thrift::CompactProtoc
 template uint32_t SinkException1::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace apache {
 namespace thrift {
@@ -647,7 +647,7 @@ SinkException2& SinkException2::operator=([[maybe_unused]] SinkException2&& othe
 
 
 SinkException2::SinkException2(apache::thrift::FragileConstructor, ::std::int64_t reason__arg) :
-    __fbthrift_field_reason(std::move(reason__arg)) {
+    __fbthrift_field_reason(std::move(reason__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -690,11 +690,11 @@ template uint32_t SinkException2::serializedSize<>(apache::thrift::CompactProtoc
 template uint32_t SinkException2::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-} // cpp2
+} // namespace cpp2
 
 namespace cpp2 { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}} // cpp2
+}} // namespace cpp2
 namespace apache::thrift::detail::annotation {
 }

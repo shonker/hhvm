@@ -110,17 +110,18 @@ let get_occurrence_info
         |> Decl_entry.to_option
         |> Option.bind ~f:(fun cls ->
                if String.equal methodname "__construct" then
-                 Decl_provider.Class.construct cls |> fst
+                 Folded_class.construct cls |> fst
                else
                  Option.first_some
-                   (Decl_provider.Class.get_method cls methodname)
-                   (Decl_provider.Class.get_smethod cls methodname))
+                   (Folded_class.get_method cls methodname)
+                   (Folded_class.get_smethod cls methodname))
         |> Option.map ~f:(fun class_elt ->
                (* We'll convert class_elt to fun_decl here solely as a lazy
                   convenience, so that the "display" code below can display
                   both class_elt and fun_decl uniformally. *)
                {
                  fe_module = None;
+                 fe_package_override = None;
                  fe_internal = false;
                  Typing_defs.fe_pos = Lazy.force class_elt.Typing_defs.ce_pos;
                  fe_type = Lazy.force class_elt.Typing_defs.ce_type;
@@ -136,7 +137,7 @@ let get_occurrence_info
     | _ ->
       let fun_name =
         Utils.expand_namespace
-          (ParserOptions.auto_namespace_map (Provider_context.get_popt ctx))
+          (Provider_context.get_popt ctx).ParserOptions.auto_namespace_map
           occurrence.SO.name
       in
       let ft = Decl_provider.get_fun ctx fun_name |> Decl_entry.to_option in

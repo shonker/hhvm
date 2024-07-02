@@ -34,6 +34,9 @@ class ThriftStreamShim;
 
 namespace apache {
 namespace thrift {
+namespace detail::test {
+class TestStreamProducerCallbackService;
+}
 
 template <typename T, bool WithHeader>
 class ServerStreamMultiPublisher;
@@ -116,6 +119,7 @@ class ServerStream {
   friend class yarpl::flowable::ThriftStreamShim;
   friend class ServerStreamMultiPublisher<T, false>;
   friend class ServerStreamMultiPublisher<T, true>;
+  friend class detail::test::TestStreamProducerCallbackService;
 };
 
 template <typename Response, typename StreamElement>

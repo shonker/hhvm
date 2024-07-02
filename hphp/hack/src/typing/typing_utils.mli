@@ -5,6 +5,7 @@
  * LICENSE file in the "hack" directory of this source tree.
  *
  *)
+open Hh_prelude
 
 type expand_typedef =
   Typing_defs.expand_env ->
@@ -22,6 +23,7 @@ type sub_type =
   Typing_env_types.env ->
   ?coerce:Typing_logic.coercion_direction option ->
   ?is_coeffect:bool ->
+  ?ignore_readonly:bool ->
   Typing_defs.locl_ty ->
   Typing_defs.locl_ty ->
   Typing_error.Reasons_callback.t option ->
@@ -105,7 +107,7 @@ val try_unwrap_class_type :
   * Typing_defs.decl_ty list)
   option
 
-val class_is_final_and_invariant : Decl_provider.Class.t -> bool
+val class_is_final_and_invariant : Folded_class.t -> bool
 
 type localize_no_subst =
   Typing_env_types.env ->
@@ -202,12 +204,7 @@ val get_printable_shape_field_name : Typing_defs.tshape_field_name -> string
 val shape_field_name_with_ty_err :
   Typing_env_types.env ->
   ('a, 'b) Aast.expr ->
-  Ast_defs.shape_field_name option * Typing_error.t option
-
-val simplify_constraint_type :
-  Typing_env_types.env ->
-  Typing_defs.constraint_type ->
-  Typing_env_types.env * Typing_defs.internal_type
+  (Ast_defs.shape_field_name, Typing_error.t) Result.t
 
 type add_constraint =
   Typing_env_types.env ->
@@ -245,6 +242,7 @@ val expand_typeconst :
 
 type union =
   Typing_env_types.env ->
+  ?reason:Typing_reason.t ->
   ?approx_cancel_neg:bool ->
   Typing_defs.locl_ty ->
   Typing_defs.locl_ty ->
@@ -254,6 +252,7 @@ val union_ref : union ref
 
 val union :
   Typing_env_types.env ->
+  ?reason:Typing_reason.t ->
   ?approx_cancel_neg:bool ->
   Typing_defs.locl_ty ->
   Typing_defs.locl_ty ->
@@ -421,9 +420,7 @@ val mk_tany :
   Typing_env_types.env -> Pos.t -> Typing_reason.locl_phase Typing_defs.ty
 
 val make_locl_subst_for_class_tparams :
-  Decl_provider.Class.t ->
-  Typing_defs.locl_ty list ->
-  Typing_defs.locl_ty SMap.t
+  Folded_class.t -> Typing_defs.locl_ty list -> Typing_defs.locl_ty SMap.t
 
 val is_sub_class_refl : Typing_env_types.env -> string -> string -> bool
 
@@ -433,7 +430,7 @@ val has_ancestor_including_req_refl :
   Typing_env_types.env -> string -> string -> bool
 
 val has_ancestor_including_req :
-  Typing_env_types.env -> Decl_provider.Class.t -> string -> bool
+  Typing_env_types.env -> Folded_class.t -> string -> bool
 
 (* If input is dynamic | t or t | dynamic then return Some t.
  * Otherwise return None.
@@ -529,6 +526,7 @@ val make_simplify_typed_expr :
   Typing_env_types.env * Tast.expr
 
 val partition_union :
-  f:('a Typing_defs.ty -> bool) ->
-  'a Typing_defs.ty list ->
-  'a Typing_defs.ty list * 'a Typing_defs.ty list
+  f:(Typing_defs.locl_ty -> bool) ->
+  Typing_env_types.env ->
+  Typing_defs.locl_ty list ->
+  Typing_defs.locl_ty list * Typing_defs.locl_ty list

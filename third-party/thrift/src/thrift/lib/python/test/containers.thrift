@@ -16,13 +16,29 @@
 
 include "thrift/annotation/cpp.thrift"
 
-namespace py3 thrift.python.test
+namespace py3 python_test
 
 @cpp.Type{name = "folly::IOBuf"}
 typedef binary IOBuf
 
 struct Foo {
   1: i32 value;
+}
+
+struct OtherFoo {
+  1: i32 value;
+}
+
+enum Bar {
+  UNKNOWN = 0,
+  ONE = 1,
+  TWO = 2,
+}
+
+enum OtherBar {
+  UNKNOWN = 0,
+  ONE = 1,
+  TWO = 2,
 }
 
 struct Lists {

@@ -102,7 +102,7 @@ APACHE_THRIFT_DEFINE_ACCESSOR(second);
 } // namespace apache
 
 // BEGIN declare_enums
-namespace test { namespace fixtures { namespace basic-structured-annotations {
+namespace test::fixtures::basic-structured-annotations {
 
 enum class MyEnum {
   UNKNOWN = 0,
@@ -111,7 +111,7 @@ enum class MyEnum {
 
 
 
-}}} // test::fixtures::basic-structured-annotations
+} // namespace test::fixtures::basic-structured-annotations
 
 namespace std {
 template<> struct hash<::test::fixtures::basic-structured-annotations::MyEnum> :
@@ -148,7 +148,7 @@ template <> struct TEnumTraits<::test::fixtures::basic-structured-annotations::M
 
 // END declare_enums
 // BEGIN forward_declare
-namespace test { namespace fixtures { namespace basic-structured-annotations {
+namespace test::fixtures::basic-structured-annotations {
 class runtime_annotation;
 class structured_annotation_inline;
 class structured_annotation_with_default;
@@ -158,7 +158,7 @@ class structured_annotation_nested;
 class MyStruct;
 class MyException;
 class MyUnion;
-}}} // test::fixtures::basic-structured-annotations
+} // namespace test::fixtures::basic-structured-annotations
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 template<>
@@ -172,7 +172,7 @@ struct is_cpp_ref_field_optional<::test::fixtures::basic-structured-annotations:
 
 // BEGIN hash_and_equal_to
 // END hash_and_equal_to
-namespace test { namespace fixtures { namespace basic-structured-annotations {
+namespace test::fixtures::basic-structured-annotations {
 using ::apache::thrift::detail::operator!=;
 using ::apache::thrift::detail::operator>;
 using ::apache::thrift::detail::operator<=;
@@ -225,6 +225,8 @@ class runtime_annotation final  {
  public:
   using __fbthrift_cpp2_type = runtime_annotation;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -322,6 +324,8 @@ class structured_annotation_inline final  {
  public:
   using __fbthrift_cpp2_type = structured_annotation_inline;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -531,6 +535,8 @@ class structured_annotation_with_default final  {
   using __fbthrift_cpp2_type = structured_annotation_with_default;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -687,6 +693,8 @@ class structured_annotation_forward final  {
   using __fbthrift_cpp2_type = structured_annotation_forward;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -840,6 +848,8 @@ class structured_annotation_recursive final  {
  public:
   using __fbthrift_cpp2_type = structured_annotation_recursive;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -1090,6 +1100,8 @@ class structured_annotation_nested final  {
   using __fbthrift_cpp2_type = structured_annotation_nested;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1302,6 +1314,8 @@ class MyStruct final  {
  public:
   using __fbthrift_cpp2_type = MyStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -1626,6 +1640,8 @@ class FOLLY_EXPORT MyException : public virtual apache::thrift::TException {
   using __fbthrift_cpp2_type = MyException;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1788,6 +1804,8 @@ class MyUnion final  {
   using __fbthrift_cpp2_type = MyUnion;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -2013,7 +2031,7 @@ unsigned long MyUnion::read(Protocol_* iprot) {
 }
 
 
-}}} // test::fixtures::basic-structured-annotations
+} // namespace test::fixtures::basic-structured-annotations
 
 namespace apache { namespace thrift {
 

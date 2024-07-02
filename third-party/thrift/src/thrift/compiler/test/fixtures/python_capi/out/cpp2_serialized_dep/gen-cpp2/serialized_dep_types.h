@@ -113,14 +113,14 @@ APACHE_THRIFT_DEFINE_ACCESSOR(rs);
 
 // END declare_enums
 // BEGIN forward_declare
-namespace test { namespace fixtures { namespace python_capi {
+namespace test::fixtures::python_capi {
 class SerializedStruct;
 class SerializedUnion;
 class SerializedError;
 class MarshalStruct;
 class MarshalUnion;
 class MarshalError;
-}}} // test::fixtures::python_capi
+} // namespace test::fixtures::python_capi
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -130,7 +130,7 @@ namespace apache::thrift::detail::qualifier {
 
 // BEGIN hash_and_equal_to
 // END hash_and_equal_to
-namespace test { namespace fixtures { namespace python_capi {
+namespace test::fixtures::python_capi {
 using ::apache::thrift::detail::operator!=;
 using ::apache::thrift::detail::operator>;
 using ::apache::thrift::detail::operator<=;
@@ -188,6 +188,8 @@ class SerializedStruct final  {
  public:
   using __fbthrift_cpp2_type = SerializedStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -514,6 +516,8 @@ class SerializedUnion final  {
   using __fbthrift_cpp2_type = SerializedUnion;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -795,6 +799,8 @@ class FOLLY_EXPORT SerializedError : public virtual apache::thrift::TException {
   using __fbthrift_cpp2_type = SerializedError;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1075,6 +1081,8 @@ class MarshalStruct final  {
  public:
   using __fbthrift_cpp2_type = MarshalStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -1401,6 +1409,8 @@ class MarshalUnion final  {
   using __fbthrift_cpp2_type = MarshalUnion;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1682,6 +1692,8 @@ class FOLLY_EXPORT MarshalError : public virtual apache::thrift::TException {
   using __fbthrift_cpp2_type = MarshalError;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1911,7 +1923,7 @@ unsigned long MarshalError::read(Protocol_* iprot) {
 }
 
 
-}}} // test::fixtures::python_capi
+} // namespace test::fixtures::python_capi
 
 namespace apache { namespace thrift {
 

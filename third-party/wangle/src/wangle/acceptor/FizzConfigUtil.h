@@ -27,12 +27,32 @@ namespace wangle {
 
 class FizzConfigUtil {
  public:
+  /*
+   * Adds certs to the cert manager from context configs.
+   * If strictSSL is specified will throw on any failed cert load.
+   * Returns true if atleast one cert was successfully loaded
+   */
+  static bool addCertsToManager(
+      const std::vector<SSLContextConfig>& configs,
+      fizz::server::CertManager& manager,
+      const std::shared_ptr<PasswordInFileFactory>& pwFactory,
+      bool strictSSL);
+
+  /**
+   * Creates a new cert manager and adds the certs from the given
+   * context configs using addCertsToManager.
+   * Returns nullptr if fails to add certificate for at least one
+   * context config.
+   */
   static std::unique_ptr<fizz::server::CertManager> createCertManager(
-      const ServerSocketConfig& config,
-      const std::shared_ptr<PasswordInFileFactory>& pwFactory);
+      const std::vector<SSLContextConfig>& sslContextConfigs,
+      const std::shared_ptr<PasswordInFileFactory>& pwFactory,
+      bool strictSSL);
 
   static std::shared_ptr<fizz::server::FizzServerContext> createFizzContext(
-      const wangle::ServerSocketConfig& config);
+      const std::vector<SSLContextConfig>& sslContextConfigs,
+      const FizzConfig& fizzConfig,
+      bool strictSSL);
 
   // Creates a TicketCipher with given params
   template <class TicketCipherT>

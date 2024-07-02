@@ -41,10 +41,17 @@ def __EXPAND_THRIFT_SPEC(spec):
         yield item
         next_id = item[0] + 1
 
+class ThriftEnumWrapper(int):
+  def __new__(cls, enum_class, value):
+    return super().__new__(cls, value)
+  def __init__(self, enum_class, value):    self.enum_class = enum_class
+  def __repr__(self):
+    return self.enum_class.__name__ + '.' + self.enum_class._VALUES_TO_NAMES[self]
+
 all_structs = []
 UTF8STRINGS = bool(0) or sys.version_info.major >= 3
 
-__all__ = ['UTF8STRINGS', 'RefType', 'EnumUnderlyingType', 'Type', 'Ref', 'Name', 'Lazy', 'DisableLazyChecksum', 'Adapter', 'PackIsset', 'MinimizePadding', 'TriviallyRelocatable', 'ScopedEnumAsUnionType', 'StrongType', 'FieldInterceptor', 'UseOpEncode', 'EnumType', 'Frozen2Exclude', 'Frozen2RequiresCompleteContainerParams', 'ProcessInEbThreadUnsafe', 'RuntimeAnnotation']
+__all__ = ['UTF8STRINGS', 'RefType', 'EnumUnderlyingType', 'Type', 'Ref', 'Name', 'Lazy', 'DisableLazyChecksum', 'Adapter', 'PackIsset', 'MinimizePadding', 'TriviallyRelocatable', 'ScopedEnumAsUnionType', 'FieldInterceptor', 'UseOpEncode', 'EnumType', 'Frozen2Exclude', 'Frozen2RequiresCompleteContainerParams', 'ProcessInEbThreadUnsafe', 'RuntimeAnnotation', 'UseCursorSerialization']
 
 class RefType:
   r"""
@@ -171,11 +178,17 @@ class Type:
     oprot.writeStructEnd()
 
   def readFromJson(self, json, is_text=True, **kwargs):
-    relax_enum_validation = bool(kwargs.pop('relax_enum_validation', False))
-    set_cls = kwargs.pop('custom_set_cls', set)
-    dict_cls = kwargs.pop('custom_dict_cls', dict)
-    if kwargs:
-        extra_kwargs = ', '.join(kwargs.keys())
+    kwargs_copy = dict(kwargs)
+    relax_enum_validation = bool(kwargs_copy.pop('relax_enum_validation', False))
+    set_cls = kwargs_copy.pop('custom_set_cls', set)
+    dict_cls = kwargs_copy.pop('custom_dict_cls', dict)
+    wrap_enum_constants = kwargs_copy.pop('wrap_enum_constants', False)
+    if wrap_enum_constants and relax_enum_validation:
+        raise ValueError(
+            'wrap_enum_constants cannot be used together with relax_enum_validation'
+        )
+    if kwargs_copy:
+        extra_kwargs = ', '.join(kwargs_copy.keys())
         raise ValueError(
             'Unexpected keyword arguments: ' + extra_kwargs
         )
@@ -290,11 +303,17 @@ class Ref:
     oprot.writeStructEnd()
 
   def readFromJson(self, json, is_text=True, **kwargs):
-    relax_enum_validation = bool(kwargs.pop('relax_enum_validation', False))
-    set_cls = kwargs.pop('custom_set_cls', set)
-    dict_cls = kwargs.pop('custom_dict_cls', dict)
-    if kwargs:
-        extra_kwargs = ', '.join(kwargs.keys())
+    kwargs_copy = dict(kwargs)
+    relax_enum_validation = bool(kwargs_copy.pop('relax_enum_validation', False))
+    set_cls = kwargs_copy.pop('custom_set_cls', set)
+    dict_cls = kwargs_copy.pop('custom_dict_cls', dict)
+    wrap_enum_constants = kwargs_copy.pop('wrap_enum_constants', False)
+    if wrap_enum_constants and relax_enum_validation:
+        raise ValueError(
+            'wrap_enum_constants cannot be used together with relax_enum_validation'
+        )
+    if kwargs_copy:
+        extra_kwargs = ', '.join(kwargs_copy.keys())
         raise ValueError(
             'Unexpected keyword arguments: ' + extra_kwargs
         )
@@ -309,6 +328,8 @@ class Ref:
             warnings.warn(msg)
         else:
             raise TProtocolException(TProtocolException.INVALID_DATA, msg)
+      if wrap_enum_constants:
+        self.type = ThriftEnumWrapper(RefType, self.type)
 
   def __repr__(self):
     L = []
@@ -406,11 +427,17 @@ class Name:
     oprot.writeStructEnd()
 
   def readFromJson(self, json, is_text=True, **kwargs):
-    relax_enum_validation = bool(kwargs.pop('relax_enum_validation', False))
-    set_cls = kwargs.pop('custom_set_cls', set)
-    dict_cls = kwargs.pop('custom_dict_cls', dict)
-    if kwargs:
-        extra_kwargs = ', '.join(kwargs.keys())
+    kwargs_copy = dict(kwargs)
+    relax_enum_validation = bool(kwargs_copy.pop('relax_enum_validation', False))
+    set_cls = kwargs_copy.pop('custom_set_cls', set)
+    dict_cls = kwargs_copy.pop('custom_dict_cls', dict)
+    wrap_enum_constants = kwargs_copy.pop('wrap_enum_constants', False)
+    if wrap_enum_constants and relax_enum_validation:
+        raise ValueError(
+            'wrap_enum_constants cannot be used together with relax_enum_validation'
+        )
+    if kwargs_copy:
+        extra_kwargs = ', '.join(kwargs_copy.keys())
         raise ValueError(
             'Unexpected keyword arguments: ' + extra_kwargs
         )
@@ -528,11 +555,17 @@ class Lazy:
     oprot.writeStructEnd()
 
   def readFromJson(self, json, is_text=True, **kwargs):
-    relax_enum_validation = bool(kwargs.pop('relax_enum_validation', False))
-    set_cls = kwargs.pop('custom_set_cls', set)
-    dict_cls = kwargs.pop('custom_dict_cls', dict)
-    if kwargs:
-        extra_kwargs = ', '.join(kwargs.keys())
+    kwargs_copy = dict(kwargs)
+    relax_enum_validation = bool(kwargs_copy.pop('relax_enum_validation', False))
+    set_cls = kwargs_copy.pop('custom_set_cls', set)
+    dict_cls = kwargs_copy.pop('custom_dict_cls', dict)
+    wrap_enum_constants = kwargs_copy.pop('wrap_enum_constants', False)
+    if wrap_enum_constants and relax_enum_validation:
+        raise ValueError(
+            'wrap_enum_constants cannot be used together with relax_enum_validation'
+        )
+    if kwargs_copy:
+        extra_kwargs = ', '.join(kwargs_copy.keys())
         raise ValueError(
             'Unexpected keyword arguments: ' + extra_kwargs
         )
@@ -620,11 +653,17 @@ class DisableLazyChecksum:
     oprot.writeStructEnd()
 
   def readFromJson(self, json, is_text=True, **kwargs):
-    relax_enum_validation = bool(kwargs.pop('relax_enum_validation', False))
-    set_cls = kwargs.pop('custom_set_cls', set)
-    dict_cls = kwargs.pop('custom_dict_cls', dict)
-    if kwargs:
-        extra_kwargs = ', '.join(kwargs.keys())
+    kwargs_copy = dict(kwargs)
+    relax_enum_validation = bool(kwargs_copy.pop('relax_enum_validation', False))
+    set_cls = kwargs_copy.pop('custom_set_cls', set)
+    dict_cls = kwargs_copy.pop('custom_dict_cls', dict)
+    wrap_enum_constants = kwargs_copy.pop('wrap_enum_constants', False)
+    if wrap_enum_constants and relax_enum_validation:
+        raise ValueError(
+            'wrap_enum_constants cannot be used together with relax_enum_validation'
+        )
+    if kwargs_copy:
+        extra_kwargs = ', '.join(kwargs_copy.keys())
         raise ValueError(
             'Unexpected keyword arguments: ' + extra_kwargs
         )
@@ -805,11 +844,17 @@ class Adapter:
     oprot.writeStructEnd()
 
   def readFromJson(self, json, is_text=True, **kwargs):
-    relax_enum_validation = bool(kwargs.pop('relax_enum_validation', False))
-    set_cls = kwargs.pop('custom_set_cls', set)
-    dict_cls = kwargs.pop('custom_dict_cls', dict)
-    if kwargs:
-        extra_kwargs = ', '.join(kwargs.keys())
+    kwargs_copy = dict(kwargs)
+    relax_enum_validation = bool(kwargs_copy.pop('relax_enum_validation', False))
+    set_cls = kwargs_copy.pop('custom_set_cls', set)
+    dict_cls = kwargs_copy.pop('custom_dict_cls', dict)
+    wrap_enum_constants = kwargs_copy.pop('wrap_enum_constants', False)
+    if wrap_enum_constants and relax_enum_validation:
+        raise ValueError(
+            'wrap_enum_constants cannot be used together with relax_enum_validation'
+        )
+    if kwargs_copy:
+        extra_kwargs = ', '.join(kwargs_copy.keys())
         raise ValueError(
             'Unexpected keyword arguments: ' + extra_kwargs
         )
@@ -943,11 +988,17 @@ class PackIsset:
     oprot.writeStructEnd()
 
   def readFromJson(self, json, is_text=True, **kwargs):
-    relax_enum_validation = bool(kwargs.pop('relax_enum_validation', False))
-    set_cls = kwargs.pop('custom_set_cls', set)
-    dict_cls = kwargs.pop('custom_dict_cls', dict)
-    if kwargs:
-        extra_kwargs = ', '.join(kwargs.keys())
+    kwargs_copy = dict(kwargs)
+    relax_enum_validation = bool(kwargs_copy.pop('relax_enum_validation', False))
+    set_cls = kwargs_copy.pop('custom_set_cls', set)
+    dict_cls = kwargs_copy.pop('custom_dict_cls', dict)
+    wrap_enum_constants = kwargs_copy.pop('wrap_enum_constants', False)
+    if wrap_enum_constants and relax_enum_validation:
+        raise ValueError(
+            'wrap_enum_constants cannot be used together with relax_enum_validation'
+        )
+    if kwargs_copy:
+        extra_kwargs = ', '.join(kwargs_copy.keys())
         raise ValueError(
             'Unexpected keyword arguments: ' + extra_kwargs
         )
@@ -1062,11 +1113,17 @@ class MinimizePadding:
     oprot.writeStructEnd()
 
   def readFromJson(self, json, is_text=True, **kwargs):
-    relax_enum_validation = bool(kwargs.pop('relax_enum_validation', False))
-    set_cls = kwargs.pop('custom_set_cls', set)
-    dict_cls = kwargs.pop('custom_dict_cls', dict)
-    if kwargs:
-        extra_kwargs = ', '.join(kwargs.keys())
+    kwargs_copy = dict(kwargs)
+    relax_enum_validation = bool(kwargs_copy.pop('relax_enum_validation', False))
+    set_cls = kwargs_copy.pop('custom_set_cls', set)
+    dict_cls = kwargs_copy.pop('custom_dict_cls', dict)
+    wrap_enum_constants = kwargs_copy.pop('wrap_enum_constants', False)
+    if wrap_enum_constants and relax_enum_validation:
+        raise ValueError(
+            'wrap_enum_constants cannot be used together with relax_enum_validation'
+        )
+    if kwargs_copy:
+        extra_kwargs = ', '.join(kwargs_copy.keys())
         raise ValueError(
             'Unexpected keyword arguments: ' + extra_kwargs
         )
@@ -1147,11 +1204,17 @@ class TriviallyRelocatable:
     oprot.writeStructEnd()
 
   def readFromJson(self, json, is_text=True, **kwargs):
-    relax_enum_validation = bool(kwargs.pop('relax_enum_validation', False))
-    set_cls = kwargs.pop('custom_set_cls', set)
-    dict_cls = kwargs.pop('custom_dict_cls', dict)
-    if kwargs:
-        extra_kwargs = ', '.join(kwargs.keys())
+    kwargs_copy = dict(kwargs)
+    relax_enum_validation = bool(kwargs_copy.pop('relax_enum_validation', False))
+    set_cls = kwargs_copy.pop('custom_set_cls', set)
+    dict_cls = kwargs_copy.pop('custom_dict_cls', dict)
+    wrap_enum_constants = kwargs_copy.pop('wrap_enum_constants', False)
+    if wrap_enum_constants and relax_enum_validation:
+        raise ValueError(
+            'wrap_enum_constants cannot be used together with relax_enum_validation'
+        )
+    if kwargs_copy:
+        extra_kwargs = ', '.join(kwargs_copy.keys())
         raise ValueError(
             'Unexpected keyword arguments: ' + extra_kwargs
         )
@@ -1232,11 +1295,17 @@ class ScopedEnumAsUnionType:
     oprot.writeStructEnd()
 
   def readFromJson(self, json, is_text=True, **kwargs):
-    relax_enum_validation = bool(kwargs.pop('relax_enum_validation', False))
-    set_cls = kwargs.pop('custom_set_cls', set)
-    dict_cls = kwargs.pop('custom_dict_cls', dict)
-    if kwargs:
-        extra_kwargs = ', '.join(kwargs.keys())
+    kwargs_copy = dict(kwargs)
+    relax_enum_validation = bool(kwargs_copy.pop('relax_enum_validation', False))
+    set_cls = kwargs_copy.pop('custom_set_cls', set)
+    dict_cls = kwargs_copy.pop('custom_dict_cls', dict)
+    wrap_enum_constants = kwargs_copy.pop('wrap_enum_constants', False)
+    if wrap_enum_constants and relax_enum_validation:
+        raise ValueError(
+            'wrap_enum_constants cannot be used together with relax_enum_validation'
+        )
+    if kwargs_copy:
+        extra_kwargs = ', '.join(kwargs_copy.keys())
         raise ValueError(
             'Unexpected keyword arguments: ' + extra_kwargs
         )
@@ -1275,105 +1344,6 @@ class ScopedEnumAsUnionType:
     import thrift.py3.converter
     py3_types = importlib.import_module("facebook.thrift.annotation.cpp.types")
     return thrift.py3.converter.to_py3_struct(py3_types.ScopedEnumAsUnionType, self)
-
-  def _to_py_deprecated(self):
-    return self
-
-class StrongType:
-  r"""
-  Indicates a typedef should be 'strong', and require an explicit cast to
-  the underlying type.
-  
-  Currently only works for integer typedefs, for example:
-  
-      @cpp.StrongType
-      typedef i32 MyId;
-  
-  Will cause an enum class to be used instead of a typedef in the genearte code, for example:
-  
-      enum class MyId : ::std::int32_t {};
-  
-  """
-
-  thrift_spec = None
-  thrift_field_annotations = None
-  thrift_struct_annotations = None
-  @staticmethod
-  def isUnion():
-    return False
-
-  def read(self, iprot):
-    if (isinstance(iprot, TBinaryProtocol.TBinaryProtocolAccelerated) or (isinstance(iprot, THeaderProtocol.THeaderProtocolAccelerate) and iprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_BINARY_PROTOCOL)) and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastproto is not None:
-      fastproto.decode(self, iprot.trans, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=0)
-      return
-    if (isinstance(iprot, TCompactProtocol.TCompactProtocolAccelerated) or (isinstance(iprot, THeaderProtocol.THeaderProtocolAccelerate) and iprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_COMPACT_PROTOCOL)) and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastproto is not None:
-      fastproto.decode(self, iprot.trans, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=2)
-      return
-    iprot.readStructBegin()
-    while True:
-      (fname, ftype, fid) = iprot.readFieldBegin()
-      if ftype == TType.STOP:
-        break
-      else:
-        iprot.skip(ftype)
-      iprot.readFieldEnd()
-    iprot.readStructEnd()
-
-  def write(self, oprot):
-    if (isinstance(oprot, TBinaryProtocol.TBinaryProtocolAccelerated) or (isinstance(oprot, THeaderProtocol.THeaderProtocolAccelerate) and oprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_BINARY_PROTOCOL)) and self.thrift_spec is not None and fastproto is not None:
-      oprot.trans.write(fastproto.encode(self, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=0))
-      return
-    if (isinstance(oprot, TCompactProtocol.TCompactProtocolAccelerated) or (isinstance(oprot, THeaderProtocol.THeaderProtocolAccelerate) and oprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_COMPACT_PROTOCOL)) and self.thrift_spec is not None and fastproto is not None:
-      oprot.trans.write(fastproto.encode(self, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=2))
-      return
-    oprot.writeStructBegin('StrongType')
-    oprot.writeFieldStop()
-    oprot.writeStructEnd()
-
-  def readFromJson(self, json, is_text=True, **kwargs):
-    relax_enum_validation = bool(kwargs.pop('relax_enum_validation', False))
-    set_cls = kwargs.pop('custom_set_cls', set)
-    dict_cls = kwargs.pop('custom_dict_cls', dict)
-    if kwargs:
-        extra_kwargs = ', '.join(kwargs.keys())
-        raise ValueError(
-            'Unexpected keyword arguments: ' + extra_kwargs
-        )
-    json_obj = json
-    if is_text:
-      json_obj = loads(json)
-
-  def __repr__(self):
-    L = []
-    padding = ' ' * 4
-    return "%s(%s)" % (self.__class__.__name__, "\n" + ",\n".join(L) if L else '')
-
-  def __eq__(self, other):
-    if not isinstance(other, self.__class__):
-      return False
-
-    return self.__dict__ == other.__dict__ 
-
-  def __ne__(self, other):
-    return not (self == other)
-
-  def __dir__(self):
-    return (
-    )
-
-  __hash__ = object.__hash__
-
-  def _to_python(self):
-    import importlib
-    import thrift.python.converter
-    python_types = importlib.import_module("facebook.thrift.annotation.cpp.thrift_types")
-    return thrift.python.converter.to_python_struct(python_types.StrongType, self)
-
-  def _to_py3(self):
-    import importlib
-    import thrift.py3.converter
-    py3_types = importlib.import_module("facebook.thrift.annotation.cpp.types")
-    return thrift.py3.converter.to_py3_struct(py3_types.StrongType, self)
 
   def _to_py_deprecated(self):
     return self
@@ -1465,11 +1435,17 @@ class FieldInterceptor:
     oprot.writeStructEnd()
 
   def readFromJson(self, json, is_text=True, **kwargs):
-    relax_enum_validation = bool(kwargs.pop('relax_enum_validation', False))
-    set_cls = kwargs.pop('custom_set_cls', set)
-    dict_cls = kwargs.pop('custom_dict_cls', dict)
-    if kwargs:
-        extra_kwargs = ', '.join(kwargs.keys())
+    kwargs_copy = dict(kwargs)
+    relax_enum_validation = bool(kwargs_copy.pop('relax_enum_validation', False))
+    set_cls = kwargs_copy.pop('custom_set_cls', set)
+    dict_cls = kwargs_copy.pop('custom_dict_cls', dict)
+    wrap_enum_constants = kwargs_copy.pop('wrap_enum_constants', False)
+    if wrap_enum_constants and relax_enum_validation:
+        raise ValueError(
+            'wrap_enum_constants cannot be used together with relax_enum_validation'
+        )
+    if kwargs_copy:
+        extra_kwargs = ', '.join(kwargs_copy.keys())
         raise ValueError(
             'Unexpected keyword arguments: ' + extra_kwargs
         )
@@ -1564,11 +1540,17 @@ class UseOpEncode:
     oprot.writeStructEnd()
 
   def readFromJson(self, json, is_text=True, **kwargs):
-    relax_enum_validation = bool(kwargs.pop('relax_enum_validation', False))
-    set_cls = kwargs.pop('custom_set_cls', set)
-    dict_cls = kwargs.pop('custom_dict_cls', dict)
-    if kwargs:
-        extra_kwargs = ', '.join(kwargs.keys())
+    kwargs_copy = dict(kwargs)
+    relax_enum_validation = bool(kwargs_copy.pop('relax_enum_validation', False))
+    set_cls = kwargs_copy.pop('custom_set_cls', set)
+    dict_cls = kwargs_copy.pop('custom_dict_cls', dict)
+    wrap_enum_constants = kwargs_copy.pop('wrap_enum_constants', False)
+    if wrap_enum_constants and relax_enum_validation:
+        raise ValueError(
+            'wrap_enum_constants cannot be used together with relax_enum_validation'
+        )
+    if kwargs_copy:
+        extra_kwargs = ', '.join(kwargs_copy.keys())
         raise ValueError(
             'Unexpected keyword arguments: ' + extra_kwargs
         )
@@ -1679,11 +1661,17 @@ class EnumType:
     oprot.writeStructEnd()
 
   def readFromJson(self, json, is_text=True, **kwargs):
-    relax_enum_validation = bool(kwargs.pop('relax_enum_validation', False))
-    set_cls = kwargs.pop('custom_set_cls', set)
-    dict_cls = kwargs.pop('custom_dict_cls', dict)
-    if kwargs:
-        extra_kwargs = ', '.join(kwargs.keys())
+    kwargs_copy = dict(kwargs)
+    relax_enum_validation = bool(kwargs_copy.pop('relax_enum_validation', False))
+    set_cls = kwargs_copy.pop('custom_set_cls', set)
+    dict_cls = kwargs_copy.pop('custom_dict_cls', dict)
+    wrap_enum_constants = kwargs_copy.pop('wrap_enum_constants', False)
+    if wrap_enum_constants and relax_enum_validation:
+        raise ValueError(
+            'wrap_enum_constants cannot be used together with relax_enum_validation'
+        )
+    if kwargs_copy:
+        extra_kwargs = ', '.join(kwargs_copy.keys())
         raise ValueError(
             'Unexpected keyword arguments: ' + extra_kwargs
         )
@@ -1698,6 +1686,8 @@ class EnumType:
             warnings.warn(msg)
         else:
             raise TProtocolException(TProtocolException.INVALID_DATA, msg)
+      if wrap_enum_constants:
+        self.type = ThriftEnumWrapper(EnumUnderlyingType, self.type)
 
   def __repr__(self):
     L = []
@@ -1780,11 +1770,17 @@ class Frozen2Exclude:
     oprot.writeStructEnd()
 
   def readFromJson(self, json, is_text=True, **kwargs):
-    relax_enum_validation = bool(kwargs.pop('relax_enum_validation', False))
-    set_cls = kwargs.pop('custom_set_cls', set)
-    dict_cls = kwargs.pop('custom_dict_cls', dict)
-    if kwargs:
-        extra_kwargs = ', '.join(kwargs.keys())
+    kwargs_copy = dict(kwargs)
+    relax_enum_validation = bool(kwargs_copy.pop('relax_enum_validation', False))
+    set_cls = kwargs_copy.pop('custom_set_cls', set)
+    dict_cls = kwargs_copy.pop('custom_dict_cls', dict)
+    wrap_enum_constants = kwargs_copy.pop('wrap_enum_constants', False)
+    if wrap_enum_constants and relax_enum_validation:
+        raise ValueError(
+            'wrap_enum_constants cannot be used together with relax_enum_validation'
+        )
+    if kwargs_copy:
+        extra_kwargs = ', '.join(kwargs_copy.keys())
         raise ValueError(
             'Unexpected keyword arguments: ' + extra_kwargs
         )
@@ -1869,11 +1865,17 @@ class Frozen2RequiresCompleteContainerParams:
     oprot.writeStructEnd()
 
   def readFromJson(self, json, is_text=True, **kwargs):
-    relax_enum_validation = bool(kwargs.pop('relax_enum_validation', False))
-    set_cls = kwargs.pop('custom_set_cls', set)
-    dict_cls = kwargs.pop('custom_dict_cls', dict)
-    if kwargs:
-        extra_kwargs = ', '.join(kwargs.keys())
+    kwargs_copy = dict(kwargs)
+    relax_enum_validation = bool(kwargs_copy.pop('relax_enum_validation', False))
+    set_cls = kwargs_copy.pop('custom_set_cls', set)
+    dict_cls = kwargs_copy.pop('custom_dict_cls', dict)
+    wrap_enum_constants = kwargs_copy.pop('wrap_enum_constants', False)
+    if wrap_enum_constants and relax_enum_validation:
+        raise ValueError(
+            'wrap_enum_constants cannot be used together with relax_enum_validation'
+        )
+    if kwargs_copy:
+        extra_kwargs = ', '.join(kwargs_copy.keys())
         raise ValueError(
             'Unexpected keyword arguments: ' + extra_kwargs
         )
@@ -1965,11 +1967,17 @@ class ProcessInEbThreadUnsafe:
     oprot.writeStructEnd()
 
   def readFromJson(self, json, is_text=True, **kwargs):
-    relax_enum_validation = bool(kwargs.pop('relax_enum_validation', False))
-    set_cls = kwargs.pop('custom_set_cls', set)
-    dict_cls = kwargs.pop('custom_dict_cls', dict)
-    if kwargs:
-        extra_kwargs = ', '.join(kwargs.keys())
+    kwargs_copy = dict(kwargs)
+    relax_enum_validation = bool(kwargs_copy.pop('relax_enum_validation', False))
+    set_cls = kwargs_copy.pop('custom_set_cls', set)
+    dict_cls = kwargs_copy.pop('custom_dict_cls', dict)
+    wrap_enum_constants = kwargs_copy.pop('wrap_enum_constants', False)
+    if wrap_enum_constants and relax_enum_validation:
+        raise ValueError(
+            'wrap_enum_constants cannot be used together with relax_enum_validation'
+        )
+    if kwargs_copy:
+        extra_kwargs = ', '.join(kwargs_copy.keys())
         raise ValueError(
             'Unexpected keyword arguments: ' + extra_kwargs
         )
@@ -2053,11 +2061,17 @@ class RuntimeAnnotation:
     oprot.writeStructEnd()
 
   def readFromJson(self, json, is_text=True, **kwargs):
-    relax_enum_validation = bool(kwargs.pop('relax_enum_validation', False))
-    set_cls = kwargs.pop('custom_set_cls', set)
-    dict_cls = kwargs.pop('custom_dict_cls', dict)
-    if kwargs:
-        extra_kwargs = ', '.join(kwargs.keys())
+    kwargs_copy = dict(kwargs)
+    relax_enum_validation = bool(kwargs_copy.pop('relax_enum_validation', False))
+    set_cls = kwargs_copy.pop('custom_set_cls', set)
+    dict_cls = kwargs_copy.pop('custom_dict_cls', dict)
+    wrap_enum_constants = kwargs_copy.pop('wrap_enum_constants', False)
+    if wrap_enum_constants and relax_enum_validation:
+        raise ValueError(
+            'wrap_enum_constants cannot be used together with relax_enum_validation'
+        )
+    if kwargs_copy:
+        extra_kwargs = ', '.join(kwargs_copy.keys())
         raise ValueError(
             'Unexpected keyword arguments: ' + extra_kwargs
         )
@@ -2096,6 +2110,103 @@ class RuntimeAnnotation:
     import thrift.py3.converter
     py3_types = importlib.import_module("facebook.thrift.annotation.cpp.types")
     return thrift.py3.converter.to_py3_struct(py3_types.RuntimeAnnotation, self)
+
+  def _to_py_deprecated(self):
+    return self
+
+class UseCursorSerialization:
+  r"""
+  Causes uses of the given structured type to be replaced with `CursorSerializationWrapper` to allow use of cursor-based serialization.
+  Must add `cpp_include "thrift/lib/cpp2/protocol/CursorBasedSerializer.h"` to files that use this annotation.
+  See documentation for this class in CursorBasedSerializer.h
+  Can only be applied to top-level structs (used as return type or sole argument to an RPC or serialized directly), not to types used as struct fields or container elements.
+  """
+
+  thrift_spec = None
+  thrift_field_annotations = None
+  thrift_struct_annotations = None
+  @staticmethod
+  def isUnion():
+    return False
+
+  def read(self, iprot):
+    if (isinstance(iprot, TBinaryProtocol.TBinaryProtocolAccelerated) or (isinstance(iprot, THeaderProtocol.THeaderProtocolAccelerate) and iprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_BINARY_PROTOCOL)) and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastproto is not None:
+      fastproto.decode(self, iprot.trans, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=0)
+      return
+    if (isinstance(iprot, TCompactProtocol.TCompactProtocolAccelerated) or (isinstance(iprot, THeaderProtocol.THeaderProtocolAccelerate) and iprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_COMPACT_PROTOCOL)) and isinstance(iprot.trans, TTransport.CReadableTransport) and self.thrift_spec is not None and fastproto is not None:
+      fastproto.decode(self, iprot.trans, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=2)
+      return
+    iprot.readStructBegin()
+    while True:
+      (fname, ftype, fid) = iprot.readFieldBegin()
+      if ftype == TType.STOP:
+        break
+      else:
+        iprot.skip(ftype)
+      iprot.readFieldEnd()
+    iprot.readStructEnd()
+
+  def write(self, oprot):
+    if (isinstance(oprot, TBinaryProtocol.TBinaryProtocolAccelerated) or (isinstance(oprot, THeaderProtocol.THeaderProtocolAccelerate) and oprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_BINARY_PROTOCOL)) and self.thrift_spec is not None and fastproto is not None:
+      oprot.trans.write(fastproto.encode(self, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=0))
+      return
+    if (isinstance(oprot, TCompactProtocol.TCompactProtocolAccelerated) or (isinstance(oprot, THeaderProtocol.THeaderProtocolAccelerate) and oprot.get_protocol_id() == THeaderProtocol.THeaderProtocol.T_COMPACT_PROTOCOL)) and self.thrift_spec is not None and fastproto is not None:
+      oprot.trans.write(fastproto.encode(self, [self.__class__, self.thrift_spec, False], utf8strings=UTF8STRINGS, protoid=2))
+      return
+    oprot.writeStructBegin('UseCursorSerialization')
+    oprot.writeFieldStop()
+    oprot.writeStructEnd()
+
+  def readFromJson(self, json, is_text=True, **kwargs):
+    kwargs_copy = dict(kwargs)
+    relax_enum_validation = bool(kwargs_copy.pop('relax_enum_validation', False))
+    set_cls = kwargs_copy.pop('custom_set_cls', set)
+    dict_cls = kwargs_copy.pop('custom_dict_cls', dict)
+    wrap_enum_constants = kwargs_copy.pop('wrap_enum_constants', False)
+    if wrap_enum_constants and relax_enum_validation:
+        raise ValueError(
+            'wrap_enum_constants cannot be used together with relax_enum_validation'
+        )
+    if kwargs_copy:
+        extra_kwargs = ', '.join(kwargs_copy.keys())
+        raise ValueError(
+            'Unexpected keyword arguments: ' + extra_kwargs
+        )
+    json_obj = json
+    if is_text:
+      json_obj = loads(json)
+
+  def __repr__(self):
+    L = []
+    padding = ' ' * 4
+    return "%s(%s)" % (self.__class__.__name__, "\n" + ",\n".join(L) if L else '')
+
+  def __eq__(self, other):
+    if not isinstance(other, self.__class__):
+      return False
+
+    return self.__dict__ == other.__dict__ 
+
+  def __ne__(self, other):
+    return not (self == other)
+
+  def __dir__(self):
+    return (
+    )
+
+  __hash__ = object.__hash__
+
+  def _to_python(self):
+    import importlib
+    import thrift.python.converter
+    python_types = importlib.import_module("facebook.thrift.annotation.cpp.thrift_types")
+    return thrift.python.converter.to_python_struct(python_types.UseCursorSerialization, self)
+
+  def _to_py3(self):
+    import importlib
+    import thrift.py3.converter
+    py3_types = importlib.import_module("facebook.thrift.annotation.cpp.types")
+    return thrift.py3.converter.to_py3_struct(py3_types.UseCursorSerialization, self)
 
   def _to_py_deprecated(self):
     return self
@@ -2286,15 +2397,6 @@ ScopedEnumAsUnionType.thrift_struct_annotations = {
 ScopedEnumAsUnionType.thrift_field_annotations = {
 }
 
-all_structs.append(StrongType)
-StrongType.thrift_spec = tuple(__EXPAND_THRIFT_SPEC((
-)))
-
-StrongType.thrift_struct_annotations = {
-}
-StrongType.thrift_field_annotations = {
-}
-
 all_structs.append(FieldInterceptor)
 FieldInterceptor.thrift_spec = tuple(__EXPAND_THRIFT_SPEC((
   (1, TType.STRING, 'name', True, None, 2, ), # 1
@@ -2385,6 +2487,15 @@ RuntimeAnnotation.thrift_spec = tuple(__EXPAND_THRIFT_SPEC((
 RuntimeAnnotation.thrift_struct_annotations = {
 }
 RuntimeAnnotation.thrift_field_annotations = {
+}
+
+all_structs.append(UseCursorSerialization)
+UseCursorSerialization.thrift_spec = tuple(__EXPAND_THRIFT_SPEC((
+)))
+
+UseCursorSerialization.thrift_struct_annotations = {
+}
+UseCursorSerialization.thrift_field_annotations = {
 }
 
 fix_spec(all_structs)

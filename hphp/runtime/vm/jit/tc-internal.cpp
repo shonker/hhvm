@@ -136,7 +136,7 @@ TransLoc TransRange::loc() const {
 }
 
 bool canTranslate() {
-  return s_numTrans.load(std::memory_order_relaxed) <
+  return s_numTrans.load(std::memory_order_acquire) <
     Cfg::Jit::GlobalTranslationLimit;
 }
 
@@ -149,7 +149,9 @@ TranslationResult::Scope shouldTranslateNoSizeLimit(SrcKey sk, TransKind kind) {
   if (*s_jittingTimeLimitExceeded) return TranslationResult::Scope::Request;
 
   auto const maxTransTime = Cfg::Jit::MaxRequestTranslationTime;
-  if (maxTransTime >= 0 && RuntimeOption::ServerExecutionMode()) {
+  if (maxTransTime >= 0 &&
+      RuntimeOption::ServerExecutionMode() &&
+      !RuntimeOption::EvalEnableAsyncJIT) {
     auto const transCounter = Timer::CounterValue(Timer::mcg_translate);
     if (transCounter.wall_time_elapsed >= maxTransTime) {
       if (Trace::moduleEnabledRelease(Trace::mcg, 1)) {
@@ -221,7 +223,7 @@ static std::atomic_flag s_did_log = ATOMIC_FLAG_INIT;
 static std::atomic<bool> s_TCisFull{false};
 
 TranslationResult::Scope shouldTranslate(SrcKey sk, TransKind kind) {
-  if (s_TCisFull.load(std::memory_order_relaxed)) {
+  if (s_TCisFull.load(std::memory_order_acquire)) {
     return TranslationResult::Scope::Process;
   }
 
@@ -242,7 +244,7 @@ TranslationResult::Scope shouldTranslate(SrcKey sk, TransKind kind) {
 
   // Set a flag so we quickly bail from trying to generate new
   // translations next time.
-  s_TCisFull.store(true, std::memory_order_relaxed);
+  s_TCisFull.store(true, std::memory_order_release);
 
   if (main_under && !s_did_log.test_and_set() &&
       RuntimeOption::EvalProfBranchSampleFreq == 0) {
@@ -262,7 +264,7 @@ TranslationResult::Scope shouldTranslate(SrcKey sk, TransKind kind) {
 }
 
 bool newTranslation() {
-  if (s_numTrans.fetch_add(1, std::memory_order_relaxed) >=
+  if (s_numTrans.fetch_add(1, std::memory_order_acq_rel) >=
       Cfg::Jit::GlobalTranslationLimit) {
     return false;
   }
@@ -432,7 +434,7 @@ LocalTCBuffer::LocalTCBuffer(Address start, size_t initialSize) {
   TCA fakeStart = code().threadLocalStart();
   auto const sz = initialSize / 4;
   auto initBlock = [&] (DataBlock& block, size_t mxSz, const char* nm) {
-    always_assert(sz <= mxSz);
+    always_assert_flog(sz <= mxSz, "sz: {} mxSz: {}\n", sz, mxSz);
     block.init(fakeStart, start, sz, mxSz, nm);
     fakeStart += mxSz;
     start += sz;

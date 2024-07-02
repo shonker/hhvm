@@ -39,6 +39,7 @@
 #include <folly/executors/thread_factory/NamedThreadFactory.h>
 #include <folly/executors/thread_factory/PriorityThreadFactory.h>
 #include <folly/experimental/coro/BlockingWait.h>
+#include <folly/experimental/coro/Collect.h>
 #include <folly/experimental/coro/CurrentExecutor.h>
 #include <folly/experimental/coro/Invoke.h>
 #include <folly/io/GlobalShutdownSocketSet.h>
@@ -105,8 +106,13 @@ THRIFT_FLAG_DEFINE_bool(enforce_queue_concurrency_resource_pools, false);
 THRIFT_FLAG_DEFINE_bool(fizz_server_enable_hybrid_kex, false);
 
 THRIFT_FLAG_DEFINE_bool(server_fizz_enable_aegis, false);
+THRIFT_FLAG_DEFINE_bool(server_fizz_prefer_psk_ke, false);
+THRIFT_FLAG_DEFINE_bool(server_fizz_enable_receiving_dc, false);
 
 THRIFT_FLAG_DEFINE_bool(fizz_deprecate_draft_versions, true);
+THRIFT_FLAG_DEFINE_bool(server_fizz_enable_presenting_dc, false);
+
+THRIFT_FLAG_DEFINE_bool(enable_rotation_for_in_memory_ticket_seeds, false);
 
 namespace apache::thrift::detail {
 THRIFT_PLUGGABLE_FUNC_REGISTER(
@@ -132,6 +138,12 @@ THRIFT_PLUGGABLE_FUNC_REGISTER(
   return ThriftServer::UnimplementedExtraInterfacesResult::UNRECOGNIZED;
 }
 
+THRIFT_PLUGGABLE_FUNC_REGISTER(
+    folly::observer::Observer<AdaptiveConcurrencyController::Config>,
+    makeAdaptiveConcurrencyConfig) {
+  return folly::observer::makeStaticObserver(
+      AdaptiveConcurrencyController::Config{});
+}
 } // namespace apache::thrift::detail
 
 namespace {
@@ -242,8 +254,26 @@ TLSCredentialWatcher::TLSCredentialWatcher(ThriftServer* server)
   });
 }
 
+wangle::TLSTicketKeySeeds TLSCredentialWatcher::initInMemoryTicketSeeds(
+    ThriftServer* server) {
+  inMemoryTicketProcessor_ = wangle::TLSInMemoryTicketProcessor(
+      {[server](wangle::TLSTicketKeySeeds seeds) {
+        server->updateTicketSeeds(std::move(seeds));
+      }});
+  return inMemoryTicketProcessor_->initInMemoryTicketSeeds();
+}
+
 ThriftServer::ThriftServer()
-    : BaseThriftServer(),
+    : thriftConfig_(),
+      adaptiveConcurrencyController_{
+          apache::thrift::detail::makeAdaptiveConcurrencyConfig(),
+          thriftConfig_.getMaxRequests().getObserver(),
+          detail::getThriftServerConfig(*this)},
+      cpuConcurrencyController_{
+          makeCPUConcurrencyControllerConfigInternal(),
+          *this,
+          detail::getThriftServerConfig(*this)},
+      addresses_(1),
       wShutdownSocketSet_(folly::tryGetShutdownSocketSet()),
       lastRequestTime_(
           std::chrono::steady_clock::now().time_since_epoch().count()) {
@@ -252,7 +282,16 @@ ThriftServer::ThriftServer()
 }
 
 ThriftServer::ThriftServer(const ThriftServerInitialConfig& initialConfig)
-    : BaseThriftServer(initialConfig),
+    : thriftConfig_(initialConfig),
+      adaptiveConcurrencyController_{
+          apache::thrift::detail::makeAdaptiveConcurrencyConfig(),
+          thriftConfig_.getMaxRequests().getObserver(),
+          detail::getThriftServerConfig(*this)},
+      cpuConcurrencyController_{
+          detail::makeCPUConcurrencyControllerConfig(this),
+          *this,
+          detail::getThriftServerConfig(*this)},
+      addresses_(1),
       wShutdownSocketSet_(folly::tryGetShutdownSocketSet()),
       lastRequestTime_(
           std::chrono::steady_clock::now().time_since_epoch().count()) {
@@ -327,7 +366,9 @@ std::unique_ptr<RequestPileInterface> ThriftServer::makeStandardRequestPile(
 ThriftServer::~ThriftServer() {
   tracker_.reset();
 
-  SCOPE_EXIT { stopController_.join(); };
+  SCOPE_EXIT {
+    stopController_.join();
+  };
 
   if (stopWorkersOnStopListening_) {
     // Everything is already taken care of.
@@ -345,7 +386,14 @@ ThriftServer::~ThriftServer() {
 void ThriftServer::setProcessorFactory(
     std::shared_ptr<AsyncProcessorFactory> pFac) {
   CHECK(configMutable());
-  BaseThriftServer::setProcessorFactory(pFac);
+  cpp2Pfac_ = pFac;
+  applicationServerInterface_ = nullptr;
+  for (auto* serviceHandler : cpp2Pfac_->getServiceHandlers()) {
+    if (auto serverInterface = dynamic_cast<ServerInterface*>(serviceHandler)) {
+      applicationServerInterface_ = serverInterface;
+      break;
+    }
+  }
   thriftProcessor_.reset(new ThriftProcessor(*this));
 }
 
@@ -416,18 +464,18 @@ void ThriftServer::IdleServerAction::timeoutExpired() noexcept {
     const auto lastRequestTime = server_.lastRequestTime();
     const auto elapsed = std::chrono::steady_clock::now() - lastRequestTime;
     if (elapsed >= timeout_) {
-      LOG(INFO) << "shutting down server due to inactivity after "
-                << std::chrono::duration_cast<std::chrono::milliseconds>(
-                       elapsed)
-                       .count()
-                << "ms";
+      XLOG(INFO) << "shutting down server due to inactivity after "
+                 << std::chrono::duration_cast<std::chrono::milliseconds>(
+                        elapsed)
+                        .count()
+                 << "ms";
       server_.stop();
       return;
     }
 
     timer_.scheduleTimeout(this, timeout_);
   } catch (const std::exception& e) {
-    LOG(ERROR) << e.what();
+    XLOG(ERR) << e.what();
   }
 }
 
@@ -449,24 +497,26 @@ void ThriftServer::touchRequestTimestamp() noexcept {
 void ThriftServer::configureIOUring() {
 #ifdef HAS_IO_URING
   if (preferIoUring_) {
-    VLOG(1) << "Preferring io_uring";
+    XLOG_IF(INFO, infoLoggingEnabled_) << "Preferring io_uring";
     auto b = io_uring_util::validateExecutorSupportsIOUring(ioThreadPool_);
 
     if (!b) {
       if (!useDefaultIoUringExecutor_) {
-        VLOG(1)
+        XLOG_IF(INFO, infoLoggingEnabled_)
             << "Configured IOThreadPoolExecutor does not support io_uring, but default not selected. epoll will be used";
         usingIoUring_ = false;
         return;
       }
 
-      VLOG(1) << "Configured IOThreadPoolExecutor does not support io_uring, "
-                 "configuring default io_uring IOThreadPoolExecutor pool";
+      XLOG_IF(INFO, infoLoggingEnabled_)
+          << "Configured IOThreadPoolExecutor does not support io_uring, "
+             "configuring default io_uring IOThreadPoolExecutor pool";
       ioThreadPool_ = io_uring_util::getDefaultIOUringExecutor(
           THRIFT_FLAG(enable_io_queue_lag_detection));
       usingIoUring_ = true;
     } else {
-      VLOG(1) << "Configured IOThreadPoolExecutor supports io_uring";
+      XLOG_IF(INFO, infoLoggingEnabled_)
+          << "Configured IOThreadPoolExecutor supports io_uring";
       usingIoUring_ = true;
     }
   }
@@ -530,13 +580,6 @@ void ThriftServer::setup() {
   auto nWorkers = getNumIOWorkerThreads();
   DCHECK_GT(nWorkers, 0u);
 
-  addRoutingHandler(
-      std::make_unique<apache::thrift::RocketRoutingHandler>(*this));
-  if (!FLAGS_disable_legacy_header_routing_handler) {
-    addRoutingHandler(
-        std::make_unique<apache::thrift::LegacyHeaderRoutingHandler>(*this));
-  }
-
   // Initialize event base for this thread
   auto serveEventBase = eventBaseManager_->getEventBase();
   serveEventBase_ = serveEventBase;
@@ -548,6 +591,18 @@ void ThriftServer::setup() {
   // Print some libevent stats
   VLOG(1) << "libevent " << folly::EventBase::getLibeventVersion() << " method "
           << serveEventBase->getLibeventMethod();
+
+  switch (getEffectiveTicketSeedStrategy()) {
+    case EffectiveTicketSeedStrategy::IN_MEMORY_WITH_ROTATION:
+      fizzConfig_.supportedPskModes = {
+          fizz::PskKeyExchangeMode::psk_ke,
+          fizz::PskKeyExchangeMode::psk_dhe_ke};
+      scheduleInMemoryTicketSeeds();
+      break;
+    case EffectiveTicketSeedStrategy::IN_MEMORY:
+    case EffectiveTicketSeedStrategy::FILE:
+      break;
+  }
 
   try {
 #ifndef _WIN32
@@ -581,6 +636,20 @@ void ThriftServer::setup() {
     runtimeResourcePoolsChecks();
 
     setupThreadManager();
+
+    // Routing handlers may install custom Resource Pools to handle their
+    // requests, so they must be added after Resource Pool enablement status is
+    // solidified in setupThreadManager().
+    addRoutingHandler(
+        std::make_unique<apache::thrift::RocketRoutingHandler>(*this));
+    if (!FLAGS_disable_legacy_header_routing_handler) {
+      addRoutingHandler(
+          std::make_unique<apache::thrift::LegacyHeaderRoutingHandler>(*this));
+    }
+
+    // Ensure no further changes can be made to the set of ResourcePools
+    // currently installed
+    lockResourcePoolSet();
 
     ServerBootstrap::socketConfig.acceptBacklog = getListenBacklog();
     ServerBootstrap::socketConfig.maxNumPendingConnectionsPerWorker =
@@ -661,8 +730,8 @@ void ThriftServer::setup() {
           socket->setTosReflect(tosReflect_);
           socket->setListenerTos(listenerTos_);
         } catch (std::exception const& ex) {
-          LOG(ERROR) << "Got exception setting up TOS settings: "
-                     << folly::exceptionStr(ex);
+          XLOG(ERR) << "Got exception setting up TOS settings: "
+                    << folly::exceptionStr(ex);
         }
       });
     }
@@ -730,7 +799,7 @@ void ThriftServer::setup() {
 
   } catch (std::exception& ex) {
     // This block allows us to investigate the exception using gdb
-    LOG(ERROR) << "Got an exception while setting up the server: " << ex.what();
+    XLOG(ERR) << "Got an exception while setting up the server: " << ex.what();
     handleSetupFailure();
     throw;
   } catch (...) {
@@ -772,7 +841,7 @@ void ThriftServer::setupThreadManager() {
           THRIFT_FLAG(experimental_use_resource_pools),
           FLAGS_thrift_experimental_use_resource_pools,
           FLAGS_thrift_disable_resource_pools);
-      LOG(INFO)
+      XLOG_IF(INFO, infoLoggingEnabled_)
           << "Using thread manager (resource pools not enabled) on address/port "
           << getAddressAsString() << ": " << explanation;
       if (auto observer = getObserverShared()) {
@@ -845,7 +914,7 @@ void ThriftServer::setupThreadManager() {
                 std::move(threadInitializer_),
                 std::move(threadFinalizer_));
           } else {
-            LOG(FATAL)
+            XLOG(FATAL)
                 << "setThreadInit not supported without setThreadFactory";
           }
         }
@@ -873,16 +942,18 @@ void ThriftServer::setupThreadManager() {
           THRIFT_FLAG(experimental_use_resource_pools),
           FLAGS_thrift_experimental_use_resource_pools,
           FLAGS_thrift_disable_resource_pools);
-      LOG(INFO) << "Using resource pools on address/port "
-                << getAddressAsString() << ": " << explanation;
+      XLOG_IF(INFO, infoLoggingEnabled_)
+          << "Using resource pools on address/port " << getAddressAsString()
+          << ": " << explanation;
       if (auto observer = getObserverShared()) {
         observer->resourcePoolsEnabled(explanation);
       }
 
-      LOG(INFO) << "QPS limit will be enforced by "
-                << (FLAGS_thrift_server_enforces_qps_limit
-                        ? "the thrift server"
-                        : "the concurrency controller");
+      XLOG_IF(INFO, infoLoggingEnabled_)
+          << "QPS limit will be enforced by "
+          << (FLAGS_thrift_server_enforces_qps_limit
+                  ? "the thrift server"
+                  : "the concurrency controller");
 
       ensureResourcePools();
 
@@ -952,31 +1023,6 @@ void ThriftServer::setupThreadManager() {
       }
     });
   }
-
-  // After this point there should be no further changes to resource pools. We
-  // lock whether or not we are actually using them so that the checks on
-  // resourcePoolSet().empty() can be efficient.
-  resourcePoolSet().lock();
-
-  if (!resourcePoolSet().empty()) {
-    LOG(INFO) << "Resource pools (" << resourcePoolSet().size()
-              << "): " << resourcePoolSet().describe();
-
-    auto descriptions = resourcePoolSet().poolsDescriptions();
-    if (auto observer = getObserverShared()) {
-      observer->resourcePoolsInitialized(descriptions);
-    }
-
-    size_t count{0};
-    for (auto description : descriptions) {
-      LOG(INFO) << fmt::format("Resource pool [{}]: {}", count++, description);
-    }
-  }
-  if (FLAGS_thrift_server_enforces_qps_limit) {
-    LOG(INFO) << "QPS limit will be enforced by Thrift Server";
-  } else {
-    LOG(INFO) << "QPS limit will be enforced by Resource Pool";
-  }
 }
 
 namespace {
@@ -1041,7 +1087,7 @@ bool ThriftServer::runtimeResourcePoolsChecks() {
       FLAGS_thrift_disable_resource_pools;
   if (runtimeDisableResourcePoolsSet()) {
     // No need to check if we've already set this.
-    LOG(INFO)
+    XLOG_IF(INFO, infoLoggingEnabled_)
         << "runtimeResourcePoolsChecks() returns false because of runtimeDisableResourcePoolsSet()";
     return false;
   }
@@ -1049,7 +1095,7 @@ bool ThriftServer::runtimeResourcePoolsChecks() {
   // but note below that it can exit early.
   if (runtimeServerActions_.checkComplete) {
     auto result = !runtimeDisableResourcePoolsSet();
-    LOG(INFO)
+    XLOG_IF(INFO, infoLoggingEnabled_)
         << "runtimeResourcePoolsChecks() is already completed and result is "
         << result;
     return result;
@@ -1065,7 +1111,7 @@ bool ThriftServer::runtimeResourcePoolsChecks() {
       // setup() and if it calls runtimeDisableResourcePoolsDeprecated() at that
       // time that will become a fatal error which is what we want (that can
       // only be triggered by a requireResourcePools() call in the server code).
-      LOG(INFO)
+      XLOG_IF(INFO, infoLoggingEnabled_)
           << "It's too early to call runtimeResourcePoolsChecks(), returning True for now";
       return true;
     }
@@ -1089,7 +1135,8 @@ bool ThriftServer::runtimeResourcePoolsChecks() {
                     UNKNOWN ||
             !metadata.rpcKind || !metadata.priority) {
           // Disable resource pools if there is no service request info
-          LOG(INFO) << "Resource pools disabled. Incomplete metadata";
+          XLOG_IF(INFO, infoLoggingEnabled_)
+              << "Resource pools disabled. Incomplete metadata";
           runtimeServerActions_.noServiceRequestInfo = true;
           runtimeDisableResourcePoolsDeprecated();
         }
@@ -1100,8 +1147,9 @@ bool ThriftServer::runtimeResourcePoolsChecks() {
           if (!THRIFT_FLAG(enable_resource_pools_for_interaction)) {
             // We've found an interaction in this service. Mark it is
             // incompatible with resource pools
-            LOG(INFO) << "Resource pools disabled. Interaction on request "
-                      << methodToMetadataPtr.first;
+            XLOG_IF(INFO, infoLoggingEnabled_)
+                << "Resource pools disabled. Interaction on request "
+                << methodToMetadataPtr.first;
             runtimeDisableResourcePoolsDeprecated();
           }
         }
@@ -1122,7 +1170,8 @@ bool ThriftServer::runtimeResourcePoolsChecks() {
       // if a wildcard is not providing valid executor type
       // we should not turn on resource pool for it
       if (!wildcardFlagEnabled || !validExecutor) {
-        LOG(INFO) << "Resource pools disabled. Wildcard methods";
+        XLOG_IF(INFO, infoLoggingEnabled_)
+            << "Resource pools disabled. Wildcard methods";
         runtimeServerActions_.wildcardMethods = true;
         runtimeDisableResourcePoolsDeprecated();
       }
@@ -1137,22 +1186,24 @@ bool ThriftServer::runtimeResourcePoolsChecks() {
   runtimeServerActions_.checkComplete = true;
 
   if (runtimeDisableResourcePoolsSet()) {
-    LOG(INFO)
+    XLOG_IF(INFO, infoLoggingEnabled_)
         << "runtimeResourcePoolsChecks() returns false because of runtimeDisableResourcePoolsSet()";
     return false;
   }
-  LOG(INFO) << "Resource pools check complete - allowed";
+  XLOG_IF(INFO, infoLoggingEnabled_)
+      << "Resource pools check complete - allowed";
   return true;
 }
 
 void ThriftServer::ensureResourcePools() {
   auto resourcePoolSupplied = !resourcePoolSet().empty();
   if (resourcePoolSupplied) {
-    LOG(INFO) << "Resource pools supplied: " << resourcePoolSet().size();
+    XLOG_IF(INFO, infoLoggingEnabled_)
+        << "Resource pools supplied: " << resourcePoolSet().size();
   }
 
   if (!resourcePoolSet().hasResourcePool(ResourcePoolHandle::defaultSync())) {
-    LOG(INFO) << "Creating a default sync pool";
+    XLOG_IF(INFO, infoLoggingEnabled_) << "Creating a default sync pool";
     // Ensure there is a sync resource pool.
     resourcePoolSet().setResourcePool(
         ResourcePoolHandle::defaultSync(),
@@ -1165,7 +1216,7 @@ void ThriftServer::ensureResourcePools() {
   if (resourcePoolSupplied) {
     if (!resourcePoolSet().hasResourcePool(
             ResourcePoolHandle::defaultAsync())) {
-      LOG(INFO)
+      XLOG_IF(INFO, infoLoggingEnabled_)
           << "Default async pool is NOT supplied, creating a default async pool";
       auto threadFactory = [this]() -> std::shared_ptr<folly::ThreadFactory> {
         auto prefix = getThreadNameForPriority(
@@ -1328,7 +1379,8 @@ void ThriftServer::ensureResourcePools() {
         break;
       }
       default: {
-        LOG(FATAL) << "Unexpected ThreadMangerType:" << int(threadManagerType_);
+        XLOG(FATAL) << "Unexpected ThreadMangerType:"
+                    << int(threadManagerType_);
       }
     }
     for (const auto& pool : pools) {
@@ -1377,12 +1429,45 @@ void ThriftServer::ensureResourcePools() {
   }
 }
 
+void ThriftServer::lockResourcePoolSet() {
+  // After this point there should be no further changes to resource pools. We
+  // lock whether or not we are actually using them so that the checks on
+  // resourcePoolSet().empty() can be efficient.
+  resourcePoolSet().lock();
+
+  if (!resourcePoolSet().empty()) {
+    XLOG_IF(INFO, infoLoggingEnabled_)
+        << "Resource pools (" << resourcePoolSet().size()
+        << "): " << resourcePoolSet().describe();
+
+    auto descriptions = resourcePoolSet().poolsDescriptions();
+    if (auto observer = getObserverShared()) {
+      observer->resourcePoolsInitialized(descriptions);
+    }
+
+    size_t count{0};
+    for (auto description : descriptions) {
+      XLOG_IF(INFO, infoLoggingEnabled_)
+          << fmt::format("Resource pool [{}]: {}", count++, description);
+    }
+  }
+  if (FLAGS_thrift_server_enforces_qps_limit) {
+    XLOG_IF(INFO, infoLoggingEnabled_)
+        << "QPS limit will be enforced by Thrift Server";
+  } else {
+    XLOG_IF(INFO, infoLoggingEnabled_)
+        << "QPS limit will be enforced by Resource Pool";
+  }
+}
+
 /**
  * Loop and accept incoming connections.
  */
 void ThriftServer::serve() {
   setup();
-  SCOPE_EXIT { this->cleanUp(); };
+  SCOPE_EXIT {
+    this->cleanUp();
+  };
 
   auto sslContextConfigCallbackHandle = sslContextObserver_
       ? getSSLCallbackHandle()
@@ -1473,7 +1558,9 @@ void ThriftServer::stopListening() {
   {
     auto sockets = getSockets();
     folly::Baton<> done;
-    SCOPE_EXIT { done.wait(); };
+    SCOPE_EXIT {
+      done.wait();
+    };
     std::shared_ptr<folly::Baton<>> doneGuard(
         &done, [](folly::Baton<>* done) { done->post(); });
 
@@ -1533,7 +1620,9 @@ void ThriftServer::stopAcceptingAndJoinOutstandingRequests() {
   {
     auto sockets = getSockets();
     folly::Baton<> done;
-    SCOPE_EXIT { done.wait(); };
+    SCOPE_EXIT {
+      done.wait();
+    };
     std::shared_ptr<folly::Baton<>> doneGuard(
         &done, [](folly::Baton<>* done) { done->post(); });
 
@@ -1572,8 +1661,8 @@ void ThriftServer::stopAcceptingAndJoinOutstandingRequests() {
                 .via(folly::getKeepAliveToken(dumpSnapshotExecutor))
                 .get(dumpSnapshotResult.timeout);
           } catch (...) {
-            LOG(ERROR) << "Failed to dump server snapshot on long shutdown: "
-                       << folly::exceptionStr(std::current_exception());
+            XLOG(ERR) << "Failed to dump server snapshot on long shutdown: "
+                      << folly::exceptionStr(folly::current_exception());
           }
         }
 
@@ -1584,7 +1673,7 @@ void ThriftServer::stopAcceptingAndJoinOutstandingRequests() {
             "terminated, long running requests, or long queues that could "
             "not be fully processed.";
         if (quickExitOnShutdownTimeout_) {
-          LOG(ERROR) << fmt::format(
+          XLOG(ERR) << fmt::format(
               msgTemplate,
               getWorkersJoinTimeout().count(),
               "quick_exiting (no coredump)");
@@ -1592,7 +1681,7 @@ void ThriftServer::stopAcceptingAndJoinOutstandingRequests() {
           try_quick_exit(124);
         }
         if (FLAGS_thrift_abort_if_exceeds_shutdown_deadline) {
-          LOG(FATAL) << fmt::format(
+          XLOG(FATAL) << fmt::format(
               msgTemplate, getWorkersJoinTimeout().count(), "Aborting");
         }
       }
@@ -1624,6 +1713,17 @@ void ThriftServer::ensureProcessedServiceDescriptionInitialized() {
 }
 
 void ThriftServer::callOnStartServing() {
+#if FOLLY_HAS_COROUTINES
+  {
+    ServiceInterceptorBase::InitParams initParams;
+    std::vector<folly::coro::Task<void>> tasks;
+    for (const auto& info : getServiceInterceptors()) {
+      tasks.emplace_back(info.interceptor->co_onStartServing(initParams));
+    }
+    folly::coro::blockingWait(folly::coro::collectAllRange(std::move(tasks)));
+  }
+#endif // FOLLY_HAS_COROUTINES
+
   auto handlerList = collectServiceHandlers();
   // Exception is handled in setup()
   std::vector<folly::SemiFuture<folly::Unit>> futures;
@@ -1638,8 +1738,8 @@ void ThriftServer::callOnStartServing() {
       folly::collectAll(futures).via(getHandlerExecutorKeepAlive()).get();
   for (auto& result : results) {
     if (result.hasException()) {
-      LOG(FATAL) << "Exception thrown by onStartServing(): "
-                 << folly::exceptionStr(result.exception());
+      XLOG(FATAL) << "Exception thrown by onStartServing(): "
+                  << folly::exceptionStr(result.exception());
     }
   }
 }
@@ -1660,8 +1760,8 @@ void ThriftServer::callOnStopRequested() {
       folly::collectAll(futures).via(getHandlerExecutorKeepAlive()).get();
   for (auto& result : results) {
     if (result.hasException()) {
-      LOG(FATAL) << "Exception thrown by onStopRequested(): "
-                 << folly::exceptionStr(result.exception());
+      XLOG(FATAL) << "Exception thrown by onStopRequested(): "
+                  << folly::exceptionStr(result.exception());
     }
   }
 }
@@ -1758,7 +1858,7 @@ void ThriftServer::updateTLSCert() {
         return;
       }
       evb->runInEventBaseThread(
-          [acceptor] { acceptor->resetSSLContextConfigs(); });
+          [acceptor] { acceptor->reloadSSLContextConfigs(); });
     });
   }
 }
@@ -1779,6 +1879,9 @@ void ThriftServer::updateCertsToWatch() {
     }
     if (sslContext.clientCAFiles.empty()) {
       certPaths.insert(sslContext.clientCAFile);
+    }
+    for (auto& dc : sslContext.delegatedCredentials) {
+      certPaths.insert(dc.combinedCertPath);
     }
   }
   tlsCredWatcher_.withWLock([this, &certPaths](auto& credWatcher) {
@@ -1802,17 +1905,41 @@ void ThriftServer::watchTicketPathForChanges(const std::string& ticketPath) {
   });
 }
 
-PreprocessResult ThriftServer::preprocess(
-    const PreprocessParams& params) const {
-  const auto& method = params.method;
-  if (preprocess_ && !getMethodsBypassMaxRequestsLimit().contains(method)) {
-    return preprocess_(params);
+EffectiveTicketSeedStrategy ThriftServer::getEffectiveTicketSeedStrategy()
+    const {
+  bool readFromFile = tlsCredWatcher_.withRLock([](auto& credWatcher) {
+    return credWatcher && credWatcher->hasTicketPathToWatch();
+  });
+  if (readFromFile) {
+    return EffectiveTicketSeedStrategy::FILE;
   }
-  return {};
+  if (!THRIFT_FLAG(enable_rotation_for_in_memory_ticket_seeds)) {
+    return EffectiveTicketSeedStrategy::IN_MEMORY;
+  }
+  return EffectiveTicketSeedStrategy::IN_MEMORY_WITH_ROTATION;
 }
 
-folly::Optional<server::ServerConfigs::ErrorCodeAndMessage>
-ThriftServer::checkOverload(
+void ThriftServer::scheduleInMemoryTicketSeeds() {
+  wangle::TLSTicketKeySeeds seeds;
+  tlsCredWatcher_.withWLock([this, &seeds](auto& credWatcher) {
+    if (!credWatcher) {
+      credWatcher.emplace(this);
+    }
+    seeds = credWatcher->initInMemoryTicketSeeds(this);
+  });
+  setTicketSeeds(std::move(seeds));
+}
+
+PreprocessResult ThriftServer::preprocess(
+    const PreprocessParams& params) const {
+  if (getMethodsBypassMaxRequestsLimit().contains(params.method)) {
+    return {};
+  }
+
+  return preprocessFunctions_.run(params);
+}
+
+folly::Optional<OverloadResult> ThriftServer::checkOverload(
     const transport::THeader::StringToStringMap* readHeaders,
     const std::string* method) {
   if (UNLIKELY(
@@ -1820,9 +1947,12 @@ ThriftServer::checkOverload(
           (method == nullptr ||
            !getMethodsBypassMaxRequestsLimit().contains(*method)) &&
           isOverloaded_(readHeaders, method))) {
-    return {std::make_pair(
+    return OverloadResult{
         kAppOverloadedErrorCode,
-        "load shedding due to custom isOverloaded() callback")};
+        fmt::format(
+            "Host {} is load shedding due to custom isOverloaded() callback.",
+            getAddressAsString()),
+        LoadShedder::CUSTOM};
   }
 
   // If active request tracking is disabled or we are using resource pools,
@@ -1835,9 +1965,17 @@ ThriftServer::checkOverload(
         (method == nullptr ||
          !getMethodsBypassMaxRequestsLimit().contains(*method)) &&
         static_cast<uint32_t>(getActiveRequests()) >= maxRequests) {
-      getCPUConcurrencyController().requestShed();
-      return {std::make_pair(
-          kOverloadedErrorCode, "load shedding due to max request limit")};
+      LoadShedder loadShedder = LoadShedder::MAX_REQUESTS;
+      if (getCPUConcurrencyController().requestShed(
+              CPUConcurrencyController::Method::MAX_REQUESTS)) {
+        loadShedder = LoadShedder::CPU_CONCURRENCY_CONTROLLER;
+      } else if (getAdaptiveConcurrencyController().enabled()) {
+        loadShedder = LoadShedder::ADAPTIVE_CONCURRENCY_CONTROLLER;
+      }
+      return OverloadResult{
+          kOverloadedErrorCode,
+          "load shedding due to max request limit",
+          loadShedder};
     }
   }
 
@@ -1846,12 +1984,31 @@ ThriftServer::checkOverload(
       (method == nullptr ||
        !getMethodsBypassMaxRequestsLimit().contains(*method)) &&
       !qpsTokenBucket_.consume(1.0, maxQps, maxQps)) {
-    getCPUConcurrencyController().requestShed();
-    return {
-        std::make_pair(kOverloadedErrorCode, "load shedding due to qps limit")};
+    LoadShedder loadShedder = LoadShedder::MAX_QPS;
+    if (getCPUConcurrencyController().requestShed(
+            CPUConcurrencyController::Method::MAX_QPS)) {
+      loadShedder = LoadShedder::CPU_CONCURRENCY_CONTROLLER;
+    }
+    return OverloadResult{
+        kOverloadedErrorCode, "load shedding due to qps limit", loadShedder};
   }
 
   return {};
+}
+
+int64_t ThriftServer::getLoad(
+    const std::string& counter, bool check_custom) const {
+  if (check_custom && getLoad_) {
+    return getLoad_(counter);
+  }
+
+  const auto activeRequests = getActiveRequests();
+
+  if (VLOG_IS_ON(1)) {
+    FB_LOG_EVERY_MS(INFO, 1000 * 10) << getLoadInfo(activeRequests);
+  }
+
+  return activeRequests;
 }
 
 std::string ThriftServer::getLoadInfo(int64_t load) const {
@@ -2065,6 +2222,10 @@ folly::observer::Observer<bool> ThriftServer::enforceTLSCertRevocation() {
   return THRIFT_FLAG_OBSERVE(enforce_mrl_check_for_thrift_server);
 }
 
+folly::observer::Observer<bool> ThriftServer::enableReceivingDelegatedCreds() {
+  return THRIFT_FLAG_OBSERVE(server_fizz_enable_receiving_dc);
+}
+
 folly::observer::CallbackHandle ThriftServer::getSSLCallbackHandle() {
   auto originalPid = folly::get_cached_pid();
 
@@ -2094,12 +2255,9 @@ folly::observer::CallbackHandle ThriftServer::getSSLCallbackHandle() {
         if (!evb) {
           return;
         }
-        evb->runInEventBaseThread([acceptor, ssl] {
-          for (auto& sslContext : acceptor->getConfig().sslContextConfigs) {
-            sslContext = *ssl;
-          }
-          acceptor->resetSSLContextConfigs();
-        });
+
+        evb->runInEventBaseThread(
+            [acceptor, ssl] { acceptor->resetSSLContextConfigs({*ssl}); });
       });
     }
     this->updateCertsToWatch();
@@ -2172,6 +2330,15 @@ folly::observer::Observer<bool> ThriftServer::enableAegis() {
   return THRIFT_FLAG_OBSERVE(server_fizz_enable_aegis);
 }
 
+folly::observer::Observer<bool> ThriftServer::preferPskKe() {
+  return THRIFT_FLAG_OBSERVE(server_fizz_prefer_psk_ke);
+}
+
+folly::observer::Observer<bool>
+ThriftServer::enablePresentingDelegatedCredentials() {
+  return THRIFT_FLAG_OBSERVE(server_fizz_enable_presenting_dc);
+}
+
 serverdbginfo::ResourcePoolsDbgInfo ThriftServer::getResourcePoolsDbgInfo()
     const {
   if (!resourcePoolEnabled()) {
@@ -2195,5 +2362,173 @@ serverdbginfo::ResourcePoolsDbgInfo ThriftServer::getResourcePoolsDbgInfo()
   return info;
 }
 
+folly::observer::Observer<CPUConcurrencyController::Config>
+ThriftServer::makeCPUConcurrencyControllerConfigInternal() {
+  return folly::observer::makeObserver(
+      [mockConfig = mockCPUConcurrencyControllerConfig_.getObserver(),
+       config = detail::makeCPUConcurrencyControllerConfig(
+           this)]() -> CPUConcurrencyController::Config {
+        if (auto config_2 = **mockConfig) {
+          return *config_2;
+        }
+        return **config;
+      });
+}
+
+void ThriftServer::CumulativeFailureInjection::set(const FailureInjection& fi) {
+  CHECK_GE(fi.errorFraction, 0);
+  CHECK_GE(fi.dropFraction, 0);
+  CHECK_GE(fi.disconnectFraction, 0);
+  CHECK_LE(fi.errorFraction + fi.dropFraction + fi.disconnectFraction, 1);
+
+  std::lock_guard lock(mutex_);
+  errorThreshold_ = fi.errorFraction;
+  dropThreshold_ = errorThreshold_ + fi.dropFraction;
+  disconnectThreshold_ = dropThreshold_ + fi.disconnectFraction;
+  empty_.store((disconnectThreshold_ == 0), std::memory_order_relaxed);
+}
+
+ThriftServer::InjectedFailure ThriftServer::CumulativeFailureInjection::test()
+    const {
+  if (empty_.load(std::memory_order_relaxed)) {
+    return InjectedFailure::NONE;
+  }
+
+  static folly::ThreadLocalPtr<std::mt19937> rng;
+  if (!rng) {
+    rng.reset(new std::mt19937(folly::randomNumberSeed()));
+  }
+
+  std::uniform_real_distribution<float> dist(0, 1);
+  float val = dist(*rng);
+
+  std::shared_lock lock(mutex_);
+  if (val <= errorThreshold_) {
+    return InjectedFailure::ERROR;
+  } else if (val <= dropThreshold_) {
+    return InjectedFailure::DROP;
+  } else if (val <= disconnectThreshold_) {
+    return InjectedFailure::DISCONNECT;
+  }
+  return InjectedFailure::NONE;
+}
+
+std::string ThriftServer::RuntimeServerActions::explain() const {
+  std::string result;
+  result = std::string(userSuppliedThreadManager ? "setThreadManager, " : "") +
+      (userSuppliedResourcePools ? "userSuppliedResourcePools, " : "") +
+      (interactionInService ? "interactionInService, " : "") +
+      (wildcardMethods ? "wildcardMethods, " : "") +
+      (noServiceRequestInfo ? "noServiceRequestInfo, " : "") +
+      (activeRequestTrackingDisabled ? "activeRequestTrackingDisabled, " : "") +
+      (setPreprocess ? "setPreprocess, " : "") +
+      (setIsOverloaded ? "setIsOverloaded, " : "") +
+      (codelEnabled ? "codelEnabled, " : "") +
+      (setupThreadManagerBeforeHandler ? "setupThreadManagerBeforeHandler, "
+                                       : "") +
+      (!resourcePoolFlagSet ? "thriftFlagNotSet, " : "");
+  return result;
+}
+
+/* static */ ThriftServer::ProcessedModuleSet
+ThriftServer::processModulesSpecification(ModulesSpecification&& specs) {
+  ProcessedModuleSet result;
+
+  for (auto& info : specs.infos) {
+    std::vector<std::shared_ptr<TProcessorEventHandler>> legacyEventHandlers =
+        info.module->getLegacyEventHandlers();
+    std::vector<std::shared_ptr<server::TServerEventHandler>>
+        legacyServerEventHandlers = info.module->getLegacyServerEventHandlers();
+
+    result.coalescedLegacyEventHandlers.insert(
+        result.coalescedLegacyEventHandlers.end(),
+        std::make_move_iterator(legacyEventHandlers.begin()),
+        std::make_move_iterator(legacyEventHandlers.end()));
+    result.coalescedLegacyServerEventHandlers.insert(
+        result.coalescedLegacyServerEventHandlers.end(),
+        std::make_move_iterator(legacyServerEventHandlers.begin()),
+        std::make_move_iterator(legacyServerEventHandlers.end()));
+
+#if FOLLY_HAS_COROUTINES
+    std::vector<std::shared_ptr<ServiceInterceptorBase>> serviceInterceptors =
+        info.module->getServiceInterceptors();
+
+    for (auto& interceptor : serviceInterceptors) {
+      auto qualifiedName =
+          fmt::format("{}.{}", info.name, interceptor->getName());
+      if (std::find_if(
+              result.coalescedServiceInterceptors.begin(),
+              result.coalescedServiceInterceptors.end(),
+              [&](const ServiceInterceptorInfo& serviceInterceptorInfo)
+                  -> bool {
+                return qualifiedName == serviceInterceptorInfo.qualifiedName;
+              }) != result.coalescedServiceInterceptors.end()) {
+        throw std::logic_error(
+            fmt::format("Duplicate ServiceInterceptor: {}", qualifiedName));
+      }
+      result.coalescedServiceInterceptors.emplace_back(ServiceInterceptorInfo{
+          std::move(qualifiedName), std::move(interceptor)});
+    }
+#endif // FOLLY_HAS_COROUTINES
+
+    result.modules.emplace_back(std::move(info));
+  }
+
+  return result;
+}
+
+bool ThriftServer::getTaskExpireTimeForRequest(
+    const apache::thrift::transport::THeader& requestHeader,
+    std::chrono::milliseconds& queueTimeout,
+    std::chrono::milliseconds& taskTimeout) const {
+  return getTaskExpireTimeForRequest(
+      requestHeader.getClientQueueTimeout(),
+      requestHeader.getClientTimeout(),
+      queueTimeout,
+      taskTimeout);
+}
+
+bool ThriftServer::getTaskExpireTimeForRequest(
+    std::chrono::milliseconds clientQueueTimeoutMs,
+    std::chrono::milliseconds clientTimeoutMs,
+    std::chrono::milliseconds& queueTimeout,
+    std::chrono::milliseconds& taskTimeout) const {
+  taskTimeout = getTaskExpireTime();
+
+  // Client side always take precedence in deciding queue_timetout.
+  queueTimeout = clientQueueTimeoutMs;
+  if (queueTimeout == std::chrono::milliseconds(0)) {
+    queueTimeout = getQueueTimeout();
+  }
+  auto useClientTimeout = getUseClientTimeout() && clientTimeoutMs.count() >= 0;
+  // If queue timeout was set to 0 explicitly, this request has opt-out of queue
+  // timeout.
+  if (queueTimeout != std::chrono::milliseconds(0)) {
+    auto queueTimeoutPct = getQueueTimeoutPct();
+    // If queueTimeoutPct was set, we use it to calculate another queue timeout
+    // based on client timeout. And then use the max of the explicite setting
+    // and inferenced queue timeout.
+    if (queueTimeoutPct > 0 && queueTimeoutPct < 100 && useClientTimeout) {
+      queueTimeout =
+          max(queueTimeout,
+              std::chrono::milliseconds(
+                  (clientTimeoutMs.count() * queueTimeoutPct / 100)));
+    }
+  }
+
+  if (taskTimeout != std::chrono::milliseconds(0) && useClientTimeout) {
+    // we add 10% to the client timeout so that the request is much more likely
+    // to timeout on the client side than to read the timeout from the server
+    // as a TApplicationException (which can be confusing)
+    taskTimeout =
+        std::chrono::milliseconds((uint32_t)(clientTimeoutMs.count() * 1.1));
+  }
+  // Queue timeout shouldn't be greater than task timeout
+  if (taskTimeout < queueTimeout &&
+      taskTimeout != std::chrono::milliseconds(0)) {
+    queueTimeout = taskTimeout;
+  }
+  return queueTimeout != taskTimeout;
+}
 } // namespace thrift
 } // namespace apache

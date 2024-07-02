@@ -1,6 +1,6 @@
 {{!
 
-  Copyright (c) Meta Platforms, Inc. and its affiliates.
+  Copyright (c) Meta Platforms, Inc. and affiliates.
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -18,6 +18,9 @@
 // This file is probably not the place you want to edit!
 
 
+{{#program:include_docs}}
+#![doc = include_str!("{{.}}")]
+{{/program:include_docs}}
 {{#program:docs?}}
 #![doc = {{program:docs}}]
 {{/program:docs?}}
@@ -35,7 +38,7 @@ extern crate serde;
 {{/program:serde?}}{{!
 
 }}{{#program:types_include_srcs}}
-include!("{{program:include_src}}");
+include!("{{.}}");
 {{/program:types_include_srcs}}{{!
 
 }}
@@ -49,8 +52,6 @@ pub use self::consts::*;
 pub mod services;
 
 {{/program:services?}}
-pub mod errors;
-
 {{! Allows lib/type.mustache to use `crate::types::Type` regardless of which crate it's called from }}
 #[allow(unused_imports)]
 pub(crate) use {{program:crate}} as types;
@@ -96,6 +97,30 @@ mod dot_dot {{>lib/block}}{{!
 }{{!
 }}{{/program:nonexhaustiveStructs?}}
 
+{{#program:any?}}
+pub fn init_registry(registry: &mut ::fbthrift_conformance::AnyRegistry) -> ::anyhow::Result<bool> {
+{{#program:structs}}
+    registry.register_type::<{{struct:rust_name}}>()?;
+{{/program:structs}}
+
+    Ok(true)
+}
+
+{{/program:any?}}{{!
+
+}}
 pub(crate) mod r#impl {{>lib/block}}{{>lib/mod.impl}}}
 {{!
 }}{{#program:has_default_tests?}}{{>lib/adapter/default_test}}{{/program:has_default_tests?}}
+{{#program:direct_dependencies?}}
+
+#[doc(hidden)]
+#[deprecated]
+pub mod __dependencies {
+    {{#program:direct_dependencies}}
+    #[doc(hidden)]
+    #[deprecated{{#dependency:label}} = "Please use `{{.}}` directly"{{/dependency:label}}]
+    pub extern crate {{dependency:name}};
+    {{/program:direct_dependencies}}
+}
+{{/program:direct_dependencies?}}

@@ -40,7 +40,8 @@ from libcpp.utility cimport move as cmove
 from cython.operator cimport dereference as deref, typeid
 from cpython.ref cimport PyObject
 from thrift.py3.client cimport cRequestChannel_ptr, makeClientWrapper, cClientWrapper
-from thrift.py3.exceptions cimport try_make_shared_exception, create_py_exception
+from thrift.py3.exceptions cimport try_make_shared_exception
+from thrift.python.exceptions cimport create_py_exception
 from folly cimport cFollyTry, cFollyUnit, c_unit
 from folly.cast cimport down_cast_ptr
 from libcpp.typeinfo cimport type_info
@@ -49,7 +50,7 @@ cimport thrift.py3.types
 from thrift.py3.types cimport make_unique
 import thrift.py3.client
 cimport thrift.py3.client
-from thrift.py3.common cimport (
+from thrift.python.common cimport (
     RpcOptions as __RpcOptions,
     cThriftServiceMetadataResponse as __fbthrift_cThriftServiceMetadataResponse,
     ServiceMetadata,
@@ -83,13 +84,14 @@ import {{#includeNamespace}}{{value}}.{{/includeNamespace}}clients as _{{#includ
 {{/hasServices?}}
 {{/program:includeNamespaces}}
 
+import {{#program:py3Namespaces}}{{value}}.{{/program:py3Namespaces}}{{program:name}}.services_reflection as _services_reflection
 cimport {{#program:py3Namespaces}}{{value}}.{{/program:py3Namespaces}}{{program:name}}.services_reflection as _services_reflection
 
 {{#program:services}}
 from {{#program:py3Namespaces}}{{value}}.{{/program:py3Namespaces}}{{program:name}}.clients_wrapper cimport c{{service:name}}AsyncClient, c{{service:name}}ClientWrapper
-{{#service:interactions}}
+{{#service:supportedInteractions}}
 from {{#program:py3Namespaces}}{{value}}.{{/program:py3Namespaces}}{{program:name}}.clients_wrapper cimport c{{service:parent_service_name}}ClientWrapper_{{service:name}}InteractionWrapper
-{{/service:interactions}}
+{{/service:supportedInteractions}}
 {{#service:extends}}
 {{#service:externalProgram?}}
 from {{#service:py3Namespaces}}{{value}}.{{/service:py3Namespaces}}{{service:programName}}.clients_wrapper cimport c{{service:name}}ClientWrapper
@@ -168,7 +170,7 @@ cdef class {{service:name}}({{#service:extends}}{{#service:externalProgram?}}{{!
 
 {{/service:supportedFunctions}}
 
-{{#service:interactions}}
+{{#service:supportedInteractions}}
     def create{{service:name}}(
             {{service:parent_service_name}} self
     ):
@@ -181,7 +183,12 @@ cdef class {{service:name}}({{#service:extends}}{{#service:externalProgram?}}{{!
         )
         return interaction
 
-{{/service:interactions}}
+    async def async_create{{service:name}}(
+            {{service:parent_service_name}} self
+    ):
+        return self.create{{service:name}}()
+
+{{/service:supportedInteractions}}
     @classmethod
     def __get_reflection__(cls):
         return _services_reflection.get_reflection__{{service:name}}(for_clients=True)
@@ -196,7 +203,7 @@ cdef class {{service:name}}({{#service:extends}}{{#service:externalProgram?}}{{!
     def __get_thrift_name__():
         return "{{program:name}}.{{service:name}}"
 
-{{#service:interactions}}
+{{#service:supportedInteractions}}
 @cython.auto_pickle(False)
 cdef class {{service:parent_service_name}}_{{service:name}}({{#service:extends}}{{#service:externalProgram?}}{{!
     }}_{{#service:py3Namespaces}}{{value}}_{{/service:py3Namespaces}}{{!
@@ -249,5 +256,5 @@ cdef class {{service:parent_service_name}}_{{service:name}}({{#service:extends}}
 {{^service:supportedFunctions}}
     pass
 {{/service:supportedFunctions}}
-{{/service:interactions}}
+{{/service:supportedInteractions}}
 {{/program:services}}

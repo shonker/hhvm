@@ -82,7 +82,7 @@ pub(crate) fn emit_wrapper_function<'a, 'd>(
     let params = emit_param::from_asts(emitter, &mut tparams, true, &scope, &f.params)?;
     let mut attributes = emit_attribute::from_asts(emitter, &f.user_attributes)?;
     attributes.extend(emit_attribute::add_reified_attribute(&fd.tparams));
-    let return_type_info = emit_body::emit_return_type_info(
+    let return_type = emit_body::emit_return_type(
         &tparams,
         f.fun_kind.is_fasync(), /* skip_awaitable */
         f.ret.1.as_ref(),
@@ -91,18 +91,16 @@ pub(crate) fn emit_wrapper_function<'a, 'd>(
         .tparams
         .iter()
         .any(|tp| tp.reified.is_reified() || tp.reified.is_soft_reified());
+    let coeffects = Coeffects::from_ast(f.ctxs.as_ref(), &f.params, &fd.tparams, vec![]);
     let should_emit_implicit_context = hhbc::is_keyed_by_ic_memoize(attributes.iter());
-    let is_make_ic_inaccessible_memoize = hhbc::is_make_ic_inaccessible_memoize(attributes.iter());
-    let is_soft_make_ic_inaccessible_memoize =
-        hhbc::is_soft_make_ic_inaccessible_memoize(attributes.iter());
-    let should_make_ic_inaccessible =
-        if is_make_ic_inaccessible_memoize || is_soft_make_ic_inaccessible_memoize {
-            Some(is_soft_make_ic_inaccessible_memoize)
-        } else {
-            None
-        };
+
+    // This fn either has IC unoptimizable static coeffects, or has any dynamic coeffects
+    let has_ic_unoptimizable_coeffects: bool = coeffects.has_ic_unoptimizable_coeffects();
+    let should_make_ic_inaccessible: bool =
+        !should_emit_implicit_context && has_ic_unoptimizable_coeffects;
+
     let mut env = Env::default(Arc::clone(&fd.namespace)).with_scope(scope);
-    let (body_instrs, decl_vars) = make_memoize_function_code(
+    let (instrs, decl_vars) = make_memoize_function_code(
         emitter,
         &mut env,
         &f.span,
@@ -115,29 +113,26 @@ pub(crate) fn emit_wrapper_function<'a, 'd>(
         should_emit_implicit_context,
         should_make_ic_inaccessible,
     )?;
-    let coeffects = Coeffects::from_ast(f.ctxs.as_ref(), &f.params, &fd.tparams, vec![]);
-    let body = make_wrapper_body(
+    let mut body = make_wrapper_body(
         emitter,
         env,
-        return_type_info,
+        return_type,
+        attributes,
+        coeffects,
         params,
         decl_vars,
-        body_instrs,
+        instrs,
         Span::from_pos(&f.span),
     )?;
 
     let mut flags = FunctionFlags::empty();
     flags.set(FunctionFlags::ASYNC, f.fun_kind.is_fasync());
-    let has_variadic = emit_param::has_variadic(&body.params);
-    let attrs = get_attrs_for_fun(emitter, fd, &attributes, false, has_variadic);
-
+    let has_variadic = emit_param::has_variadic(&body.repr.params);
+    body.attrs = get_attrs_for_fun(emitter, fd, &body.attributes, false, has_variadic);
     Ok(Function {
-        attributes: attributes.into(),
         name: original_id,
         body,
-        coeffects,
         flags,
-        attrs,
     })
 }
 
@@ -152,7 +147,7 @@ fn make_memoize_function_code<'a, 'd>(
     is_async: bool,
     is_reified: bool,
     should_emit_implicit_context: bool,
-    should_make_ic_inaccessible: Option<bool>,
+    should_make_ic_inaccessible: bool,
 ) -> Result<(InstrSeq, Vec<StringId>)> {
     let (fun, decl_vars) = if hhas_params.is_empty() && !is_reified && !should_emit_implicit_context
     {
@@ -193,7 +188,7 @@ fn make_memoize_function_with_params_code<'a, 'd>(
     is_async: bool,
     is_reified: bool,
     should_emit_implicit_context: bool,
-    should_make_ic_inaccessible: Option<bool>,
+    should_make_ic_inaccessible: bool,
 ) -> Result<(InstrSeq, Vec<StringId>)> {
     let param_count = hhas_params.len();
     let notfound = e.label_gen_mut().next_regular();
@@ -262,7 +257,6 @@ fn make_memoize_function_with_params_code<'a, 'd>(
         begin_label,
         emit_body::emit_method_prolog(e, env, pos, hhas_params, ast_params, &[])?,
         deprecation_body,
-        instr::verify_implicit_context_state(),
         emit_memoize_helpers::param_code_sets(hhas_params.len(), Local::new(first_unnamed_idx)),
         reified_memokeym,
         ic_memokey,
@@ -310,7 +304,7 @@ fn make_memoize_function_no_params_code<'a, 'd>(
     deprecation_info: Option<&[TypedValue]>,
     renamed_id: hhbc::FunctionName,
     is_async: bool,
-    should_make_ic_inaccessible: Option<bool>,
+    should_make_ic_inaccessible: bool,
 ) -> Result<(InstrSeq, Vec<StringId>)> {
     let notfound = e.label_gen_mut().next_regular();
     let suspended_get = e.label_gen_mut().next_regular();
@@ -329,7 +323,6 @@ fn make_memoize_function_no_params_code<'a, 'd>(
     let ic_stash_local = Local::new(0);
     let instrs = InstrSeq::gather(vec![
         deprecation_body,
-        instr::verify_implicit_context_state(),
         if is_async {
             InstrSeq::gather(vec![
                 instr::memo_get_eager(notfound, suspended_get, LocalRange::EMPTY),
@@ -371,22 +364,27 @@ fn make_memoize_function_no_params_code<'a, 'd>(
 fn make_wrapper_body<'a, 'd>(
     emitter: &mut Emitter<'d>,
     env: Env<'a>,
-    return_type_info: TypeInfo,
+    return_type: TypeInfo,
+    attributes: Vec<Attribute>,
+    coeffects: Coeffects,
     params: Vec<(Param, Option<(Label, ast::Expr)>)>,
     decl_vars: Vec<StringId>,
-    body_instrs: InstrSeq,
+    instrs: InstrSeq,
     span: Span,
 ) -> Result<Body> {
     emit_body::make_body(
         emitter,
-        body_instrs,
+        instrs,
         decl_vars,
         true,   /* is_memoize_wrapper */
         false,  /* is_memoize_wrapper_lsb */
         vec![], /* upper_bounds */
         vec![], /* shadowed_tparams */
+        attributes,
+        Attr::AttrNone,
+        coeffects,
         params,
-        Some(return_type_info),
+        Some(return_type),
         None, /* doc comment */
         Some(&env),
         span,

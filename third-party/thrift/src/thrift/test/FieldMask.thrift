@@ -23,9 +23,12 @@ cpp_include "thrift/lib/cpp2/protocol/FieldMask.h"
 
 package "apache.org/thrift/test"
 
+struct Empty {}
+
 struct Foo {
   1: i32 field1;
   3: i32 field2;
+  11: map<string, Empty> field3;
 }
 
 struct Bar {
@@ -38,6 +41,16 @@ struct Bar {
 struct Baz {
   @cpp.Adapter{name = "::apache::thrift::test::TemplatedTestAdapter"}
   1: Foo foo;
+}
+
+union RecursiveUnion {
+  1: Foo foo;
+  2: Bar bar;
+  3: Baz baz;
+  @cpp.Ref{type = cpp.RefType.Unique}
+  4: RecursiveUnion recurse;
+  @cpp.Ref{type = cpp.RefType.Unique}
+  5: map<string, RecursiveUnion> recurseMap;
 }
 
 struct HasMap {

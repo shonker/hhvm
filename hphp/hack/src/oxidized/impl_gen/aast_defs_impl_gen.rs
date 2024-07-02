@@ -3,11 +3,12 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the "hack" directory of this source tree.
 //
-// @generated SignedSource<<b3830bfe5a02f45533e8ae6e14b69ced>>
+// @generated SignedSource<<03e895d494776242c95ed973b19d6174>>
 //
 // To regenerate this file, run:
 //   hphp/hack/src/oxidized_regen.sh
 
+#![allow(clippy::all)]
 use crate::aast_defs::*;
 use crate::ast_defs;
 impl<Ex, En> Stmt_<Ex, En> {
@@ -1102,7 +1103,7 @@ impl<Ex, En> Expr_<Ex, En> {
     pub fn mk_pair(p0: Option<(Targ<Ex>, Targ<Ex>)>, p1: Expr<Ex, En>, p2: Expr<Ex, En>) -> Self {
         Expr_::Pair(Box::new((p0, p1, p2)))
     }
-    pub fn mk_etsplice(p0: Expr<Ex, En>) -> Self {
+    pub fn mk_etsplice(p0: EtSplice<Ex, En>) -> Self {
         Expr_::ETSplice(Box::new(p0))
     }
     pub fn mk_enum_class_label(p0: Option<ClassName>, p1: String) -> Self {
@@ -1705,7 +1706,7 @@ impl<Ex, En> Expr_<Ex, En> {
             _ => None,
         }
     }
-    pub fn as_etsplice(&self) -> Option<&Expr<Ex, En>> {
+    pub fn as_etsplice(&self) -> Option<&EtSplice<Ex, En>> {
         match self {
             Expr_::ETSplice(p0) => Some(&p0),
             _ => None,
@@ -2046,7 +2047,7 @@ impl<Ex, En> Expr_<Ex, En> {
             _ => None,
         }
     }
-    pub fn as_etsplice_mut(&mut self) -> Option<&mut Expr<Ex, En>> {
+    pub fn as_etsplice_mut(&mut self) -> Option<&mut EtSplice<Ex, En>> {
         match self {
             Expr_::ETSplice(p0) => Some(p0.as_mut()),
             _ => None,
@@ -2354,7 +2355,7 @@ impl<Ex, En> Expr_<Ex, En> {
             _ => None,
         }
     }
-    pub fn as_etsplice_into(self) -> Option<Expr<Ex, En>> {
+    pub fn as_etsplice_into(self) -> Option<EtSplice<Ex, En>> {
         match self {
             Expr_::ETSplice(p0) => Some(*p0),
             _ => None,
@@ -2679,6 +2680,53 @@ impl<Ex, En> XhpAttribute<Ex, En> {
     pub fn as_xhp_spread_into(self) -> Option<Expr<Ex, En>> {
         match self {
             XhpAttribute::XhpSpread(p0) => Some(p0),
+            _ => None,
+        }
+    }
+}
+impl<Ex, En> FunParamInfo<Ex, En> {
+    pub fn mk_param_optional(p0: Option<Expr<Ex, En>>) -> Self {
+        FunParamInfo::ParamOptional(p0)
+    }
+    pub fn mk_param_required() -> Self {
+        FunParamInfo::ParamRequired
+    }
+    pub fn mk_param_variadic() -> Self {
+        FunParamInfo::ParamVariadic
+    }
+    pub fn is_param_optional(&self) -> bool {
+        match self {
+            FunParamInfo::ParamOptional(..) => true,
+            _ => false,
+        }
+    }
+    pub fn is_param_required(&self) -> bool {
+        match self {
+            FunParamInfo::ParamRequired => true,
+            _ => false,
+        }
+    }
+    pub fn is_param_variadic(&self) -> bool {
+        match self {
+            FunParamInfo::ParamVariadic => true,
+            _ => false,
+        }
+    }
+    pub fn as_param_optional(&self) -> Option<&Option<Expr<Ex, En>>> {
+        match self {
+            FunParamInfo::ParamOptional(p0) => Some(p0),
+            _ => None,
+        }
+    }
+    pub fn as_param_optional_mut(&mut self) -> Option<&mut Option<Expr<Ex, En>>> {
+        match self {
+            FunParamInfo::ParamOptional(p0) => Some(p0),
+            _ => None,
+        }
+    }
+    pub fn as_param_optional_into(self) -> Option<Option<Expr<Ex, En>>> {
+        match self {
+            FunParamInfo::ParamOptional(p0) => Some(p0),
             _ => None,
         }
     }

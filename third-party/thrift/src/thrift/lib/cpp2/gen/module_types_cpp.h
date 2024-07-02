@@ -27,6 +27,7 @@
 #include <folly/Portability.h>
 #include <folly/Traits.h>
 #include <folly/container/F14Map.h>
+#include <folly/container/Reserve.h>
 #include <folly/lang/Align.h>
 #include <folly/lang/Exception.h>
 #include <folly/synchronization/AtomicUtil.h>
@@ -217,7 +218,7 @@ struct copy_field_rec<type_class::list<ValueTypeClass>> {
   template <typename T>
   T operator()(T const& t) const {
     T result;
-    ::apache::thrift::detail::pm::reserve_if_possible(&result, t.size());
+    folly::reserve_if_available(result, t.size());
     for (const auto& e : t) {
       result.push_back(copy_field<ValueTypeClass>(e));
     }
@@ -230,7 +231,7 @@ struct copy_field_rec<type_class::set<ValueTypeClass>> {
   template <typename T>
   T operator()(T const& t) const {
     T result;
-    ::apache::thrift::detail::pm::reserve_if_possible(&result, t.size());
+    folly::reserve_if_available(result, t.size());
     for (const auto& e : t) {
       result.emplace_hint(result.end(), copy_field<ValueTypeClass>(e));
     }
@@ -243,7 +244,7 @@ struct copy_field_rec<type_class::map<KeyTypeClass, MappedTypeClass>> {
   template <typename T>
   T operator()(T const& t) const {
     T result;
-    ::apache::thrift::detail::pm::reserve_if_possible(&result, t.size());
+    folly::reserve_if_available(result, t.size());
     for (const auto& pair : t) {
       result.emplace_hint(
           result.end(),
@@ -354,8 +355,8 @@ struct gen_check_rec<type_class::map<KeyTypeClass, MappedTypeClass>> {
   using MappedTraits = gen_check_rec<MappedTypeClass>;
   template <typename Get, typename Type>
   static constexpr bool apply =
-      KeyTraits::template apply<Get, typename Type::key_type>&&
-          MappedTraits::template apply<Get, typename Type::mapped_type>;
+      KeyTraits::template apply<Get, typename Type::key_type> &&
+      MappedTraits::template apply<Get, typename Type::mapped_type>;
 };
 struct gen_check_rec_structure_variant {
   template <typename Get, typename Type>

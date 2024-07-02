@@ -74,6 +74,7 @@ val method_defn :
   Fact_id.t * Fact_acc.t
 
 val method_overrides :
+  annotation:bool ->
   string ->
   string ->
   Predicate.parent_container_type ->
@@ -209,3 +210,6 @@ val type_info :
   (XRefTarget.t * Pretty.pos list) list ->
   Fact_acc.t ->
   Fact_id.t * Fact_acc.t
+
+val hack_to_thrift :
+  Declaration.t -> Fbthrift.Declaration.t -> Fact_acc.t -> Fact_acc.t

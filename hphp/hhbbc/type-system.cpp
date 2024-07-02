@@ -41,6 +41,7 @@
 #include "hphp/hhbbc/type-structure.h"
 
 #include "hphp/util/check-size.h"
+#include "hphp/util/configs/eval.h"
 
 namespace HPHP::HHBBC {
 
@@ -416,102 +417,112 @@ bool subtypeCls(const DCls& a, const DCls& b) {
   auto const nonRegA = a.containsNonRegular();
   auto const nonRegB = b.containsNonRegular();
 
-  if (a.isExact()) {
-    if (b.isExact()) {
-      return a.cls().exactSubtypeOfExact(b.cls(), nonRegA, nonRegB);
-    }
-    if (b.isSub()) return a.cls().exactSubtypeOf(b.cls(), nonRegA, nonRegB);
-    auto const acls = a.cls();
-    for (auto const bcls : b.isect()) {
-      if (!acls.exactSubtypeOf(bcls, nonRegA, nonRegB)) return false;
-    }
-    return true;
-  } else if (a.isSub()) {
-    if (b.isExact()) return false;
-    if (b.isSub())   return a.cls().subSubtypeOf(b.cls(), nonRegA, nonRegB);
-    auto const acls = a.cls();
-    for (auto const bcls : b.isect()) {
-      if (!acls.subSubtypeOf(bcls, nonRegA, nonRegB)) return false;
-    }
-    return true;
-  } else {
-    assertx(a.isIsect());
-    if (b.isExact()) return false;
-    if (b.isSub()) {
-      auto const bcls = b.cls();
-      for (auto const acls : a.isect()) {
-        if (acls.subSubtypeOf(bcls, nonRegA, nonRegB)) return true;
-      }
+  auto const impl = [&] (Optional<res::Class> exact1,
+                         folly::Range<const res::Class*> sub1,
+                         Optional<res::Class> exact2,
+                         folly::Range<const res::Class*> sub2) {
+    if (exact2 &&
+        (!exact1 || !exact1->exactSubtypeOfExact(*exact2, nonRegA, nonRegB))) {
       return false;
     }
-    auto const& asect = a.isect();
-    auto const& bsect = b.isect();
-    if (nonRegA == nonRegB && &asect == &bsect) return true;
 
-    // A is a subtype of B only if everything in B is a subclass of
-    // something in A. If this wasn't the case, then their
-    // hypothetical intersection would result in something different
-    // than A, which is another way of thinking about subtypeOf.
-    for (auto const bcls : bsect) {
-      auto const isSub = [&] {
-        for (auto const acls : asect) {
-          if (acls.subSubtypeOf(bcls, nonRegA, nonRegB)) return true;
+    return std::all_of(
+      std::begin(sub2), std::end(sub2),
+      [&] (res::Class c2) {
+        if (exact1 && exact1->exactSubtypeOf(c2, nonRegA, nonRegB)) {
+          return true;
         }
-        return false;
-      }();
-      if (!isSub) return false;
-    }
-    return true;
-  }
+        return std::any_of(
+          std::begin(sub1), std::end(sub1),
+          [&] (res::Class c1) {
+            return c1.subSubtypeOf(c2, nonRegA, nonRegB);
+          }
+        );
+      }
+    );
+  };
+
+  auto const toExact = [] (const DCls& c) -> Optional<res::Class> {
+    if (c.isExact()) return c.cls();
+    if (c.isIsectAndExact()) return c.isectAndExact().first;
+    return std::nullopt;
+  };
+
+  auto const toSub = [] (const DCls& c) -> folly::Range<const res::Class*> {
+    assertx(!c.isSub());
+    if (c.isIsect()) return c.isect();
+    if (c.isIsectAndExact()) return *c.isectAndExact().second;
+    return {};
+  };
+
+  return impl(
+    toExact(a),
+    a.isSub() ? std::array<res::Class, 1>{a.cls()} : toSub(a),
+    toExact(b),
+    b.isSub() ? std::array<res::Class, 1>{b.cls()} : toSub(b)
+  );
 }
 
 bool couldBeCls(const DCls& a, const DCls& b) {
   auto const nonRegA = a.containsNonRegular();
   auto const nonRegB = b.containsNonRegular();
 
-  if (a.isExact()) {
-    if (b.isExact()) {
-      return a.cls().exactCouldBeExact(b.cls(), nonRegA, nonRegB);
-    }
-    if (b.isSub()) return a.cls().exactCouldBe(b.cls(), nonRegA, nonRegB);
-    auto const acls = a.cls();
-    for (auto const bcls : b.isect()) {
-      if (!acls.exactCouldBe(bcls, nonRegA, nonRegB)) return false;
-    }
-    return true;
-  } else if (a.isSub()) {
-    if (b.isExact()) return b.cls().exactCouldBe(a.cls(), nonRegB, nonRegA);
-    if (b.isSub())   return a.cls().subCouldBe(b.cls(), nonRegA, nonRegB);
-    // Do a quick rejection test before using the more heavy weight
-    // couldBeIsect.
-    auto const acls = a.cls();
-    for (auto const bcls : b.isect()) {
-      if (!acls.subCouldBe(bcls, nonRegA, nonRegB)) return false;
-    }
-    return res::Class::couldBeIsect(
-      std::array<res::Class, 1>{acls},
-      b.isect(),
-      nonRegA,
-      nonRegB
-    );
-  } else if (b.isIsect()) {
-    auto const& asect = a.isect();
-    auto const& bsect = b.isect();
-    if (nonRegA == nonRegB && &asect == &bsect) return true;
-    // Do a quick rejection test before using the more heavy weight
-    // couldBeIsect.
-    for (auto const acls : asect) {
-      for (auto const bcls : bsect) {
-        if (!acls.subCouldBe(bcls, nonRegA, nonRegB)) return false;
+  auto const impl = [&] (Optional<res::Class> exact1,
+                         folly::Range<const res::Class*> sub1,
+                         Optional<res::Class> exact2,
+                         folly::Range<const res::Class*> sub2) {
+    if (exact1) {
+      if (exact2 && !exact1->exactCouldBeExact(*exact2, nonRegA, nonRegB)) {
+        return false;
       }
+      auto const all = std::all_of(
+        std::begin(sub2), std::end(sub2),
+        [&] (res::Class c2) {
+          return exact1->exactCouldBe(c2, nonRegA, nonRegB);
+        }
+      );
+      if (!all) return false;
     }
-    return res::Class::couldBeIsect(asect, bsect, nonRegA, nonRegB);
-  } else {
-    // couldBe is symmetric, so for the rest of the cases we can just
-    // flip the operands.
-    assertx(a.isIsect());
-    return couldBeCls(b, a);
-  }
+
+    auto const all = std::all_of(
+      std::begin(sub1), std::end(sub1),
+      [&] (res::Class c1) {
+        if (exact2 && !exact2->exactCouldBe(c1, nonRegB, nonRegA)) {
+          return false;
+        }
+        return std::all_of(
+          std::begin(sub2), std::end(sub2),
+          [&] (res::Class c2) { return c1.subCouldBe(c2, nonRegA, nonRegB); }
+        );
+      }
+    );
+    if (!all) return false;
+
+    if (sub1.empty() || sub2.empty()) return true;
+    if (sub1.size() < 2 && sub2.size() < 2) return true;
+
+    return res::Class::couldBeIsect(sub1, sub2, nonRegA, nonRegB);
+  };
+
+  auto const toExact = [] (const DCls& c) -> Optional<res::Class> {
+    if (c.isExact()) return c.cls();
+    if (c.isIsectAndExact()) return c.isectAndExact().first;
+    return std::nullopt;
+  };
+
+  auto const toSub = [] (const DCls& c) -> folly::Range<const res::Class*> {
+    assertx(!c.isSub());
+    if (c.isIsect()) return c.isect();
+    if (c.isIsectAndExact()) return *c.isectAndExact().second;
+    return {};
+  };
+
+  return impl(
+    toExact(a),
+    a.isSub() ? std::array<res::Class, 1>{a.cls()} : toSub(a),
+    toExact(b),
+    b.isSub() ? std::array<res::Class, 1>{b.cls()} : toSub(b)
+  );
 }
 
 //////////////////////////////////////////////////////////////////////
@@ -2011,66 +2022,123 @@ struct KeysetAppendInit : KeysetInit {
 struct DCls::IsectWrapper {
   IsectSet isects;
   std::atomic<uint32_t> refcount{1};
-  void acquire() { refcount.fetch_add(1, std::memory_order_relaxed); }
+  void acquire() { refcount.fetch_add(1, std::memory_order_acq_rel); }
   void release() {
-    if (refcount.fetch_sub(1, std::memory_order_relaxed) == 1) {
+    if (refcount.fetch_sub(1, std::memory_order_acq_rel) == 1) {
+      delete this;
+    }
+  }
+};
+
+struct DCls::IsectAndExactWrapper {
+  res::Class exact;
+  IsectSet isects;
+  std::atomic<uint32_t> refcount{1};
+  void acquire() { refcount.fetch_add(1, std::memory_order_acq_rel); }
+  void release() {
+    if (refcount.fetch_sub(1, std::memory_order_acq_rel) == 1) {
       delete this;
     }
   }
 };
 
 DCls::DCls(const DCls& o) : val{o.val} {
-  if (isIsect()) rawIsect()->acquire();
+  if (isIsect()) {
+    rawIsect()->acquire();
+  } else if (isIsectAndExact()) {
+    rawIsectAndExact()->acquire();
+  }
 }
 
 DCls::~DCls() {
-  if (isIsect()) rawIsect()->release();
+  if (isIsect()) {
+    rawIsect()->release();
+  } else if (isIsectAndExact()) {
+    rawIsectAndExact()->release();
+  }
 }
 
 DCls& DCls::operator=(const DCls& o) {
   if (this == &o) return *this;
-  auto const i = isIsect() ? rawIsect() : nullptr;
-  if (o.isIsect()) o.rawIsect()->acquire();
-  val = o.val;
-  if (i) i->release();
+
+  auto const copy = [&] {
+    if (o.isIsect()) {
+      o.rawIsect()->acquire();
+    } else if (o.isIsectAndExact()) {
+      o.rawIsectAndExact()->acquire();
+    }
+    val = o.val;
+  };
+
+  if (isIsect()) {
+    auto const i = rawIsect();
+    copy();
+    i->release();
+  } else if (isIsectAndExact()) {
+    auto const i = rawIsectAndExact();
+    copy();
+    i->release();
+  }
+
   return *this;
 }
 
 DCls DCls::MakeExact(res::Class cls, bool nonReg) {
   return DCls{
-    nonReg ? PtrTag::ExactNonReg : PtrTag::Exact,
+    nonReg ? TagExact : Tag(TagExact | TagReg),
     (void*)cls.toOpaque()
   };
 }
 
 DCls DCls::MakeSub(res::Class cls, bool nonReg) {
   return DCls{
-    nonReg ? PtrTag::SubNonReg : PtrTag::Sub,
+    nonReg ? TagNone : TagReg,
     (void*)cls.toOpaque()
   };
 }
 
 DCls DCls::MakeIsect(IsectSet isect, bool nonReg) {
+  assertx(isect.size() > 1);
   auto w = new IsectWrapper{std::move(isect)};
-  return DCls{nonReg ? PtrTag::IsectNonReg : PtrTag::Isect, (void*)w};
+  return DCls{
+    nonReg ? TagIsect : Tag(TagIsect | TagReg),
+    (void*)w
+  };
+}
+
+DCls DCls::MakeIsectAndExact(res::Class exact, IsectSet isect, bool nonReg) {
+  assertx(!isect.empty());
+  assertx(exact.isMissingDebug());
+  auto w = new IsectAndExactWrapper{exact, std::move(isect)};
+  return DCls{
+    nonReg ? Tag(TagIsect | TagExact) : Tag(TagIsect | TagExact | TagReg),
+    (void*)w
+  };
 }
 
 res::Class DCls::cls() const {
-  assertx(!isIsect());
+  assertx(!isIsect() && !isIsectAndExact());
   assertx(val.ptr());
   return res::Class::fromOpaque((uintptr_t)val.ptr());
 }
 
 res::Class DCls::smallestCls() const {
-  return isIsect() ? isect().front() : cls();
+  return isIsect()
+    ? isect().front()
+    : (isIsectAndExact() ? isectAndExact().first : cls());
 }
 
 const DCls::IsectSet& DCls::isect() const {
   return rawIsect()->isects;
 }
 
+std::pair<res::Class, const DCls::IsectSet*> DCls::isectAndExact() const {
+  auto const r = rawIsectAndExact();
+  return std::make_pair(r->exact, &r->isects);
+}
+
 void DCls::setCls(res::Class cls) {
-  assertx(!isIsect());
+  assertx(!isIsect() && !isIsectAndExact());
   val.set(val.tag(), (void*)cls.toOpaque());
 }
 
@@ -2081,17 +2149,30 @@ bool DCls::same(const DCls& o, bool checkCtx) const {
     if (removeCtx(val.tag()) != removeCtx(o.val.tag())) return false;
   }
 
-  if (!isIsect()) return cls().same(o.cls());
-  auto const& isect1 = isect();
-  auto const& isect2 = o.isect();
-  if (&isect1 == &isect2) return true;
-  if (isect1.size() != isect2.size()) return false;
-
-  return std::equal(
-    begin(isect1), end(isect1),
-    begin(isect2), end(isect2),
-    [] (res::Class c1, res::Class c2) { return c1.same(c2); }
-  );
+  if (isIsect()) {
+    auto const& isect1 = isect();
+    auto const& isect2 = o.isect();
+    if (&isect1 == &isect2) return true;
+    if (isect1.size() != isect2.size()) return false;
+    return std::equal(
+      begin(isect1), end(isect1),
+      begin(isect2), end(isect2),
+      [] (res::Class c1, res::Class c2) { return c1.same(c2); }
+    );
+  } else if (isIsectAndExact()) {
+    auto const [exact1, isect1] = isectAndExact();
+    auto const [exact2, isect2] = o.isectAndExact();
+    if (!exact1.same(exact2)) return false;
+    if (isect1 == isect2) return true;
+    if (isect1->size() != isect2->size()) return false;
+    return std::equal(
+      begin(*isect1), end(*isect1),
+      begin(*isect2), end(*isect2),
+      [] (res::Class c1, res::Class c2) { return c1.same(c2); }
+    );
+  } else {
+    return cls().same(o.cls());
+  }
 }
 
 DCls::IsectWrapper* DCls::rawIsect() const {
@@ -2100,15 +2181,33 @@ DCls::IsectWrapper* DCls::rawIsect() const {
   return (IsectWrapper*)val.ptr();
 }
 
+DCls::IsectAndExactWrapper* DCls::rawIsectAndExact() const {
+  assertx(isIsectAndExact());
+  assertx(val.ptr());
+  return (IsectAndExactWrapper*)val.ptr();
+}
+
 void DCls::serde(BlobEncoder& sd) const {
   sd(val.tag());
-  isIsect() ? sd(isect()) : sd(cls());
+  if (isIsect()) {
+    sd(isect());
+  } else if (isIsectAndExact()) {
+    auto [e, i] = isectAndExact();
+    sd(e);
+    sd(*i);
+  } else {
+    sd(cls());
+  }
 }
 void DCls::serde(BlobDecoder& sd) {
   auto const tag = sd.template make<decltype(val.tag())>();
   if (tagIsIsect(tag)) {
     auto i = sd.make<IsectSet>();
     val.set(tag, new IsectWrapper{std::move(i)});
+  } else if (tagIsIsectAndExact(tag)) {
+    auto e = sd.make<res::Class>();
+    auto i = sd.make<IsectSet>();
+    val.set(tag, new IsectAndExactWrapper{e, std::move(i)});
   } else {
     auto c = sd.make<res::Class>();
     val.set(tag, (void*)c.toOpaque());
@@ -2508,34 +2607,60 @@ size_t Type::hash() const {
       switch (m_dataTag) {
         case DataTag::None:
           return 0;
-        case DataTag::Obj:
-          if (!m_data.dobj.isIsect()) {
+        case DataTag::Obj: {
+          if (m_data.dobj.isExact() || m_data.dobj.isSub()) {
             return folly::hash::hash_combine(
               m_data.dobj.cls().hash(),
               m_data.dobj.containsNonRegular()
             );
           }
+          if (m_data.dobj.isIsect()) {
+            return folly::hash::hash_range(
+              begin(m_data.dobj.isect()),
+              end(m_data.dobj.isect()),
+              m_data.dobj.containsNonRegular(),
+              [] (res::Class c) { return c.hash(); }
+            );
+          }
+          assertx(m_data.dobj.isIsectAndExact());
+          auto const [e, i] = m_data.dobj.isectAndExact();
           return folly::hash::hash_range(
-            begin(m_data.dobj.isect()),
-            end(m_data.dobj.isect()),
-            m_data.dobj.containsNonRegular(),
+            begin(*i), end(*i),
+            folly::hash::hash_combine(
+              e.hash(),
+              m_data.dobj.containsNonRegular()
+            ),
             [] (res::Class c) { return c.hash(); }
           );
+        }
         case DataTag::WaitHandle:
           return m_data.dwh->inner.hash();
-        case DataTag::Cls:
-          if (!m_data.dcls.isIsect()) {
+        case DataTag::Cls: {
+          if (m_data.dcls.isExact() || m_data.dcls.isSub()) {
             return folly::hash::hash_combine(
               m_data.dcls.cls().hash(),
               m_data.dcls.containsNonRegular()
             );
           }
+          if (m_data.dcls.isIsect()) {
+            return folly::hash::hash_range(
+              begin(m_data.dcls.isect()),
+              end(m_data.dcls.isect()),
+              m_data.dcls.containsNonRegular(),
+              [] (res::Class c) { return c.hash(); }
+            );
+          }
+          assertx(m_data.dcls.isIsectAndExact());
+          auto const [e, i] = m_data.dcls.isectAndExact();
           return folly::hash::hash_range(
-            begin(m_data.dcls.isect()),
-            end(m_data.dcls.isect()),
-            m_data.dcls.containsNonRegular(),
+            begin(*i), end(*i),
+            folly::hash::hash_combine(
+              e.hash(),
+              m_data.dcls.containsNonRegular()
+            ),
             [] (res::Class c) { return c.hash(); }
           );
+        }
         case DataTag::Str:
           return (uintptr_t)m_data.sval;
         case DataTag::LazyCls:
@@ -2844,38 +2969,64 @@ bool Type::checkInvariants() const {
     assertx(couldBe(BCls));
     assertx(subtypeOf(BCls | kNonSupportBits));
     if (m_data.dcls.isExact()) {
-      assertx(
-        IMPLIES(
-          m_data.dcls.containsNonRegular(),
-          m_data.dcls.cls().mightBeNonRegular()
-        )
-      );
-      assertx(
-        IMPLIES(
-          !m_data.dcls.containsNonRegular(),
-          m_data.dcls.cls().mightBeRegular()
-        )
-      );
+      if (!m_data.dcls.cls().isSerialized()) {
+        assertx(
+          IMPLIES(
+            m_data.dcls.containsNonRegular(),
+            m_data.dcls.cls().mightBeNonRegular()
+          )
+        );
+        assertx(
+          IMPLIES(
+            !m_data.dcls.containsNonRegular(),
+            m_data.dcls.cls().mightBeRegular()
+          )
+        );
+      }
     } else if (m_data.dcls.isSub()) {
-      assertx(m_data.dcls.cls().couldBeOverridden());
-      assertx(
-        IMPLIES(
-          m_data.dcls.containsNonRegular(),
-          m_data.dcls.cls().mightContainNonRegular()
-        )
-      );
-      assertx(
-        IMPLIES(
-          !m_data.dcls.containsNonRegular(),
-          m_data.dcls.cls().couldBeOverriddenByRegular()
-        )
-      );
-    } else {
-      assertx(m_data.dcls.isIsect());
+      if (!m_data.dcls.cls().isSerialized()) {
+        assertx(m_data.dcls.cls().couldBeOverridden());
+        assertx(
+          IMPLIES(
+            m_data.dcls.containsNonRegular(),
+            m_data.dcls.cls().mightContainNonRegular()
+          )
+        );
+        assertx(
+          IMPLIES(
+            !m_data.dcls.containsNonRegular(),
+            m_data.dcls.cls().couldBeOverriddenByRegular()
+          )
+        );
+      }
+    } else if (m_data.dcls.isIsect()) {
       // There's way more things we could verify here, but it gets
       // expensive (and requires the index).
       assertx(m_data.dcls.isect().size() > 1);
       for (auto const DEBUG_ONLY c : m_data.dcls.isect()) {
+        if (c.isSerialized()) continue;
+        assertx(
+          IMPLIES(
+            !m_data.dcls.containsNonRegular(),
+            c.mightBeRegular() || c.couldBeOverriddenByRegular()
+          )
+        );
+      }
+    } else {
+      assertx(m_data.dcls.isIsectAndExact());
+      // There's way more things we could verify here, but it gets
+      // expensive (and requires the index).
+      auto const DEBUG_ONLY [e, i] = m_data.dcls.isectAndExact();
+      assertx(!i->empty());
+      if (!e.isSerialized()) {
+        assertx(e.isMissingDebug());
+        assertx(IMPLIES(!m_data.dcls.containsNonRegular(),
+                        e.mightBeRegular() || e.couldBeOverriddenByRegular()));
+      }
+      for (auto const DEBUG_ONLY c : *i) {
+        if (c.isSerialized()) continue;
+        assertx(!c.same(e));
+        assertx(!c.hasCompleteChildren());
         assertx(
           IMPLIES(
             !m_data.dcls.containsNonRegular(),
@@ -2890,15 +3041,35 @@ bool Type::checkInvariants() const {
     assertx(subtypeOf(BObj | kNonSupportBits));
     assertx(!m_data.dobj.containsNonRegular());
     if (m_data.dobj.isExact()) {
-      assertx(m_data.dobj.cls().mightBeRegular());
+      if (!m_data.dobj.cls().isSerialized()) {
+        assertx(m_data.dobj.cls().mightBeRegular());
+      }
     } else if (m_data.dobj.isSub()) {
-      assertx(m_data.dobj.cls().couldBeOverriddenByRegular());
-    } else {
-      assertx(m_data.dobj.isIsect());
+      if (!m_data.dobj.cls().isSerialized()) {
+        assertx(m_data.dobj.cls().couldBeOverriddenByRegular());
+      }
+    } else if (m_data.dobj.isIsect()) {
       // There's way more things we could verify here, but it gets
       // expensive (and requires the index).
       assertx(m_data.dobj.isect().size() > 1);
       for (auto const DEBUG_ONLY c : m_data.dobj.isect()) {
+        if (c.isSerialized()) continue;
+        assertx(c.mightBeRegular() || c.couldBeOverriddenByRegular());
+      }
+    } else {
+      assertx(m_data.dcls.isIsectAndExact());
+      // There's way more things we could verify here, but it gets
+      // expensive (and requires the index).
+      auto const DEBUG_ONLY [e, i] = m_data.dcls.isectAndExact();
+      assertx(!i->empty());
+      if (!e.isSerialized()) {
+        assertx(e.isMissingDebug());
+        assertx(e.mightBeRegular() || e.couldBeOverriddenByRegular());
+      }
+      for (auto const DEBUG_ONLY c : *i) {
+        if (c.isSerialized()) continue;
+        assertx(!c.same(e));
+        assertx(!c.hasCompleteChildren());
         assertx(c.mightBeRegular() || c.couldBeOverriddenByRegular());
       }
     }
@@ -2916,7 +3087,8 @@ bool Type::checkInvariants() const {
     assertx(
       m_data.dwh->cls.cls().name()->tsame(s_Awaitable.get())
     );
-    assertx(m_data.dwh->cls.cls().isComplete());
+    assertx(m_data.dwh->cls.cls().isSerialized() ||
+            m_data.dwh->cls.cls().isComplete());
     break;
   case DataTag::ArrLikeVal: {
     assertx(m_data.aval->isStatic());
@@ -3479,6 +3651,34 @@ Type isectClsInternal(DCls::IsectSet isect, bool nonReg) {
   return t;
 }
 
+Type isectAndExactObjInternal(res::Class exact, DCls::IsectSet isect) {
+  assertx(exact.isMissingDebug());
+  assertx(!isect.empty());
+  auto t = Type { BObj, LegacyMark::Bottom };
+  construct(
+    t.m_data.dobj,
+    DCls::MakeIsectAndExact(exact, std::move(isect), false)
+  );
+  t.m_dataTag = DataTag::Obj;
+  assertx(t.checkInvariants());
+  return t;
+}
+
+Type isectAndExactClsInternal(res::Class exact,
+                              DCls::IsectSet isect,
+                              bool nonReg) {
+  assertx(exact.isMissingDebug());
+  assertx(!isect.empty());
+  auto t = Type { BCls, LegacyMark::Bottom };
+  construct(
+    t.m_data.dcls,
+    DCls::MakeIsectAndExact(exact, std::move(isect), nonReg)
+  );
+  t.m_dataTag = DataTag::Cls;
+  assertx(t.checkInvariants());
+  return t;
+}
+
 Type map_impl(trep bits, LegacyMark mark, MapElems m,
               Type optKey, Type optVal) {
   assertx(!m.empty());
@@ -3609,7 +3809,7 @@ Type return_with_context(Type t, Type context) {
     if (is_specialized_cls(context)) {
       auto const& d = dcls_of(context);
       if (d.isExact() && d.cls().couldBeMocked()) {
-        context = subCls(d.cls());
+        context = subCls(d.cls(), true);
       }
     }
     auto [cls, rest] = split_cls(std::move(t));
@@ -3713,14 +3913,22 @@ Type toobj(const Type& t) {
         return objExact(d.cls());
       } else if (d.isSub()) {
         return subObj(d.cls());
-      } else {
-        assertx(d.isIsect());
+      } else if (d.isIsect()) {
         if (!d.containsNonRegular()) return isectObjInternal(d.isect());
         auto const u = res::Class::removeNonRegular(d.isect());
         if (u.empty()) return TBottom;
         if (u.size() == 1) return subObj(u.front());
         DCls::IsectSet set{u.begin(), u.end()};
         return isectObjInternal(std::move(set));
+      } else {
+        assertx(d.isIsectAndExact());
+        auto const [e, i] = d.isectAndExact();
+        if (!d.containsNonRegular()) return isectAndExactObjInternal(e, *i);
+        if (!e.mightBeRegular()) return TBottom;
+        auto const u = res::Class::removeNonRegular(*i);
+        if (u.empty()) return TBottom;
+        DCls::IsectSet set{u.begin(), u.end()};
+        return isectAndExactObjInternal(e, std::move(set));
       }
     }(),
     d.isCtx()
@@ -4176,7 +4384,7 @@ Optional<Type> type_of_type_structure(const IIndex& index,
 
             auto const lookup = index.lookup_class_constant(
               ctx,
-              clsExact(*rcls),
+              clsExact(*rcls, true),
               sval(makeStaticString(cns))
             );
             if (lookup.found != TriBool::Yes || lookup.mightThrow) {
@@ -4411,7 +4619,7 @@ Type from_hni_constraint(SString s) {
     return union_of(std::move(ret), TArrLike);
   }
   if (!tstrcmp(p, annotTypeName(AnnotType::Classname))) {
-    if (!RO::EvalClassPassesClassname) {
+    if (!Cfg::Eval::ClassPassesClassname) {
       return union_of(ret, TStr);
     }
     return union_of(ret, union_of(TStr, union_of(TCls, TLazyCls)));
@@ -4533,13 +4741,15 @@ Type intersection_of(Type a, Type b) {
   }
 
   auto const isectDCls = [&] (DCls& acls, DCls& bcls, bool isObj) {
+    auto const fail = [&] {
+      isect &= isObj ? ~BObj : ~BCls;
+      return isect ? nodata() : TBottom;
+    };
+
     auto const ctx = acls.isCtx() || bcls.isCtx();
     if (subtypeCls<false>(acls, bcls)) return setctx(reuse(a), ctx);
     if (subtypeCls<false>(bcls, acls)) return setctx(reuse(b), ctx);
-    if (!couldBeCls(acls, bcls)) {
-      isect &= isObj ? ~BObj : ~BCls;
-      return isect ? nodata() : TBottom;
-    }
+    if (!couldBeCls(acls, bcls)) return fail();
 
     auto const nonRegA = acls.containsNonRegular();
     auto const nonRegB = bcls.containsNonRegular();
@@ -4552,15 +4762,122 @@ Type intersection_of(Type a, Type b) {
     // intersection is just the unresolved class. Since the unresolved
     // class is exact, any intersection must contain only it (or be
     // Bottom).
+
+    auto const handleExact = [&] (DCls& exact, DCls& sub, bool subNonReg) {
+      assertx(exact.isExact());
+      assertx(exact.cls().isMissingDebug());
+      assertx(!sub.isExact());
+
+      auto const ecls = exact.cls();
+      if (!isectNonReg && !ecls.mightBeRegular()) return fail();
+
+      DCls::IsectSet set;
+      if (sub.isSub()) {
+        auto scls = sub.cls();
+        if (!isectNonReg && subNonReg) {
+          auto const w = scls.withoutNonRegular();
+          if (!w) return fail();
+          scls = *w;
+        }
+        set.emplace_back(scls);
+      } else if (sub.isIsect()) {
+        if (!isectNonReg && subNonReg) {
+          auto const u = res::Class::removeNonRegular(sub.isect());
+          if (u.empty()) return fail();
+          set.insert(std::end(set), std::begin(u), std::end(u));
+        } else {
+          set = sub.isect();
+        }
+      } else {
+        assertx(sub.isIsectAndExact());
+        auto const [ecls2, i] = sub.isectAndExact();
+
+        auto e = isObj ? objExact(ecls) : clsExact(ecls, isectNonReg);
+        if (e.is(BBottom)) return fail();
+        auto e2 = isObj ? objExact(ecls2) : clsExact(ecls2, isectNonReg);
+        if (e2.is(BBottom)) return fail();
+
+        auto rhs = [&, i=i] {
+          if (i->size() == 1) {
+            return isObj
+              ? subObj(i->front())
+              : subCls(i->front(), isectNonReg);
+          } else {
+            DCls::IsectSet set{i->begin(), i->end()};
+            return isObj
+              ? isectObjInternal(std::move(set))
+              : isectClsInternal(std::move(set), isectNonReg);
+          }
+        }();
+        if (rhs.is(BBottom)) return fail();
+
+        auto ret = intersection_of(
+          intersection_of(std::move(e), std::move(e2)),
+          std::move(rhs)
+        );
+        if (ret.is(BBottom)) return fail();
+        return setctx(reuse(ret), ctx);
+      }
+
+      set.erase(
+        std::remove_if(
+          begin(set), end(set),
+          [&] (res::Class c) { return c.same(ecls); }
+        ),
+        set.end()
+      );
+
+      auto ret = isObj
+        ? (set.empty()
+           ? objExact(ecls)
+           : isectAndExactObjInternal(ecls, std::move(set))
+          )
+        : (set.empty()
+           ? clsExact(ecls, isectNonReg)
+           : isectAndExactClsInternal(ecls, std::move(set), isectNonReg)
+          );
+      if (ret.is(BBottom)) return fail();
+      return setctx(reuse(ret), ctx);
+    };
+
+    auto const handleIsectAndExact = [&] (DCls& isectExact, Type rhs) {
+      assertx(isectExact.isIsectAndExact());
+
+      auto const [e, i] = isectExact.isectAndExact();
+      auto exact =
+        isObj ? objExact(e) : clsExact(e, isectNonReg);
+      if (exact.is(BBottom)) return fail();
+
+      auto lhs = [&, i=i] {
+        if (i->size() == 1) {
+          return isObj
+            ? subObj(i->front())
+            : subCls(i->front(), isectNonReg);
+        } else {
+          DCls::IsectSet set{i->begin(), i->end()};
+          return isObj
+            ? isectObjInternal(std::move(set))
+            : isectClsInternal(std::move(set), isectNonReg);
+        }
+      }();
+      if (lhs.is(BBottom)) return fail();
+
+      auto ret = intersection_of(
+        intersection_of(std::move(lhs), std::move(rhs)),
+        std::move(exact)
+      );
+      if (ret.is(BBottom)) return fail();
+      return setctx(reuse(ret), ctx);
+    };
+
     if (acls.isExact()) {
-      assertx(!acls.cls().hasCompleteChildren());
-      assertx(!bcls.isExact());
-      acls.setNonReg(isectNonReg);
-      return setctx(reuse(a), ctx);
+      return handleExact(acls, bcls, nonRegB);
     } else if (bcls.isExact()) {
-      assertx(!bcls.cls().hasCompleteChildren());
-      bcls.setNonReg(isectNonReg);
-      return setctx(reuse(b), ctx);
+      return handleExact(bcls, acls, nonRegA);
+    } else if (acls.isIsectAndExact()) {
+      return handleIsectAndExact(acls, std::move(b));
+    } else if (bcls.isIsectAndExact()) {
+      return handleIsectAndExact(bcls, std::move(a));
     }
 
     auto const i = [&] {
@@ -4853,6 +5170,44 @@ Type union_of(Type a, Type b) {
     auto const nonRegA = acls.containsNonRegular();
     auto const nonRegB = bcls.containsNonRegular();
 
+    auto const handleIsectAndExact = [&] (const DCls& isectExact,
+                                          Type rhs,
+                                          bool nonReg) {
+      assertx(isectExact.isIsectAndExact());
+
+      auto const [e, i] = isectExact.isectAndExact();
+      auto exact =
+        isObj ? objExact(e) : clsExact(e, nonReg);
+      assertx(!exact.is(BBottom));
+
+      auto lhs = [&, i=i] {
+        if (i->size() == 1) {
+          return isObj
+            ? subObj(i->front())
+            : subCls(i->front(), nonReg);
+        } else {
+          DCls::IsectSet set{i->begin(), i->end()};
+          return isObj
+            ? isectObjInternal(std::move(set))
+            : isectClsInternal(std::move(set), nonReg);
+        }
+      }();
+      assertx(!lhs.is(BBottom));
+
+      auto ret = intersection_of(
+        union_of(std::move(exact), rhs),
+        union_of(std::move(lhs), rhs)
+      );
+      assertx(!ret.is(BBottom));
+      return setctx(reuse(ret), isCtx);
+    };
+
+    if (acls.isIsectAndExact()) {
+      return handleIsectAndExact(acls, std::move(b), nonRegA);
+    } else if (bcls.isIsectAndExact()) {
+      return handleIsectAndExact(bcls, std::move(a), nonRegB);
+    }
+
     auto const u = [&] {
       if (acls.isIsect()) {
         if (bcls.isIsect()) {
@@ -4905,6 +5260,7 @@ Type union_of(Type a, Type b) {
       auto ret = isObj
         ? subObj(u.front())
         : subCls(u.front(), nonRegA || nonRegB);
+      assertx(!ret.is(BBottom));
       return setctx(reuse(ret), isCtx);
     }
 
@@ -4912,6 +5268,7 @@ Type union_of(Type a, Type b) {
     auto ret = isObj
       ? isectObjInternal(std::move(set))
       : isectClsInternal(std::move(set), nonRegA || nonRegB);
+    assertx(!ret.is(BBottom));
     return setctx(reuse(ret), isCtx);
   };
 
@@ -5055,6 +5412,13 @@ bool could_have_magic_bool_conversion(const Type& t) {
   auto const& dobj = dobj_of(t);
   if (dobj.isIsect()) {
     for (auto const cls : dobj.isect()) {
+      if (!cls.couldHaveMagicBool()) return false;
+    }
+    return true;
+  } else if (dobj.isIsectAndExact()) {
+    auto const [e, i] = dobj.isectAndExact();
+    if (!e.couldHaveMagicBool()) return false;
+    for (auto const cls : *i) {
       if (!cls.couldHaveMagicBool()) return false;
     }
     return true;
@@ -6053,19 +6417,70 @@ struct TypeCOWer : public COWer {
 
 //////////////////////////////////////////////////////////////////////
 
-void unserialize_classes_impl(const Type& t, COWer& parent) {
+void unserialize_classes_impl(const IIndex& index,
+                              const Type& t,
+                              COWer& parent) {
   SCOPE_EXIT { parent.noCOW().checkInvariants(); };
 
   auto const onDCls = [&] (const DCls& dcls, bool isObj) {
     auto newT = [&] () -> Optional<Type> {
-      if (!dcls.isIsect()) return std::nullopt;
-      auto out = TInitCell;
-      for (auto const& i : dcls.isect()) {
-        out &= isObj
-          ? subObj(i)
-          : subCls(i, dcls.containsNonRegular());
+      if (dcls.isIsect()) {
+        auto const& isect = dcls.isect();
+        if (!std::any_of(
+              isect.begin(),
+              isect.end(),
+              [] (res::Class i) { return i.isSerialized(); }
+            )) {
+          return std::nullopt;
+        }
+        auto const nonReg = dcls.containsNonRegular();
+
+        auto out = TInitCell;
+        for (auto const i : isect) {
+          auto const u = i.unserialize(index);
+          if (!u) return TBottom;
+          out &= isObj ? subObj(*u) : subCls(*u, nonReg);
+        }
+        return out;
+      } else if (dcls.isIsectAndExact()) {
+        auto const [e, isect] = dcls.isectAndExact();
+        if (!e.isSerialized() &&
+            !std::any_of(
+              isect->begin(),
+              isect->end(),
+              [] (res::Class i) { return i.isSerialized(); }
+            )) {
+          return std::nullopt;
+        }
+        auto const nonReg = dcls.containsNonRegular();
+
+        auto const eu = e.unserialize(index);
+        if (!eu) return TBottom;
+        auto out = isObj ? objExact(*eu) : clsExact(*eu, nonReg);
+        for (auto const i : *isect) {
+          auto const u = i.unserialize(index);
+          if (!u) return TBottom;
+          out &= isObj ? subObj(*u) : subCls(*u, nonReg);
+        }
+        return out;
+      } else {
+        auto const& cls = dcls.cls();
+        if (!cls.isSerialized()) return std::nullopt;
+        auto const u = cls.unserialize(index);
+        if (!u) return TBottom;
+
+        if (dcls.isExact()) {
+          return isObj
+            ? objExact(*u)
+            : clsExact(*u, dcls.containsNonRegular());
+        } else {
+          assertx(dcls.isSub());
+          return isObj
+            ? subObj(*u)
+            : subCls(*u, dcls.containsNonRegular());
+        }
+        return std::nullopt;
       }
-      return out;
     }();
 
     if (!newT) return;
@@ -6093,14 +6508,20 @@ void unserialize_classes_impl(const Type& t, COWer& parent) {
       break;
     case DataTag::WaitHandle: {
       WaitHandleCOWer next{parent, *t.m_data.dwh};
-      unserialize_classes_impl(next.get().inner, next);
-      assertx(!next.get().cls.isIsect());
+      unserialize_classes_impl(index, next.get().inner, next);
+      auto const& dcls = next.get().cls;
+      if (dcls.cls().isSerialized()) {
+        auto const u = dcls.cls().unserialize(index);
+        assertx(u.has_value());
+        next.getAndCOW().cls.setCls(*u);
+      }
+      assertx(!dcls.isIsect());
       break;
     }
     case DataTag::ArrLikePacked: {
       ArrLikePackedCOWer next{parent, *t.m_data.packed};
       do {
-        unserialize_classes_impl(next.currentElem(), next);
+        unserialize_classes_impl(index, next.currentElem(), next);
         if (next.currentElem().is(BBottom)) {
           auto& p = parent();
           p = remove_bits(std::move(p), BArrLikeN);
@@ -6111,7 +6532,7 @@ void unserialize_classes_impl(const Type& t, COWer& parent) {
     }
     case DataTag::ArrLikePackedN: {
       ArrLikePackedNCOWer next{parent, *t.m_data.packedn};
-      unserialize_classes_impl(next.get().type, next);
+      unserialize_classes_impl(index, next.get().type, next);
       if (next.get().type.is(BBottom)) {
         auto& p = parent();
         p = remove_bits(std::move(p), BArrLikeN);
@@ -6122,7 +6543,7 @@ void unserialize_classes_impl(const Type& t, COWer& parent) {
       ArrLikeMapCOWer next{parent, *t.m_data.map};
       auto isBottom = false;
       do {
-        unserialize_classes_impl(next.currentElem(), next);
+        unserialize_classes_impl(index, next.currentElem(), next);
         if (next.currentElem().is(BBottom)) {
           auto& p = parent();
           p = remove_bits(std::move(p), BArrLikeN);
@@ -6135,7 +6556,7 @@ void unserialize_classes_impl(const Type& t, COWer& parent) {
                 next.optKeyOrValue().subtypeOf(BArrKey));
         assertx(!next.optKeyOrValue().couldBe(BCls | BObj));
         next.toOptVal();
-        unserialize_classes_impl(next.optKeyOrValue(), next);
+        unserialize_classes_impl(index, next.optKeyOrValue(), next);
       }
       break;
     }
@@ -6144,7 +6565,7 @@ void unserialize_classes_impl(const Type& t, COWer& parent) {
       assertx(next.keyOrValue().subtypeOf(BArrKey));
       assertx(!next.keyOrValue().couldBe(BCls | BObj));
       next.toValue();
-      unserialize_classes_impl(next.keyOrValue(), next);
+      unserialize_classes_impl(index, next.keyOrValue(), next);
       if (next.keyOrValue().is(BBottom)) {
         auto& p = parent();
         p = remove_bits(std::move(p), BArrLikeN);
@@ -6160,9 +6581,9 @@ void unserialize_classes_impl(const Type& t, COWer& parent) {
   }
 }
 
-Type unserialize_classes(Type t) {
+Type unserialize_classes(const IIndex& index, Type t) {
   TypeCOWer cower{t};
-  unserialize_classes_impl(t, cower);
+  unserialize_classes_impl(index, t, cower);
   return t;
 }
 
@@ -6338,7 +6759,7 @@ bool could_contain_objects(const Type& t) {
 
 bool is_type_might_raise(const Type& testTy, const Type& valTy) {
   auto const mayLogClsMeth =
-    RO::EvalIsVecNotices &&
+    Cfg::Eval::IsVecNotices &&
     valTy.couldBe(BClsMeth) &&
     (testTy.is(BVec | BClsMeth) ||
      testTy.is(BArrLike | BClsMeth));
@@ -6351,7 +6772,7 @@ bool is_type_might_raise(const Type& testTy, const Type& valTy) {
   }
 
   if (testTy.is(BStr | BCls | BLazyCls)) {
-    return RO::EvalClassIsStringNotices && valTy.couldBe(BCls | BLazyCls);
+    return Cfg::Eval::ClassIsStringNotices && valTy.couldBe(BCls | BLazyCls);
   } else if (testTy.is(BVec) || testTy.is(BVec | BClsMeth)) {
     return mayLogClsMeth;
   } else if (testTy.is(BDict)) {
@@ -6483,8 +6904,8 @@ bool inner_types_might_raise(const Type& t1, const Type& t2) {
 }
 
 bool compare_might_raise(const Type& t1, const Type& t2) {
-  if (!RuntimeOption::EvalEmitClsMethPointers &&
-      RuntimeOption::EvalRaiseClassConversionNoticeSampleRate == 0) {
+  if (!Cfg::Eval::EmitClsMethPointers &&
+      Cfg::Eval::RaiseClassConversionNoticeSampleRate == 0) {
     return false;
   }
 
@@ -6501,14 +6922,12 @@ bool compare_might_raise(const Type& t1, const Type& t2) {
   if (auto const f = checkOne(BVec)) return *f;
   if (auto const f = checkOne(BKeyset)) return *f;
 
-  if (RuntimeOption::EvalEmitClsMethPointers) {
-    if (RuntimeOption::EvalEmitClsMethPointers) {
-      if (t1.couldBe(BClsMeth) && t2.couldBe(BVec))     return true;
-      if (t1.couldBe(BVec)     && t2.couldBe(BClsMeth)) return true;
-    }
+  if (Cfg::Eval::EmitClsMethPointers) {
+    if (t1.couldBe(BClsMeth) && t2.couldBe(BVec))     return true;
+    if (t1.couldBe(BVec)     && t2.couldBe(BClsMeth)) return true;
   }
 
-  if (RO::EvalRaiseClassConversionNoticeSampleRate > 0) {
+  if (Cfg::Eval::RaiseClassConversionNoticeSampleRate > 0) {
     if (t1.couldBe(BStr) && t2.couldBe(BLazyCls)) return true;
     if (t1.couldBe(BStr) && t2.couldBe(BCls)) return true;
     if (t1.couldBe(BLazyCls) && t2.couldBe(BStr)) return true;
@@ -7471,7 +7890,7 @@ std::pair<Type, Promotion> promote_classlike_to_key(Type ty) {
   return std::make_pair(
     std::move(ty),
     promoted
-    ? (RO::EvalRaiseClassConversionNoticeSampleRate > 0
+    ? (Cfg::Eval::RaiseClassConversionNoticeSampleRate > 0
        ? Promotion::YesMightThrow
        : Promotion::Yes)
     : Promotion::No

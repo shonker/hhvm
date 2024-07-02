@@ -33,7 +33,7 @@ class GoodServiceServiceInfoHolder : public apache::thrift::ServiceInfoHolder {
    apache::thrift::ServiceRequestInfoMap const& requestInfoMap() const override;
    static apache::thrift::ServiceRequestInfoMap staticRequestInfoMap();
 };
-} // cpp2
+} // namespace cpp2
 
 namespace apache::thrift {
 template <>
@@ -71,7 +71,7 @@ class BadInteractionIf : public apache::thrift::Tile, public apache::thrift::Ser
   virtual folly::coro::Task<void> co_foo();
   virtual folly::coro::Task<void> co_foo(apache::thrift::RequestParams params);
 #endif
-  virtual void async_tm_foo(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback);
+  virtual void async_tm_foo(apache::thrift::HandlerCallbackPtr<void> callback);
  private:
   std::atomic<apache::thrift::detail::si::InvocationType> __fbthrift_invocation_foo{apache::thrift::detail::si::InvocationType::AsyncTm};
 };
@@ -84,7 +84,7 @@ class BadInteractionIf : public apache::thrift::Tile, public apache::thrift::Ser
   virtual folly::coro::Task<::std::int32_t> co_bar();
   virtual folly::coro::Task<::std::int32_t> co_bar(apache::thrift::RequestParams params);
 #endif
-  virtual void async_tm_bar(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback);
+  virtual void async_tm_bar(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback);
  private:
   static ::cpp2::GoodServiceServiceInfoHolder __fbthrift_serviceInfoHolder;
   std::atomic<apache::thrift::detail::si::InvocationType> __fbthrift_invocation_createBadInteraction{apache::thrift::detail::si::InvocationType::AsyncTm};
@@ -95,7 +95,7 @@ class BadInteractionIf : public apache::thrift::Tile, public apache::thrift::Ser
 
 namespace cpp2 {
 using GoodServiceSvIf [[deprecated("Use apache::thrift::ServiceHandler<GoodService> instead")]] = ::apache::thrift::ServiceHandler<GoodService>;
-} // cpp2
+} // namespace cpp2
 namespace cpp2 {
 class GoodServiceSvNull : public ::apache::thrift::ServiceHandler<GoodService> {
  public:
@@ -149,4 +149,4 @@ class GoodServiceAsyncProcessor : public ::apache::thrift::GeneratedAsyncProcess
   ~GoodServiceAsyncProcessor() override {}
 };
 
-} // cpp2
+} // namespace cpp2

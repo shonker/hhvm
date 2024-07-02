@@ -10,6 +10,7 @@
       "const": "no",
       "explicit": "no",
       "inline": "yes",
+      "noexcept": "yes",
       "virtual": "non-virtual",
       "tparams": [
         {
@@ -28,11 +29,11 @@
       ],
       "location": {
         "file": "fbcode/thrift/lib/cpp2/FieldRef.h",
-        "line": "572",
-        "column": "1",
+        "line": "565",
+        "column": "20",
         "bodyfile": "fbcode/thrift/lib/cpp2/FieldRef.h",
-        "bodystart": "572",
-        "bodyend": "576"
+        "bodystart": "565",
+        "bodyend": "569"
       },
       "definition": {
         "simple_html": "template &lt;typename U&gt;\nFOLLY_ERASE void copy_from(const optional_field_ref&lt;U&gt;&amp; other)",
@@ -54,5 +55,11 @@
   "brief_html": "",
   "groupname_html": "",
   "href": "/ref/cpp/f/class/apache/thrift/optional_field_ref/copy_from",
-  "refid": "/ref/cpp/f/class/apache/thrift/optional_field_ref/copy_from"
+  "refid": "/ref/cpp/f/class/apache/thrift/optional_field_ref/copy_from",
+  "parent_links": [
+    {
+      "text_html": "optional_field_ref",
+      "href": "/ref/cpp/class/apache/thrift/optional_field_ref"
+    }
+  ]
 }

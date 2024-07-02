@@ -60,8 +60,7 @@ struct TrackedElemInfo {
  * in that header and interp.h.
  */
 struct ISS {
-  explicit ISS(Interp& bag,
-               PropagateFn propagate)
+  ISS(Interp& bag, PropagateFn propagate)
     : index(bag.index)
     , ctx(bag.ctx)
     , collect(bag.collect)
@@ -69,7 +68,7 @@ struct ISS {
     , blk(*bag.blk)
     , state(bag.state)
     , undo(bag.undo)
-    , propagate(propagate)
+    , propagate(std::move(propagate))
     , analyzeDepth(0)
   {}
 
@@ -82,7 +81,6 @@ struct ISS {
   StateMutationUndo* undo;
   StepFlags flags;
   PropagateFn propagate;
-  bool recordUsedParams{true};
 
   Optional<State> stateBefore;
 
@@ -211,48 +209,30 @@ void jmp_nevertaken(ISS& env) {
   jmp_setdest(env, env.blk.fallthrough);
 }
 
-struct IgnoreUsedParams {
-  explicit IgnoreUsedParams(ISS& env) :
-      env{env}, record{env.recordUsedParams} {
-    env.recordUsedParams = false;
-  }
-
-  ~IgnoreUsedParams() {
-    env.recordUsedParams = record;
-  }
-
-  ISS& env;
-  const bool record;
-};
-
 void readUnknownParams(ISS& env) {
   for (LocalId p = 0; p < env.ctx.func->params.size(); p++) {
     if (p == env.flags.mayReadLocalSet.size()) break;
     env.flags.mayReadLocalSet.set(p);
   }
-  if (env.recordUsedParams) env.collect.usedParams.set();
+  env.flags.usedParams.set();
 }
 
 void readUnknownLocals(ISS& env) {
   env.flags.mayReadLocalSet.set();
-  if (env.recordUsedParams) env.collect.usedParams.set();
+  env.flags.usedParams.set();
 }
 
 void readAllLocals(ISS& env) {
   env.flags.mayReadLocalSet.set();
-  if (env.recordUsedParams) env.collect.usedParams.set();
+  env.flags.usedParams.set();
 }
 
 void doRet(ISS& env, Type t, bool hasEffects) {
-  IgnoreUsedParams _{env};
-
-  readAllLocals(env);
   assertx(env.state.stack.empty());
+  env.flags.mayReadLocalSet.set();
   env.flags.retParam = NoLocalId;
   env.flags.returned = t;
-  if (!hasEffects) {
-    effect_free(env);
-  }
+  if (!hasEffects) effect_free(env);
 }
 
 void hasInvariantIterBase(ISS& env) {
@@ -438,7 +418,7 @@ bool shouldAttemptToFold(ISS& env, const php::Func* func, const FCallArgs& fca,
   }
 
   if (maybeDynamic && (
-      (RuntimeOption::EvalNoticeOnBuiltinDynamicCalls &&
+      (Cfg::Eval::NoticeOnBuiltinDynamicCalls &&
        (func->attrs & AttrBuiltin)) ||
       (dyn_call_error_level(func) > 0))) {
     return false;
@@ -537,7 +517,10 @@ bool shouldAttemptToFold(ISS& env, const php::Func* func, const FCallArgs& fca,
     // The method may be foldable if we know more about $this.
     if (is_specialized_obj(context)) {
       auto const& dobj = dobj_of(context);
-      if (dobj.isExact() || (!dobj.isIsect() && dobj.cls().cls() != func->cls)) {
+      if (dobj.isExact() ||
+          (dobj.isSub() && dobj.cls().cls() != func->cls) ||
+          (dobj.isIsectAndExact() &&
+           dobj.isectAndExact().first.cls() != func->cls)) {
         return true;
       }
     }
@@ -549,21 +532,37 @@ bool shouldAttemptToFold(ISS& env, const php::Func* func, const FCallArgs& fca,
 //////////////////////////////////////////////////////////////////////
 // locals
 
-void mayReadLocal(ISS& env, uint32_t id) {
+void mayReadLocal(ISS& env, uint32_t id, bool isUse = true) {
   if (id < env.flags.mayReadLocalSet.size()) {
     env.flags.mayReadLocalSet.set(id);
   }
-  if (env.recordUsedParams && id < env.collect.usedParams.size()) {
-    env.collect.usedParams.set(id);
+  if (isUse && id < env.flags.usedParams.size()) {
+    env.flags.usedParams.set(id);
   }
 }
 
 // Find a local which is equivalent to the given local
+LocalId findLocEquiv(State& state, const php::Func* func, LocalId l) {
+  if (l >= state.equivLocals.size()) return NoLocalId;
+  assertx(state.equivLocals[l] == NoLocalId || !is_volatile_local(func, l));
+  return state.equivLocals[l];
+}
 LocalId findLocEquiv(ISS& env, LocalId l) {
-  if (l >= env.state.equivLocals.size()) return NoLocalId;
-  assertx(env.state.equivLocals[l] == NoLocalId ||
-         !is_volatile_local(env.ctx.func, l));
-  return env.state.equivLocals[l];
+  return findLocEquiv(env.state, env.ctx.func, l);
+}
+
+// Given an iterator base local, find an equivalent local that is possibly
+// better. IterInit/IterNext often uses an unnamed local that came from
+// a regular local, which would be a better choice if that local was not
+// manipulated in an unsafe way. Regular locals have lower ids.
+LocalId findIterBaseLoc(State& state, const php::Func* func, LocalId l) {
+  assertx(l != NoLocalId);
+  auto const locEquiv = findLocEquiv(state, func, l);
+  if (locEquiv == NoLocalId) return l;
+  return std::min(l, locEquiv);
+}
+LocalId findIterBaseLoc(ISS& env, LocalId l) {
+  return findIterBaseLoc(env.state, env.ctx.func, l);
 }
 
 // Find an equivalent local with minimum id
@@ -1070,6 +1069,30 @@ inline PropMergeResult mergeStaticProp(ISS& env,
     ignoreConst,
     mustBeReadOnly
   );
+}
+
+inline Index::ReturnType memoGet(ISS& env) {
+  env.collect.allMemoGets.emplace(env.bid);
+  return env.collect.allMemoSets;
+}
+
+inline void memoSet(ISS& env, Type t, bool effectFree) {
+  auto reflow = false;
+
+  t |= env.collect.allMemoSets.t;
+  if (env.collect.allMemoSets.t.strictSubtypeOf(t)) {
+    env.collect.allMemoSets.t = std::move(t);
+    reflow = true;
+  }
+  if (!effectFree && env.collect.allMemoSets.effectFree) {
+    env.collect.allMemoSets.effectFree = false;
+    reflow = true;
+  }
+  if (reflow) {
+    for (auto const bid : env.collect.allMemoGets) {
+      env.propagate(bid, nullptr);
+    }
+  }
 }
 
 //////////////////////////////////////////////////////////////////////

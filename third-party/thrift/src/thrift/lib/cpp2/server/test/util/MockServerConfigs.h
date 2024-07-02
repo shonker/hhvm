@@ -40,6 +40,9 @@ class MockServerConfigs : public apache::thrift::server::ServerConfigs {
       getObserver,
       (),
       (const, override));
+  MOCK_METHOD(MetricCollector&, getMetricCollector, (), (override));
+  MOCK_METHOD(
+      const MetricCollector&, getMetricCollector, (), (const, override));
   MOCK_METHOD(
       apache::thrift::AdaptiveConcurrencyController&,
       getAdaptiveConcurrencyController,
@@ -67,7 +70,7 @@ class MockServerConfigs : public apache::thrift::server::ServerConfigs {
 
   // using ErrorCodeAndMessage = std::pair<std::string, std::string>;
   MOCK_METHOD(
-      folly::Optional<ErrorCodeAndMessage>,
+      folly::Optional<OverloadResult>,
       checkOverload,
       (const apache::thrift::transport::THeader::StringToStringMap*,
        const std::string* method),

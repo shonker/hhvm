@@ -126,7 +126,7 @@ struct safe_assert_msg_types_one_fn {
   c<safe_assert_msg_type::cstr> operator()(char const*) const;
   c<safe_assert_msg_type::ui64> operator()(uint64_t) const;
 };
-FOLLY_INLINE_VARIABLE constexpr safe_assert_msg_types_one_fn
+inline constexpr safe_assert_msg_types_one_fn
     safe_assert_msg_types_one{}; // a function object to prevent extensions
 
 template <typename... A>
@@ -153,11 +153,11 @@ struct safe_assert_msg_cast_one_fn {
   FOLLY_ERASE auto operator()(char const* const a) const { return a; }
   FOLLY_ERASE auto operator()(uint64_t const a) const { return a; }
 };
-FOLLY_INLINE_VARIABLE constexpr safe_assert_msg_cast_one_fn
+inline constexpr safe_assert_msg_cast_one_fn
     safe_assert_msg_cast_one{}; // a function object to prevent extensions
 
 template <bool P>
-[[noreturn]] FOLLY_COLD FOLLY_NOINLINE void safe_assert_terminate(
+[[noreturn, FOLLY_ATTR_GNU_COLD]] FOLLY_NOINLINE void safe_assert_terminate(
     safe_assert_arg const* arg, ...) noexcept; // the true backing function
 
 template <bool P>

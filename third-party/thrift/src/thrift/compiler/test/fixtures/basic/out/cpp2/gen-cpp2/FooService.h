@@ -22,7 +22,7 @@ namespace apache { namespace thrift {
   namespace transport { class THeader; }
 }}
 
-namespace test { namespace fixtures { namespace basic {
+namespace test::fixtures::basic {
 class FooService;
 class FooServiceAsyncProcessor;
 
@@ -31,7 +31,7 @@ class FooServiceServiceInfoHolder : public apache::thrift::ServiceInfoHolder {
    apache::thrift::ServiceRequestInfoMap const& requestInfoMap() const override;
    static apache::thrift::ServiceRequestInfoMap staticRequestInfoMap();
 };
-}}} // test::fixtures::basic
+} // namespace test::fixtures::basic
 
 namespace apache::thrift {
 template <>
@@ -58,7 +58,7 @@ class ServiceHandler<::test::fixtures::basic::FooService> : public apache::thrif
   virtual folly::coro::Task<void> co_simple_rpc();
   virtual folly::coro::Task<void> co_simple_rpc(apache::thrift::RequestParams params);
 #endif
-  virtual void async_tm_simple_rpc(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback);
+  virtual void async_tm_simple_rpc(apache::thrift::HandlerCallbackPtr<void> callback);
  private:
   static ::test::fixtures::basic::FooServiceServiceInfoHolder __fbthrift_serviceInfoHolder;
   std::atomic<apache::thrift::detail::si::InvocationType> __fbthrift_invocation_simple_rpc{apache::thrift::detail::si::InvocationType::AsyncTm};
@@ -66,10 +66,10 @@ class ServiceHandler<::test::fixtures::basic::FooService> : public apache::thrif
 
 } // namespace apache::thrift
 
-namespace test { namespace fixtures { namespace basic {
+namespace test::fixtures::basic {
 using FooServiceSvIf [[deprecated("Use apache::thrift::ServiceHandler<FooService> instead")]] = ::apache::thrift::ServiceHandler<FooService>;
-}}} // test::fixtures::basic
-namespace test { namespace fixtures { namespace basic {
+} // namespace test::fixtures::basic
+namespace test::fixtures::basic {
 class FooServiceSvNull : public ::apache::thrift::ServiceHandler<FooService> {
  public:
   void simple_rpc() override;
@@ -106,4 +106,4 @@ class FooServiceAsyncProcessor : public ::apache::thrift::GeneratedAsyncProcesso
   ~FooServiceAsyncProcessor() override {}
 };
 
-}}} // test::fixtures::basic
+} // namespace test::fixtures::basic

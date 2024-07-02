@@ -69,7 +69,7 @@ class Fields;
 class FieldsInjectedToEmptyStruct;
 class FieldsInjectedToStruct;
 class FieldsInjectedWithIncludedStruct;
-} // cpp2
+} // namespace cpp2
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -134,6 +134,8 @@ class Fields final  {
  public:
   using __fbthrift_cpp2_type = Fields;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -289,6 +291,8 @@ class FieldsInjectedToEmptyStruct final  {
  public:
   using __fbthrift_cpp2_type = FieldsInjectedToEmptyStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -446,6 +450,8 @@ class FieldsInjectedToStruct final  {
  public:
   using __fbthrift_cpp2_type = FieldsInjectedToStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -664,6 +670,8 @@ class FieldsInjectedWithIncludedStruct final  {
  public:
   using __fbthrift_cpp2_type = FieldsInjectedWithIncludedStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -916,4 +924,4 @@ unsigned long FieldsInjectedWithIncludedStruct::read(Protocol_* iprot) {
 }
 
 
-} // cpp2
+} // namespace cpp2

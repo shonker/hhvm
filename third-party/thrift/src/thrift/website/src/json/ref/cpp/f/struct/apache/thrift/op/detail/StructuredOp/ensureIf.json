@@ -41,7 +41,7 @@
       "location": {
         "file": "fbcode/thrift/lib/cpp2/op/detail/StructOp.h",
         "line": "145",
-        "column": "1",
+        "column": "15",
         "bodyfile": "fbcode/thrift/lib/cpp2/op/detail/StructOp.h",
         "bodystart": "145",
         "bodyend": "158"
@@ -66,5 +66,11 @@
   "brief_html": "",
   "groupname_html": "",
   "href": "/ref/cpp/f/struct/apache/thrift/op/detail/StructuredOp/ensureIf",
-  "refid": "/ref/cpp/f/struct/apache/thrift/op/detail/StructuredOp/ensureIf"
+  "refid": "/ref/cpp/f/struct/apache/thrift/op/detail/StructuredOp/ensureIf",
+  "parent_links": [
+    {
+      "text_html": "StructuredOp",
+      "href": "/ref/cpp/struct/apache/thrift/op/detail/StructuredOp"
+    }
+  ]
 }

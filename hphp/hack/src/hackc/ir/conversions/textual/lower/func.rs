@@ -9,6 +9,7 @@ use ir::Func;
 use ir::FuncBuilder;
 use ir::Immediate;
 use ir::Instr;
+use ir::IrRepr;
 use ir::LocId;
 use ir::LocalId;
 use ir::MemberOpBuilder;
@@ -16,6 +17,7 @@ use ir::MethodFlags;
 use ir::MethodName;
 use ir::ReadonlyOp;
 use ir::SpecialClsRef;
+use ir::SrcLoc;
 use ir::TypedValue;
 use log::trace;
 
@@ -107,14 +109,14 @@ fn add_reified_parameter(func: &mut Func) {
             },
         }),
     };
-    func.params.push((param, None));
+    func.repr.params.push((param, None));
 }
 
 fn add_self_trait_parameter(func: &mut Func) {
     // We insert a `self` parameter so infer's analysis can
     // do its job. We don't use `$` so we are sure we don't clash with
     // existing Hack user defined variables.
-    func.params.push((
+    func.repr.params.push((
         ir::Param {
             name: ir::string_id!("self"),
             is_variadic: false,
@@ -128,7 +130,7 @@ fn add_self_trait_parameter(func: &mut Func) {
 }
 
 fn call_base_func(builder: &mut FuncBuilder, method_info: &MethodInfo<'_>, loc: LocId) {
-    if method_info.class.base.is_some() {
+    if method_info.class.base.is_just() {
         let clsref = SpecialClsRef::ParentCls;
         let method = method_info.name;
         builder.emit(Instr::method_call_special(clsref, method, &[], loc));
@@ -140,9 +142,9 @@ fn rewrite_86pinit(builder: &mut FuncBuilder, method_info: &MethodInfo<'_>) {
     // doesn't exist if there aren't any). For textual we change that to use it
     // to initialize all properties and be guaranteed to exist.
 
-    builder.start_block(Func::ENTRY_BID);
+    builder.start_block(IrRepr::ENTRY_BID);
     let saved = std::mem::take(&mut builder.cur_block_mut().iids);
-    let loc = builder.func.loc_id;
+    let loc = builder.add_loc(SrcLoc::from_span(&builder.func.span));
 
     call_base_func(builder, method_info, loc);
 
@@ -171,9 +173,9 @@ fn rewrite_86sinit(builder: &mut FuncBuilder, method_info: &MethodInfo<'_>) {
     // use it to initialize all properties and be guaranteed to exist.  We also
     // use it to initialize class constants.
 
-    builder.start_block(Func::ENTRY_BID);
+    builder.start_block(IrRepr::ENTRY_BID);
     let saved = std::mem::take(&mut builder.cur_block_mut().iids);
-    let loc = builder.func.loc_id;
+    let loc = builder.add_loc(SrcLoc::from_span(&builder.func.span));
 
     call_base_func(builder, method_info, loc);
 
@@ -240,8 +242,7 @@ fn rewrite_86sinit(builder: &mut FuncBuilder, method_info: &MethodInfo<'_>) {
 
 fn load_closure_vars(func: &mut Func, method_info: &MethodInfo<'_>) {
     let mut instrs = Vec::new();
-
-    let loc = func.loc_id;
+    let loc = ir::LocId::from_usize(0);
 
     // Some magic: We sort the properties such that we always put 'this' at the
     // end. That way when we overwrite the '$this' local we're doing so as the
@@ -263,12 +264,18 @@ fn load_closure_vars(func: &mut Func, method_info: &MethodInfo<'_>) {
         // Property names are the variable names without the '$'.
         let var = format!("${}", prop.name);
         let lid = LocalId::Named(ir::intern(var));
-        let iid = func.alloc_instr(Instr::MemberOp(
+        let iid = func.repr.alloc_instr(Instr::MemberOp(
             MemberOpBuilder::base_h(loc).query_pt(prop.name),
         ));
         instrs.push(iid);
-        instrs.push(func.alloc_instr(Instr::Hhbc(Hhbc::SetL(iid.into(), lid, loc))));
+        instrs.push(
+            func.repr
+                .alloc_instr(Instr::Hhbc(Hhbc::SetL(iid.into(), lid, loc))),
+        );
     }
 
-    func.block_mut(Func::ENTRY_BID).iids.splice(0..0, instrs);
+    func.repr
+        .block_mut(IrRepr::ENTRY_BID)
+        .iids
+        .splice(0..0, instrs);
 }

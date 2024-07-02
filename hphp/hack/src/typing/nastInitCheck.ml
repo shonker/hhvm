@@ -59,7 +59,7 @@ let lookup_props env class_name props =
       fun name map ->
         let ty_opt =
           if String.equal name parent_init_prop then
-            Some (Typing_make_type.nonnull Typing_reason.Rnone)
+            Some (Typing_make_type.nonnull Typing_reason.none)
           else
             Typing_env.get_class env class_name
             |> Decl_entry.to_option
@@ -82,10 +82,10 @@ let type_does_not_require_init env ty_opt =
       Typing_phase.localize_no_subst env ~ignore_errors:true ty
     in
     Option.iter ~f:(Typing_error_utils.add_typing_error ~env) ty_err_opt;
-    let null = Typing_make_type.null Typing_reason.Rnone in
+    let null = Typing_make_type.null Typing_reason.none in
     Typing_subtype.is_sub_type env null ty
     ||
-    let dynamic = Typing_make_type.dynamic Typing_reason.Rnone in
+    let dynamic = Typing_make_type.dynamic Typing_reason.none in
     Typing_subtype.is_sub_type env dynamic ty
     && Typing_subtype.is_sub_type env ty dynamic
 
@@ -258,7 +258,7 @@ let class_prop_pos class_name prop_name ctx : Pos_or_decl.t =
   | Decl_entry.NotYetAvailable ->
     Pos_or_decl.none
   | Decl_entry.Found decl ->
-    (match Decl_provider.Class.get_prop decl prop_name with
+    (match Folded_class.get_prop decl prop_name with
     | None -> Pos_or_decl.none
     | Some elt ->
       let member_origin = elt.Typing_defs.ce_origin in
@@ -332,7 +332,7 @@ let rec constructor env cstr =
   | Some cstr ->
     let check_param_initializer e = ignore (expr env S.empty e) in
     List.iter cstr.m_params ~f:(fun p ->
-        Option.iter p.param_expr ~f:check_param_initializer);
+        Option.iter (Aast_utils.get_param_default p) ~f:check_param_initializer);
     let b = cstr.m_body in
     toplevel env S.empty b.fb_ast
 
@@ -406,7 +406,17 @@ and stmt env acc st =
     let acc = expr acc e in
     (* Filter out cases that fallthrough *)
     (* NOTE: 'default' never fallthough *)
-    let cl_body = List.filter cl ~f:case_has_body in
+    let case_is_empty_or_exactly_fallthrough ((_, b) : (_, _) Aast.case) =
+      match b with
+      | [(_, Fallthrough)]
+      | [] ->
+        true
+      | _ -> false
+    in
+    let cl_body =
+      List.filter cl ~f:(fun case ->
+          not @@ case_is_empty_or_exactly_fallthrough case)
+    in
     let cl = List.map cl_body ~f:(case acc) in
     let cdfl = dfl |> Option.map ~f:(default_case acc) in
     let c = S.inter_list cl in
@@ -624,7 +634,9 @@ and expr_ env acc p e =
   | Import _ -> acc
   | Collection _ -> acc
   | FunctionPointer _ -> acc
-  | ET_Splice e -> expr acc e
+  | ET_Splice { spliced_expr = e; extract_client_type = _; contains_await = _ }
+    ->
+    expr acc e
   | ReadonlyExpr e -> expr acc e
   | Hole (e, _, _, _) -> expr acc e
   (* Don't analyze invalid expressions *)
@@ -632,8 +644,6 @@ and expr_ env acc p e =
   | Package _ -> acc
 
 and case env acc ((_, b) : (_, _) Aast.case) = block env acc b
-
-and case_has_body ((_, b) : (_, _) Aast.case) = not (List.is_empty b)
 
 and stmt_match_arm env acc { sma_pat = _; sma_body } = block env acc sma_body
 
@@ -654,9 +664,9 @@ and afield env acc = function
     acc
 
 and fun_param env acc param =
-  match param.param_expr with
-  | None -> acc
+  match Aast_utils.get_param_default param with
   | Some x -> expr env acc x
+  | None -> acc
 
 and fun_paraml env acc l = List.fold_left ~f:(fun_param env) ~init:acc l
 

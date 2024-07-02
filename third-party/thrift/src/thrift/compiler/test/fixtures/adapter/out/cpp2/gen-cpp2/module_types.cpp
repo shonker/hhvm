@@ -65,7 +65,7 @@ void TccStructTraits<::facebook::thrift::test::MyAnnotation>::translateFieldName
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* MyAnnotation::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/MyAnnotation";
@@ -104,7 +104,7 @@ MyAnnotation& MyAnnotation::operator=([[maybe_unused]] MyAnnotation&& other) noe
 
 MyAnnotation::MyAnnotation(apache::thrift::FragileConstructor, ::std::string signature__arg, ::facebook::thrift::test::Color color__arg) :
     __fbthrift_field_signature(std::move(signature__arg)),
-    __fbthrift_field_color(std::move(color__arg)) {
+    __fbthrift_field_color(std::move(color__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
 }
@@ -150,7 +150,7 @@ template uint32_t MyAnnotation::serializedSize<>(apache::thrift::CompactProtocol
 template uint32_t MyAnnotation::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -173,7 +173,7 @@ void TccStructTraits<::facebook::thrift::test::Foo>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* Foo::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/compiler/test/fixtures/adapter/src/module/Foo";
@@ -297,7 +297,7 @@ Foo::Foo(apache::thrift::FragileConstructor, ::apache::thrift::adapt_detail::ada
     __fbthrift_field_binaryField(std::move(binaryField__arg)),
     __fbthrift_field_longField(std::move(longField__arg)),
     __fbthrift_field_adaptedLongField(std::move(adaptedLongField__arg)),
-    __fbthrift_field_doubleAdaptedField(std::move(doubleAdaptedField__arg)) {
+    __fbthrift_field_doubleAdaptedField(std::move(doubleAdaptedField__arg)) { 
   ::apache::thrift::adapt_detail::construct<::my::Adapter1, 1>(__fbthrift_field_intField, *this);
   ::apache::thrift::adapt_detail::construct<::my::Adapter1, 2>(__fbthrift_field_optionalIntField, *this);
   ::apache::thrift::adapt_detail::construct<::my::Adapter1, 3>(__fbthrift_field_intFieldWithDefault, *this);
@@ -381,7 +381,7 @@ template uint32_t Foo::serializedSize<>(apache::thrift::CompactProtocolWriter co
 template uint32_t Foo::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -417,7 +417,7 @@ bool TEnumTraits<::facebook::thrift::test::Baz::Type>::findValue(std::string_vie
   return ::apache::thrift::detail::st::enum_find_value(name, out);
 }
 }} // apache::thrift
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* Baz::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/Baz";
@@ -546,7 +546,7 @@ template uint32_t Baz::serializedSize<>(apache::thrift::CompactProtocolWriter co
 template uint32_t Baz::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -569,7 +569,7 @@ void TccStructTraits<::facebook::thrift::test::Bar>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* Bar::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/Bar";
@@ -653,7 +653,7 @@ Bar::Bar(apache::thrift::FragileConstructor, ::my::Cpp::Type1 structField__arg, 
     __fbthrift_field_optionalStructListField(std::move(optionalStructListField__arg)),
     __fbthrift_field_unionField(std::move(unionField__arg)),
     __fbthrift_field_optionalUnionField(std::move(optionalUnionField__arg)),
-    __fbthrift_field_adaptedStructField(std::move(adaptedStructField__arg)) {
+    __fbthrift_field_adaptedStructField(std::move(adaptedStructField__arg)) { 
   ::apache::thrift::adapt_detail::construct<::my::Adapter1, 1>(__fbthrift_field_structField, *this);
   ::apache::thrift::adapt_detail::construct<::my::Adapter1, 2>(__fbthrift_field_optionalStructField, *this);
   ::apache::thrift::adapt_detail::construct<::my::Adapter1, 5>(__fbthrift_field_unionField, *this);
@@ -765,7 +765,7 @@ static_assert(
         ::facebook::thrift::test::DirectlyAdapted>,
     "inconsistent use of json option");
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -788,7 +788,7 @@ void TccStructTraits<::facebook::thrift::test::detail::DirectlyAdapted>::transla
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {namespace detail {
+namespace facebook::thrift::test {namespace detail {
 
 
 const char* DirectlyAdapted::__fbthrift_thrift_uri() {
@@ -805,7 +805,7 @@ std::string_view DirectlyAdapted::__fbthrift_get_class_name() {
 
 
 DirectlyAdapted::DirectlyAdapted(apache::thrift::FragileConstructor, ::std::int32_t field__arg) :
-    __fbthrift_field_field(std::move(field__arg)) {
+    __fbthrift_field_field(std::move(field__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -849,7 +849,7 @@ template uint32_t DirectlyAdapted::serializedSizeZC<>(apache::thrift::CompactPro
 
 
 } // namespace detail
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -872,7 +872,7 @@ void TccStructTraits<::facebook::thrift::test::detail::IndependentDirectlyAdapte
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {namespace detail {
+namespace facebook::thrift::test {namespace detail {
 
 
 const char* IndependentDirectlyAdapted::__fbthrift_thrift_uri() {
@@ -889,7 +889,7 @@ std::string_view IndependentDirectlyAdapted::__fbthrift_get_class_name() {
 
 
 IndependentDirectlyAdapted::IndependentDirectlyAdapted(apache::thrift::FragileConstructor, ::std::int32_t field__arg) :
-    __fbthrift_field_field(std::move(field__arg)) {
+    __fbthrift_field_field(std::move(field__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -933,7 +933,7 @@ template uint32_t IndependentDirectlyAdapted::serializedSizeZC<>(apache::thrift:
 
 
 } // namespace detail
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -956,7 +956,7 @@ void TccStructTraits<::facebook::thrift::test::StructWithFieldAdapter>::translat
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* StructWithFieldAdapter::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/StructWithFieldAdapter";
@@ -1025,7 +1025,7 @@ StructWithFieldAdapter::StructWithFieldAdapter(apache::thrift::FragileConstructo
     __fbthrift_field_field(std::move(field__arg)),
     __fbthrift_field_shared_field(std::move(shared_field__arg)),
     __fbthrift_field_opt_shared_field(std::move(opt_shared_field__arg)),
-    __fbthrift_field_opt_boxed_field(std::move(opt_boxed_field__arg)) {
+    __fbthrift_field_opt_boxed_field(std::move(opt_boxed_field__arg)) { 
   ::apache::thrift::adapt_detail::construct<::my::Adapter1, 1>(__fbthrift_field_field, *this);
   ::apache::thrift::adapt_detail::construct<::my::Adapter1, 2>(*__fbthrift_field_shared_field, *this);
   if (__fbthrift_field_opt_shared_field) ::apache::thrift::adapt_detail::construct<::my::Adapter1, 3>(*__fbthrift_field_opt_shared_field, *this);
@@ -1078,7 +1078,7 @@ template uint32_t StructWithFieldAdapter::serializedSize<>(apache::thrift::Compa
 template uint32_t StructWithFieldAdapter::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -1101,7 +1101,7 @@ void TccStructTraits<::facebook::thrift::test::TerseAdaptedFields>::translateFie
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* TerseAdaptedFields::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/TerseAdaptedFields";
@@ -1161,7 +1161,7 @@ TerseAdaptedFields& TerseAdaptedFields::operator=([[maybe_unused]] TerseAdaptedF
 TerseAdaptedFields::TerseAdaptedFields(apache::thrift::FragileConstructor, ::apache::thrift::adapt_detail::adapted_field_t<::my::Adapter1, 1, ::std::int32_t, TerseAdaptedFields> int_field__arg, ::apache::thrift::adapt_detail::adapted_field_t<::my::Adapter1, 2, ::std::string, TerseAdaptedFields> string_field__arg, ::apache::thrift::adapt_detail::adapted_field_t<::my::Adapter1, 3, ::std::set<::std::int32_t>, TerseAdaptedFields> set_field__arg) :
     __fbthrift_field_int_field(std::move(int_field__arg)),
     __fbthrift_field_string_field(std::move(string_field__arg)),
-    __fbthrift_field_set_field(std::move(set_field__arg)) {
+    __fbthrift_field_set_field(std::move(set_field__arg)) { 
   ::apache::thrift::adapt_detail::construct<::my::Adapter1, 1>(__fbthrift_field_int_field, *this);
   ::apache::thrift::adapt_detail::construct<::my::Adapter1, 2>(__fbthrift_field_string_field, *this);
   ::apache::thrift::adapt_detail::construct<::my::Adapter1, 3>(__fbthrift_field_set_field, *this);
@@ -1213,7 +1213,7 @@ template uint32_t TerseAdaptedFields::serializedSize<>(apache::thrift::CompactPr
 template uint32_t TerseAdaptedFields::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -1236,7 +1236,7 @@ void TccStructTraits<::facebook::thrift::test::B>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* B::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/B";
@@ -1277,7 +1277,7 @@ B& B::operator=([[maybe_unused]] B&& other) noexcept {
 
 
 B::B(apache::thrift::FragileConstructor, ::facebook::thrift::test::AdaptedA a__arg) :
-    __fbthrift_field_a(std::move(a__arg)) {
+    __fbthrift_field_a(std::move(a__arg)) { 
   ::apache::thrift::adapt_detail::construct<::my::Adapter, 1>(__fbthrift_field_a, *this);
   __isset.set(folly::index_constant<0>(), true);
 }
@@ -1326,7 +1326,7 @@ static_assert(
         ::facebook::thrift::test::AdaptedA>,
     "inconsistent use of json option");
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -1349,7 +1349,7 @@ void TccStructTraits<::facebook::thrift::test::A>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* A::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/A";
@@ -1401,7 +1401,7 @@ template uint32_t A::serializedSize<>(apache::thrift::CompactProtocolWriter cons
 template uint32_t A::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -1424,7 +1424,7 @@ void TccStructTraits<::facebook::thrift::test::Config>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* Config::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/Config";
@@ -1459,7 +1459,7 @@ Config& Config::operator=([[maybe_unused]] Config&& other) noexcept {
 
 
 Config::Config(apache::thrift::FragileConstructor, ::std::string path__arg) :
-    __fbthrift_field_path(std::move(path__arg)) {
+    __fbthrift_field_path(std::move(path__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -1502,7 +1502,7 @@ template uint32_t Config::serializedSize<>(apache::thrift::CompactProtocolWriter
 template uint32_t Config::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -1525,7 +1525,7 @@ void TccStructTraits<::facebook::thrift::test::MyStruct>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* MyStruct::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/MyStruct";
@@ -1578,7 +1578,7 @@ MyStruct& MyStruct::operator=([[maybe_unused]] MyStruct&& other) noexcept {
 
 MyStruct::MyStruct(apache::thrift::FragileConstructor, ::std::int32_t field__arg, ::facebook::thrift::test::SetWithAdapter set_string__arg) :
     __fbthrift_field_field(std::move(field__arg)),
-    __fbthrift_field_set_string(std::move(set_string__arg)) {
+    __fbthrift_field_set_string(std::move(set_string__arg)) { 
   ::apache::thrift::adapt_detail::construct<::my::Adapter2, 2>(__fbthrift_field_set_string, *this);
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
@@ -1625,7 +1625,7 @@ template uint32_t MyStruct::serializedSize<>(apache::thrift::CompactProtocolWrit
 template uint32_t MyStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -1648,7 +1648,7 @@ void TccStructTraits<::facebook::thrift::test::AdaptTestStruct>::translateFieldN
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* AdaptTestStruct::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/AdaptTestStruct";
@@ -1761,7 +1761,7 @@ AdaptTestStruct::AdaptTestStruct(apache::thrift::FragileConstructor, ::facebook:
     __fbthrift_field_string_data(std::move(string_data__arg)),
     __fbthrift_field_double_wrapped_bool(std::move(double_wrapped_bool__arg)),
     __fbthrift_field_double_wrapped_integer(std::move(double_wrapped_integer__arg)),
-    __fbthrift_field_binary_data(std::move(binary_data__arg)) {
+    __fbthrift_field_binary_data(std::move(binary_data__arg)) { 
   ::apache::thrift::adapt_detail::construct<::apache::thrift::test::AdaptTestMsAdapter, 1>(__fbthrift_field_delay, *this);
   ::apache::thrift::adapt_detail::construct<::apache::thrift::test::CustomProtocolAdapter, 2>(__fbthrift_field_custom, *this);
   ::apache::thrift::adapt_detail::construct<::apache::thrift::test::AdaptTestMsAdapter, 3>(__fbthrift_field_timeout, *this);
@@ -1840,7 +1840,7 @@ template uint32_t AdaptTestStruct::serializedSize<>(apache::thrift::CompactProto
 template uint32_t AdaptTestStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -1863,7 +1863,7 @@ void TccStructTraits<::facebook::thrift::test::AdaptTemplatedTestStruct>::transl
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* AdaptTemplatedTestStruct::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/AdaptTemplatedTestStruct";
@@ -1947,9 +1947,9 @@ AdaptTemplatedTestStruct::AdaptTemplatedTestStruct() :
       __fbthrift_field_adaptedDoubleDefault(::apache::thrift::adapt_detail::fromThriftField<::apache::thrift::test::TemplatedTestAdapter, 16>(double(static_cast<double>(5)), *this)),
       __fbthrift_field_adaptedStringDefault(::apache::thrift::adapt_detail::fromThriftField<::apache::thrift::test::TemplatedTestAdapter, 17>(::std::string(apache::thrift::StringTraits<std::string>::fromStringLiteral("6")), *this)),
       __fbthrift_field_adaptedEnum(::apache::thrift::adapt_detail::fromThriftField<::apache::thrift::StaticCastAdapter<::apache::thrift::test::basic::AdaptedEnum, ::apache::thrift::test::basic::ThriftAdaptedEnum>, 18>(::facebook::thrift::test::ThriftAdaptedEnum( ::facebook::thrift::test::AdaptedEnum::One), *this)),
-      __fbthrift_field_adaptedListDefault(::apache::thrift::adapt_detail::fromThriftField<::apache::thrift::test::TemplatedTestAdapter, 19>(::std::vector<::std::int64_t>(std::initializer_list<::std::int64_t>{static_cast<::std::int64_t>(1)}), *this)),
-      __fbthrift_field_adaptedSetDefault(::apache::thrift::adapt_detail::fromThriftField<::apache::thrift::test::TemplatedTestAdapter, 20>(::std::set<::std::int64_t>(std::initializer_list<::std::int64_t>{static_cast<::std::int64_t>(1)}), *this)),
-      __fbthrift_field_adaptedMapDefault(::apache::thrift::adapt_detail::fromThriftField<::apache::thrift::test::TemplatedTestAdapter, 21>(::std::map<::std::int64_t, ::std::int64_t>(std::initializer_list<::std::map<::std::int64_t, ::std::int64_t>::value_type>{{static_cast<::std::int64_t>(1), static_cast<::std::int64_t>(1)}}), *this)),
+      __fbthrift_field_adaptedListDefault(::apache::thrift::adapt_detail::fromThriftField<::apache::thrift::test::TemplatedTestAdapter, 19>(::std::vector<::std::int64_t>(std::initializer_list<::std::int64_t>{ static_cast<::std::int64_t>(1) }), *this)),
+      __fbthrift_field_adaptedSetDefault(::apache::thrift::adapt_detail::fromThriftField<::apache::thrift::test::TemplatedTestAdapter, 20>(::std::set<::std::int64_t>(std::initializer_list<::std::int64_t>{ static_cast<::std::int64_t>(1) }), *this)),
+      __fbthrift_field_adaptedMapDefault(::apache::thrift::adapt_detail::fromThriftField<::apache::thrift::test::TemplatedTestAdapter, 21>(::std::map<::std::int64_t, ::std::int64_t>(std::initializer_list<::std::map<::std::int64_t, ::std::int64_t>::value_type>{ { static_cast<::std::int64_t>(1), static_cast<::std::int64_t>(1) } }), *this)),
       __fbthrift_field_doubleTypedefBool() {
   ::apache::thrift::adapt_detail::construct<::apache::thrift::test::TemplatedTestAdapter, 1>(__fbthrift_field_adaptedBool, *this);
   ::apache::thrift::adapt_detail::construct<::apache::thrift::test::TemplatedTestAdapter, 2>(__fbthrift_field_adaptedByte, *this);
@@ -2076,7 +2076,7 @@ AdaptTemplatedTestStruct::AdaptTemplatedTestStruct(apache::thrift::FragileConstr
     __fbthrift_field_adaptedListDefault(std::move(adaptedListDefault__arg)),
     __fbthrift_field_adaptedSetDefault(std::move(adaptedSetDefault__arg)),
     __fbthrift_field_adaptedMapDefault(std::move(adaptedMapDefault__arg)),
-    __fbthrift_field_doubleTypedefBool(std::move(doubleTypedefBool__arg)) {
+    __fbthrift_field_doubleTypedefBool(std::move(doubleTypedefBool__arg)) { 
   ::apache::thrift::adapt_detail::construct<::apache::thrift::test::TemplatedTestAdapter, 1>(__fbthrift_field_adaptedBool, *this);
   ::apache::thrift::adapt_detail::construct<::apache::thrift::test::TemplatedTestAdapter, 2>(__fbthrift_field_adaptedByte, *this);
   ::apache::thrift::adapt_detail::construct<::apache::thrift::test::TemplatedTestAdapter, 3>(__fbthrift_field_adaptedShort, *this);
@@ -2204,7 +2204,7 @@ template uint32_t AdaptTemplatedTestStruct::serializedSize<>(apache::thrift::Com
 template uint32_t AdaptTemplatedTestStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -2227,7 +2227,7 @@ void TccStructTraits<::facebook::thrift::test::AdaptTemplatedNestedTestStruct>::
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* AdaptTemplatedNestedTestStruct::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/AdaptTemplatedNestedTestStruct";
@@ -2256,7 +2256,7 @@ AdaptTemplatedNestedTestStruct& AdaptTemplatedNestedTestStruct::operator=([[mayb
 
 
 AdaptTemplatedNestedTestStruct::AdaptTemplatedNestedTestStruct(apache::thrift::FragileConstructor, ::facebook::thrift::test::AdaptTemplatedTestStruct adaptedStruct__arg) :
-    __fbthrift_field_adaptedStruct(std::move(adaptedStruct__arg)) {
+    __fbthrift_field_adaptedStruct(std::move(adaptedStruct__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -2313,7 +2313,7 @@ static_assert(
         ::facebook::thrift::test::AdaptTemplatedTestStruct>,
     "inconsistent use of json option");
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -2349,7 +2349,7 @@ bool TEnumTraits<::facebook::thrift::test::ThriftAdaptTestUnion::Type>::findValu
   return ::apache::thrift::detail::st::enum_find_value(name, out);
 }
 }} // apache::thrift
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* ThriftAdaptTestUnion::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/AdaptTestUnion";
@@ -2451,7 +2451,7 @@ template uint32_t ThriftAdaptTestUnion::serializedSize<>(apache::thrift::Compact
 template uint32_t ThriftAdaptTestUnion::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -2474,7 +2474,7 @@ void TccStructTraits<::facebook::thrift::test::ThriftAdaptedStruct>::translateFi
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* ThriftAdaptedStruct::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/AdaptedStruct";
@@ -2490,7 +2490,7 @@ std::string_view ThriftAdaptedStruct::__fbthrift_get_class_name() {
 
 
 ThriftAdaptedStruct::ThriftAdaptedStruct(apache::thrift::FragileConstructor, ::std::int64_t data__arg) :
-    __fbthrift_field_data(std::move(data__arg)) {
+    __fbthrift_field_data(std::move(data__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -2533,7 +2533,7 @@ template uint32_t ThriftAdaptedStruct::serializedSize<>(apache::thrift::CompactP
 template uint32_t ThriftAdaptedStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -2556,7 +2556,7 @@ void TccStructTraits<::facebook::thrift::test::detail::DirectlyAdaptedStruct>::t
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {namespace detail {
+namespace facebook::thrift::test {namespace detail {
 
 
 const char* DirectlyAdaptedStruct::__fbthrift_thrift_uri() {
@@ -2573,7 +2573,7 @@ std::string_view DirectlyAdaptedStruct::__fbthrift_get_class_name() {
 
 
 DirectlyAdaptedStruct::DirectlyAdaptedStruct(apache::thrift::FragileConstructor, ::std::int64_t data__arg) :
-    __fbthrift_field_data(std::move(data__arg)) {
+    __fbthrift_field_data(std::move(data__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -2617,7 +2617,7 @@ template uint32_t DirectlyAdaptedStruct::serializedSizeZC<>(apache::thrift::Comp
 
 
 } // namespace detail
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -2640,7 +2640,7 @@ void TccStructTraits<::facebook::thrift::test::StructFieldAdaptedStruct>::transl
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* StructFieldAdaptedStruct::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/StructFieldAdaptedStruct";
@@ -2699,7 +2699,7 @@ StructFieldAdaptedStruct::StructFieldAdaptedStruct(apache::thrift::FragileConstr
     __fbthrift_field_adaptedStruct(std::move(adaptedStruct__arg)),
     __fbthrift_field_adaptedTypedef(std::move(adaptedTypedef__arg)),
     __fbthrift_field_directlyAdapted(std::move(directlyAdapted__arg)),
-    __fbthrift_field_typedefOfAdapted(std::move(typedefOfAdapted__arg)) {
+    __fbthrift_field_typedefOfAdapted(std::move(typedefOfAdapted__arg)) { 
   ::apache::thrift::adapt_detail::construct<::apache::thrift::test::TemplatedTestAdapter, 1>(__fbthrift_field_adaptedStruct, *this);
   ::apache::thrift::adapt_detail::construct<::apache::thrift::test::TemplatedTestAdapter, 2>(__fbthrift_field_adaptedTypedef, *this);
   ::apache::thrift::adapt_detail::construct<::apache::thrift::test::TemplatedTestAdapter, 3>(__fbthrift_field_directlyAdapted, *this);
@@ -2779,7 +2779,7 @@ static_assert(
         ::facebook::thrift::test::TypedefOfDirect>,
     "inconsistent use of json option");
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -2802,7 +2802,7 @@ void TccStructTraits<::facebook::thrift::test::CircularAdaptee>::translateFieldN
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* CircularAdaptee::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/CircularAdaptee";
@@ -2831,7 +2831,7 @@ CircularAdaptee& CircularAdaptee::operator=([[maybe_unused]] CircularAdaptee&& o
 
 
 CircularAdaptee::CircularAdaptee(apache::thrift::FragileConstructor, ::facebook::thrift::test::CircularStruct field__arg) :
-    __fbthrift_field_field(std::move(field__arg)) {
+    __fbthrift_field_field(std::move(field__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -2888,7 +2888,7 @@ static_assert(
         ::facebook::thrift::test::CircularStruct>,
     "inconsistent use of json option");
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -2911,7 +2911,7 @@ void TccStructTraits<::facebook::thrift::test::CircularStruct>::translateFieldNa
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* CircularStruct::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/CircularStruct";
@@ -2956,7 +2956,7 @@ CircularStruct& CircularStruct::operator=([[maybe_unused]] CircularStruct&& othe
 
 
 CircularStruct::CircularStruct(apache::thrift::FragileConstructor, ::std::unique_ptr<::facebook::thrift::test::AdaptedCircularAdaptee> field__arg) :
-    __fbthrift_field_field(std::move(field__arg)) {
+    __fbthrift_field_field(std::move(field__arg)) { 
   if (__fbthrift_field_field) ::apache::thrift::adapt_detail::construct<::apache::thrift::test::MemberAccessAdapter, 1>(*__fbthrift_field_field, *this);
 }
 
@@ -3003,7 +3003,7 @@ static_assert(
         ::facebook::thrift::test::AdaptedCircularAdaptee>,
     "inconsistent use of json option");
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -3026,7 +3026,7 @@ void TccStructTraits<::facebook::thrift::test::ReorderedStruct>::translateFieldN
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* ReorderedStruct::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/ReorderedStruct";
@@ -3073,7 +3073,7 @@ ReorderedStruct& ReorderedStruct::operator=([[maybe_unused]] ReorderedStruct&& o
 
 
 ReorderedStruct::ReorderedStruct(apache::thrift::FragileConstructor, ::std::unique_ptr<::facebook::thrift::test::DeclaredAfterStruct> reordered_dependent_adapted__arg) :
-    __fbthrift_field_reordered_dependent_adapted(std::move(reordered_dependent_adapted__arg)) {
+    __fbthrift_field_reordered_dependent_adapted(std::move(reordered_dependent_adapted__arg)) { 
   ::apache::thrift::adapt_detail::construct<::apache::thrift::test::IdentityAdapter<detail::DeclaredAfterStruct>, 1>(*__fbthrift_field_reordered_dependent_adapted, *this);
 }
 
@@ -3119,7 +3119,7 @@ static_assert(
         ::facebook::thrift::test::DeclaredAfterStruct>,
     "inconsistent use of json option");
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -3142,7 +3142,7 @@ void TccStructTraits<::facebook::thrift::test::detail::DeclaredAfterStruct>::tra
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {namespace detail {
+namespace facebook::thrift::test {namespace detail {
 
 
 const char* DeclaredAfterStruct::__fbthrift_thrift_uri() {
@@ -3196,7 +3196,7 @@ template uint32_t DeclaredAfterStruct::serializedSizeZC<>(apache::thrift::Compac
 
 
 } // namespace detail
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -3219,7 +3219,7 @@ void TccStructTraits<::facebook::thrift::test::UnderlyingRenamedStruct>::transla
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* UnderlyingRenamedStruct::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/RenamedStruct";
@@ -3235,7 +3235,7 @@ std::string_view UnderlyingRenamedStruct::__fbthrift_get_class_name() {
 
 
 UnderlyingRenamedStruct::UnderlyingRenamedStruct(apache::thrift::FragileConstructor, ::std::int64_t data__arg) :
-    __fbthrift_field_data(std::move(data__arg)) {
+    __fbthrift_field_data(std::move(data__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -3278,7 +3278,7 @@ template uint32_t UnderlyingRenamedStruct::serializedSize<>(apache::thrift::Comp
 template uint32_t UnderlyingRenamedStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -3301,7 +3301,7 @@ void TccStructTraits<::facebook::thrift::test::UnderlyingSameNamespaceStruct>::t
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* UnderlyingSameNamespaceStruct::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/SameNamespaceStruct";
@@ -3317,7 +3317,7 @@ std::string_view UnderlyingSameNamespaceStruct::__fbthrift_get_class_name() {
 
 
 UnderlyingSameNamespaceStruct::UnderlyingSameNamespaceStruct(apache::thrift::FragileConstructor, ::std::int64_t data__arg) :
-    __fbthrift_field_data(std::move(data__arg)) {
+    __fbthrift_field_data(std::move(data__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -3360,7 +3360,7 @@ template uint32_t UnderlyingSameNamespaceStruct::serializedSize<>(apache::thrift
 template uint32_t UnderlyingSameNamespaceStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -3383,7 +3383,7 @@ void TccStructTraits<::facebook::thrift::test::detail::HeapAllocated>::translate
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {namespace detail {
+namespace facebook::thrift::test {namespace detail {
 
 
 const char* HeapAllocated::__fbthrift_thrift_uri() {
@@ -3437,7 +3437,7 @@ template uint32_t HeapAllocated::serializedSizeZC<>(apache::thrift::CompactProto
 
 
 } // namespace detail
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -3460,7 +3460,7 @@ void TccStructTraits<::facebook::thrift::test::MoveOnly>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* MoveOnly::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/MoveOnly";
@@ -3489,7 +3489,7 @@ MoveOnly& MoveOnly::operator=(const MoveOnly& other) {
 
 
 MoveOnly::MoveOnly(apache::thrift::FragileConstructor, ::facebook::thrift::test::HeapAllocated ptr__arg) :
-    __fbthrift_field_ptr(std::move(ptr__arg)) {
+    __fbthrift_field_ptr(std::move(ptr__arg)) { 
   ::apache::thrift::adapt_detail::construct<::apache::thrift::test::MoveOnlyAdapter, 1>(__fbthrift_field_ptr, *this);
   __isset.set(folly::index_constant<0>(), true);
 }
@@ -3538,7 +3538,7 @@ static_assert(
         ::facebook::thrift::test::HeapAllocated>,
     "inconsistent use of json option");
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -3561,7 +3561,7 @@ void TccStructTraits<::facebook::thrift::test::AlsoMoveOnly>::translateFieldName
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* AlsoMoveOnly::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/AlsoMoveOnly";
@@ -3590,7 +3590,7 @@ AlsoMoveOnly& AlsoMoveOnly::operator=(const AlsoMoveOnly& other) {
 
 
 AlsoMoveOnly::AlsoMoveOnly(apache::thrift::FragileConstructor, ::apache::thrift::adapt_detail::adapted_field_t<::apache::thrift::test::MoveOnlyAdapter, 1, ::std::int64_t, AlsoMoveOnly> ptr__arg) :
-    __fbthrift_field_ptr(std::move(ptr__arg)) {
+    __fbthrift_field_ptr(std::move(ptr__arg)) { 
   ::apache::thrift::adapt_detail::construct<::apache::thrift::test::MoveOnlyAdapter, 1>(__fbthrift_field_ptr, *this);
   __isset.set(folly::index_constant<0>(), true);
 }
@@ -3634,7 +3634,7 @@ template uint32_t AlsoMoveOnly::serializedSize<>(apache::thrift::CompactProtocol
 template uint32_t AlsoMoveOnly::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -3657,7 +3657,7 @@ void TccStructTraits<::facebook::thrift::test::ApplyAdapter>::translateFieldName
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* ApplyAdapter::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/ApplyAdapter";
@@ -3709,7 +3709,7 @@ template uint32_t ApplyAdapter::serializedSize<>(apache::thrift::CompactProtocol
 template uint32_t ApplyAdapter::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -3732,7 +3732,7 @@ void TccStructTraits<::facebook::thrift::test::detail::TransitiveAdapted>::trans
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {namespace detail {
+namespace facebook::thrift::test {namespace detail {
 
 
 const char* TransitiveAdapted::__fbthrift_thrift_uri() {
@@ -3786,7 +3786,7 @@ template uint32_t TransitiveAdapted::serializedSizeZC<>(apache::thrift::CompactP
 
 
 } // namespace detail
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -3809,7 +3809,7 @@ void TccStructTraits<::facebook::thrift::test::CountingStruct>::translateFieldNa
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* CountingStruct::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/CountingStruct";
@@ -3873,7 +3873,7 @@ CountingStruct& CountingStruct::operator=([[maybe_unused]] CountingStruct&& othe
 CountingStruct::CountingStruct(apache::thrift::FragileConstructor, ::apache::thrift::adapt_detail::adapted_field_t<::apache::thrift::test::CountingAdapter<false, int>, 1, ::std::int64_t, CountingStruct> regularInt__arg, ::facebook::thrift::test::CountingInt countingInt__arg, ::apache::thrift::adapt_detail::adapted_field_t<::apache::thrift::test::CountingAdapter<false, std::string>, 3, ::std::string, CountingStruct> regularString__arg) :
     __fbthrift_field_regularInt(std::move(regularInt__arg)),
     __fbthrift_field_countingInt(std::move(countingInt__arg)),
-    __fbthrift_field_regularString(std::move(regularString__arg)) {
+    __fbthrift_field_regularString(std::move(regularString__arg)) { 
   ::apache::thrift::adapt_detail::construct<::apache::thrift::test::CountingAdapter<false, int>, 1>(__fbthrift_field_regularInt, *this);
   ::apache::thrift::adapt_detail::construct<::apache::thrift::test::CountingAdapter<true, int>, 2>(__fbthrift_field_countingInt, *this);
   ::apache::thrift::adapt_detail::construct<::apache::thrift::test::CountingAdapter<false, std::string>, 3>(__fbthrift_field_regularString, *this);
@@ -3927,7 +3927,7 @@ template uint32_t CountingStruct::serializedSize<>(apache::thrift::CompactProtoc
 template uint32_t CountingStruct::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -3950,7 +3950,7 @@ void TccStructTraits<::facebook::thrift::test::Person>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* Person::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/Person";
@@ -3985,7 +3985,7 @@ Person& Person::operator=([[maybe_unused]] Person&& other) noexcept {
 
 
 Person::Person(apache::thrift::FragileConstructor, ::std::string name__arg) :
-    __fbthrift_field_name(std::move(name__arg)) {
+    __fbthrift_field_name(std::move(name__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -4028,7 +4028,7 @@ template uint32_t Person::serializedSize<>(apache::thrift::CompactProtocolWriter
 template uint32_t Person::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
 namespace apache {
 namespace thrift {
@@ -4051,7 +4051,7 @@ void TccStructTraits<::facebook::thrift::test::Person2>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace facebook { namespace thrift { namespace test {
+namespace facebook::thrift::test {
 
 const char* Person2::__fbthrift_thrift_uri() {
   return "facebook.com/thrift/test/Person2";
@@ -4086,7 +4086,7 @@ Person2& Person2::operator=([[maybe_unused]] Person2&& other) noexcept {
 
 
 Person2::Person2(apache::thrift::FragileConstructor, ::std::string name__arg) :
-    __fbthrift_field_name(std::move(name__arg)) {
+    __fbthrift_field_name(std::move(name__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -4129,9 +4129,9 @@ template uint32_t Person2::serializedSize<>(apache::thrift::CompactProtocolWrite
 template uint32_t Person2::serializedSizeZC<>(apache::thrift::CompactProtocolWriter const*) const;
 
 
-}}} // facebook::thrift::test
+} // namespace facebook::thrift::test
 
-namespace facebook { namespace thrift { namespace test { namespace {
+namespace facebook::thrift::test { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
   ::apache::thrift::adapt_detail::validateFieldAdapter<::my::Adapter1, 1, ::facebook::thrift::test::i32_5137, ::facebook::thrift::test::Foo>();
   ::apache::thrift::adapt_detail::validateFieldAdapter<::my::Adapter1, 2, ::facebook::thrift::test::i32_5137, ::facebook::thrift::test::Foo>();
@@ -4215,6 +4215,6 @@ namespace facebook { namespace thrift { namespace test { namespace {
   ::apache::thrift::adapt_detail::validateAdapter<::my::Adapter1, ::std::int32_t>();
   ::apache::thrift::adapt_detail::validateAdapter<::my::Adapter1, ::std::string>();
 }
-}}}} // facebook::thrift::test
+}} // namespace facebook::thrift::test
 namespace apache::thrift::detail::annotation {
 }

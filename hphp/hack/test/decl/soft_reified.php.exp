@@ -1,7 +1,7 @@
 [("\\test",
   (Shallow_decl_defs.Fun
      { Typing_defs.fe_deprecated = None; fe_module = None;
-       fe_internal = false;
+       fe_package_override = None; fe_internal = false;
        fe_type =
        (Rwitness_from_decl ([3:10-14]),
         (Tfun
@@ -11,7 +11,7 @@
                 tp_constraints = []; tp_reified = SoftReified;
                 tp_user_attributes =
                 [{ Typing_defs_core.ua_name = ([3:17-23], "__Soft");
-                   ua_params = [] }
+                   ua_params = []; ua_raw_val = None }
                   ]
                 }
                ];

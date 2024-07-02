@@ -5,24 +5,42 @@
 #![recursion_limit = "100000000"]
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, unused_crate_dependencies, clippy::redundant_closure, clippy::type_complexity)]
 
+pub mod consts;
+#[doc(inline)]
+pub use self::consts::*;
 pub mod services;
-
-pub mod errors;
 
 #[allow(unused_imports)]
 pub(crate) use crate as types;
+
+pub use crate::types::MyEnum as MyEnumAlias;
+
+pub type MyDataItemAlias = crate::types::MyDataItem;
 
 #[derive(Clone, PartialEq)]
 pub struct MyStruct {
     pub MyIntField: ::std::primitive::i64,
     pub MyStringField: ::std::string::String,
-    pub MyDataField: crate::types::MyDataItem,
+    pub MyDataField: crate::types::MyDataItemAlias,
     pub myEnum: crate::types::MyEnum,
     pub oneway: ::std::primitive::bool,
     pub readonly: ::std::primitive::bool,
     pub idempotent: ::std::primitive::bool,
     pub floatSet: ::std::collections::BTreeSet<::fbthrift::export::OrderedFloat<::std::primitive::f32>>,
     pub no_hack_codegen_field: ::std::string::String,
+    // This field forces `..Default::default()` when instantiating this
+    // struct, to make code future-proof against new fields added later to
+    // the definition in Thrift. If you don't want this, add the annotation
+    // `@rust.Exhaustive` to the Thrift struct to eliminate this field.
+    #[doc(hidden)]
+    pub _dot_dot_Default_default: self::dot_dot::OtherFields,
+}
+
+#[derive(Clone, PartialEq)]
+pub struct Containers {
+    pub I32List: ::std::vec::Vec<::std::primitive::i32>,
+    pub StringSet: ::std::collections::BTreeSet<::std::string::String>,
+    pub StringToI64Map: ::std::collections::BTreeMap<::std::string::String, ::std::primitive::i64>,
     // This field forces `..Default::default()` when instantiating this
     // struct, to make code future-proof against new fields added later to
     // the definition in Thrift. If you don't want this, add the annotation
@@ -43,11 +61,42 @@ pub struct MyDataItem {
 
 #[derive(Clone, PartialEq, Debug)]
 pub enum MyUnion {
-    myEnum(crate::types::MyEnum),
+    myEnum(crate::types::MyEnumAlias),
     myStruct(crate::types::MyStruct),
     myDataItem(crate::types::MyDataItem),
     floatSet(::std::collections::BTreeSet<::fbthrift::export::OrderedFloat<::std::primitive::f32>>),
     UnknownField(::std::primitive::i32),
+}
+
+#[derive(Clone, PartialEq)]
+pub struct MyException {
+    pub MyIntField: ::std::primitive::i64,
+    pub MyStringField: ::std::string::String,
+    pub myStruct: crate::types::MyStruct,
+    pub myUnion: crate::types::MyUnion,
+    // This field forces `..Default::default()` when instantiating this
+    // struct, to make code future-proof against new fields added later to
+    // the definition in Thrift. If you don't want this, add the annotation
+    // `@rust.Exhaustive` to the Thrift struct to eliminate this field.
+    #[doc(hidden)]
+    pub _dot_dot_Default_default: self::dot_dot::OtherFields,
+}
+
+impl ::fbthrift::ExceptionInfo for MyException {
+    fn exn_value(&self) -> String {
+        format!("{:?}", self)
+    }
+
+    #[inline]
+    fn exn_is_declared(&self) -> bool { true }
+}
+
+impl ::std::error::Error for MyException {}
+
+impl ::std::fmt::Display for MyException {
+    fn fmt(&self, f: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        write!(f, "{:?}", self)
+    }
 }
 
 #[derive(Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
@@ -352,10 +401,17 @@ impl ::fbthrift::GetUri for self::MyStruct {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::MyStruct {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::MyStruct
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("MyStruct");
         p.write_field_begin("MyIntField", ::fbthrift::TType::I64, 1);
@@ -394,6 +450,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::MyStruct
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("MyDataField", ::fbthrift::TType::Struct, 3),
@@ -511,6 +568,137 @@ impl ::fbthrift::metadata::ThriftAnnotations for MyStruct {
 
 
 #[allow(clippy::derivable_impls)]
+impl ::std::default::Default for self::Containers {
+    fn default() -> Self {
+        Self {
+            I32List: ::std::default::Default::default(),
+            StringSet: ::std::default::Default::default(),
+            StringToI64Map: ::std::default::Default::default(),
+            _dot_dot_Default_default: self::dot_dot::OtherFields(()),
+        }
+    }
+}
+
+impl ::std::fmt::Debug for self::Containers {
+    fn fmt(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        formatter
+            .debug_struct("Containers")
+            .field("I32List", &self.I32List)
+            .field("StringSet", &self.StringSet)
+            .field("StringToI64Map", &self.StringToI64Map)
+            .finish()
+    }
+}
+
+unsafe impl ::std::marker::Send for self::Containers {}
+unsafe impl ::std::marker::Sync for self::Containers {}
+impl ::std::marker::Unpin for self::Containers {}
+impl ::std::panic::RefUnwindSafe for self::Containers {}
+impl ::std::panic::UnwindSafe for self::Containers {}
+
+impl ::fbthrift::GetTType for self::Containers {
+    const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
+}
+
+impl ::fbthrift::GetUri for self::Containers {
+    fn uri() -> &'static str {
+        "test.dev/fixtures/basic/Containers"
+    }
+}
+
+impl ::fbthrift::GetTypeNameType for self::Containers {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
+impl<P> ::fbthrift::Serialize<P> for self::Containers
+where
+    P: ::fbthrift::ProtocolWriter,
+{
+    #[inline]
+    fn write(&self, p: &mut P) {
+        p.write_struct_begin("Containers");
+        p.write_field_begin("I32List", ::fbthrift::TType::List, 1);
+        ::fbthrift::Serialize::write(&self.I32List, p);
+        p.write_field_end();
+        p.write_field_begin("StringSet", ::fbthrift::TType::Set, 2);
+        ::fbthrift::Serialize::write(&self.StringSet, p);
+        p.write_field_end();
+        p.write_field_begin("StringToI64Map", ::fbthrift::TType::Map, 3);
+        ::fbthrift::Serialize::write(&self.StringToI64Map, p);
+        p.write_field_end();
+        p.write_field_stop();
+        p.write_struct_end();
+    }
+}
+
+impl<P> ::fbthrift::Deserialize<P> for self::Containers
+where
+    P: ::fbthrift::ProtocolReader,
+{
+    #[inline]
+    fn read(p: &mut P) -> ::anyhow::Result<Self> {
+        static FIELDS: &[::fbthrift::Field] = &[
+            ::fbthrift::Field::new("I32List", ::fbthrift::TType::List, 1),
+            ::fbthrift::Field::new("StringSet", ::fbthrift::TType::Set, 2),
+            ::fbthrift::Field::new("StringToI64Map", ::fbthrift::TType::Map, 3),
+        ];
+        let mut field_I32List = ::std::option::Option::None;
+        let mut field_StringSet = ::std::option::Option::None;
+        let mut field_StringToI64Map = ::std::option::Option::None;
+        let _ = ::anyhow::Context::context(p.read_struct_begin(|_| ()), "Expected a Containers")?;
+        loop {
+            let (_, fty, fid) = p.read_field_begin(|_| (), FIELDS)?;
+            match (fty, fid as ::std::primitive::i32) {
+                (::fbthrift::TType::Stop, _) => break,
+                (::fbthrift::TType::List, 1) => field_I32List = ::std::option::Option::Some(::fbthrift::Deserialize::read(p)?),
+                (::fbthrift::TType::Set, 2) => field_StringSet = ::std::option::Option::Some(::fbthrift::Deserialize::read(p)?),
+                (::fbthrift::TType::Map, 3) => field_StringToI64Map = ::std::option::Option::Some(::fbthrift::Deserialize::read(p)?),
+                (fty, _) => p.skip(fty)?,
+            }
+            p.read_field_end()?;
+        }
+        p.read_struct_end()?;
+        ::std::result::Result::Ok(Self {
+            I32List: field_I32List.unwrap_or_default(),
+            StringSet: field_StringSet.unwrap_or_default(),
+            StringToI64Map: field_StringToI64Map.unwrap_or_default(),
+            _dot_dot_Default_default: self::dot_dot::OtherFields(()),
+        })
+    }
+}
+
+
+impl ::fbthrift::metadata::ThriftAnnotations for Containers {
+    fn get_structured_annotation<T: Sized + 'static>() -> ::std::option::Option<T> {
+        #[allow(unused_variables)]
+        let type_id = ::std::any::TypeId::of::<T>();
+
+        None
+    }
+
+    fn get_field_structured_annotation<T: Sized + 'static>(field_id: i16) -> ::std::option::Option<T> {
+        #[allow(unused_variables)]
+        let type_id = ::std::any::TypeId::of::<T>();
+
+        #[allow(clippy::match_single_binding)]
+        match field_id {
+            1 => {
+            },
+            2 => {
+            },
+            3 => {
+            },
+            _ => {}
+        }
+
+        None
+    }
+}
+
+
+#[allow(clippy::derivable_impls)]
 impl ::std::default::Default for self::MyDataItem {
     fn default() -> Self {
         Self {
@@ -543,10 +731,17 @@ impl ::fbthrift::GetUri for self::MyDataItem {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::MyDataItem {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::MyDataItem
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("MyDataItem");
         p.write_field_stop();
@@ -558,6 +753,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::MyDataItem
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
         ];
@@ -617,10 +813,17 @@ impl ::fbthrift::GetUri for self::MyUnion {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::MyUnion {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::UnionType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for MyUnion
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("MyUnion");
         match self {
@@ -655,6 +858,7 @@ impl<P> ::fbthrift::Deserialize<P> for MyUnion
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("floatSet", ::fbthrift::TType::Set, 4),
@@ -752,6 +956,148 @@ impl ::fbthrift::metadata::ThriftAnnotations for MyUnion {
 }
 
 #[allow(clippy::derivable_impls)]
+impl ::std::default::Default for self::MyException {
+    fn default() -> Self {
+        Self {
+            MyIntField: ::std::default::Default::default(),
+            MyStringField: ::std::default::Default::default(),
+            myStruct: ::std::default::Default::default(),
+            myUnion: ::std::default::Default::default(),
+            _dot_dot_Default_default: self::dot_dot::OtherFields(()),
+        }
+    }
+}
+
+impl ::std::fmt::Debug for self::MyException {
+    fn fmt(&self, formatter: &mut ::std::fmt::Formatter) -> ::std::fmt::Result {
+        formatter
+            .debug_struct("MyException")
+            .field("MyIntField", &self.MyIntField)
+            .field("MyStringField", &self.MyStringField)
+            .field("myStruct", &self.myStruct)
+            .field("myUnion", &self.myUnion)
+            .finish()
+    }
+}
+
+unsafe impl ::std::marker::Send for self::MyException {}
+unsafe impl ::std::marker::Sync for self::MyException {}
+impl ::std::marker::Unpin for self::MyException {}
+impl ::std::panic::RefUnwindSafe for self::MyException {}
+impl ::std::panic::UnwindSafe for self::MyException {}
+
+impl ::fbthrift::GetTType for self::MyException {
+    const TTYPE: ::fbthrift::TType = ::fbthrift::TType::Struct;
+}
+
+impl ::fbthrift::GetUri for self::MyException {
+    fn uri() -> &'static str {
+        "test.dev/fixtures/basic/MyException"
+    }
+}
+
+impl ::fbthrift::GetTypeNameType for self::MyException {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
+impl<P> ::fbthrift::Serialize<P> for self::MyException
+where
+    P: ::fbthrift::ProtocolWriter,
+{
+    #[inline]
+    fn write(&self, p: &mut P) {
+        p.write_struct_begin("MyException");
+        p.write_field_begin("MyIntField", ::fbthrift::TType::I64, 1);
+        ::fbthrift::Serialize::write(&self.MyIntField, p);
+        p.write_field_end();
+        p.write_field_begin("MyStringField", ::fbthrift::TType::String, 2);
+        ::fbthrift::Serialize::write(&self.MyStringField, p);
+        p.write_field_end();
+        p.write_field_begin("myStruct", ::fbthrift::TType::Struct, 3);
+        ::fbthrift::Serialize::write(&self.myStruct, p);
+        p.write_field_end();
+        p.write_field_begin("myUnion", ::fbthrift::TType::Struct, 4);
+        ::fbthrift::Serialize::write(&self.myUnion, p);
+        p.write_field_end();
+        p.write_field_stop();
+        p.write_struct_end();
+    }
+}
+
+impl<P> ::fbthrift::Deserialize<P> for self::MyException
+where
+    P: ::fbthrift::ProtocolReader,
+{
+    #[inline]
+    fn read(p: &mut P) -> ::anyhow::Result<Self> {
+        static FIELDS: &[::fbthrift::Field] = &[
+            ::fbthrift::Field::new("MyIntField", ::fbthrift::TType::I64, 1),
+            ::fbthrift::Field::new("MyStringField", ::fbthrift::TType::String, 2),
+            ::fbthrift::Field::new("myStruct", ::fbthrift::TType::Struct, 3),
+            ::fbthrift::Field::new("myUnion", ::fbthrift::TType::Struct, 4),
+        ];
+        let mut field_MyIntField = ::std::option::Option::None;
+        let mut field_MyStringField = ::std::option::Option::None;
+        let mut field_myStruct = ::std::option::Option::None;
+        let mut field_myUnion = ::std::option::Option::None;
+        let _ = ::anyhow::Context::context(p.read_struct_begin(|_| ()), "Expected a MyException")?;
+        loop {
+            let (_, fty, fid) = p.read_field_begin(|_| (), FIELDS)?;
+            match (fty, fid as ::std::primitive::i32) {
+                (::fbthrift::TType::Stop, _) => break,
+                (::fbthrift::TType::I64, 1) => field_MyIntField = ::std::option::Option::Some(::fbthrift::Deserialize::read(p)?),
+                (::fbthrift::TType::String, 2) => field_MyStringField = ::std::option::Option::Some(::fbthrift::Deserialize::read(p)?),
+                (::fbthrift::TType::Struct, 3) => field_myStruct = ::std::option::Option::Some(::fbthrift::Deserialize::read(p)?),
+                (::fbthrift::TType::Struct, 4) => field_myUnion = ::std::option::Option::Some(::fbthrift::Deserialize::read(p)?),
+                (fty, _) => p.skip(fty)?,
+            }
+            p.read_field_end()?;
+        }
+        p.read_struct_end()?;
+        ::std::result::Result::Ok(Self {
+            MyIntField: field_MyIntField.unwrap_or_default(),
+            MyStringField: field_MyStringField.unwrap_or_default(),
+            myStruct: field_myStruct.unwrap_or_default(),
+            myUnion: field_myUnion.unwrap_or_default(),
+            _dot_dot_Default_default: self::dot_dot::OtherFields(()),
+        })
+    }
+}
+
+
+impl ::fbthrift::metadata::ThriftAnnotations for MyException {
+    fn get_structured_annotation<T: Sized + 'static>() -> ::std::option::Option<T> {
+        #[allow(unused_variables)]
+        let type_id = ::std::any::TypeId::of::<T>();
+
+        None
+    }
+
+    fn get_field_structured_annotation<T: Sized + 'static>(field_id: i16) -> ::std::option::Option<T> {
+        #[allow(unused_variables)]
+        let type_id = ::std::any::TypeId::of::<T>();
+
+        #[allow(clippy::match_single_binding)]
+        match field_id {
+            1 => {
+            },
+            2 => {
+            },
+            3 => {
+            },
+            4 => {
+            },
+            _ => {}
+        }
+
+        None
+    }
+}
+
+
+#[allow(clippy::derivable_impls)]
 impl ::std::default::Default for self::ReservedKeyword {
     fn default() -> Self {
         Self {
@@ -786,10 +1132,17 @@ impl ::fbthrift::GetUri for self::ReservedKeyword {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::ReservedKeyword {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::StructType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for self::ReservedKeyword
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("ReservedKeyword");
         p.write_field_begin("reserved_field", ::fbthrift::TType::I32, 1);
@@ -804,6 +1157,7 @@ impl<P> ::fbthrift::Deserialize<P> for self::ReservedKeyword
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("reserved_field", ::fbthrift::TType::I32, 1),
@@ -899,10 +1253,17 @@ impl ::fbthrift::GetUri for self::UnionToBeRenamed {
     }
 }
 
+impl ::fbthrift::GetTypeNameType for self::UnionToBeRenamed {
+    fn type_name_type() -> fbthrift::TypeNameType {
+        ::fbthrift::TypeNameType::UnionType
+    }
+}
+
 impl<P> ::fbthrift::Serialize<P> for UnionToBeRenamed
 where
     P: ::fbthrift::ProtocolWriter,
 {
+    #[inline]
     fn write(&self, p: &mut P) {
         p.write_struct_begin("UnionToBeRenamed");
         match self {
@@ -922,6 +1283,7 @@ impl<P> ::fbthrift::Deserialize<P> for UnionToBeRenamed
 where
     P: ::fbthrift::ProtocolReader,
 {
+    #[inline]
     fn read(p: &mut P) -> ::anyhow::Result<Self> {
         static FIELDS: &[::fbthrift::Field] = &[
             ::fbthrift::Field::new("reserved_field", ::fbthrift::TType::I32, 1),

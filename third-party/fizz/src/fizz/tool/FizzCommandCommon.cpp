@@ -6,8 +6,7 @@
  *  LICENSE file in the root directory of this source tree.
  */
 
-#include <fizz/crypto/ECCurve.h>
-#include <fizz/crypto/exchange/OpenSSLKeyExchange.h>
+#include <fizz/backend/openssl/OpenSSL.h>
 #include <fizz/crypto/exchange/X25519.h>
 #include <fizz/protocol/Certificate.h>
 #include <fizz/protocol/ech/Types.h>

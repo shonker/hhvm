@@ -80,6 +80,8 @@ bool canDCE(const IRInstruction& inst) {
   case ConvDblToStr:
   case ConvIntToStr:
   case DblAsBits:
+  case IntAsPtrToElem:
+  case PtrToElemAsInt:
   case ConvPtrToLval:
   case NewColFromArray:
   case GtInt:
@@ -149,7 +151,6 @@ bool canDCE(const IRInstruction& inst) {
   case LdMem:
   case LdContField:
   case LdClsInitElem:
-  case LdIterBase:
   case LdIterPos:
   case LdIterEnd:
   case LdFrameThis:
@@ -168,7 +169,6 @@ bool canDCE(const IRInstruction& inst) {
   case DefConst:
   case Conjure:
   case LdClsInitData:
-  case LookupClsRDS:
   case LdClsMethodCacheCls:
   case LdFuncVecLen:
   case LdClsMethod:
@@ -193,6 +193,7 @@ bool canDCE(const IRInstruction& inst) {
   case LdMonotypeVecElem:
   case LdVecElem:
   case LdVecElemAddr:
+  case LookupCls:
   case NewInstanceRaw:
   case NewLoggingArray:
   case NewDictArray:
@@ -250,8 +251,10 @@ bool canDCE(const IRInstruction& inst) {
   case DictFirstKey:
   case DictLast:
   case DictLastKey:
+  case DictIterEnd:
   case KeysetFirst:
   case KeysetLast:
+  case KeysetIterEnd:
   case GetTime:
   case GetTimeNs:
   case Select:
@@ -269,8 +272,10 @@ bool canDCE(const IRInstruction& inst) {
   case AllocStructDict:
   case AllocVec:
   case GetDictPtrIter:
+  case GetKeysetPtrIter:
   case GetVecPtrIter:
   case AdvanceDictPtrIter:
+  case AdvanceKeysetPtrIter:
   case AdvanceVecPtrIter:
   case LdPtrIterKey:
   case LdPtrIterVal:
@@ -298,7 +303,6 @@ bool canDCE(const IRInstruction& inst) {
   case LdImplicitContextMemoKey:
   case CallViolatesModuleBoundary:
   case CallViolatesDeploymentBoundary:
-	case CreateSpecialImplicitContext:
     assertx(!inst.isControlFlow());
     return true;
 
@@ -338,11 +342,11 @@ bool canDCE(const IRInstruction& inst) {
   case StStkMeta:
   case StStkRange:
   case StOutValue:
-  case CheckIter:
   case CheckType:
   case CheckNullptr:
   case CheckTypeMem:
   case CheckDictKeys:
+  case CheckPtrIterTombstone:
   case CheckSmashableClass:
   case CheckLoc:
   case CheckStk:
@@ -400,7 +404,7 @@ bool canDCE(const IRInstruction& inst) {
   case LdClsCtor:
   case LdCls:
   case LdClsCached:
-  case LdClsCachedSafe:
+  case LookupClsCached:
   case LdCns:
   case LdTypeCns:
   case LdTypeCnsNoThrow:
@@ -413,6 +417,7 @@ bool canDCE(const IRInstruction& inst) {
   case LdResolvedTypeCns:
   case CheckSubClsCns:
   case LdClsCnsVecLen:
+  case EqClassId:
   case LookupClsMethodFCache:
   case LookupClsMethodCache:
   case LookupClsMethod:
@@ -467,8 +472,6 @@ bool canDCE(const IRInstruction& inst) {
   case StImplicitContext:
   case StMem:
   case StMemMeta:
-  case StIterBase:
-  case StIterType:
   case StIterEnd:
   case StIterPos:
   case StLoc:
@@ -534,6 +537,7 @@ bool canDCE(const IRInstruction& inst) {
   case RaiseErrorOnInvalidIsAsExpressionType:
   case RaiseWarning:
   case RaiseNotice:
+  case StaticAnalysisError:
   case ThrowArrayIndexException:
   case ThrowArrayKeyException:
   case RaiseForbiddenDynCall:
@@ -546,7 +550,6 @@ bool canDCE(const IRInstruction& inst) {
   case RaiseModuleBoundaryViolation:
   case RaiseModulePropertyViolation:
   case RaiseDeploymentBoundaryViolation:
-  case RaiseImplicitContextStateInvalid:
   case CheckClsMethFunc:
   case CheckClsReifiedGenericMismatch:
   case CheckClsRGSoft:
@@ -591,15 +594,15 @@ bool canDCE(const IRInstruction& inst) {
   case RBTraceMsg:
   case ZeroErrorLevel:
   case RestoreErrorLevel:
-  case IterInit:
-  case IterInitK:
-  case LIterInit:
-  case LIterInitK:
-  case IterNext:
-  case IterNextK:
-  case LIterNext:
-  case LIterNextK:
-  case IterFree:
+  case IterExtractBase:
+  case IterInitArr:
+  case IterInitArrK:
+  case IterInitObj:
+  case IterInitObjK:
+  case IterNextArr:
+  case IterNextArrK:
+  case IterNextObj:
+  case IterNextObjK:
   case KillActRec:
   case KillIter:
   case KillLoc:
@@ -618,6 +621,7 @@ bool canDCE(const IRInstruction& inst) {
   case CheckMissingKeyInArrLike:
   case CheckArrayCOW:
   case ProfileDictAccess:
+  case ProfileIterInit:
   case CheckDictOffset:
   case ProfileKeysetAccess:
   case CheckKeysetOffset:
@@ -678,7 +682,6 @@ bool canDCE(const IRInstruction& inst) {
   case EnterPrologue:
   case ExitPrologue:
   case EnterTranslation:
-  case JmpPlaceholder:
   case ThrowOutOfBounds:
   case ThrowInvalidArrayKey:
   case ThrowInvalidOperation:

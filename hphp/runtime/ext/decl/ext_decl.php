@@ -76,6 +76,7 @@ namespace HH {
   type ExtDeclAttribute = shape(
     'name' => string,
     ?'args' => vec<string>,
+    ?'raw_val' => string,
   );
 
   type ExtDeclTypeConstraint = shape(
@@ -465,6 +466,15 @@ namespace HH {
     public function getFileTypedef(string $name)[]: ?ExtDeclTypedef;
 
     /*
+     * Fetches all keys for the supplied shape name.
+     *
+     * @param string $name - the name of the shape typedef
+     * @return vec<string> - empty if error or no matching shape name
+     */
+    <<__Native>>
+    public function getShapeKeys(string $name)[]: vec<string>;
+
+    /*
      * Query the content for all the methods of a specific class.
      *
      * @return vec<ExtDeclMethod> - Array of the methods
@@ -595,7 +605,7 @@ namespace HH {
     )[]: ?ExtDeclAttribute;
 
     // Prevent cloning
-    final public function __clone(): this {
+    final public function __clone(): void {
       throw new \BadMethodCallException(
         'Trying to clone an uncloneable object of class FileDecls',
       );

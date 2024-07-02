@@ -10,7 +10,7 @@
 
 #include <thrift/lib/cpp2/gen/service_tcc.h>
 
-namespace apache { namespace thrift { namespace fixtures { namespace types {
+namespace apache::thrift::fixtures::types {
 typedef apache::thrift::ThriftPresult<false, apache::thrift::FieldData<1, ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::string>, ::apache::thrift::fixtures::types::SomeMap*>> SomeService_bounce_map_pargs;
 typedef apache::thrift::ThriftPresult<true, apache::thrift::FieldData<0, ::apache::thrift::type_class::map<::apache::thrift::type_class::integral, ::apache::thrift::type_class::string>, ::apache::thrift::fixtures::types::SomeMap*>> SomeService_bounce_map_presult;
 typedef apache::thrift::ThriftPresult<false, apache::thrift::FieldData<1, ::apache::thrift::type_class::list<::apache::thrift::type_class::integral>, ::std::vector<::std::int64_t>*>> SomeService_binary_keyed_map_pargs;
@@ -30,16 +30,29 @@ void SomeServiceAsyncProcessor::executeRequest_bounce_map(apache::thrift::Server
   // make sure getRequestContext is null
   // so async calls don't accidentally use it
   iface_->setRequestContext(nullptr);
-  ::apache::thrift::fixtures::types::SomeService_bounce_map_pargs args;
-  auto uarg_m = std::make_unique<::apache::thrift::fixtures::types::SomeMap>();
-  args.get<0>().value = uarg_m.get();
+  struct ArgsState {
+    std::unique_ptr<::apache::thrift::fixtures::types::SomeMap> uarg_m = std::make_unique<::apache::thrift::fixtures::types::SomeMap>();
+    ::apache::thrift::fixtures::types::SomeService_bounce_map_pargs pargs() {
+      ::apache::thrift::fixtures::types::SomeService_bounce_map_pargs args;
+      args.get<0>().value = uarg_m.get();
+      return args;
+    }
+
+    auto asTupleOfRefs() & {
+      return std::tie(
+        std::as_const(*uarg_m)
+      );
+    }
+  } args;
+
   auto ctxStack = apache::thrift::ContextStack::create(
     this->getEventHandlersSharedPtr(),
     this->getServiceName(),
     "SomeService.bounce_map",
     serverRequest.requestContext());
   try {
-    deserializeRequest<ProtocolIn_>(args, "bounce_map", apache::thrift::detail::ServerRequestHelper::compressedRequest(std::move(serverRequest)).uncompress(), ctxStack.get());
+    auto pargs = args.pargs();
+    deserializeRequest<ProtocolIn_>(pargs, "bounce_map", apache::thrift::detail::ServerRequestHelper::compressedRequest(std::move(serverRequest)).uncompress(), ctxStack.get());
   }
   catch (...) {
     folly::exception_wrapper ew(std::current_exception());
@@ -53,7 +66,7 @@ void SomeServiceAsyncProcessor::executeRequest_bounce_map(apache::thrift::Server
   }
   auto requestPileNotification = apache::thrift::detail::ServerRequestHelper::moveRequestPileNotification(serverRequest);
   auto concurrencyControllerNotification = apache::thrift::detail::ServerRequestHelper::moveConcurrencyControllerNotification(serverRequest);
-  auto callback = std::make_unique<apache::thrift::HandlerCallback<std::unique_ptr<::apache::thrift::fixtures::types::SomeMap>>>(
+  auto callback = apache::thrift::HandlerCallbackPtr<std::unique_ptr<::apache::thrift::fixtures::types::SomeMap>>::make(
     apache::thrift::detail::ServerRequestHelper::request(std::move(serverRequest))
     , std::move(ctxStack)
     , return_bounce_map<ProtocolIn_,ProtocolOut_>
@@ -65,7 +78,29 @@ void SomeServiceAsyncProcessor::executeRequest_bounce_map(apache::thrift::Server
     , requestPileNotification
     , concurrencyControllerNotification, std::move(serverRequest.requestData())
     );
-  iface_->async_tm_bounce_map(std::move(callback), std::move(uarg_m));
+  const auto makeExecuteHandler = [&] {
+    return [ifacePtr = iface_](auto&& cb, ArgsState args) mutable {
+      (void)args;
+      ifacePtr->async_tm_bounce_map(std::move(cb), std::move(args.uarg_m));
+    };
+  };
+#if FOLLY_HAS_COROUTINES
+  if (apache::thrift::detail::shouldProcessServiceInterceptorsOnRequest(*callback)) {
+    [](auto callback, auto executeHandler, ArgsState args) -> folly::coro::Task<void> {
+      auto argRefs = args.asTupleOfRefs();
+      co_await apache::thrift::detail::processServiceInterceptorsOnRequest(
+          *callback,
+          apache::thrift::detail::ServiceInterceptorOnRequestArguments(argRefs));
+      executeHandler(std::move(callback), std::move(args));
+    }(std::move(callback), makeExecuteHandler(), std::move(args))
+              .scheduleOn(apache::thrift::detail::ServerRequestHelper::executor(serverRequest))
+              .startInlineUnsafe();
+  } else {
+    makeExecuteHandler()(std::move(callback), std::move(args));
+  }
+#else
+  makeExecuteHandler()(std::move(callback), std::move(args));
+#endif // FOLLY_HAS_COROUTINES
 }
 
 template <class ProtocolIn_, class ProtocolOut_>
@@ -104,16 +139,29 @@ void SomeServiceAsyncProcessor::executeRequest_binary_keyed_map(apache::thrift::
   // make sure getRequestContext is null
   // so async calls don't accidentally use it
   iface_->setRequestContext(nullptr);
-  ::apache::thrift::fixtures::types::SomeService_binary_keyed_map_pargs args;
-  auto uarg_r = std::make_unique<::std::vector<::std::int64_t>>();
-  args.get<0>().value = uarg_r.get();
+  struct ArgsState {
+    std::unique_ptr<::std::vector<::std::int64_t>> uarg_r = std::make_unique<::std::vector<::std::int64_t>>();
+    ::apache::thrift::fixtures::types::SomeService_binary_keyed_map_pargs pargs() {
+      ::apache::thrift::fixtures::types::SomeService_binary_keyed_map_pargs args;
+      args.get<0>().value = uarg_r.get();
+      return args;
+    }
+
+    auto asTupleOfRefs() & {
+      return std::tie(
+        std::as_const(*uarg_r)
+      );
+    }
+  } args;
+
   auto ctxStack = apache::thrift::ContextStack::create(
     this->getEventHandlersSharedPtr(),
     this->getServiceName(),
     "SomeService.binary_keyed_map",
     serverRequest.requestContext());
   try {
-    deserializeRequest<ProtocolIn_>(args, "binary_keyed_map", apache::thrift::detail::ServerRequestHelper::compressedRequest(std::move(serverRequest)).uncompress(), ctxStack.get());
+    auto pargs = args.pargs();
+    deserializeRequest<ProtocolIn_>(pargs, "binary_keyed_map", apache::thrift::detail::ServerRequestHelper::compressedRequest(std::move(serverRequest)).uncompress(), ctxStack.get());
   }
   catch (...) {
     folly::exception_wrapper ew(std::current_exception());
@@ -127,7 +175,7 @@ void SomeServiceAsyncProcessor::executeRequest_binary_keyed_map(apache::thrift::
   }
   auto requestPileNotification = apache::thrift::detail::ServerRequestHelper::moveRequestPileNotification(serverRequest);
   auto concurrencyControllerNotification = apache::thrift::detail::ServerRequestHelper::moveConcurrencyControllerNotification(serverRequest);
-  auto callback = std::make_unique<apache::thrift::HandlerCallback<std::unique_ptr<::std::map<::apache::thrift::fixtures::types::TBinary, ::std::int64_t>>>>(
+  auto callback = apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::map<::apache::thrift::fixtures::types::TBinary, ::std::int64_t>>>::make(
     apache::thrift::detail::ServerRequestHelper::request(std::move(serverRequest))
     , std::move(ctxStack)
     , return_binary_keyed_map<ProtocolIn_,ProtocolOut_>
@@ -139,7 +187,29 @@ void SomeServiceAsyncProcessor::executeRequest_binary_keyed_map(apache::thrift::
     , requestPileNotification
     , concurrencyControllerNotification, std::move(serverRequest.requestData())
     );
-  iface_->async_tm_binary_keyed_map(std::move(callback), std::move(uarg_r));
+  const auto makeExecuteHandler = [&] {
+    return [ifacePtr = iface_](auto&& cb, ArgsState args) mutable {
+      (void)args;
+      ifacePtr->async_tm_binary_keyed_map(std::move(cb), std::move(args.uarg_r));
+    };
+  };
+#if FOLLY_HAS_COROUTINES
+  if (apache::thrift::detail::shouldProcessServiceInterceptorsOnRequest(*callback)) {
+    [](auto callback, auto executeHandler, ArgsState args) -> folly::coro::Task<void> {
+      auto argRefs = args.asTupleOfRefs();
+      co_await apache::thrift::detail::processServiceInterceptorsOnRequest(
+          *callback,
+          apache::thrift::detail::ServiceInterceptorOnRequestArguments(argRefs));
+      executeHandler(std::move(callback), std::move(args));
+    }(std::move(callback), makeExecuteHandler(), std::move(args))
+              .scheduleOn(apache::thrift::detail::ServerRequestHelper::executor(serverRequest))
+              .startInlineUnsafe();
+  } else {
+    makeExecuteHandler()(std::move(callback), std::move(args));
+  }
+#else
+  makeExecuteHandler()(std::move(callback), std::move(args));
+#endif // FOLLY_HAS_COROUTINES
 }
 
 template <class ProtocolIn_, class ProtocolOut_>
@@ -164,4 +234,4 @@ void SomeServiceAsyncProcessor::throw_wrapped_binary_keyed_map(apache::thrift::R
 }
 
 
-}}}} // apache::thrift::fixtures::types
+} // namespace apache::thrift::fixtures::types

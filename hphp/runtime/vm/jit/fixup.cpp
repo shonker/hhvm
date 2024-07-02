@@ -49,9 +49,9 @@ bool isVMFrame(const ActRec* ar, bool may_be_non_runtime) {
 
 namespace jit {
 
-ActRec* findVMFrameForDebug() {
+ActRec* findVMFrameForDebug(uintptr_t start) {
   DECLARE_FRAME_POINTER(framePtr);
-  auto rbp = (ActRec*) framePtr;
+  auto rbp = start != 0 ? (ActRec*)start : framePtr;
 
   while (!isVMFrame(rbp, true)) {
     auto const nextRbp = rbp->m_sfp;
@@ -227,7 +227,7 @@ void syncVMRegsWork(bool soft) {
 static std::atomic<int32_t> s_nextFakeAddress{-1};
 
 int32_t getNextFakeReturnAddress() {
-  return s_nextFakeAddress.fetch_sub(1, std::memory_order_relaxed);
+  return s_nextFakeAddress.fetch_sub(1, std::memory_order_acq_rel);
 }
 
 }}

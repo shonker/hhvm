@@ -716,7 +716,9 @@ void RocketClient::sendRequestResponse(
 
     void send(RocketClient& client, std::chrono::milliseconds timeout) && {
       if (auto ew = err(client.scheduleWrite(*rctx_))) {
-        SCOPE_EXIT { delete this; };
+        SCOPE_EXIT {
+          delete this;
+        };
         return callback_(folly::Try<rocket::Payload>(std::move(ew)));
       }
       rctx_->setTimeoutInfo(client.evb_->timer(), *this, timeout);
@@ -733,7 +735,9 @@ void RocketClient::sendRequestResponse(
       // On the timeout path, post() will be called once more in
       // abortSentRequest() within getResponse(). Avoid recursive misbehavior.
       if (auto rctx = std::move(rctx_)) {
-        SCOPE_EXIT { delete this; };
+        SCOPE_EXIT {
+          delete this;
+        };
         cancelTimeout();
         callback_(std::move(*rctx).getResponse());
       }
@@ -783,7 +787,9 @@ void RocketClient::sendRequestFnf(
 
     void send(RocketClient& client) && {
       if (auto ew = err(client.scheduleWrite(*rctx_))) {
-        SCOPE_EXIT { delete this; };
+        SCOPE_EXIT {
+          delete this;
+        };
         return callback_(folly::Try<void>(std::move(ew)));
       }
       rctx_->waitForWriteToCompleteSchedule(this);
@@ -796,7 +802,9 @@ void RocketClient::sendRequestFnf(
     std::unique_ptr<RequestContext> rctx_;
 
     void post() override {
-      SCOPE_EXIT { delete this; };
+      SCOPE_EXIT {
+        delete this;
+      };
       callback_(rctx_->waitForWriteToCompleteResult());
     }
   };
@@ -916,7 +924,9 @@ void RocketClient::sendRequestStreamChannel(
 
    private:
     void post() override {
-      SCOPE_EXIT { delete this; };
+      SCOPE_EXIT {
+        delete this;
+      };
 
       auto writeCompleted = ctx_.waitForWriteToCompleteResult();
       // If the write failed, check that the stream has not already received the
@@ -1036,8 +1046,7 @@ bool RocketClient::sendRequestN(StreamId streamId, int32_t n) {
       RequestNFrame(streamId, n),
       [dg = DestructorGuard(this), this, g = std::move(g)](
           transport::TTransportException ex) {
-        FB_LOG_EVERY_MS(ERROR, 1000)
-            << "sendRequestN failed, closing now: " << ex.what();
+        VLOG(1) << "sendRequestN failed, closing now: " << ex.what();
         close(std::move(ex));
       });
 }
@@ -1049,8 +1058,7 @@ void RocketClient::cancelStream(StreamId streamId) {
       CancelFrame(streamId),
       [dg = DestructorGuard(this), this, g = std::move(g)](
           transport::TTransportException ex) {
-        FB_LOG_EVERY_MS(ERROR, 1000)
-            << "cancelStream failed, closing now: " << ex.what();
+        VLOG(1) << "cancelStream failed, closing now: " << ex.what();
         close(std::move(ex));
       });
 }
@@ -1064,8 +1072,7 @@ bool RocketClient::sendPayload(
        dg = DestructorGuard(this),
        g = makeRequestCountGuard(RequestType::INTERNAL)](
           transport::TTransportException ex) {
-        FB_LOG_EVERY_MS(ERROR, 1000)
-            << "sendPayload failed, closing now: " << ex.what();
+        VLOG(1) << "sendPayload failed, closing now: " << ex.what();
         close(std::move(ex));
       });
 }
@@ -1078,8 +1085,7 @@ void RocketClient::sendError(StreamId streamId, RocketException&& rex) {
        dg = DestructorGuard(this),
        g = makeRequestCountGuard(RequestType::INTERNAL)](
           transport::TTransportException ex) {
-        FB_LOG_EVERY_MS(ERROR, 1000)
-            << "sendError failed, closing now: " << ex.what();
+        VLOG(1) << "sendError failed, closing now: " << ex.what();
         close(std::move(ex));
       });
 }
@@ -1100,8 +1106,7 @@ bool RocketClient::sendHeadersPush(
   auto g = makeRequestCountGuard(RequestType::INTERNAL);
   auto onError = [dg = DestructorGuard(this), this, g = std::move(g)](
                      transport::TTransportException ex) {
-    FB_LOG_EVERY_MS(ERROR, 1000)
-        << "sendHeadersPush failed, closing now: " << ex.what();
+    VLOG(1) << "sendHeadersPush failed, closing now: " << ex.what();
     close(std::move(ex));
   };
   ClientPushMetadata clientMeta;
@@ -1294,6 +1299,11 @@ void RocketClient::closeNowImpl() noexcept {
   DCHECK(clientState_.connState == ConnectionState::ERROR);
   if (keepAliveWatcher_) {
     keepAliveWatcher_->stop();
+    if (keepAliveWatcher_->closeConnection()) {
+      error_ = transport::TTransportException(
+          transport::TTransportException::TTransportExceptionType::END_OF_FILE,
+          "Connection was closed due to KeepAliveTimeout.");
+    }
   }
   // Notice that AsyncSocket::closeNow() is a no-op if the socket is already in
   // the ERROR state -- such as if we are currently handling a writeErr() event.
@@ -1310,7 +1320,6 @@ void RocketClient::closeNowImpl() noexcept {
   if (auto closeCallback = std::move(closeCallback_)) {
     closeCallback();
   }
-
   queue_.failAllSentWrites(error_);
 
   // Move streams_ into a local copy before iterating and erasing. Note that

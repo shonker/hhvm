@@ -6,39 +6,14 @@
 #![recursion_limit = "100000000"]
 #![allow(non_camel_case_types, non_snake_case, non_upper_case_globals, unused_crate_dependencies, unused_imports, clippy::all)]
 
-pub mod mock;
 
 #[doc(inline)]
 pub use :: as types;
 
-pub mod errors {
-    #[doc(inline)]
-    pub use ::::errors::my_root;
-    #[doc(inline)]
-    #[allow(ambiguous_glob_reexports)]
-    pub use ::::errors::my_root::*;
-
-    #[doc(inline)]
-    pub use ::::errors::my_node;
-    #[doc(inline)]
-    #[allow(ambiguous_glob_reexports)]
-    pub use ::::errors::my_node::*;
-
-    #[doc(inline)]
-    pub use ::::errors::my_leaf;
-    #[doc(inline)]
-    #[allow(ambiguous_glob_reexports)]
-    pub use ::::errors::my_leaf::*;
-}
+pub mod errors;
 
 pub(crate) use crate as client;
 pub(crate) use ::::services;
-
-// Used by Thrift-generated code to implement service inheritance.
-#[doc(hidden)]
-#[deprecated]
-pub mod dependencies {
-}
 
 
 /// Client definitions for `MyRoot`.
@@ -102,13 +77,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::my_root::DoRootExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::my_root::DoRootReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::my_root::DoRootError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -328,7 +303,7 @@ impl ::fbthrift::ClientFactory for make_MyRoot {
 
 /// Client definitions for `MyNode`.
 pub struct MyNodeImpl<P, T, S = ::fbthrift::NoopSpawner> {
-    parent: crate::MyRootImpl<P, T, S>,
+    parent: crate::client::MyRootImpl<P, T, S>,
 }
 
 impl<P, T, S> MyNodeImpl<P, T, S>
@@ -343,7 +318,7 @@ where
     pub fn new(
         transport: T,
     ) -> Self {
-        let parent = crate::MyRootImpl::<P, T, S>::new(transport);
+        let parent = crate::client::MyRootImpl::<P, T, S>::new(transport);
         Self { parent }
     }
 
@@ -384,13 +359,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::my_node::DoMidExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::my_node::DoMidReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::my_node::DoMidError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -400,7 +375,7 @@ where
 }
 
 #[allow(deprecated)]
-impl<P, T, S> ::std::convert::AsRef<dyn crate::MyRoot + 'static> for MyNodeImpl<P, T, S>
+impl<P, T, S> ::std::convert::AsRef<dyn crate::client::MyRoot + 'static> for MyNodeImpl<P, T, S>
 where
     P: ::fbthrift::Protocol,
     T: ::fbthrift::Transport,
@@ -409,14 +384,14 @@ where
     P::Deserializer: ::std::marker::Send,
     S: ::fbthrift::help::Spawner,
 {
-    fn as_ref(&self) -> &(dyn crate::MyRoot + 'static)
+    fn as_ref(&self) -> &(dyn crate::client::MyRoot + 'static)
     {
         &self.parent
     }
 }
 
 #[allow(deprecated)]
-impl<P, T, S> ::std::convert::AsRef<dyn crate::MyRootExt<T> + 'static> for MyNodeImpl<P, T, S>
+impl<P, T, S> ::std::convert::AsRef<dyn crate::client::MyRootExt<T> + 'static> for MyNodeImpl<P, T, S>
 where
     P: ::fbthrift::Protocol,
     T: ::fbthrift::Transport,
@@ -425,19 +400,19 @@ where
     P::Deserializer: ::std::marker::Send,
     S: ::fbthrift::help::Spawner,
 {
-    fn as_ref(&self) -> &(dyn crate::MyRootExt<T> + 'static)
+    fn as_ref(&self) -> &(dyn crate::client::MyRootExt<T> + 'static)
     {
         &self.parent
     }
 }
 
-pub trait MyNode: crate::MyRoot + ::std::marker::Send {
+pub trait MyNode: crate::client::MyRoot + ::std::marker::Send {
     fn do_mid(
         &self,
     ) -> ::futures::future::BoxFuture<'static, ::std::result::Result<(), crate::errors::my_node::DoMidError>>;
 }
 
-pub trait MyNodeExt<T>: MyNode + crate::MyRootExt<T>
+pub trait MyNodeExt<T>: MyNode + crate::client::MyRootExt<T>
 where
     T: ::fbthrift::Transport,
 {
@@ -509,7 +484,7 @@ where
 impl<'a, S> MyNode for S
 where
     S: ::std::convert::AsRef<dyn MyNode + 'a>,
-    S: crate::MyRoot,
+    S: crate::client::MyRoot,
     S: ::std::marker::Send,
 {
     fn do_mid(
@@ -525,8 +500,8 @@ impl<S, T> MyNodeExt<T> for S
 where
     S: ::std::convert::AsRef<dyn MyNode + 'static>,
     S: ::std::convert::AsRef<dyn MyNodeExt<T> + 'static>,
-    S: crate::MyRoot,
-    S: crate::MyRootExt<T>,
+    S: crate::client::MyRoot,
+    S: crate::client::MyRootExt<T>,
     S: ::std::marker::Send,
     T: ::fbthrift::Transport,
 {
@@ -645,7 +620,7 @@ impl ::fbthrift::ClientFactory for make_MyNode {
 
 /// Client definitions for `MyLeaf`.
 pub struct MyLeafImpl<P, T, S = ::fbthrift::NoopSpawner> {
-    parent: crate::MyNodeImpl<P, T, S>,
+    parent: crate::client::MyNodeImpl<P, T, S>,
 }
 
 impl<P, T, S> MyLeafImpl<P, T, S>
@@ -660,7 +635,7 @@ where
     pub fn new(
         transport: T,
     ) -> Self {
-        let parent = crate::MyNodeImpl::<P, T, S>::new(transport);
+        let parent = crate::client::MyNodeImpl::<P, T, S>::new(transport);
         Self { parent }
     }
 
@@ -701,13 +676,13 @@ where
             let reply_env = call.await?;
 
             let de = P::deserializer(reply_env);
-            let (res, _de): (::std::result::Result<crate::services::my_leaf::DoLeafExn, _>, _) =
-                ::fbthrift::help::async_deserialize_response_envelope::<P, _, S>(de).await?;
+            let res = ::fbthrift::help::async_deserialize_response_envelope::<P, crate::errors::my_leaf::DoLeafReader, S>(de).await?;
 
             let res = match res {
-                ::std::result::Result::Ok(exn) => ::std::convert::From::from(exn),
-                ::std::result::Result::Err(aexn) =>
+                ::std::result::Result::Ok(res) => res,
+                ::std::result::Result::Err(aexn) => {
                     ::std::result::Result::Err(crate::errors::my_leaf::DoLeafError::ApplicationException(aexn))
+                }
             };
             res
         }
@@ -717,7 +692,7 @@ where
 }
 
 #[allow(deprecated)]
-impl<P, T, S> ::std::convert::AsRef<dyn crate::MyNode + 'static> for MyLeafImpl<P, T, S>
+impl<P, T, S> ::std::convert::AsRef<dyn crate::client::MyNode + 'static> for MyLeafImpl<P, T, S>
 where
     P: ::fbthrift::Protocol,
     T: ::fbthrift::Transport,
@@ -726,14 +701,14 @@ where
     P::Deserializer: ::std::marker::Send,
     S: ::fbthrift::help::Spawner,
 {
-    fn as_ref(&self) -> &(dyn crate::MyNode + 'static)
+    fn as_ref(&self) -> &(dyn crate::client::MyNode + 'static)
     {
         &self.parent
     }
 }
 
 #[allow(deprecated)]
-impl<P, T, S> ::std::convert::AsRef<dyn crate::MyNodeExt<T> + 'static> for MyLeafImpl<P, T, S>
+impl<P, T, S> ::std::convert::AsRef<dyn crate::client::MyNodeExt<T> + 'static> for MyLeafImpl<P, T, S>
 where
     P: ::fbthrift::Protocol,
     T: ::fbthrift::Transport,
@@ -742,14 +717,14 @@ where
     P::Deserializer: ::std::marker::Send,
     S: ::fbthrift::help::Spawner,
 {
-    fn as_ref(&self) -> &(dyn crate::MyNodeExt<T> + 'static)
+    fn as_ref(&self) -> &(dyn crate::client::MyNodeExt<T> + 'static)
     {
         &self.parent
     }
 }
 
 #[allow(deprecated)]
-impl<P, T, S> ::std::convert::AsRef<dyn crate::MyRoot + 'static> for MyLeafImpl<P, T, S>
+impl<P, T, S> ::std::convert::AsRef<dyn crate::client::MyRoot + 'static> for MyLeafImpl<P, T, S>
 where
     P: ::fbthrift::Protocol,
     T: ::fbthrift::Transport,
@@ -758,14 +733,14 @@ where
     P::Deserializer: ::std::marker::Send,
     S: ::fbthrift::help::Spawner,
 {
-    fn as_ref(&self) -> &(dyn crate::MyRoot + 'static)
+    fn as_ref(&self) -> &(dyn crate::client::MyRoot + 'static)
     {
         self.parent.as_ref()
     }
 }
 
 #[allow(deprecated)]
-impl<P, T, S> ::std::convert::AsRef<dyn crate::MyRootExt<T> + 'static> for MyLeafImpl<P, T, S>
+impl<P, T, S> ::std::convert::AsRef<dyn crate::client::MyRootExt<T> + 'static> for MyLeafImpl<P, T, S>
 where
     P: ::fbthrift::Protocol,
     T: ::fbthrift::Transport,
@@ -774,19 +749,19 @@ where
     P::Deserializer: ::std::marker::Send,
     S: ::fbthrift::help::Spawner,
 {
-    fn as_ref(&self) -> &(dyn crate::MyRootExt<T> + 'static)
+    fn as_ref(&self) -> &(dyn crate::client::MyRootExt<T> + 'static)
     {
         self.parent.as_ref()
     }
 }
 
-pub trait MyLeaf: crate::MyNode + ::std::marker::Send {
+pub trait MyLeaf: crate::client::MyNode + ::std::marker::Send {
     fn do_leaf(
         &self,
     ) -> ::futures::future::BoxFuture<'static, ::std::result::Result<(), crate::errors::my_leaf::DoLeafError>>;
 }
 
-pub trait MyLeafExt<T>: MyLeaf + crate::MyNodeExt<T>
+pub trait MyLeafExt<T>: MyLeaf + crate::client::MyNodeExt<T>
 where
     T: ::fbthrift::Transport,
 {
@@ -858,8 +833,8 @@ where
 impl<'a, S> MyLeaf for S
 where
     S: ::std::convert::AsRef<dyn MyLeaf + 'a>,
-    S: crate::MyNode,
-    S: crate::MyRoot,
+    S: crate::client::MyNode,
+    S: crate::client::MyRoot,
     S: ::std::marker::Send,
 {
     fn do_leaf(
@@ -875,10 +850,10 @@ impl<S, T> MyLeafExt<T> for S
 where
     S: ::std::convert::AsRef<dyn MyLeaf + 'static>,
     S: ::std::convert::AsRef<dyn MyLeafExt<T> + 'static>,
-    S: crate::MyNode,
-    S: crate::MyNodeExt<T>,
-    S: crate::MyRoot,
-    S: crate::MyRootExt<T>,
+    S: crate::client::MyNode,
+    S: crate::client::MyNodeExt<T>,
+    S: crate::client::MyRoot,
+    S: crate::client::MyRootExt<T>,
     S: ::std::marker::Send,
     T: ::fbthrift::Transport,
 {

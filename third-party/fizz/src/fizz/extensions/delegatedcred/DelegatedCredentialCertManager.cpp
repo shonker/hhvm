@@ -26,11 +26,11 @@ CertManager::CertMatch DelegatedCredentialCertManager::getCert(
         supportedSigSchemes,
         credential->supported_signature_algorithms,
         peerExtensions);
-    if (dcRes && dcRes->type == MatchType::Direct) {
+    if (dcRes) {
       return dcRes;
     }
   }
-  return mainMgr_.getCert(
+  return CertManager::getCert(
       sni, supportedSigSchemes, peerSigSchemes, peerExtensions);
 }
 
@@ -38,20 +38,19 @@ CertManager::CertMatch DelegatedCredentialCertManager::getCert(
 std::shared_ptr<SelfCert> DelegatedCredentialCertManager::getCert(
     const std::string& identity) const {
   auto dcRes = dcMgr_.getCert(identity);
-  return dcRes ? dcRes : mainMgr_.getCert(identity);
+  return dcRes ? dcRes : CertManager::getCert(identity);
 }
 
-void DelegatedCredentialCertManager::addCert(
-    std::shared_ptr<SelfCert> cert,
-    bool defaultCert) {
-  VLOG(8) << "Adding undelegated cert";
-  mainMgr_.addCert(std::move(cert), defaultCert);
+void DelegatedCredentialCertManager::addDelegatedCredentialAndSetDefault(
+    std::shared_ptr<SelfDelegatedCredential> cred) {
+  VLOG(8) << "Adding delegated credential";
+  dcMgr_.addCertAndSetDefault(std::move(cred));
 }
 
 void DelegatedCredentialCertManager::addDelegatedCredential(
     std::shared_ptr<SelfDelegatedCredential> cred) {
   VLOG(8) << "Adding delegated credential";
-  dcMgr_.addCert(std::move(cred), false);
+  dcMgr_.addCert(std::move(cred));
 }
 
 } // namespace extensions

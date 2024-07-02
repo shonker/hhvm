@@ -123,6 +123,7 @@ void cgLdColVec(IRLS& env, const IRInstruction* inst) {
   auto const dst = dstLoc(env, inst, 0).reg();
   auto& v = vmain(env);
 
+  // Can't use ConstVector, as that includes Pair.
   always_assert_flog(
     ty == TBottom ||
     collections::isType(cls, CollectionType::Vector, CollectionType::ImmVector),

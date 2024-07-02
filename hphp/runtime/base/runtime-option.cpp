@@ -16,6 +16,7 @@
 
 #include "hphp/runtime/base/runtime-option.h"
 
+#include "hphp/hack/src/hackc/compile/options_gen.h"
 #include "hphp/hack/src/hackc/ffi_bridge/compiler_ffi.rs.h"
 #include "hphp/runtime/base/autoload-handler.h"
 #include "hphp/runtime/base/bespoke-array.h"
@@ -57,6 +58,7 @@
 #include "hphp/util/atomic-vector.h"
 #include "hphp/util/build-info.h"
 #include "hphp/util/bump-mapper.h"
+#include "hphp/util/configs/server.h"
 #include "hphp/util/current-executable.h" // @donotremove
 #include "hphp/util/hardware-counter.h"
 #include "hphp/util/hdf.h"
@@ -68,6 +70,7 @@
 #include "hphp/util/process.h"
 #include "hphp/util/service-data.h"
 #include "hphp/util/stack-trace.h"
+#include "hphp/util/struct-log.h"
 #include "hphp/util/text-util.h"
 #include "hphp/zend/zend-string.h"
 
@@ -163,8 +166,8 @@ struct CachedRepoOptions {
   CachedRepoOptions(const CachedRepoOptions& opts)
     : options(nullptr)
   {
-    if (auto o = opts.options.load(std::memory_order_relaxed)) {
-      options.store(new RepoOptions(*o), std::memory_order_relaxed);
+    if (auto o = opts.options.load(std::memory_order_acquire)) {
+      options.store(new RepoOptions(*o), std::memory_order_release);
     }
   }
   ~CachedRepoOptions() {
@@ -172,7 +175,7 @@ struct CachedRepoOptions {
   }
 
   CachedRepoOptions& operator=(const CachedRepoOptions& opts) {
-    auto const o = opts.options.load(std::memory_order_relaxed);
+    auto const o = opts.options.load(std::memory_order_acquire);
     auto const old = options.exchange(o ? new RepoOptions(*o) : nullptr);
     if (old) Treadmill::enqueue([old] { delete old; });
     return *this;
@@ -203,7 +206,7 @@ struct CachedRepoOptions {
   }
 
   const RepoOptions* fetch(const RepoOptionStats& st) const {
-    auto const opts = options.load(std::memory_order_relaxed);
+    auto const opts = options.load(std::memory_order_acquire);
     return opts && !isChanged(opts, st) ? opts : nullptr;
   }
 
@@ -305,15 +308,7 @@ void RepoOptionsFlags::initDeclConfig(hackc::DeclParserConfig& config) const {
 }
 
 void RepoOptionsFlags::initHhbcFlags(hackc::HhbcFlags& flags) const {
-  flags.ltr_assign = LTRAssign;
-  flags.uvs = UVS;
-  flags.optimize_reified_param_checks = OptimizeReifiedParamChecks;
-  flags.stress_shallow_decl_deps = StressShallowDeclDeps;
-  flags.stress_folded_decl_deps = StressFoldedDeclDeps;
-  flags.optimize_param_lifetimes = OptimizeParamLifetimes;
-  flags.optimize_local_lifetimes = OptimizeLocalLifetimes;
-  flags.optimize_local_iterators = OptimizeLocalIterators;
-  flags.optimize_is_type_checks = OptimizeIsTypeChecks;
+  Cfg::InitHackcHHBCFlags(*this, flags);
 }
 
 void RepoOptionsFlags::initParserFlags(hackc::ParserFlags& flags) const {
@@ -598,6 +593,8 @@ void RepoOptions::setDefaults(const Hdf& hdf, const IniSettingMap& ini) {
 
 ///////////////////////////////////////////////////////////////////////////////
 
+std::map<std::string, std::string> RuntimeOption::TierOverwriteInputs;
+
 std::string RuntimeOption::BuildId;
 std::string RuntimeOption::InstanceId;
 std::string RuntimeOption::DeploymentId;
@@ -605,7 +602,6 @@ int64_t RuntimeOption::ConfigId = 0;
 std::string RuntimeOption::PidFile = "www.pid";
 
 bool RuntimeOption::EnableXHP = true;
-bool RuntimeOption::EnableIntrinsicsExtension = false;
 bool RuntimeOption::CheckSymLink = true;
 bool RuntimeOption::TrustAutoloaderPath = false;
 bool RuntimeOption::EnableArgsInBacktraces = true;
@@ -613,10 +609,6 @@ bool RuntimeOption::EnableZendIniCompat = true;
 bool RuntimeOption::TimeoutsUseWallTime = true;
 bool RuntimeOption::EvalAuthoritativeMode = false;
 bool RuntimeOption::DumpPreciseProfData = true;
-uint32_t RuntimeOption::EvalInitialStaticStringTableSize =
-  kDefaultInitialStaticStringTableSize;
-uint32_t RuntimeOption::EvalInitialTypeTableSize = 30000;
-uint32_t RuntimeOption::EvalInitialFuncTableSize = 3000;
 JitSerdesMode RuntimeOption::EvalJitSerdesMode{};
 int RuntimeOption::ProfDataTTLHours = 24;
 std::string RuntimeOption::ProfDataTag;
@@ -664,8 +656,6 @@ std::map<std::string, std::string> RuntimeOption::IncludeRoots;
 hphp_string_imap<std::string> RuntimeOption::StaticFileExtensions;
 hphp_string_imap<std::string> RuntimeOption::PhpFileExtensions;
 std::vector<std::shared_ptr<FilesMatch>> RuntimeOption::FilesMatches;
-std::set<std::string> RuntimeOption::RenamableFunctions;
-std::set<std::string> RuntimeOption::NonInterceptableFunctions;
 
 std::string RuntimeOption::AdminServerIP;
 int RuntimeOption::AdminServerPort = 0;
@@ -722,13 +712,6 @@ bool RuntimeOption::DisableSmallAllocator = false;
 
 std::map<std::string, std::string> RuntimeOption::ServerVariables;
 std::map<std::string, std::string> RuntimeOption::EnvVariables;
-
-int64_t RuntimeOption::HeapSizeMB = 4096; // 4gb
-int64_t RuntimeOption::HeapResetCountBase = 1;
-int64_t RuntimeOption::HeapResetCountMultiple = 2;
-int64_t RuntimeOption::HeapLowWaterMark = 16;
-int64_t RuntimeOption::HeapHighWaterMark = 1024;
-
 
 std::string RuntimeOption::WatchmanRootSocket;
 std::string RuntimeOption::WatchmanDefaultSocket;
@@ -821,8 +804,8 @@ bool RuntimeOption::funcIsRenamable(const StringData* name) {
   if (HPHP::is_generated(name)) return false;
   if (Cfg::Jit::EnableRenameFunction == 0) return false;
   if (Cfg::Jit::EnableRenameFunction == 2) {
-    return RO::RenamableFunctions.find(name->data()) !=
-      RO::RenamableFunctions.end();
+    return Cfg::Eval::RenamableFunctions.find(name->data()) !=
+      Cfg::Eval::RenamableFunctions.end();
   } else {
     return true;
   }
@@ -921,24 +904,30 @@ double RuntimeOption::ProfilerTraceExpansion = 1.2;
 int RuntimeOption::ProfilerMaxTraceBuffer = 0;
 
 #ifdef HHVM_FACEBOOK
+
+int RuntimeOption::ThriftFBServerWorkerThreads = 1;
+int RuntimeOption::ThriftFBServerPoolThreads = 1;
+
 bool RuntimeOption::EnableFb303Server = false;
 int RuntimeOption::Fb303ServerPort = 0;
 std::string RuntimeOption::Fb303ServerIP;
 int RuntimeOption::Fb303ServerWorkerThreads = 1;
 int RuntimeOption::Fb303ServerPoolThreads = 1;
-bool RuntimeOption::Fb303ServerEnableAclChecks = false;
-bool RuntimeOption::Fb303ServerEnforceAclChecks = false;
-std::string RuntimeOption::Fb303ServerIdentity;
+bool RuntimeOption::Fb303ServerExposeSensitiveMethods = false;
 
 bool RuntimeOption::ThreadTuneDebug = false;
 bool RuntimeOption::ThreadTuneSkipWarmup = false;
 double RuntimeOption::ThreadTuneAdjustmentPct = 0;
+double RuntimeOption::ThreadTuneAdjustmentDownPct = 0;
 double RuntimeOption::ThreadTuneStepPct = 5;
+double RuntimeOption::ThreadTuneCPUThreshold = 95.0;
+double RuntimeOption::ThreadTuneThreadUtilizationThreshold = 90.0;
 #endif
 
 double RuntimeOption::XenonPeriodSeconds = 0.0;
 uint32_t RuntimeOption::XenonRequestFreq = 1;
 bool RuntimeOption::XenonForceAlwaysOn = false;
+bool RuntimeOption::XenonTrackActiveWorkers = false;
 
 bool RuntimeOption::StrobelightEnabled = false;
 
@@ -1165,6 +1154,7 @@ static std::vector<std::string> getTierOverwrites(
 
   // Tier overwrites
   {
+    // Required to get log entries actually written to scuba
     for (Hdf hdf = config["Tiers"].firstChild(); hdf.exists();
          hdf = hdf.next()) {
       if (messages.empty()) {
@@ -1173,6 +1163,8 @@ static std::vector<std::string> getTierOverwrites(
                                 "machine='{}', tier='{}', task='{}', "
                                 "cpu='{}', tiers='{}', tags='{}'",
                                 hostname, tier, task, cpu, tiers, tags));
+
+        RuntimeOption::StoreTierOverwriteInputs(hostname, tier, task, cpu, tiers, tags);
       }
       auto const matches = matchesTier(hdf);
       auto const matches_exp = matchExperiment(
@@ -1208,6 +1200,34 @@ static std::vector<std::string> getTierOverwrites(
   }
   return messages;
 }
+
+// Log the inputs used for calculating tier overwrites for this machine
+void RuntimeOption::StoreTierOverwriteInputs(const std::string &machine, const std::string &tier,
+  const std::string &task, const std::string &cpu, const std::string &tiers, const std::string &tags) {
+    // Store the tier inputs as part of the RuntimeOption singleton, so that we can access it later
+    RuntimeOption::TierOverwriteInputs["machine"] = machine;
+    RuntimeOption::TierOverwriteInputs["tier"] = tier;
+    RuntimeOption::TierOverwriteInputs["task"] = task;
+    RuntimeOption::TierOverwriteInputs["cpu"] = cpu;
+    RuntimeOption::TierOverwriteInputs["tiers"] = tiers;
+    RuntimeOption::TierOverwriteInputs["tags"] = tags;
+}
+
+void logTierOverwriteInputs() {
+  if(!Cfg::Server::LogTierOverwriteInputs) return;
+
+  StructuredLogEntry log_entry;
+  log_entry.force_init = true;
+  log_entry.setStr("machine", RuntimeOption::TierOverwriteInputs["machine"]);
+  log_entry.setStr("tier", RuntimeOption::TierOverwriteInputs["tier"]);
+  log_entry.setStr("task", RuntimeOption::TierOverwriteInputs["task"]);
+  log_entry.setStr("cpu", RuntimeOption::TierOverwriteInputs["cpu"]);
+  log_entry.setStr("tiers", RuntimeOption::TierOverwriteInputs["tiers"]);
+  log_entry.setStr("tags", RuntimeOption::TierOverwriteInputs["tags"]);
+  StructuredLog::log("hhvm_config_hdf_logs", log_entry);
+}
+
+InitFiniNode s_logTierOverwrites(logTierOverwriteInputs, InitFiniNode::When::ServerInit);
 
 void RuntimeOption::ReadSatelliteInfo(
     const IniSettingMap& ini,
@@ -1486,17 +1506,6 @@ void RuntimeOption::Load(
                  0);
     Config::Bind(SerializationSizeLimit, ini, config,
                  "ResourceLimit.SerializationSizeLimit", StringData::MaxSize);
-    Config::Bind(HeapSizeMB, ini, config, "ResourceLimit.HeapSizeMB",
-                 HeapSizeMB);
-    Config::Bind(HeapResetCountBase, ini, config,
-                 "ResourceLimit.HeapResetCountBase", HeapResetCountBase);
-    Config::Bind(HeapResetCountMultiple, ini, config,
-                 "ResourceLimit.HeapResetCountMultiple",
-                 HeapResetCountMultiple);
-    Config::Bind(HeapLowWaterMark , ini, config,
-                 "ResourceLimit.HeapLowWaterMark", HeapLowWaterMark);
-    Config::Bind(HeapHighWaterMark , ini, config,
-                 "ResourceLimit.HeapHighWaterMark",HeapHighWaterMark);
   }
   {
     // watchman
@@ -1618,21 +1627,6 @@ void RuntimeOption::Load(
     Config::Bind(EnableXHP, ini, config, "Eval.EnableXHP", EnableXHP);
     Config::Bind(TimeoutsUseWallTime, ini, config, "Eval.TimeoutsUseWallTime",
                  true);
-    Config::Bind(EvalInitialTypeTableSize, ini, config,
-                 "Eval.InitialNamedEntityTableSize",
-                 EvalInitialTypeTableSize);
-    Config::Bind(EvalInitialFuncTableSize, ini, config,
-                 "Eval.InitialFuncTableSize",
-                 EvalInitialTypeTableSize);
-    if (EvalInitialTypeTableSize / 200 > EvalInitialTypeTableSize) {
-      // Assume InitialFuncTableSize was not provided; compute initial func
-      // table size from a conservative type/func ratio.
-      EvalInitialFuncTableSize = EvalInitialTypeTableSize / 200;
-    }
-    Config::Bind(EvalInitialStaticStringTableSize, ini, config,
-                 "Eval.InitialStaticStringTableSize",
-                 EvalInitialStaticStringTableSize);
-
     static std::string jitSerdesMode;
     Config::Bind(jitSerdesMode, ini, config, "Eval.JitSerdesMode", "Off");
 
@@ -1728,9 +1722,6 @@ void RuntimeOption::Load(
                           EvalProfileHWFastReads,
                           EvalProfileHWExportInterval);
 
-    Config::Bind(EnableIntrinsicsExtension, ini,
-                 config, "Eval.EnableIntrinsicsExtension",
-                 EnableIntrinsicsExtension);
     Config::Bind(RecordCodeCoverage, ini, config, "Eval.RecordCodeCoverage");
     if (Cfg::Jit::Enabled && RecordCodeCoverage) {
       throw std::runtime_error("Code coverage is not supported with "
@@ -1803,10 +1794,6 @@ void RuntimeOption::Load(
 
       Cfg::Server::FontPath = FileUtil::normalizeDir(Cfg::Server::FontPath);
     }
-
-
-    Config::Bind(RenamableFunctions, ini, config, "Eval.RenamableFunctions");
-    Config::Bind(NonInterceptableFunctions, ini, config, "Eval.NonInterceptableFunctions");
   }
 
   VirtualHost::SortAllowedDirectories(Cfg::Server::AllowedDirectories);
@@ -1982,6 +1969,12 @@ void RuntimeOption::Load(
   }
 #ifdef HHVM_FACEBOOK
   {
+    // ThriftFBServer
+    Config::Bind(ThriftFBServerWorkerThreads, ini, config,
+                 "ThriftFBServer.WorkerThreads", 1);
+    Config::Bind(ThriftFBServerPoolThreads, ini, config, "ThriftFBServer.PoolThreads",
+                 1);
+                 
     // Fb303Server
     Config::Bind(EnableFb303Server, ini, config, "Fb303Server.Enable",
                  EnableFb303Server);
@@ -1991,16 +1984,23 @@ void RuntimeOption::Load(
                  "Fb303Server.WorkerThreads", 1);
     Config::Bind(Fb303ServerPoolThreads, ini, config, "Fb303Server.PoolThreads",
                  1);
-    Config::Bind(Fb303ServerEnableAclChecks, ini, config,
-                 "Fb303Server.EnableAclChecks", Fb303ServerEnableAclChecks);
-    Config::Bind(Fb303ServerEnforceAclChecks, ini, config,
-                 "Fb303Server.EnforceAclChecks", Fb303ServerEnforceAclChecks);
-    Config::Bind(Fb303ServerIdentity, ini, config, "Fb303Server.Identity");
+    Config::Bind(Fb303ServerExposeSensitiveMethods, ini, config,
+                 "Fb303Server.ExposeSensitiveMethods", Fb303ServerExposeSensitiveMethods);
 
-    Config::Bind(ThreadTuneDebug, ini, config, "ThreadTuneDebug", ThreadTuneDebug);
-    Config::Bind(ThreadTuneSkipWarmup, ini, config, "ThreadTuneSkipWarmup", ThreadTuneSkipWarmup);
-    Config::Bind(ThreadTuneAdjustmentPct, ini, config, "ThreadTuneAdjustmentPct", ThreadTuneAdjustmentPct);
-    Config::Bind(ThreadTuneStepPct, ini, config, "ThreadTuneStepPct", ThreadTuneStepPct);
+    Config::Bind(ThreadTuneDebug, ini, config,
+                 "ThreadTuneDebug", ThreadTuneDebug);
+    Config::Bind(ThreadTuneSkipWarmup, ini, config,
+                 "ThreadTuneSkipWarmup", ThreadTuneSkipWarmup);
+    Config::Bind(ThreadTuneAdjustmentPct, ini, config,
+                 "ThreadTuneAdjustmentPct", ThreadTuneAdjustmentPct);
+    Config::Bind(ThreadTuneAdjustmentDownPct, ini, config,
+                 "ThreadTuneAdjustmentDownPct", ThreadTuneAdjustmentDownPct);
+    Config::Bind(ThreadTuneStepPct, ini, config,
+                 "ThreadTuneStepPct", ThreadTuneStepPct);
+    Config::Bind(ThreadTuneCPUThreshold, ini, config,
+                 "ThreadTuneCPUThreshold", ThreadTuneCPUThreshold);
+    Config::Bind(ThreadTuneThreadUtilizationThreshold, ini, config,
+                 "ThreadTuneThreadUtilizationThreshold", ThreadTuneThreadUtilizationThreshold);
   }
 #endif
 
@@ -2009,6 +2009,7 @@ void RuntimeOption::Load(
     Config::Bind(XenonPeriodSeconds, ini, config, "Xenon.Period", 0.0);
     Config::Bind(XenonRequestFreq, ini, config, "Xenon.RequestFreq", 1);
     Config::Bind(XenonForceAlwaysOn, ini, config, "Xenon.ForceAlwaysOn", false);
+    Config::Bind(XenonTrackActiveWorkers, ini, config, "Xenon.TrackActiveWorkers", false);
   }
   {
     // Strobelight
@@ -2194,7 +2195,7 @@ ServiceData::CounterCallback s_build_info([](ServiceData::CounterMap& counters) 
 uintptr_t lowArenaMinAddr() {
   const char* str = getenv("HHVM_LOW_ARENA_START");
   if (str == nullptr) {
-#ifndef INSTRUMENTED_BUILD
+#if !defined(INSTRUMENTED_BUILD) && defined(USE_LOWPTR)
    return 1u << 30;
 #else
    return 1u << 31;

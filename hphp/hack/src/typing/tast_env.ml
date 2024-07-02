@@ -31,11 +31,16 @@ type t = env
 
 exception Not_in_class
 
+let get_decl_env env = env.Typing_env_types.decl_env
+
 let print_ty = Typing_print.full_strip_ns
 
 let print_decl_ty = Typing_print.full_strip_ns_decl ~verbose_fun:false
 
 let print_error_ty = Typing_print.error
+
+let print_hint env hint =
+  print_decl_ty env @@ Decl_hint.hint (get_decl_env env) hint
 
 let print_ty_with_identity env phase_ty sym_occurrence sym_definition =
   match phase_ty with
@@ -102,8 +107,6 @@ let set_inside_constructor env =
   { env with Typing_env_types.inside_constructor = true }
 
 let get_inside_constructor env = env.Typing_env_types.inside_constructor
-
-let get_decl_env env = env.Typing_env_types.decl_env
 
 let get_val_kind = Typing_env.get_val_kind
 
@@ -193,6 +196,9 @@ let fresh_type = Typing_env.fresh_type
 let is_fresh_generic_parameter = Typing_env.is_fresh_generic_parameter
 
 let simplify_unions env ty = Typing_union.simplify_unions env ty
+
+let simplify_intersections env ty =
+  Typing_intersection.simplify_intersections env ty
 
 let union_list env r tyl = Typing_union.union_list env r tyl
 
@@ -368,6 +374,6 @@ let fill_in_pos_filename_if_in_current_decl =
 
 let is_hhi = Typing_env.is_hhi
 
-let get_check_status env = env.Typing_env_types.checked
+let get_check_status env : check_status = env.Typing_env_types.checked
 
 let get_current_decl_and_file = Typing_env.get_current_decl_and_file

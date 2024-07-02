@@ -8,7 +8,7 @@
  *)
 open Hh_prelude
 open Sys_utils
-module Cls = Decl_provider.Class
+module Cls = Folded_class
 
 (*****************************************************************************)
 (* Profiling utilities *)
@@ -70,6 +70,7 @@ type mode =
   | RemoveDeadUnsafeCasts
   | CountImpreciseTypes
   | Map_reduce_mode
+  | Dump_classish_positions
 
 type options = {
   files: string list;
@@ -134,6 +135,7 @@ let print_error format ?(oc = stderr) l =
     | Errors.Raw -> (fun e -> Raw_error_formatter.to_string e)
     | Errors.Plain -> (fun e -> Errors.to_string e)
     | Errors.Highlighted -> Highlighted_error_formatter.to_string
+    | Errors.Extended -> Extended_error_formatter.to_string
   in
   let absolute_errors = User_error.to_absolute l in
   Out_channel.output_string oc (formatter absolute_errors)
@@ -230,8 +232,6 @@ let parse_options () =
   let auto_namespace_map = ref None in
   let log_inference_constraints = ref None in
   let timeout = ref None in
-  let disallow_byref_dynamic_calls = ref (Some false) in
-  let disallow_byref_calls = ref (Some false) in
   let set_bool x () = x := Some true in
   let set_bool_ x () = x := true in
   let rust_elab = ref false in
@@ -272,8 +272,6 @@ let parse_options () =
   let allowed_fixme_codes_strict = ref None in
   let allowed_decl_fixme_codes = ref None in
   let report_pos_from_reason = ref false in
-  let enable_sound_dynamic = ref true in
-  let always_pessimise_return = ref false in
   let consider_type_const_enforceable = ref false in
   let interpret_soft_types_as_like_types = ref false in
   let enable_strict_string_concat_interp = ref false in
@@ -289,7 +287,6 @@ let parse_options () =
   let sharedmem_config = ref SharedMem.default_config in
   let print_position = ref true in
   let enforce_sealed_subclasses = ref false in
-  let everything_sdt = ref false in
   let custom_hhi_path = ref None in
   let force_allow_builtins_in_custom_hhi_path = ref false in
   let explicit_consistent_constructors = ref 0 in
@@ -382,8 +379,9 @@ let parse_options () =
             | "context" -> error_format := Errors.Context
             | "highlighted" -> error_format := Errors.Highlighted
             | "plain" -> error_format := Errors.Plain
+            | "extended" -> error_format := Errors.Extended
             | _ -> print_string "Warning: unrecognized error format.\n"),
-        "<raw|context|highlighted|plain> Error formatting style; (default: highlighted)"
+        "<raw|context|highlighted|plain|flow> Error formatting style; (default: highlighted)"
       );
       ("--lint", Arg.Unit (set_mode Lint), " Produce lint errors");
       ("--lint-json", Arg.Unit (set_mode Lint_json), " Produce json lint output");
@@ -431,6 +429,9 @@ let parse_options () =
         Arg.Unit (set_mode Ide_diagnostics),
         " Compute where IDE diagnostics (squiggles and dotted lines) will be displayed."
       );
+      ( "--dump-classish-positions",
+        Arg.Unit (set_mode Dump_classish_positions),
+        " Dump certain positional information calculated for the given file." );
       ( "--identify-symbol",
         (let line = ref 0 in
          Arg.Tuple
@@ -520,14 +521,6 @@ let parse_options () =
       ( "--check-xhp-attribute",
         Arg.Set check_xhp_attribute,
         " Typechecks xhp required attributes" );
-      ( "--disallow-byref-dynamic-calls",
-        Arg.Unit (set_bool disallow_byref_dynamic_calls),
-        " Disallow passing arguments by reference to dynamically called functions [e.g. $foo(&$bar)]"
-      );
-      ( "--disallow-byref-calls",
-        Arg.Unit (set_bool disallow_byref_calls),
-        " Disallow passing arguments by reference in any form [e.g. foo(&$bar)]"
-      );
       ( "--rust-elab",
         Arg.Set rust_elab,
         " Use the Rust implementation of naming elaboration and NAST checks" );
@@ -549,26 +542,12 @@ let parse_options () =
         Arg.Set union_intersection_type_hints,
         " Allows union and intersection types to be written in type hint positions"
       );
-      ( "--naive-implicit-pess",
-        Arg.Unit
-          (fun () ->
-            set_bool_ enable_sound_dynamic ();
-            set_bool_ everything_sdt ();
-            set_bool_ always_pessimise_return ();
-            set_bool_ consider_type_const_enforceable ();
-            set_bool_ enable_supportdyn_hint ()),
-        " Enables naive implicit pessimisation" );
       ( "--implicit-pess",
-        Arg.Unit
-          (fun () ->
-            set_bool_ enable_sound_dynamic ();
-            set_bool_ everything_sdt ();
-            set_bool_ enable_supportdyn_hint ()),
+        Arg.Unit (fun () -> set_bool_ enable_supportdyn_hint ()),
         " Enables implicit pessimisation" );
       ( "--explicit-pess",
         Arg.String
           (fun dir ->
-            set_bool_ enable_sound_dynamic ();
             set_bool_ enable_supportdyn_hint ();
             custom_hhi_path := Some dir),
         " Enables checking explicitly pessimised files. Requires path to pessimised .hhi files "
@@ -656,12 +635,6 @@ let parse_options () =
         Arg.Set report_pos_from_reason,
         " Flag errors whose position is derived from reason information in types."
       );
-      ( "--enable-sound-dynamic-type",
-        Arg.Set enable_sound_dynamic,
-        " Enforce sound dynamic types.  Experimental." );
-      ( "--always-pessimise-return",
-        Arg.Set always_pessimise_return,
-        " Consider all return types unenforceable." );
       ( "--consider-type-const-enforceable",
         Arg.Set consider_type_const_enforceable,
         " Consider type constants to potentially be enforceable." );
@@ -716,10 +689,6 @@ let parse_options () =
       ( "--enable-sealed-subclasses",
         Arg.Set enforce_sealed_subclasses,
         " Require all __Sealed arguments to be subclasses" );
-      ( "--everything-sdt",
-        Arg.Set everything_sdt,
-        " Treat all classes, functions, and traits as though they are annotated with <<__SupportDynamicType>>, unless they are annotated with <<__NoAutoDynamic>>"
-      );
       ( "--custom-hhi-path",
         Arg.String (fun s -> custom_hhi_path := Some s),
         " Use custom hhis" );
@@ -823,7 +792,12 @@ let parse_options () =
   (* --root implies certain things... *)
   let root =
     match !root with
-    | None -> Path.make "/" (* if none specified, we use this dummy *)
+    | None ->
+      (match !packages_config_path with
+      | Some p ->
+        Path.make (Filename.dirname p)
+        (* if a package config path is supplied, use its directory name as the root *)
+      | None -> Path.make "/" (* otherwise, we use this dummy *))
     | Some root ->
       if Option.is_none !naming_table then
         naming_table := Some (Hh_single_common.find_naming_table_or_fail ());
@@ -841,14 +815,6 @@ let parse_options () =
         config
         |> Config_file.Getters.string_opt "allowed_fixme_codes_strict"
         |> Option.map ~f:comma_string_to_iset;
-      everything_sdt :=
-        config
-        |> Config_file.Getters.bool_opt "everything_sdt"
-        |> Option.value ~default:!everything_sdt;
-      enable_sound_dynamic :=
-        config
-        |> Config_file.Getters.bool_opt "enable_sound_dynamic_type"
-        |> Option.value ~default:!enable_sound_dynamic;
       sharedmem_config :=
         ServerConfig.make_sharedmem_config
           config
@@ -862,16 +828,58 @@ let parse_options () =
       (* Path.make canonicalizes it, i.e. resolves symlinks *)
       Path.make root
   in
+  let ( >?? ) x y = Option.value x ~default:y in
+  let po =
+    ParserOptions.
+      {
+        (* These don't have command-line flags, so init them to their defaults. *)
+        hhvm_compat_mode = default.hhvm_compat_mode;
+        hhi_mode = default.hhi_mode;
+        codegen = default.codegen;
+        disable_lval_as_an_expression = default.disable_lval_as_an_expression;
+        disallow_static_constants_in_default_func_args =
+          default.disallow_static_constants_in_default_func_args;
+        disallow_direct_superglobals_refs =
+          default.disallow_direct_superglobals_refs;
+        stack_size = default.stack_size;
+        unwrap_concurrent = default.unwrap_concurrent;
+        parser_errors_only = default.parser_errors_only;
+        no_parser_readonly_check = default.no_parser_readonly_check;
+        (* These are set specifically for single type check *)
+        allow_unstable_features = true;
+        (* The remainder are set in the config file *)
+        is_systemlib = !is_systemlib;
+        disable_legacy_soft_typehints = !disable_legacy_soft_typehints;
+        disable_legacy_attribute_syntax = !disable_legacy_attribute_syntax;
+        const_default_func_args = !const_default_func_args;
+        const_default_lambda_args = !const_default_lambda_args;
+        const_static_props = !const_static_props;
+        abstract_static_props = !abstract_static_props;
+        disallow_func_ptrs_in_constants = !disallow_func_ptrs_in_constants;
+        disable_xhp_element_mangling = !disable_xhp_element_mangling;
+        disable_xhp_children_declarations = !disable_xhp_children_declarations;
+        enable_xhp_class_modifier = !enable_xhp_class_modifier;
+        interpret_soft_types_as_like_types = !interpret_soft_types_as_like_types;
+        keep_user_attributes = !keep_user_attributes;
+        auto_namespace_map = !auto_namespace_map >?? default.auto_namespace_map;
+        deregister_php_stdlib =
+          !deregister_attributes >?? default.deregister_php_stdlib;
+        everything_sdt = true;
+        enable_class_level_where_clauses = !enable_class_level_where_clauses;
+        union_intersection_type_hints = !union_intersection_type_hints;
+        disallow_silence = !disallow_silence;
+        disable_hh_ignore_error = !disable_hh_ignore_error;
+        allowed_decl_fixme_codes =
+          Option.value !allowed_decl_fixme_codes ~default:ISet.empty;
+      }
+  in
 
   let tcopt : GlobalOptions.t =
     GlobalOptions.set
+      ~po
       ~tco_saved_state:GlobalOptions.default_saved_state
-      ?po_deregister_php_stdlib:!deregister_attributes
       ?tco_log_inference_constraints:!log_inference_constraints
       ?tco_timeout:!timeout
-      ?po_auto_namespace_map:!auto_namespace_map
-      ?tco_disallow_byref_dynamic_calls:!disallow_byref_dynamic_calls
-      ?tco_disallow_byref_calls:!disallow_byref_calls
       ~allowed_fixme_codes_strict:
         (Option.value !allowed_fixme_codes_strict ~default:ISet.empty)
       ~tco_check_xhp_attribute:!check_xhp_attribute
@@ -879,43 +887,23 @@ let parse_options () =
       ~tco_skip_hierarchy_checks:!skip_hierarchy_checks
       ~tco_skip_tast_checks:!skip_tast_checks
       ~tco_like_type_hints:true
-      ~tco_union_intersection_type_hints:!union_intersection_type_hints
       ~tco_strict_contexts:!strict_contexts
       ~tco_coeffects:!call_coeffects
       ~tco_coeffects_local:!local_coeffects
       ~tco_like_casts:false
       ~log_levels:!log_levels
-      ~po_enable_class_level_where_clauses:!enable_class_level_where_clauses
-      ~po_disable_legacy_soft_typehints:!disable_legacy_soft_typehints
       ~po_disallow_toplevel_requires:(not !allow_toplevel_requires)
-      ~tco_const_static_props:!const_static_props
-      ~po_disable_legacy_attribute_syntax:!disable_legacy_attribute_syntax
       ~tco_const_attribute:!const_attribute
-      ~po_const_default_func_args:!const_default_func_args
-      ~po_const_default_lambda_args:!const_default_lambda_args
-      ~po_disallow_silence:!disallow_silence
-      ~po_abstract_static_props:!abstract_static_props
-      ~po_disallow_func_ptrs_in_constants:!disallow_func_ptrs_in_constants
       ~tco_check_attribute_locations:true
       ~tco_error_php_lambdas:!error_php_lambdas
       ~tco_disallow_discarded_nullable_awaitables:
         !disallow_discarded_nullable_awaitables
       ~glean_reponame:!glean_reponame
-      ~po_disable_xhp_element_mangling:!disable_xhp_element_mangling
-      ~po_disable_xhp_children_declarations:!disable_xhp_children_declarations
-      ~po_enable_xhp_class_modifier:!enable_xhp_class_modifier
-      ~po_keep_user_attributes:!keep_user_attributes
-      ~po_disable_hh_ignore_error:!disable_hh_ignore_error
-      ~tco_is_systemlib:!is_systemlib
       ~tco_higher_kinded_types:!enable_higher_kinded_types
-      ~po_allowed_decl_fixme_codes:
-        (Option.value !allowed_decl_fixme_codes ~default:ISet.empty)
-      ~po_allow_unstable_features:true
       ~tco_report_pos_from_reason:!report_pos_from_reason
-      ~tco_enable_sound_dynamic:!enable_sound_dynamic
+      ~tco_enable_sound_dynamic:true
       ~tco_skip_check_under_dynamic:!skip_check_under_dynamic
       ~tco_global_access_check_enabled:!enable_global_access_check
-      ~po_interpret_soft_types_as_like_types:!interpret_soft_types_as_like_types
       ~tco_enable_strict_string_concat_interp:
         !enable_strict_string_concat_interp
       ~tco_ignore_unsafe_cast:!ignore_unsafe_cast
@@ -928,7 +916,6 @@ let parse_options () =
         !require_extends_implements_ancestors
       ~tco_strict_value_equality:!strict_value_equality
       ~tco_enforce_sealed_subclasses:!enforce_sealed_subclasses
-      ~tco_everything_sdt:!everything_sdt
       ~tco_explicit_consistent_constructors:!explicit_consistent_constructors
       ~tco_require_types_class_consts:!require_types_class_consts
       ~tco_type_printer_fuel:!type_printer_fuel
@@ -983,14 +970,6 @@ let parse_options () =
     if !enable_supportdyn_hint then
       SSet.add
         TypecheckerOptions.experimental_supportdynamic_type_hint
-        tco_experimental_features
-    else
-      tco_experimental_features
-  in
-  let tco_experimental_features =
-    if !always_pessimise_return then
-      SSet.add
-        TypecheckerOptions.experimental_always_pessimise_return
         tco_experimental_features
     else
       tco_experimental_features
@@ -1130,13 +1109,13 @@ let parse_and_name ctx files_contents =
       (* Get parse errors. *)
       let () =
         Errors.run_in_context fn (fun () ->
-            let popt = Provider_context.get_tcopt ctx in
+            let popt = Provider_context.get_popt ctx in
             let parsed_file =
               Full_fidelity_ast.defensive_program popt fn contents
             in
             let ast =
               let { Parser_return.ast; _ } = parsed_file in
-              if ParserOptions.deregister_php_stdlib popt then
+              if popt.ParserOptions.deregister_php_stdlib then
                 Nast.deregister_ignored_attributes ast
               else
                 ast
@@ -1474,22 +1453,41 @@ module File_deps = struct
 
   type 'a deps = {
     hierarchy: 'a;
+    regular: 'a * 'a;
+  }
+
+  type 'a file_deps = {
+    hierarchy: 'a;
     regular: 'a;
   }
 
   let scrape_class_names (ast : Nast.program) : SSet.t deps =
     (* Visitor that collects class names from AST *)
     let name_collector () =
+      let open Aast in
       object
-        inherit [_] Aast.iter
+        inherit [_] Aast.iter as super
 
-        val names = HashSet.create ()
+        val class_names = HashSet.create ()
+
+        val function_names = HashSet.create ()
 
         (* Note that the unit is not strictly required here, however, this way it's more in line
            with regular OCaml. *)
-        method names () = HashSet.fold names ~init:SSet.empty ~f:SSet.add
+        method class_names () =
+          HashSet.fold class_names ~init:SSet.empty ~f:SSet.add
 
-        method! on_class_name _ (_p, id) = HashSet.add names id
+        method function_names () =
+          HashSet.fold function_names ~init:SSet.empty ~f:SSet.add
+
+        method! on_class_name _ (_p, id) = HashSet.add class_names id
+
+        method! on_Call env call =
+          let { func = (_, _, expr); _ } = call in
+          (match expr with
+          | Id (_, name) -> HashSet.add function_names name
+          | _ -> ());
+          super#on_Call env call
       end
     in
     (* Visitor that invokes [name_collector] on elements of a class hierarchy
@@ -1521,32 +1519,45 @@ module File_deps = struct
     all_names_collector#on_program () ast;
     let hierarchy_names_collector = name_collector () in
     (class_hierarchy_visitor hierarchy_names_collector)#on_program () ast;
-    let hierarchy_names = hierarchy_names_collector#names () in
-    let regular_names =
-      SSet.diff (all_names_collector#names ()) hierarchy_names
+    let hierarchy_class_names = hierarchy_names_collector#class_names () in
+    let regular_class_names =
+      SSet.diff (all_names_collector#class_names ()) hierarchy_class_names
     in
-    { hierarchy = hierarchy_names; regular = regular_names }
+    let function_names = all_names_collector#function_names () in
+    {
+      hierarchy = hierarchy_class_names;
+      regular = (regular_class_names, function_names);
+    }
 
   (** Collect files that the given [file] depend on based on used class names. *)
   let collect_some_file_dependencies ctx (file : Relative_path.t) :
-      Relative_path.Set.t deps =
+      Relative_path.Set.t file_deps =
     let open Hh_prelude in
     let nast = Ast_provider.get_ast ctx ~full:true file in
     let names =
       Errors.ignore_ (fun () -> Naming.program ctx nast) |> scrape_class_names
     in
-    let resolve_to_path names =
+    let resolve_to_path names ~resolve =
       SSet.fold
-        (fun class_name files ->
-          match Naming_provider.get_class_path ctx class_name with
+        (fun name files ->
+          match resolve ctx name with
           | None -> files
           | Some file -> Relative_path.Set.add files file)
         names
         Relative_path.Set.empty
     in
+    let (regular_class_names, function_names) = names.regular in
+    let regular_files =
+      Relative_path.Set.union
+        (resolve_to_path
+           ~resolve:Naming_provider.get_class_path
+           regular_class_names)
+        (resolve_to_path ~resolve:Naming_provider.get_fun_path function_names)
+    in
     {
-      hierarchy = resolve_to_path names.hierarchy;
-      regular = resolve_to_path names.regular;
+      hierarchy =
+        resolve_to_path ~resolve:Naming_provider.get_class_path names.hierarchy;
+      regular = regular_files;
     }
 
   (** Recursively collect names in files and return the files where those names
@@ -1729,6 +1740,30 @@ end = struct
       ~f:apply_quickfix
 end
 
+let do_hover ~ctx ~filename oc pos_given =
+  let (ctx, entry) =
+    Provider_context.add_entry_if_missing ~ctx ~path:filename
+  in
+  let (line, column) =
+    match pos_given with
+    | Some (line, column) -> (line, column)
+    | None ->
+      let src = Provider_context.read_file_contents_exn entry in
+      caret_pos_exn src "^ hover-at-caret"
+  in
+  let results = Ide_hover.go_quarantined ~ctx ~entry ~line ~column in
+  let formatted_results =
+    List.map
+      ~f:(fun r ->
+        let open HoverService in
+        String.concat ~sep:"\n" (r.snippet :: r.addendum))
+      results
+  in
+  Printf.fprintf
+    oc
+    "%s\n"
+    (String.concat ~sep:"\n-------------\n" formatted_results)
+
 let handle_mode
     mode
     filenames
@@ -1858,7 +1893,7 @@ let handle_mode
         json_errors
     in
     let json_errors = List.map ~f:Lints_core.to_absolute json_errors in
-    ServerLintTypes.output_json ~pretty:true stdout json_errors;
+    ServerLintTypes.output_json ~from_test:true ~pretty:true stdout json_errors;
     exit 2
   | Dump_deps ->
     Relative_path.Map.iter files_info ~f:(fun fn _fileinfo ->
@@ -1952,6 +1987,10 @@ let handle_mode
       compute_tasts_expand_types ctx files_info files_contents
     in
     Ide_diagnostics_cli_lib.run ctx entry errors
+  | Dump_classish_positions ->
+    let path = expect_single_file () in
+    let (ctx, entry) = Provider_context.add_entry_if_missing ~ctx ~path in
+    Classish_positions_cli_lib.dump ctx entry path
   | Find_local (line, char) ->
     let filename = expect_single_file () in
     let (ctx, entry) =
@@ -2236,29 +2275,17 @@ let handle_mode
         in
         Printf.printf "  %stypeconst%s: %s %s\n" abstract from mid ty);
       ())
+  | Hover None when batch_mode ->
+    iter_over_files (fun filename ->
+        let oc =
+          Out_channel.create (Relative_path.to_absolute filename ^ out_extension)
+        in
+        Typing_log.out_channel := oc;
+        Provider_utils.respect_but_quarantine_unsaved_changes ~ctx ~f:(fun () ->
+            do_hover ~ctx ~filename oc None))
   | Hover pos_given ->
     let filename = expect_single_file () in
-    let (ctx, entry) =
-      Provider_context.add_entry_if_missing ~ctx ~path:filename
-    in
-    let (line, column) =
-      match pos_given with
-      | Some (line, column) -> (line, column)
-      | None ->
-        let src = Provider_context.read_file_contents_exn entry in
-        caret_pos_exn src "^ hover-at-caret"
-    in
-    let results = Ide_hover.go_quarantined ~ctx ~entry ~line ~column in
-    let formatted_results =
-      List.map
-        ~f:(fun r ->
-          let open HoverService in
-          String.concat ~sep:"\n" (r.snippet :: r.addendum))
-        results
-    in
-    Printf.printf
-      "%s\n"
-      (String.concat ~sep:"\n-------------\n" formatted_results)
+    do_hover ~ctx ~filename stdout pos_given
   | Apply_quickfixes ->
     let path = expect_single_file () in
     let (ctx, _entry) = Provider_context.add_entry_if_missing ~ctx ~path in
@@ -2475,18 +2502,23 @@ let decl_and_run_mode
       info
   in
   let tcopt = { tcopt with GlobalOptions.tco_package_info = package_info } in
+  let popt = tcopt.GlobalOptions.po in
   let ctx =
     if rust_provider_backend then
-      let backend = Hh_server_provider_backend.make tcopt in
+      let backend =
+        Hh_server_provider_backend.make
+          (DeclFoldOptions.from_global_options tcopt)
+          (DeclParserOptions.from_parser_options popt)
+      in
       let () = Provider_backend.set_rust_backend backend in
       Provider_context.empty_for_tool
-        ~popt:tcopt
+        ~popt
         ~tcopt
         ~backend:(Provider_backend.get ())
         ~deps_mode:(Typing_deps_mode.InMemoryMode None)
     else
       Provider_context.empty_for_test
-        ~popt:tcopt
+        ~popt
         ~tcopt
         ~deps_mode:(Typing_deps_mode.InMemoryMode None)
   in

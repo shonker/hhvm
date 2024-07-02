@@ -3,8 +3,6 @@
 // This source code is licensed under the MIT license found in the
 // LICENSE file in the "hack" directory of this source tree.
 
-use std::sync::Arc;
-
 use crate::instr::Hhbc;
 use crate::instr::Predicate;
 use crate::type_struct::TypeStruct;
@@ -69,7 +67,7 @@ impl FuncBuilderEx for FuncBuilder {
         ));
         self.start_block(true_bid);
         f(self);
-        if !self.func.is_terminated(self.cur_bid()) {
+        if !self.func.repr.is_terminated(self.cur_bid()) {
             self.emit(Instr::jmp(join_bid, loc));
         }
         self.start_block(join_bid);
@@ -216,7 +214,8 @@ impl FuncBuilderEx for FuncBuilder {
 
                 BaseType::Class(cid) => {
                     let constant =
-                        Immediate::Array(Arc::new(TypeStruct::Unresolved(cid).into_typed_value()));
+                    // passing nullable=false here because the above code should have dealt with the case that the original ety is nullable
+                        Immediate::from(TypeStruct::Unresolved(cid, false).into_typed_value());
                     let adata = self.emit_imm(constant);
                     Instr::Hhbc(Hhbc::IsTypeStructC(
                         [vid, adata],

@@ -26,6 +26,7 @@ use crate::IncDecOp;
 use crate::InitPropOp;
 use crate::IsLogAsDynamicCallOp;
 use crate::IsTypeOp;
+use crate::IterArgsFlags;
 use crate::IterId;
 use crate::LocId;
 use crate::MOpMode;
@@ -153,7 +154,8 @@ pub enum Terminator {
     Enter(BlockId, LocId),
     Exit(ValueId, LocId),
     Fatal(ValueId, FatalOp, LocId),
-    IterInit(IteratorArgs, ValueId),
+    #[has_operands(none)]
+    IterInit(IteratorArgs),
     #[has_operands(none)]
     IterNext(IteratorArgs),
     #[has_operands(none)]
@@ -239,7 +241,7 @@ impl HasEdges for Terminator {
     fn edges(&self) -> &[BlockId] {
         match self {
             Terminator::CallAsync(_, targets)
-            | Terminator::IterInit(IteratorArgs { targets, .. }, _)
+            | Terminator::IterInit(IteratorArgs { targets, .. })
             | Terminator::IterNext(IteratorArgs { targets, .. })
             | Terminator::JmpOp { targets, .. } => targets,
 
@@ -267,7 +269,7 @@ impl HasEdges for Terminator {
     fn edges_mut(&mut self) -> &mut [BlockId] {
         match self {
             Terminator::CallAsync(_, targets)
-            | Terminator::IterInit(IteratorArgs { targets, .. }, _)
+            | Terminator::IterInit(IteratorArgs { targets, .. })
             | Terminator::IterNext(IteratorArgs { targets, .. })
             | Terminator::JmpOp { targets, .. } => targets,
 
@@ -470,7 +472,7 @@ pub enum Hhbc {
         loc: LocId,
     },
     CreateCont(LocId),
-    CreateSpecialImplicitContext([ValueId; 2], LocId),
+    GetInaccessibleImplicitContext(LocId),
     Div([ValueId; 2], LocId),
     EnumClassLabelName(ValueId, LocId),
     GetClsRGProp(ValueId, LocId),
@@ -482,7 +484,7 @@ pub enum Hhbc {
     IncDecS([ValueId; 2], IncDecOp, LocId),
     IncludeEval(IncludeEval),
     InitProp(ValueId, PropName, InitPropOp, LocId),
-    InstanceOfD(ValueId, ClassName, LocId),
+    InstanceOfD(ValueId, ClassName, bool, LocId),
     IsLateBoundCls(ValueId, LocId),
     IsTypeC(ValueId, IsTypeOp, LocId),
     #[has_operands(none)]
@@ -496,6 +498,7 @@ pub enum Hhbc {
     IssetG(ValueId, LocId),
     IssetL(LocalId, LocId),
     IssetS([ValueId; 2], LocId),
+    IterBase(ValueId, LocId),
     #[has_operands(none)]
     IterFree(IterId, LocId),
     LateBoundCls(LocId),
@@ -553,7 +556,6 @@ pub enum Hhbc {
     ThrowNonExhaustiveSwitch(LocId),
     UnsetG(ValueId, LocId),
     UnsetL(LocalId, LocId),
-    VerifyImplicitContextState(LocId),
     VerifyOutType(ValueId, LocalId, LocId),
     VerifyParamType(ValueId, LocalId, LocId),
     VerifyParamTypeTS(ValueId, LocalId, LocId),
@@ -1045,8 +1047,9 @@ pub enum Predicate {
 #[derive(Clone, Debug, HasLoc, PartialEq, Eq)]
 pub struct IteratorArgs {
     pub iter_id: IterId,
-    // Stored as [ValueLid, KeyLid]
-    pub locals: SmallVec<[LocalId; 2]>,
+    pub flags: IterArgsFlags,
+    // Stored as [BaseLid, ValueLid, KeyLid]
+    pub locals: SmallVec<[LocalId; 3]>,
     pub targets: [BlockId; 2],
     pub loc: LocId,
 }
@@ -1054,6 +1057,8 @@ pub struct IteratorArgs {
 impl IteratorArgs {
     pub fn new(
         iter_id: IterId,
+        flags: IterArgsFlags,
+        base_lid: LocalId,
         key_lid: Option<LocalId>,
         value_lid: LocalId,
         done_bid: BlockId,
@@ -1061,24 +1066,30 @@ impl IteratorArgs {
         loc: LocId,
     ) -> Self {
         let mut locals = SmallVec::new();
+        locals.push(base_lid);
         locals.push(value_lid);
         if let Some(key_lid) = key_lid {
             locals.push(key_lid);
         }
         IteratorArgs {
             iter_id,
+            flags,
             locals,
             targets: [done_bid, next_bid],
             loc,
         }
     }
 
+    pub fn base_lid(&self) -> LocalId {
+        self.locals[0]
+    }
+
     pub fn key_lid(&self) -> Option<LocalId> {
-        self.locals.get(1).copied()
+        self.locals.get(2).copied()
     }
 
     pub fn value_lid(&self) -> LocalId {
-        self.locals[0]
+        self.locals[1]
     }
 
     pub fn done_bid(&self) -> BlockId {

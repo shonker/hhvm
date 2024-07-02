@@ -27,7 +27,7 @@ let shapes_key_exists env shape field_name =
       if not sft_optional then
         `DoesExist (get_pos sft_ty)
       else
-        let nothing = Typing_make_type.nothing Reason.Rnone in
+        let nothing = Typing_make_type.nothing Reason.none in
         if Tast_env.is_sub_type env sft_ty nothing then
           `DoesNotExist
             ( get_pos shape,
@@ -178,12 +178,15 @@ let handler =
           (Pos_or_decl.of_raw_pos pos, field_name)
       | (_, p, Binop { bop = Ast_defs.QuestionQuestion; lhs = exp; _ }) ->
         let rec check_nested_accesses = function
-          | (_, _, Array_get (exp, Some (_, pos, String field_name))) ->
-            shape_access_with_non_existent_field
-              p
-              env
-              exp
-              (Pos_or_decl.of_raw_pos pos, field_name);
+          | (_, _, Array_get (exp, Some indexing_expr)) ->
+            (match indexing_expr with
+            | (_, pos, String field_name) ->
+              shape_access_with_non_existent_field
+                p
+                env
+                exp
+                (Pos_or_decl.of_raw_pos pos, field_name)
+            | _ -> ());
             check_nested_accesses exp
           | _ -> ()
         in

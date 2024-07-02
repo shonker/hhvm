@@ -150,7 +150,7 @@ APACHE_THRIFT_DEFINE_ACCESSOR(u);
 } // namespace apache
 
 // BEGIN declare_enums
-namespace py3 { namespace simple {
+namespace py3::simple {
 
 enum class AnEnum {
   None = 0,
@@ -179,7 +179,7 @@ enum class Flags {
 
 
 
-}} // py3::simple
+} // namespace py3::simple
 
 namespace std {
 template<> struct hash<::py3::simple::AnEnum> :
@@ -264,7 +264,7 @@ template <> struct TEnumTraits<::py3::simple::Flags> {
 
 // END declare_enums
 // BEGIN forward_declare
-namespace py3 { namespace simple {
+namespace py3::simple {
 class SimpleException;
 class OptionalRefStruct;
 class SimpleStruct;
@@ -276,7 +276,7 @@ class HiddenException;
 class ComplexStruct;
 class BinaryUnion;
 class BinaryUnionStruct;
-}} // py3::simple
+} // namespace py3::simple
 // END forward_declare
 namespace apache::thrift::detail::annotation {
 } // namespace apache::thrift::detail::annotation
@@ -286,7 +286,7 @@ namespace apache::thrift::detail::qualifier {
 
 // BEGIN hash_and_equal_to
 // END hash_and_equal_to
-namespace py3 { namespace simple {
+namespace py3::simple {
 using ::apache::thrift::detail::operator!=;
 using ::apache::thrift::detail::operator>;
 using ::apache::thrift::detail::operator<=;
@@ -353,6 +353,8 @@ class SimpleStruct final  {
  public:
   using __fbthrift_cpp2_type = SimpleStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -876,6 +878,8 @@ class AdaptedUnion final  {
   using __fbthrift_cpp2_type = AdaptedUnion;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1078,6 +1082,8 @@ class FOLLY_EXPORT SimpleException : public virtual apache::thrift::TException {
   using __fbthrift_cpp2_type = SimpleException;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1231,6 +1237,8 @@ class OptionalRefStruct final  {
  public:
   using __fbthrift_cpp2_type = OptionalRefStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -1391,6 +1399,8 @@ class HiddenTypeFieldsStruct final  {
   using __fbthrift_cpp2_type = HiddenTypeFieldsStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    true;
 
 
  public:
@@ -1638,6 +1648,8 @@ class FOLLY_EXPORT HiddenException : public virtual apache::thrift::TException {
   using __fbthrift_cpp2_type = HiddenException;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -1807,6 +1819,8 @@ class ComplexStruct final  {
  public:
   using __fbthrift_cpp2_type = ComplexStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
+    false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
     false;
 
 
@@ -2397,6 +2411,8 @@ class BinaryUnion final  {
   using __fbthrift_cpp2_type = BinaryUnion;
   static constexpr bool __fbthrift_cpp2_is_union =
     true;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -2605,6 +2621,8 @@ class BinaryUnionStruct final  {
   using __fbthrift_cpp2_type = BinaryUnionStruct;
   static constexpr bool __fbthrift_cpp2_is_union =
     false;
+  static constexpr bool __fbthrift_cpp2_uses_op_encode =
+    false;
 
 
  public:
@@ -2703,7 +2721,7 @@ unsigned long BinaryUnionStruct::read(Protocol_* iprot) {
 }
 
 
-}} // py3::simple
+} // namespace py3::simple
 
 namespace apache { namespace thrift {
 

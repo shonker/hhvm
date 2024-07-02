@@ -36,7 +36,7 @@ class MyServicePrioChildServiceInfoHolder : public apache::thrift::ServiceInfoHo
    apache::thrift::ServiceRequestInfoMap const& requestInfoMap() const override;
    static apache::thrift::ServiceRequestInfoMap staticRequestInfoMap();
 };
-} // cpp2
+} // namespace cpp2
 
 namespace apache::thrift {
 template <>
@@ -59,7 +59,7 @@ class ServiceHandler<::cpp2::MyServicePrioChild> : virtual public ::cpp2::MyServ
   virtual folly::coro::Task<void> co_pang();
   virtual folly::coro::Task<void> co_pang(apache::thrift::RequestParams params);
 #endif
-  virtual void async_tm_pang(std::unique_ptr<apache::thrift::HandlerCallback<void>> callback);
+  virtual void async_tm_pang(apache::thrift::HandlerCallbackPtr<void> callback);
  private:
   static ::cpp2::MyServicePrioChildServiceInfoHolder __fbthrift_serviceInfoHolder;
   std::atomic<apache::thrift::detail::si::InvocationType> __fbthrift_invocation_pang{apache::thrift::detail::si::InvocationType::AsyncTm};
@@ -69,7 +69,7 @@ class ServiceHandler<::cpp2::MyServicePrioChild> : virtual public ::cpp2::MyServ
 
 namespace cpp2 {
 using MyServicePrioChildSvIf [[deprecated("Use apache::thrift::ServiceHandler<MyServicePrioChild> instead")]] = ::apache::thrift::ServiceHandler<MyServicePrioChild>;
-} // cpp2
+} // namespace cpp2
 namespace cpp2 {
 class MyServicePrioChildSvNull : public ::apache::thrift::ServiceHandler<MyServicePrioChild>, virtual public ::apache::thrift::ServiceHandler<::cpp2::MyServicePrioParent> {
  public:
@@ -108,4 +108,4 @@ class MyServicePrioChildAsyncProcessor : public ::cpp2::MyServicePrioParentAsync
   ~MyServicePrioChildAsyncProcessor() override {}
 };
 
-} // cpp2
+} // namespace cpp2

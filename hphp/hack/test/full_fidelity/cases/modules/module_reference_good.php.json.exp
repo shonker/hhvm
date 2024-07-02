@@ -414,84 +414,6 @@
             "line_number":11
           }
         },
-        "module_declaration_exports":{
-          "kind":"module_exports",
-          "module_exports_exports_keyword":{
-            "kind":"token",
-            "token":{
-              "kind":"exports",
-              "text":"exports",
-              "offset":135,
-              "leading_width":2,
-              "width":7,
-              "trailing_width":1,
-              "leading":[{"kind":"whitespace","text":"  ","offset":135,"width":2}],
-              "trailing":[{"kind":"whitespace","text":" ","offset":144,"width":1}],
-              "line_number":15
-            }
-          },
-          "module_exports_left_brace":{
-            "kind":"token",
-            "token":{
-              "kind":"{",
-              "text":"{",
-              "offset":145,
-              "leading_width":0,
-              "width":1,
-              "trailing_width":1,
-              "leading":[],
-              "trailing":[{"kind":"end_of_line","text":"\n","offset":146,"width":1}],
-              "line_number":15
-            }
-          },
-          "module_exports_exports":{
-            "kind":"list",
-            "elements":[
-              {
-                "kind":"list_item",
-                "list_item":{
-                  "kind":"module_name",
-                  "module_name_parts":{
-                    "kind":"list",
-                    "elements":[
-                      {
-                        "kind":"list_item",
-                        "list_item":{
-                          "kind":"token",
-                          "token":{
-                            "kind":"name",
-                            "text":"y",
-                            "offset":147,
-                            "leading_width":4,
-                            "width":1,
-                            "trailing_width":1,
-                            "leading":[{"kind":"whitespace","text":"    ","offset":147,"width":4}],
-                            "trailing":[{"kind":"end_of_line","text":"\n","offset":152,"width":1}],
-                            "line_number":16
-                          }
-                        }
-                      }
-                    ]
-                  }
-                }
-              }
-            ]
-          },
-          "module_exports_right_brace":{
-            "kind":"token",
-            "token":{
-              "kind":"}",
-              "text":"}",
-              "offset":153,
-              "leading_width":2,
-              "width":1,
-              "trailing_width":1,
-              "leading":[{"kind":"whitespace","text":"  ","offset":153,"width":2}],
-              "trailing":[{"kind":"end_of_line","text":"\n","offset":156,"width":1}],
-              "line_number":17
-            }
-          }
-        },
         "module_declaration_imports":{
           "kind":"module_imports",
           "module_imports_imports_keyword":{
@@ -567,6 +489,84 @@
               "leading":[{"kind":"whitespace","text":"  ","offset":131,"width":2}],
               "trailing":[{"kind":"end_of_line","text":"\n","offset":134,"width":1}],
               "line_number":14
+            }
+          }
+        },
+        "module_declaration_exports":{
+          "kind":"module_exports",
+          "module_exports_exports_keyword":{
+            "kind":"token",
+            "token":{
+              "kind":"exports",
+              "text":"exports",
+              "offset":135,
+              "leading_width":2,
+              "width":7,
+              "trailing_width":1,
+              "leading":[{"kind":"whitespace","text":"  ","offset":135,"width":2}],
+              "trailing":[{"kind":"whitespace","text":" ","offset":144,"width":1}],
+              "line_number":15
+            }
+          },
+          "module_exports_left_brace":{
+            "kind":"token",
+            "token":{
+              "kind":"{",
+              "text":"{",
+              "offset":145,
+              "leading_width":0,
+              "width":1,
+              "trailing_width":1,
+              "leading":[],
+              "trailing":[{"kind":"end_of_line","text":"\n","offset":146,"width":1}],
+              "line_number":15
+            }
+          },
+          "module_exports_exports":{
+            "kind":"list",
+            "elements":[
+              {
+                "kind":"list_item",
+                "list_item":{
+                  "kind":"module_name",
+                  "module_name_parts":{
+                    "kind":"list",
+                    "elements":[
+                      {
+                        "kind":"list_item",
+                        "list_item":{
+                          "kind":"token",
+                          "token":{
+                            "kind":"name",
+                            "text":"y",
+                            "offset":147,
+                            "leading_width":4,
+                            "width":1,
+                            "trailing_width":1,
+                            "leading":[{"kind":"whitespace","text":"    ","offset":147,"width":4}],
+                            "trailing":[{"kind":"end_of_line","text":"\n","offset":152,"width":1}],
+                            "line_number":16
+                          }
+                        }
+                      }
+                    ]
+                  }
+                }
+              }
+            ]
+          },
+          "module_exports_right_brace":{
+            "kind":"token",
+            "token":{
+              "kind":"}",
+              "text":"}",
+              "offset":153,
+              "leading_width":2,
+              "width":1,
+              "trailing_width":1,
+              "leading":[{"kind":"whitespace","text":"  ","offset":153,"width":2}],
+              "trailing":[{"kind":"end_of_line","text":"\n","offset":156,"width":1}],
+              "line_number":17
             }
           }
         },

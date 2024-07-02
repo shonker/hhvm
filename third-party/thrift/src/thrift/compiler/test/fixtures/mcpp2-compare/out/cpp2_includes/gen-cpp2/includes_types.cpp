@@ -49,7 +49,7 @@ void TccStructTraits<::a::different::ns::AStruct>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace a { namespace different { namespace ns {
+namespace a::different::ns {
 
 std::string_view AStruct::__fbthrift_get_field_name(::apache::thrift::FieldOrdinal ord) {
   if (ord == ::apache::thrift::FieldOrdinal{0}) { return {}; }
@@ -61,7 +61,7 @@ std::string_view AStruct::__fbthrift_get_class_name() {
 
 
 AStruct::AStruct(apache::thrift::FragileConstructor, ::std::int32_t FieldA__arg) :
-    __fbthrift_field_FieldA(std::move(FieldA__arg)) {
+    __fbthrift_field_FieldA(std::move(FieldA__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
 }
 
@@ -108,7 +108,7 @@ template uint32_t AStruct::serializedSize<>(apache::thrift::SimpleJSONProtocolWr
 template uint32_t AStruct::serializedSizeZC<>(apache::thrift::SimpleJSONProtocolWriter const*) const;
 
 
-}}} // a::different::ns
+} // namespace a::different::ns
 
 namespace apache {
 namespace thrift {
@@ -131,7 +131,7 @@ void TccStructTraits<::a::different::ns::AStructB>::translateFieldName(
 } // namespace thrift
 } // namespace apache
 
-namespace a { namespace different { namespace ns {
+namespace a::different::ns {
 
 std::string_view AStructB::__fbthrift_get_field_name(::apache::thrift::FieldOrdinal ord) {
   if (ord == ::apache::thrift::FieldOrdinal{0}) { return {}; }
@@ -161,7 +161,7 @@ AStructB& AStructB::operator=([[maybe_unused]] AStructB&& other) noexcept {
 
 
 AStructB::AStructB(apache::thrift::FragileConstructor, ::std::shared_ptr<const ::a::different::ns::AStruct> FieldA__arg) :
-    __fbthrift_field_FieldA(std::move(FieldA__arg)) {
+    __fbthrift_field_FieldA(std::move(FieldA__arg)) { 
 }
 
 
@@ -211,11 +211,11 @@ static_assert(
         ::a::different::ns::AStruct>,
     "inconsistent use of json option");
 
-}}} // a::different::ns
+} // namespace a::different::ns
 
-namespace a { namespace different { namespace ns { namespace {
+namespace a::different::ns { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}}}} // a::different::ns
+}} // namespace a::different::ns
 namespace apache::thrift::detail::annotation {
 }

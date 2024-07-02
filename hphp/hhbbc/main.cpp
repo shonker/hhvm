@@ -33,6 +33,7 @@
 #include <folly/String.h>
 #include <folly/portability/Unistd.h>
 
+#include "hphp/runtime/base/configs/configs.h"
 #include "hphp/runtime/base/ini-setting.h"
 #include "hphp/runtime/base/runtime-option.h"
 #include "hphp/runtime/base/variable-serializer.h"
@@ -72,21 +73,6 @@ std::string input_repo;
 bool logging = true;
 
 //////////////////////////////////////////////////////////////////////
-
-template<typename SinglePassReadableRange>
-MethodMap make_method_map(SinglePassReadableRange& range) {
-  auto ret = MethodMap{};
-  for (auto& str : range) {
-    std::vector<std::string> parts;
-    folly::split("::", str, parts);
-    if (parts.size() != 2) {
-      ret[""].insert(str);
-      continue;
-    }
-    ret[parts[0]].insert(parts[1]);
-  }
-  return ret;
-}
 
 void parse_options(int argc, char** argv) {
   namespace po = boost::program_options;
@@ -206,7 +192,7 @@ void parse_options(int argc, char** argv) {
   }
 
   options.CoreDump = !no_cores;
-  options.TraceFunctions = make_method_map(trace_fns);
+  add_to_method_map(options.TraceFunctions, trace_fns);
 
   if (!options.profileMemory.empty()) {
     mallctlWrite("prof.active", true);
@@ -235,67 +221,12 @@ RepoGlobalData get_global_data() {
   auto gd                        = RepoGlobalData{};
   gd.Signature                   = nanos.count();
 
-#define C(Config, Name, ...) gd.Name = Config;
-CONFIGS_FOR_REPOGLOBALDATA()
-#undef C
+  Cfg::StoreToGlobalData(gd);
 
-  gd.CheckPropTypeHints          = RuntimeOption::EvalCheckPropTypeHints;
-  gd.EnableIntrinsicsExtension   = RuntimeOption::EnableIntrinsicsExtension;
-  gd.ForbidDynamicCallsToFunc    = RuntimeOption::EvalForbidDynamicCallsToFunc;
-  gd.ForbidDynamicCallsToClsMeth =
-    RuntimeOption::EvalForbidDynamicCallsToClsMeth;
-  gd.ForbidDynamicCallsToInstMeth =
-    RuntimeOption::EvalForbidDynamicCallsToInstMeth;
-  gd.ForbidDynamicConstructs     = RuntimeOption::EvalForbidDynamicConstructs;
-  gd.ForbidDynamicCallsWithAttr =
-    RuntimeOption::EvalForbidDynamicCallsWithAttr;
-  gd.LogKnownMethodsAsDynamicCalls =
-    RuntimeOption::EvalLogKnownMethodsAsDynamicCalls;
   gd.AbortBuildOnVerifyError     = RuntimeOption::EvalAbortBuildOnVerifyError;
   gd.EnableArgsInBacktraces      = RuntimeOption::EnableArgsInBacktraces;
-  gd.NoticeOnBuiltinDynamicCalls =
-    RuntimeOption::EvalNoticeOnBuiltinDynamicCalls;
-  gd.HackArrCompatSerializeNotices =
-    RuntimeOption::EvalHackArrCompatSerializeNotices;
-  gd.InitialTypeTableSize = RuntimeOption::EvalInitialTypeTableSize;
-  gd.InitialFuncTableSize = RuntimeOption::EvalInitialFuncTableSize;
-  gd.InitialStaticStringTableSize =
-    RuntimeOption::EvalInitialStaticStringTableSize;
-  gd.EmitClsMethPointers = RuntimeOption::EvalEmitClsMethPointers;
-  gd.IsVecNotices = RuntimeOption::EvalIsVecNotices;
-  gd.RaiseClassConversionNoticeSampleRate =
-    RuntimeOption::EvalRaiseClassConversionNoticeSampleRate;
-  gd.DynamicallyReferencedNoticeSampleRate =
-    RuntimeOption::EvalDynamicallyReferencedNoticeSampleRate;
-  gd.RaiseStrToClsConversionNoticeSampleRate =
-    RuntimeOption::EvalRaiseStrToClsConversionNoticeSampleRate;
-  gd.ClassPassesClassname =
-    RuntimeOption::EvalClassPassesClassname;
-  gd.ClassnameNoticesSampleRate =
-    RuntimeOption::EvalClassnameNoticesSampleRate;
-  gd.StringPassesClass =
-    RuntimeOption::EvalStringPassesClass;
-  gd.ClassNoticesSampleRate =
-    RuntimeOption::EvalClassNoticesSampleRate;
-  gd.ClassStringHintNoticesSampleRate =
-    RO::EvalClassStringHintNoticesSampleRate;
-  gd.ClassIsStringNotices = RuntimeOption::EvalClassIsStringNotices;
-  gd.TraitConstantInterfaceBehavior =
-    RuntimeOption::EvalTraitConstantInterfaceBehavior;
-  gd.BuildMayNoticeOnMethCallerHelperIsObject =
-    RuntimeOption::EvalBuildMayNoticeOnMethCallerHelperIsObject;
-  gd.DiamondTraitMethods = RuntimeOption::EvalDiamondTraitMethods;
   gd.EvalCoeffectEnforcementLevels = RO::EvalCoeffectEnforcementLevels;
   gd.SourceRootForFileBC = options.SourceRootForFileBC;
-  gd.EmitBespokeTypeStructures = RO::EvalEmitBespokeTypeStructures;
-  gd.ActiveDeployment = RO::EvalActiveDeployment;
-  gd.ModuleLevelTraits = RuntimeOption::EvalModuleLevelTraits;
-  gd.TreatCaseTypesAsMixed = RO::EvalTreatCaseTypesAsMixed;
-  gd.RenamableFunctions = RO::RenamableFunctions;
-  gd.NonInterceptableFunctions = RO::NonInterceptableFunctions;
-  gd.StrictUtf8Mode   = RuntimeOption::EvalStrictUtf8Mode;
-  gd.LogTsameCollisions = RuntimeOption::EvalLogTsameCollisions;
-  gd.LogFsameCollisions = RuntimeOption::EvalLogFsameCollisions;
 
   for (auto const& elm : RuntimeOption::ConstantFunctions) {
     auto const s = internal_serialize(tvAsCVarRef(elm.second));
@@ -639,14 +570,14 @@ void process_init(const Options& o,
 
   // These need to be set before RO::Load, because it triggers the
   // table resizing.
-  if (gd.InitialTypeTableSize) {
-    RO::EvalInitialTypeTableSize  = gd.InitialTypeTableSize;
+  if (gd.Eval_InitialTypeTableSize) {
+    Cfg::Eval::InitialTypeTableSize  = gd.Eval_InitialTypeTableSize;
   }
-  if (gd.InitialFuncTableSize) {
-    RO::EvalInitialFuncTableSize  = gd.InitialFuncTableSize;
+  if (gd.Eval_InitialFuncTableSize) {
+    Cfg::Eval::InitialFuncTableSize  = gd.Eval_InitialFuncTableSize;
   }
-  if (gd.InitialStaticStringTableSize) {
-    RO::EvalInitialStaticStringTableSize = gd.InitialStaticStringTableSize;
+  if (gd.Eval_InitialStaticStringTableSize) {
+    Cfg::Eval::InitialStaticStringTableSize = gd.Eval_InitialStaticStringTableSize;
   }
 
   RO::Load(ini, config);
@@ -674,17 +605,9 @@ void process_init(const Options& o,
   // from GD, but read from CLI. NB: These are only needed if
   // RepoGlobalData::load() does not currently write them which is
   // called in hphp_process_init().
-  RO::EvalForbidDynamicCallsToFunc        = gd.ForbidDynamicCallsToFunc;
-  RO::EvalForbidDynamicCallsToClsMeth     = gd.ForbidDynamicCallsToClsMeth;
-  RO::EvalForbidDynamicCallsToInstMeth    = gd.ForbidDynamicCallsToInstMeth;
-  RO::EvalForbidDynamicConstructs         = gd.ForbidDynamicConstructs;
-  RO::EvalForbidDynamicCallsWithAttr      = gd.ForbidDynamicCallsWithAttr;
-  RO::EvalLogKnownMethodsAsDynamicCalls   = gd.LogKnownMethodsAsDynamicCalls;
-  RO::EvalNoticeOnBuiltinDynamicCalls     = gd.NoticeOnBuiltinDynamicCalls;
-  RO::EvalHackArrCompatSerializeNotices   = gd.HackArrCompatSerializeNotices;
-  RO::EvalIsVecNotices                    = gd.IsVecNotices;
+  Cfg::LoadFromGlobalDataOnlyHHBBC(gd);
 
-  options.SourceRootForFileBC             = gd.SourceRootForFileBC;
+  options.SourceRootForFileBC = gd.SourceRootForFileBC;
 }
 
 void process_exit() {

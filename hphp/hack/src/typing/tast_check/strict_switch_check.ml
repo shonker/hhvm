@@ -23,33 +23,16 @@ module EnumInfo = struct
   }
   [@@deriving ord, sexp, hash]
 
-  let to_json { name; consts; decl_pos } =
-    let rec take n = function
-      | [] -> []
-      | x :: xs ->
-        if n <= 0 then
-          ["..."]
-        else
-          x :: take (n - 1) xs
-    in
-    Hh_json.JSON_Object
-      [
-        ("enum", Hh_json.string_ @@ Utils.strip_ns name);
-        ( "values",
-          consts |> Set.to_list |> take 10 |> Hh_json.array_ Hh_json.string_ );
-        ("decl_pos", Pos_or_decl.json decl_pos);
-      ]
-
   let of_decl ?(filter = (fun _ -> true)) decl ~name =
     decl
-    |> Decl_provider.Class.consts
+    |> Folded_class.consts
     |> List.filter_map ~f:(fun ((name, _) as elem) ->
            if String.(name <> "class") && filter elem then
              Some (Utils.strip_ns name)
            else
              None)
     |> EnumConstSet.of_list
-    |> fun consts -> { name; decl_pos = Decl_provider.Class.pos decl; consts }
+    |> fun consts -> { name; decl_pos = Folded_class.pos decl; consts }
 
   let of_env env name =
     Decl_entry.to_option (Tast_env.get_enum env name)
@@ -91,16 +74,6 @@ module Value = struct
     | Dynamic ->
       true
 
-  let to_json = function
-    | Unsupported -> Hh_json.string_ "unsupported"
-    | Null -> Hh_json.string_ "null"
-    | Bool bool -> bool |> Bool.to_string |> Hh_json.string_
-    | Int -> Hh_json.string_ "int"
-    | String -> Hh_json.string_ "string"
-    | AllEnums -> Hh_json.string_ "enum"
-    | Enum info -> EnumInfo.to_json info
-    | Dynamic -> Hh_json.string_ "dynamic"
-
   let if_missing : t -> _ option = function
     | Null -> Some `Null
     | Bool b -> Some (`Bool b)
@@ -130,7 +103,7 @@ module Value = struct
       ([Int], Some (Int (Some literal)))
     | String literal -> ([String], Some (String (Some literal)))
     | Class_const ((_, _, CI (_, class_)), (_, const)) ->
-      let rnone = Reason.Rnone in
+      let rnone = Reason.none in
       let (int, string, arraykey) =
         Typing_make_type.(int rnone, string rnone, arraykey rnone)
       in
@@ -287,9 +260,16 @@ let rec symbolic_dnf_values env ty : ValueSet.t =
     | Tnonnull -> ValueSet.universe
     | _ -> Set.add (symbolic_dnf_values env ty) Value.Null
   end
-  | Tneg (Neg_prim prim) ->
-    ValueSet.(symbolic_diff universe (prim_to_values prim))
-  | Tneg (Neg_predicate _)
+  | Tneg (Neg_predicate predicate) -> begin
+    match
+      Typing_defs.get_node
+      @@ Typing_refinement.TyPredicate.to_ty
+           (Typing_defs.get_reason ty)
+           predicate
+    with
+    | Tprim prim -> ValueSet.(symbolic_diff universe (prim_to_values prim))
+    | _ -> ValueSet.universe
+  end
   | Tneg (Neg_class _) (* a safe over-approximation *)
   | Tany _ ->
     ValueSet.universe
@@ -320,6 +300,7 @@ let rec symbolic_dnf_values env ty : ValueSet.t =
           else
             ValueSet.singleton (Value.Enum info))
   | Tdynamic -> ValueSet.singleton Value.Dynamic
+  | Tlabel _
   | Ttuple _
   | Tshape _
   | Tvec_or_dict _
@@ -558,27 +539,9 @@ let check_cases_against_values env pos expected values cases opt_default_case =
   let needs_default = not (List.is_empty missing_cases) in
   check_default typing_env pos opt_default_case needs_default missing_cases
 
-let add_fields json ~fields =
-  match json with
-  | Hh_json.JSON_Object old -> Hh_json.JSON_Object (old @ fields)
-  | _ -> Hh_json.JSON_Object (("warning_expected_object", json) :: fields)
-
 let check_exhaustiveness env pos ty cases opt_default =
   let values = symbolic_dnf_values env ty in
-  check_cases_against_values env pos ty values cases opt_default;
-  let tcopt = env |> Tast_env.get_decl_env |> Decl_env.tcopt in
-  if TypecheckerOptions.tco_log_exhaustivity_check tcopt then
-    let fields =
-      [
-        ("values", values |> Set.to_list |> Hh_json.array_ Value.to_json);
-        ("switch_pos", Pos.(pos |> to_absolute |> json));
-      ]
-    in
-    ty
-    |> Tast_env.ty_to_json env ~show_like_ty:true
-    |> add_fields ~fields
-    |> Hh_json.json_to_string
-    |> Hh_logger.log "[hh_tco_enable_strict_switch] %s"
+  check_cases_against_values env pos ty values cases opt_default
 
 let handler =
   object

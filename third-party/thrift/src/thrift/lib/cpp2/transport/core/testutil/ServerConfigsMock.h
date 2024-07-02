@@ -18,13 +18,15 @@
 
 #include <string>
 
-#include <folly/experimental/observer/SimpleObservable.h>
+#include <folly/observer/SimpleObservable.h>
 #include <thrift/lib/cpp/transport/THeader.h>
 #include <thrift/lib/cpp2/async/ResponseChannel.h>
 #include <thrift/lib/cpp2/server/AdaptiveConcurrency.h>
 #include <thrift/lib/cpp2/server/CPUConcurrencyController.h>
 #include <thrift/lib/cpp2/server/ServerConfigs.h>
 #include <thrift/lib/cpp2/server/ThriftServerConfig.h>
+#include <thrift/lib/cpp2/server/metrics/MetricCollector.h>
+#include <thrift/lib/cpp2/server/metrics/tests/Utils.h>
 #include <thrift/lib/cpp2/transport/core/testutil/FakeServerObserver.h>
 
 namespace apache {
@@ -40,7 +42,7 @@ class ServerConfigsMock : public ServerConfigs {
   }
 
   /**
-   * @see BaseThriftServer::getTaskExpireTimeForRequest function.
+   * @see ThriftServer::getTaskExpireTimeForRequest function.
    */
   bool getTaskExpireTimeForRequest(
       std::chrono::milliseconds,
@@ -56,6 +58,12 @@ class ServerConfigsMock : public ServerConfigs {
     return observer_.get();
   }
 
+  MetricCollector& getMetricCollector() override { return metricCollector_; }
+
+  const MetricCollector& getMetricCollector() const override {
+    return metricCollector_;
+  }
+
   size_t getNumIOWorkerThreads() const override { return numIOWorkerThreads_; }
 
   std::chrono::milliseconds getStreamExpireTime() const override {
@@ -67,7 +75,7 @@ class ServerConfigsMock : public ServerConfigs {
     return 123;
   }
 
-  folly::Optional<ServerConfigs::ErrorCodeAndMessage> checkOverload(
+  folly::Optional<OverloadResult> checkOverload(
       const transport::THeader::StringToStringMap*,
       const std::string*) override {
     return {};
@@ -159,6 +167,8 @@ class ServerConfigsMock : public ServerConfigs {
   std::chrono::milliseconds taskTimeout_{std::chrono::milliseconds(500)};
   std::shared_ptr<server::TServerObserver> observer_{
       std::make_shared<FakeServerObserver>()};
+  MetricCollector metricCollector_{
+      std::make_shared<testing::MockMetricCollectorBackend>()};
   size_t numIOWorkerThreads_{10};
   std::chrono::milliseconds streamExpireTime_{std::chrono::minutes(1)};
 

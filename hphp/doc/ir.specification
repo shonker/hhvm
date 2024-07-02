@@ -190,11 +190,6 @@ Instruction set
 
   If the value pointed to by S0 is not type T, branch to the block B.
 
-| CheckIter<iterId,iterType>, ND, S(FramePtr), B
-
-  Check that specialization type of the given iterator `iterId` on the frame S0
-  is `iterType`; if it is not, branch to block B.
-
 | CheckLoc<T,localId>, ND, S(FramePtr), B
 
   Check that type of the given localId on the frame S0 is T; if not, branch to
@@ -426,6 +421,12 @@ To string conversions:
 
   Reinterpret a double as an integer with the same bit pattern.
 
+| IntAsPtrToElem,              D(PtrToElem), S(Int),                      NF
+
+| PtrToElemAsInt,              D(Int), S(PtrToElem),                      NF
+
+  Reinterpret cast between an integer and a PtrToElem.
+
 | OrdStr,                       D(Int), S(Str),                           NF
 
   Convert the first byte in a string to an unsigned integer.
@@ -611,7 +612,7 @@ To string conversions:
   Checks if the two arguments represent the same underlying ArrayData. That is,
   that they point at the same underlying storage.
 
-| ProfileInstanceCheck, ND, C(StaticStr), NF
+| ProfileInstanceCheck, ND, S(Cls), NF
 
   Profile that S0 has been used as the RHS of an instance check.
 
@@ -624,8 +625,7 @@ To string conversions:
 | InstanceOfIface, D(Bool), S(Cls) CStr, NF
 
   Fast path for interface checks. Sets D based on whether S0 implements S1, but
-  S1 must be a unique interface. This should only be used in repo-authoritative
-  mode.
+  S1 must be a known interface.
 
 | InstanceOfIfaceVtable<iface,canOptimize>, D(Bool), S(Cls), NF
 
@@ -948,20 +948,14 @@ To string conversions:
   Map, Set, ImmMap, or ImmSet, and that specific object type must be known at
   compile time.
 
-| LdIterBase<T,iterId>, DParam(ArrLike), S(FramePtr), LA
+| LdIterPos<iterId>, D(Int), S(FramePtr), NF
 
-  Load the base of the iterator with type `T` at `iterId`. `T` must be a valid,
-  DataTypeSpecific-or-better type for the iterator's base; for example, it may
-  be based on an earlier call to CheckIter.
-
-| LdIterPos<T,iterId>, DParam(Int|PtrToElem), S(FramePtr), NF
-
-| LdIterEnd<T,iterId>, DParam(Int|PtrToElem), S(FramePtr), NF
+| LdIterEnd<iterId>, D(Int), S(FramePtr), NF
 
   Load the specified field of the iterator at `iterId`. These ops should only
-  be generated for iterators known to have a specialized type (via CheckIter).
-  The type param `T` should be compatible with this type - i.e. `T` should be
-  either an int or a pointer based on whether it's an index or pointer iter.
+  be generated for iterators known to have a specialized type and the values
+  interpreted accordingly. If the iterator type is pointer based, use
+  IntAsPtrToElem to obtain the pointer.
 
 | LdFrameThis, DParam(Obj), S(FramePtr), NF
 
@@ -1016,19 +1010,19 @@ To string conversions:
   Loads the class named S0 via the RDS. Invokes autoload and may raise an error
   if the class is not defined.
 
-| LdClsCachedSafe, D(Cls), CStr, B
+| LookupCls, D(Cls|Nullptr), S(Str), NF
 
-  Loads the class whose name is S0 out of the RDS. If the class is not defined,
-  branch to B.
+  Looks up the class named S0 via the RDS. Returns nullptr if the class is not
+  defined. Does not invoke autoload.
+
+| LookupClsCached, D(Cls|Nullptr), CStr, NF
+
+  Looks up the class named S0 via the RDS. Returns nullptr if the class is not
+  defined. Does not invoke autoload.
 
 | LdClsInitData, D(PtrToClsInit), S(Cls), NF
 
   Loads the pointer to the property initializer array for class S0.
-
-| LookupClsRDS, D(Cls|Nullptr), S(Str), NF
-
-  Lookup the cached-class RDS handle for a given class name. Dereference that
-  handle and return the associated Class, or null if not present.
 
 | LdCns, D(InitCell), CStr, B
 
@@ -1086,6 +1080,10 @@ To string conversions:
 | LdClsCnsVecLen, D(Int), S(Cls), NF
 
   Load the size of S0's constant table.
+
+| EqClassId<classId>, ND, S(Cls), B
+
+  Check if the ClassId for S0 matches classId. Branch to B if not.
 
 | LdResolvedTypeCns<slot>, D(StaticDict), S(Cls), B|LA
 
@@ -1372,11 +1370,11 @@ To string conversions:
 
   Load the ArrayData* containing the generics attached to the RFuncData in S0
 
-| LdImplicitContext, D(Obj|InitNull), NA, NF
+| LdImplicitContext, D(Obj), NA, NF
 
   Loads implicit context from RDS.
 
-| LdImplicitContextMemoKey, D(Str), S(Obj), NF
+| LdImplicitContextMemoKey, D(Int), S(Obj), NF
 
   Loads memo key from implicit context in S0.
 
@@ -1807,7 +1805,7 @@ ReqBindJmp and CallFuncEntry.
   Store the TypedValue in S0 into the specified RDS handle. Must store the aux
   bits if `includeAux` is true.
 
-| StImplicitContext, ND, S(Obj|InitNull), NF
+| StImplicitContext, ND, S(Obj), NF
 
   Sets the implicit context to S0.
 
@@ -1826,22 +1824,14 @@ ReqBindJmp and CallFuncEntry.
   Store S1 to the local variables corresponding to localIds, on the frame
   pointed to by S0.
 
-| StIterBase<iterId>, ND, S(FramePtr) S(ArrLike,Nullptr), LA
+| StIterPos<iterId>, ND, S(FramePtr) S(Int), NF
 
-  Sets the base of the iterator at `iterId` to the pointer S1. The array must
-  match the specialized type of the iterator, or be null (for local iterators).
+| StIterEnd<iterId>, ND, S(FramePtr) S(Int), NF
 
-| StIterType<iterId,iterType>, ND, S(FramePtr), NF
-
-  Sets the type of the iterator at `iterId` to `iterType`. This type must be a
-  specialized type. Also sets auxiliary fields (like next helper index).
-
-| StIterPos<iterId>, ND, S(FramePtr) S(Int|PtrToElem), NF
-
-| StIterEnd<iterId>, ND, S(FramePtr) S(Int|PtrToElem), NF
-
-  Store S1 to the given field of the iterator at `iterId`. S1 must be an int if
-  we're doing index iteration and a pointer if we're doing pointer iteration.
+  Store S1 to the given field of the iterator at `iterId`. These ops should only
+  be generated for iterators known to have a specialized type and the values
+  interpreted accordingly. If the iterator type is pointer based, use
+  PtrToElemAsInt to convert the pointer to an integer.
 
 | StStk<offset>, ND, S(StkPtr) S(Cell), NF
 
@@ -2066,13 +2056,6 @@ ReqBindJmp and CallFuncEntry.
   Does nothing. It's sometimes useful for the simplifier to insert one of these
   in the instruction stream.
 
-| JmpPlaceholder, ND, NA, B
-
-  Does nothing if executed. Semantically, this instruction carries a taken edge
-  to a block of speculatively-generated code during initial IR generation, such
-  as specialized code for an iterator init or next which we may or may not use.
-  If it survives irgen, it should be eliminated in the first DCE pass.
-
 | CheckFuncNeedsCoverage<Func>, ND, NA, B
 
   Checks if Func needs to have coverage information recorded for the current
@@ -2293,7 +2276,7 @@ ReqBindJmp and CallFuncEntry.
 
   Raise a notice that the provided class (result of classname_to_class) is
   missing the `<<__DynamicallyReferenced>>` attribute. Notice is sampled at a
-  rate set by the `DynamicallyReferencedNoticeSampleRate` runtime option.
+  rate set by `Cfg::Eval::DynamicallyReferencedNoticeSampleRate`.
 
 | RaiseCoeffectsCallViolation<func>, ND, S(Int) S(Int), NF
 
@@ -2328,17 +2311,11 @@ ReqBindJmp and CallFuncEntry.
   Raises a warning to indicate a deployment boundary violation resulting from caller
   attempting to call the the callee in S0 in context `ctx`.
 
-| RaiseImplicitContextStateInvalid<func>, ND, NA, NF
-
-  Raises a warning or throws an exception for invalid, soft implicit context
-  or cleared states.
-  Can only be used in memoized wrapper functions.
-
 | RaiseStrToClassNotice, ND, S(Str), NF
 
   Raise a notice if a class is being loaded from a string e.g. in a `$c::f()`
   expression where $c is a string. S0 contains the string. Notice is sampled at
-  a rate set by the `RaiseStrToClsConversionNoticeSampleRate` runtime option.
+  a rate set by `Cfg::Eval::RaiseStrToClsConversionNoticeSampleRate`
 
 | CheckClsMethFunc, ND, S(Func), NF
 
@@ -2696,11 +2673,6 @@ ReqBindJmp and CallFuncEntry.
   Loads the AsyncFunctionWaitHandle object's ActRec, given a pointer to the
   AsyncFunctionWaitHandle object in S0.
 
-| CreateSpecialImplicitContext, DSpecialIC, S(Int) S(Str|InitNull) S(Func), NF
-
-  Creates an implicit context for special circumstances, as if by calling the
-  create_special_implicit_context builtin function.
-
 15. Debugging, instrumentation, and profiling
 
 | IncStat, ND, C(Int), NF
@@ -2769,13 +2741,27 @@ ReqBindJmp and CallFuncEntry.
 
 16. Iterators
 
-| IterInit<IterData>,   D(Bool), S(ArrLike,Obj) S(FramePtr), CRc|LA
+| IterExtractBase, D(Dict|Vec|Obj), S(Obj) S(Cls|Nullptr), PRc
 
-| IterInitK<IterData>,  D(Bool), S(ArrLike,Obj) S(FramePtr), CRc|LA
+  Extract iterator base from an object. D is:
+  - the underlying vec if S0 is a Vector or ImmVector
+  - the underlying dict if S0 is a Map, ImmMap, Set or ImmSet
+  - a vec of two elements if S0 is a Pair
+  - an object implementing the Iterator interface if S0 is an Iterator or
+    an IteratorAggregate that eventually produces an Iterator
+  - a dict of properties of the object otherwise
 
-| LIterInit<IterData>,  D(Bool), S(ArrLike) S(FramePtr),     LA
+| ProfileIterInit<handle>, ND, S(Vec,Dict,Keyset), LA
 
-| LIterInitK<IterData>, D(Bool), S(ArrLike) S(FramePtr),     LA
+  Profile iterator initialization from base S0.
+
+| IterInitArr<IterData>,  D(Bool), S(ArrLike) S(FramePtr), LA
+
+| IterInitArrK<IterData>, D(Bool), S(ArrLike) S(FramePtr), LA
+
+| IterInitObj<IterData>,  D(Bool), S(Obj) S(FramePtr), LA
+
+| IterInitObjK<IterData>, D(Bool), S(Obj) S(FramePtr), LA
 
   <IterData> consists of three indices, iterId, keyId and valId. iterId is
   the index of the iterator variable, keyId and valId are indices of local
@@ -2785,7 +2771,9 @@ ReqBindJmp and CallFuncEntry.
   This instruction creates the appropriate iterator for the array or object that
   S0 references, and rewinds the new iterator to its start. S0 points to the
   stack frame containing the iterator and local variables with the indices
-  iterId, keyId and valId.
+  iterId, keyId and valId. Ownership of the base is not taken. Instead, the base
+  is provided on each operation on the iterator, so that we can avoid
+  inc-ref-ing the base.
 
   If the new iterator is at its end (i.e., has no elements to iterate over),
   this instruction decrements the refcount of S0 and returns false; otheriwse,
@@ -2794,20 +2782,13 @@ ReqBindJmp and CallFuncEntry.
   value (and key) into the local variable with index valId (and keyId,
   respectively).
 
-  The LIter variations only accept arrays and do not take ownership of their
-  base. Instead, the base is provided on each operation on the iterator, so
-  that we can avoid inc-ref-ing the base (in cases where that's safe).
+| IterNextArr<IterData>,  D(Bool), S(ArrLike) S(FramePtr), LA
 
-  This instruction has the ConsumesRC property because it either decrements the
-  reference count of S0 or stores a reference to S0 into the new iterator.
+| IterNextArrK<IterData>, D(Bool), S(ArrLike) S(FramePtr), LA
 
-| IterNext<IterData>,   D(Bool), S(FramePtr), NF
+| IterNextObj<IterData>,  D(Bool), S(Obj) S(FramePtr), LA
 
-| IterNextK<IterData>,  D(Bool), S(FramePtr), NF
-
-| LIterNext<IterData>,  D(Bool), S(ArrLike) S(FramePtr), LA
-
-| LIterNextK<IterData>, D(Bool), S(ArrLike) S(FramePtr), LA
+| IterNextObjK<IterData>, D(Bool), S(Obj) S(FramePtr), LA
 
   <IterData> consists of three indices, iterId, keyId and valId. iterId is
   the index of the iterator variable, keyId and valId are indices of local
@@ -2820,11 +2801,6 @@ ReqBindJmp and CallFuncEntry.
   variable and returns false; otherwise, it returns true. If the iterator has
   not reached its end, then this instruction stores the iterator's next value
   (and key) into the local variable with index valId (and keyId, respectively).
-
-| IterFree<iterId>, ND, S(FramePtr), NF
-
-  Free the iterator variable with id `iterId` in the stack frame of S0.
-  For non-local iterators, this instruction will dec-ref the stored base.
 
 | KillActRec, ND, S(FramePtr), NF
 
@@ -2845,26 +2821,31 @@ ReqBindJmp and CallFuncEntry.
 
 | GetDictPtrIter, D(PtrToElem), S(Dict) S(Int), NF
 
+| GetKeysetPtrIter, D(PtrToElem), S(Keyset) S(Int), NF
+
 | GetVecPtrIter, D(PtrToElem), S(Vec) S(Int), NF
 
-  Returns a pointer to the elm S1 of a vanilla dict or vec S0. S1 does not need
-  to be a valid array position; for example, it may equal the size of the array
-  (so that the "elm" returned is the pointer-iteration end for S0).
+  Returns a pointer to the elm S1 of a vanilla dict, keyset or vec S0. S1 does
+  not need to be a valid array position; for example, it may equal the size of
+  the array (so that the "elm" returned is the pointer-iteration end for S0).
 
 | AdvanceDictPtrIter<offset>, D(PtrToElem), S(PtrToElem), NF
+
+| AdvanceKeysetPtrIter<offset>, D(PtrToElem), S(PtrToElem), NF
 
 | AdvanceVecPtrIter<offset>, D(PtrToElem), S(PtrToElem), NF
 
   Increments the pointer S0 to the array element with the given layout `offset`
   positions forward. `offset` is allowed to be negative.
 
-| LdPtrIterKey<T>, DParam(Int|Str), S(PtrToElem), NF
+| LdPtrIterKey<T>, DPtrIterKey, S(Dict) S(PtrToElem), NF
 
-| LdPtrIterVal<T>, DParam(InitCell), S(PtrToElem), NF
+| LdPtrIterVal<T>, DPtrIterVal, S(ArrLike) S(PtrToElem), NF
 
-  Loads the key or val from the array element pointed to by S0. S0 must be a
-  valid elm; that is, it can't point to the end of the array data. LdPtrIterKey
-  can only be used for mixed elms, but LdPtrIterVal supports mixed and packed.
+  Loads the key or val from the array S0 containing an element pointed to by S1.
+  S1 must be a valid elm; that is, it can't point to the end of the array data.
+  LdPtrIterKey can only be used for VanillaDictElms, but LdPtrIterVal supports
+  UnalignedTypedValues, VanillaDictElms and VanillaKeysetElms.
 
   T is used to type the result. For LdPtrIterKey, it must be a valid type for
   the array's keys - i.e., a subtype of TInt|TStr.
@@ -2872,6 +2853,11 @@ ReqBindJmp and CallFuncEntry.
 | EqPtrIter, D(Bool), S(PtrToElem) S(PtrToElem), NF
 
   Compares two pointer iterators for equality.
+
+| CheckPtrIterTombstone, ND, S(Dict,Keyset) S(PtrToElem), B
+
+  Check whether the element pointed to by S1 of an array S0 contains
+  a tombstone. If so, branch to block B.
 
 
 17. Member instruction support
@@ -3561,6 +3547,11 @@ fields of that struct for holding intermediate values.
   Returns the last key from the mixed or dict array in S0.
   If the array is empty, it will return NULL.
 
+| DictIterEnd, D(Int), S(Dict), NF
+
+  Returns the "end" iterator position for the given dict. Unlike the "last"
+  iterator position, the end is never a valid iterator position.
+
 | KeysetFirst, DFirstElem, S(Keyset), NF
 
   Returns the first value(key) from the keyset in S0.
@@ -3570,6 +3561,11 @@ fields of that struct for holding intermediate values.
 
   Returns the first value(key) from the keyset in S0.
   If the array is empty, it will return NULL.
+
+| KeysetIterEnd, D(Int), S(Keyset), NF
+
+  Returns the "end" iterator position for the given keyset. Unlike the "last"
+  iterator position, the end is never a valid iterator position.
 
 | IsLegacyArrLike, D(Bool), S(Vec|Dict), LA
 
@@ -3671,6 +3667,12 @@ fields of that struct for holding intermediate values.
   register for the m_type member, and thus ignore m_aux.  LdTVAux is only valid
   when we know that S0's m_type and m_aux were both materialized into the same
   64-bit register.
+
+| StaticAnalysisError, ND, NA, T
+
+  Produces a fatal or fails an assertion depending on the value of
+  Eval.CrashOnStaticAnalysisError to indicate that code presumed to be
+  unreachable during static analysis has been executed.
 
 /* Local Variables: */
 /* fill-column: 79 */

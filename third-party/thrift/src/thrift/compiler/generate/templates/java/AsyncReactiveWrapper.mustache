@@ -1,6 +1,6 @@
 {{!
 
-  Copyright (c) Meta Platforms, Inc. and its affiliates.
+  Copyright (c) Meta Platforms, Inc. and affiliates.
 
   Licensed under the Apache License, Version 2.0 (the "License");
   you may not use this file except in compliance with the License.
@@ -59,9 +59,9 @@ public class {{service:javaCapitalName}}AsyncReactiveWrapper {{#service:extends}
     {{/service:sinkFunctions}}
     {{#service:interactions}}
     public class {{service:name}}Impl implements {{service:name}} {
-        private {{service:javaParentCapitalName}}.Async.{{service:name}} _delegateInteraction;
+        private {{interaction:javaParentCapitalName}}.Async.{{service:name}} _delegateInteraction;
 
-        {{service:name}}Impl({{service:javaParentCapitalName}}.Async.{{service:name}} delegateInteraction) {
+        {{service:name}}Impl({{interaction:javaParentCapitalName}}.Async.{{service:name}} delegateInteraction) {
             this._delegateInteraction = delegateInteraction;
         }
 

@@ -22,7 +22,7 @@ namespace apache { namespace thrift {
   namespace transport { class THeader; }
 }}
 
-namespace test { namespace namespace_from_package { namespace module {
+namespace test::namespace_from_package::module {
 class TestService;
 class TestServiceAsyncProcessor;
 
@@ -31,7 +31,7 @@ class TestServiceServiceInfoHolder : public apache::thrift::ServiceInfoHolder {
    apache::thrift::ServiceRequestInfoMap const& requestInfoMap() const override;
    static apache::thrift::ServiceRequestInfoMap staticRequestInfoMap();
 };
-}}} // test::namespace_from_package::module
+} // namespace test::namespace_from_package::module
 
 namespace apache::thrift {
 template <>
@@ -58,7 +58,7 @@ class ServiceHandler<::test::namespace_from_package::module::TestService> : publ
   virtual folly::coro::Task<::std::int64_t> co_init(::std::int64_t p_int1);
   virtual folly::coro::Task<::std::int64_t> co_init(apache::thrift::RequestParams params, ::std::int64_t p_int1);
 #endif
-  virtual void async_tm_init(std::unique_ptr<apache::thrift::HandlerCallback<::std::int64_t>> callback, ::std::int64_t p_int1);
+  virtual void async_tm_init(apache::thrift::HandlerCallbackPtr<::std::int64_t> callback, ::std::int64_t p_int1);
  private:
   static ::test::namespace_from_package::module::TestServiceServiceInfoHolder __fbthrift_serviceInfoHolder;
   std::atomic<apache::thrift::detail::si::InvocationType> __fbthrift_invocation_init{apache::thrift::detail::si::InvocationType::AsyncTm};
@@ -66,10 +66,10 @@ class ServiceHandler<::test::namespace_from_package::module::TestService> : publ
 
 } // namespace apache::thrift
 
-namespace test { namespace namespace_from_package { namespace module {
+namespace test::namespace_from_package::module {
 using TestServiceSvIf [[deprecated("Use apache::thrift::ServiceHandler<TestService> instead")]] = ::apache::thrift::ServiceHandler<TestService>;
-}}} // test::namespace_from_package::module
-namespace test { namespace namespace_from_package { namespace module {
+} // namespace test::namespace_from_package::module
+namespace test::namespace_from_package::module {
 class TestServiceSvNull : public ::apache::thrift::ServiceHandler<TestService> {
  public:
   ::std::int64_t init(::std::int64_t /*int1*/) override;
@@ -106,4 +106,4 @@ class TestServiceAsyncProcessor : public ::apache::thrift::GeneratedAsyncProcess
   ~TestServiceAsyncProcessor() override {}
 };
 
-}}} // test::namespace_from_package::module
+} // namespace test::namespace_from_package::module

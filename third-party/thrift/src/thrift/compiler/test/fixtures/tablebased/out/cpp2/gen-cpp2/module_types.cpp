@@ -90,7 +90,7 @@ constexpr ptrdiff_t unionTypeOffset<::test::fixtures::tablebased::ExampleUnion>(
 FOLLY_POP_WARNING
 }}} // apache::thrift::detail
 
-namespace test { namespace fixtures { namespace tablebased {
+namespace test::fixtures::tablebased {
 
 std::string_view TrivialTypesStruct::__fbthrift_get_field_name(::apache::thrift::FieldOrdinal ord) {
   if (ord == ::apache::thrift::FieldOrdinal{0}) { return {}; }
@@ -150,7 +150,7 @@ TrivialTypesStruct::TrivialTypesStruct(apache::thrift::FragileConstructor, ::std
     __fbthrift_field_fieldB(std::move(fieldB__arg)),
     __fbthrift_field_fieldC(std::move(fieldC__arg)),
     __fbthrift_field_fieldD(std::move(fieldD__arg)),
-    __fbthrift_field_fieldE(std::move(fieldE__arg)) {
+    __fbthrift_field_fieldE(std::move(fieldE__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
   __isset.set(folly::index_constant<2>(), true);
@@ -258,9 +258,9 @@ constexpr ::apache::thrift::detail::StructInfoN<5> __fbthrift_struct_info_Trivia
   }}
 };
 
-}}} // test::fixtures::tablebased
+} // namespace test::fixtures::tablebased
 
-namespace test { namespace fixtures { namespace tablebased {
+namespace test::fixtures::tablebased {
 
 std::string_view ContainerStruct::__fbthrift_get_field_name(::apache::thrift::FieldOrdinal ord) {
   if (ord == ::apache::thrift::FieldOrdinal{0}) { return {}; }
@@ -312,7 +312,7 @@ ContainerStruct::ContainerStruct(apache::thrift::FragileConstructor, ::std::vect
     __fbthrift_field_fieldE(std::move(fieldE__arg)),
     __fbthrift_field_fieldF(std::move(fieldF__arg)),
     __fbthrift_field_fieldG(std::move(fieldG__arg)),
-    __fbthrift_field_fieldH(std::move(fieldH__arg)) {
+    __fbthrift_field_fieldH(std::move(fieldH__arg)) { 
   __isset.set(folly::index_constant<0>(), true);
   __isset.set(folly::index_constant<1>(), true);
   __isset.set(folly::index_constant<2>(), true);
@@ -519,7 +519,7 @@ static_assert(
         ::std::vector<::test::fixtures::tablebased::TrivialTypesStruct>>,
     "inconsistent use of json option");
 
-}}} // test::fixtures::tablebased
+} // namespace test::fixtures::tablebased
 
 namespace apache { namespace thrift {
 
@@ -534,7 +534,7 @@ bool TEnumTraits<::test::fixtures::tablebased::ExampleUnion::Type>::findValue(st
   return ::apache::thrift::detail::st::enum_find_value(name, out);
 }
 }} // apache::thrift
-namespace test { namespace fixtures { namespace tablebased {
+namespace test::fixtures::tablebased {
 
 std::string_view ExampleUnion::__fbthrift_get_field_name(::apache::thrift::FieldOrdinal ord) {
   if (ord == ::apache::thrift::FieldOrdinal{0}) { return {}; }
@@ -678,12 +678,12 @@ static_assert(
         ::test::fixtures::tablebased::TrivialTypesStruct>,
     "inconsistent use of json option");
 
-}}} // test::fixtures::tablebased
+} // namespace test::fixtures::tablebased
 
-namespace test { namespace fixtures { namespace tablebased { namespace {
+namespace test::fixtures::tablebased { namespace {
 [[maybe_unused]] FOLLY_ERASE void validateAdapters() {
 }
-}}}} // test::fixtures::tablebased
+}} // namespace test::fixtures::tablebased
 
 namespace apache {
 namespace thrift {

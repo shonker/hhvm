@@ -9,7 +9,7 @@
 #include <cstdint>
 
 // BEGIN forward_declare
-namespace test { namespace fixtures { namespace python_capi {
+namespace test::fixtures::python_capi {
 class MyStruct;
 class MyDataItem;
 class TransitiveDoubler;
@@ -25,22 +25,12 @@ class SetStruct;
 class MapStruct;
 class ComposeStruct;
 class Shallot;
-class MyStructPatchStruct;
-class MyStructField4PatchStruct;
-class MyStructField6PatchStruct;
-class MyStructField7PatchStruct;
-class MyStructField8PatchStruct;
-class MyStructFieldPatchStruct;
-class MyStructEnsureStruct;
-class MyDataItemPatchStruct;
-class MyDataItemFieldPatchStruct;
-class MyDataItemEnsureStruct;
-}}} // test::fixtures::python_capi
+} // namespace test::fixtures::python_capi
 // END forward_declare
 
 // BEGIN forward_declare_enums
-namespace test { namespace fixtures { namespace python_capi {
+namespace test::fixtures::python_capi {
 enum class MyEnum;
 enum class NormalDecentEnum;
-}}} // test::fixtures::python_capi
+} // namespace test::fixtures::python_capi
 // END forward_declare_enums

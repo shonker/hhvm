@@ -29,6 +29,7 @@
 #include <folly/io/async/AsyncTransport.h>
 
 #include <thrift/lib/cpp2/server/Cpp2Worker.h>
+#include <thrift/lib/cpp2/server/metrics/MetricCollector.h>
 #include <thrift/lib/cpp2/transport/rocket/framing/FrameType.h>
 #include <thrift/lib/cpp2/transport/rocket/server/RocketServerConnection.h>
 #include <thrift/lib/cpp2/transport/rocket/server/ThriftRocketServerHandler.h>
@@ -58,7 +59,8 @@ THRIFT_DETAIL_REGISTER_SERVER_EXTENSION_DEFAULT(
 
 } // namespace detail
 
-RocketRoutingHandler::RocketRoutingHandler(ThriftServer& server) {
+RocketRoutingHandler::RocketRoutingHandler(ThriftServer& server)
+    : metricCollector_{server.getMetricCollector()} {
   auto addSetupFramehandler = [&](auto&& handlerFactory) {
     if (auto handler = handlerFactory(server)) {
       setupFrameHandlers_.push_back(std::move(handler));
@@ -138,6 +140,7 @@ void RocketRoutingHandler::handleConnection(
       server->getEgressBufferRecoveryFactor();
   cfg.socketOptions = &server->getPerConnectionSocketOptions();
   cfg.parserAllocator = server->getCustomAllocatorForParser();
+  const std::string& securotyProtocol = sock->getSecurityProtocol();
 
   auto* const sockPtr = sock.get();
   auto* const connection = new rocket::RocketServerConnection(
@@ -154,7 +157,10 @@ void RocketRoutingHandler::handleConnection(
       /* connectionAgeTimeout */ true);
 
   if (auto* observer = server->getObserver()) {
-    observer->connAccepted(tinfo);
+    observer->connAccepted(
+        tinfo,
+        server::TServerObserver::ConnectionInfo(
+            reinterpret_cast<uint64_t>(sockPtr), securotyProtocol));
     observer->activeConnections(
         connectionManager->getNumConnections() *
         server->getNumIOWorkerThreads());

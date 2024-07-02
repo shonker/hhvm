@@ -27,7 +27,7 @@ namespace apache { namespace thrift {
   namespace transport { class THeader; }
 }}
 
-namespace py3 { namespace simple {
+namespace py3::simple {
 class DerivedService;
 class DerivedServiceAsyncProcessor;
 
@@ -36,7 +36,7 @@ class DerivedServiceServiceInfoHolder : public apache::thrift::ServiceInfoHolder
    apache::thrift::ServiceRequestInfoMap const& requestInfoMap() const override;
    static apache::thrift::ServiceRequestInfoMap staticRequestInfoMap();
 };
-}} // py3::simple
+} // namespace py3::simple
 
 namespace apache::thrift {
 template <>
@@ -59,7 +59,7 @@ class ServiceHandler<::py3::simple::DerivedService> : virtual public ::py3::simp
   virtual folly::coro::Task<::std::int32_t> co_get_six();
   virtual folly::coro::Task<::std::int32_t> co_get_six(apache::thrift::RequestParams params);
 #endif
-  virtual void async_tm_get_six(std::unique_ptr<apache::thrift::HandlerCallback<::std::int32_t>> callback);
+  virtual void async_tm_get_six(apache::thrift::HandlerCallbackPtr<::std::int32_t> callback);
  private:
   static ::py3::simple::DerivedServiceServiceInfoHolder __fbthrift_serviceInfoHolder;
   std::atomic<apache::thrift::detail::si::InvocationType> __fbthrift_invocation_get_six{apache::thrift::detail::si::InvocationType::AsyncTm};
@@ -67,10 +67,10 @@ class ServiceHandler<::py3::simple::DerivedService> : virtual public ::py3::simp
 
 } // namespace apache::thrift
 
-namespace py3 { namespace simple {
+namespace py3::simple {
 using DerivedServiceSvIf [[deprecated("Use apache::thrift::ServiceHandler<DerivedService> instead")]] = ::apache::thrift::ServiceHandler<DerivedService>;
-}} // py3::simple
-namespace py3 { namespace simple {
+} // namespace py3::simple
+namespace py3::simple {
 class DerivedServiceSvNull : public ::apache::thrift::ServiceHandler<DerivedService>, virtual public ::apache::thrift::ServiceHandler<::py3::simple::SimpleService> {
  public:
   ::std::int32_t get_six() override;
@@ -108,4 +108,4 @@ class DerivedServiceAsyncProcessor : public ::py3::simple::SimpleServiceAsyncPro
   ~DerivedServiceAsyncProcessor() override {}
 };
 
-}} // py3::simple
+} // namespace py3::simple

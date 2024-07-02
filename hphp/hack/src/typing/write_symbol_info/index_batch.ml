@@ -14,7 +14,9 @@
 open Hh_prelude
 module Fact_acc = Predicate.Fact_acc
 
+(* side-effect: updates the generated status in [Fact_acc.t] *)
 let process_source_text _ctx fa File_info.{ path; source_text; _ } =
+  Fact_acc.set_generated_from fa None;
   let text = Full_fidelity_source_text.text source_text in
   match Gencode_utils.get_gencode_status text with
   | Gencode_utils.
@@ -26,6 +28,7 @@ let process_source_text _ctx fa File_info.{ path; source_text; _ } =
         class_;
         signature;
       } ->
+    Fact_acc.set_generated_from fa source;
     Add_fact.gen_code
       ~path
       ~fully_generated
@@ -44,7 +47,7 @@ let build_json ctx files_info ~ownership =
     let fa = process_source_text ctx fa file_info in
     let (fa, xrefs) = Index_xrefs.process_xrefs_and_calls ctx fa file_info in
     Fact_acc.set_pos_map fa xrefs.Xrefs.pos_map;
-    let (mod_xrefs, fa) = Index_decls.process_decls fa file_info in
+    let (mod_xrefs, fa) = Index_decls.process_decls ctx fa file_info in
     let fact_map_xrefs = xrefs.Xrefs.fact_map in
     let fact_map_module_xrefs = mod_xrefs.Xrefs.fact_map in
     let merge _ x _ = Some x in

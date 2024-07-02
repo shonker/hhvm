@@ -17,11 +17,8 @@
 #ifdef FIZZ_TOOL_ENABLE_ZSTD
 #include <fizz/compression/ZstdCertificateDecompressor.h>
 #endif
+#include <fizz/backend/openssl/certificate/CertUtils.h>
 #include <fizz/client/PskSerializationUtils.h>
-#ifdef FIZZ_TOOL_ENABLE_OQS
-#include <fizz/experimental/protocol/HybridKeyExFactory.h>
-#endif
-#include <fizz/protocol/CertUtils.h>
 #include <fizz/protocol/DefaultCertificateVerifier.h>
 #include <fizz/tool/CertificateVerifiers.h>
 #include <fizz/tool/FizzCommandCommon.h>
@@ -87,9 +84,6 @@ void printUsage() {
     << "                          (Note: Setting ech configs implicitly enables ECH.)\n"
     << " -echbase64 echConfigList (base64 encoded string of echconfigs.)"
     << "                          (The echconfigs file argument must match the ECH Config List format specified in the ECH RFC.)\n"
-#ifdef FIZZ_TOOL_ENABLE_OQS
-    << " -hybridkex               (Use experimental hybrid key exchange. See Types.h for available hybrid named groups.)\n"
-#endif
 #ifdef FIZZ_TOOL_ENABLE_IO_URING
     << " -io_uring                (use io_uring for I/O. Default: false)\n"
     << " -io_uring_capacity N     (backend capacity for io_uring. Default: 128)\n"
@@ -493,7 +487,7 @@ class BasicPersistentPskCache : public BasicPskCache {
     std::string serializedPsk;
     readFile(loadFile_.c_str(), serializedPsk);
     try {
-      return deserializePsk(serializedPsk, OpenSSLFactory());
+      return deserializePsk(serializedPsk, openssl::OpenSSLFactory());
     } catch (const std::exception& e) {
       LOG(ERROR) << "Error deserializing: " << loadFile_ << "\n" << e.what();
       throw;
@@ -521,17 +515,15 @@ int fizzClientCommand(const std::vector<std::string>& args) {
   bool reconnect = false;
   std::string customSNI;
   std::vector<std::string> alpns;
-#ifdef FIZZ_TOOL_ENABLE_OQS
-  bool useHybridKexFactory = false;
-#endif
   folly::Optional<std::vector<CertificateCompressionAlgorithm>> compAlgos;
   bool early = false;
   std::string proxyHost = "";
   uint16_t proxyPort = 0;
-  std::vector<CipherSuite> ciphers {
-    CipherSuite::TLS_AES_128_GCM_SHA256, CipherSuite::TLS_AES_256_GCM_SHA384,
+  std::vector<CipherSuite> ciphers{
+      CipherSuite::TLS_AES_128_GCM_SHA256,
+      CipherSuite::TLS_AES_256_GCM_SHA384,
 #if FOLLY_OPENSSL_HAS_CHACHA
-        CipherSuite::TLS_CHACHA20_POLY1305_SHA256,
+      CipherSuite::TLS_CHACHA20_POLY1305_SHA256,
 #endif
   };
   std::vector<SignatureScheme> sigSchemes{
@@ -625,11 +617,6 @@ int fizzClientCommand(const std::vector<std::string>& args) {
     {"-echbase64", {true, [&echConfigsBase64](const std::string& arg) {
         echConfigsBase64 = arg;
     }}}
-#ifdef FIZZ_TOOL_ENABLE_OQS
-    ,{"-hybridkex", {false, [&useHybridKexFactory](const std::string&) {
-        useHybridKexFactory = true;
-    }}}
-#endif
 #ifdef FIZZ_TOOL_ENABLE_IO_URING
     ,{"-io_uring", {false, [&uring](const std::string&) { uring = true; }}},
     {"-io_uring_async_recv", {false, [&uringAsync](const std::string&) {
@@ -683,11 +670,6 @@ int fizzClientCommand(const std::vector<std::string>& args) {
   }));
 
   auto clientContext = std::make_shared<FizzClientContext>();
-#ifdef FIZZ_TOOL_ENABLE_OQS
-  if (useHybridKexFactory) {
-    clientContext->setFactory(std::make_shared<HybridKeyExFactory>());
-  }
-#endif
 
   if (!alpns.empty()) {
     clientContext->setSupportedAlpns(std::move(alpns));
@@ -783,9 +765,9 @@ int fizzClientCommand(const std::vector<std::string>& args) {
 
     std::unique_ptr<SelfCert> cert;
     if (!keyPass.empty()) {
-      cert = CertUtils::makeSelfCert(certData, keyData, keyPass);
+      cert = openssl::CertUtils::makeSelfCert(certData, keyData, keyPass);
     } else {
-      cert = CertUtils::makeSelfCert(certData, keyData);
+      cert = openssl::CertUtils::makeSelfCert(certData, keyData);
     }
     clientContext->setClientCertificate(std::move(cert));
   }
@@ -803,6 +785,7 @@ int fizzClientCommand(const std::vector<std::string>& args) {
 
   if (ech) {
     // Use default ECH config values.
+    echConfigList = ech::ECHConfigList{};
     auto echConfigContents = getDefaultECHConfigs();
     echConfigList->configs = std::move(echConfigContents);
   } else if (!echConfigsBase64.empty()) {

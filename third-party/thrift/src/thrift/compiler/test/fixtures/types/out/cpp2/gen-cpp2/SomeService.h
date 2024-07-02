@@ -23,7 +23,7 @@ namespace apache { namespace thrift {
   namespace transport { class THeader; }
 }}
 
-namespace apache { namespace thrift { namespace fixtures { namespace types {
+namespace apache::thrift::fixtures::types {
 class SomeService;
 class SomeServiceAsyncProcessor;
 
@@ -32,7 +32,7 @@ class SomeServiceServiceInfoHolder : public apache::thrift::ServiceInfoHolder {
    apache::thrift::ServiceRequestInfoMap const& requestInfoMap() const override;
    static apache::thrift::ServiceRequestInfoMap staticRequestInfoMap();
 };
-}}}} // apache::thrift::fixtures::types
+} // namespace apache::thrift::fixtures::types
 
 namespace apache::thrift {
 template <>
@@ -59,7 +59,7 @@ class ServiceHandler<::apache::thrift::fixtures::types::SomeService> : public ap
   virtual folly::coro::Task<std::unique_ptr<::apache::thrift::fixtures::types::SomeMap>> co_bounce_map(std::unique_ptr<::apache::thrift::fixtures::types::SomeMap> p_m);
   virtual folly::coro::Task<std::unique_ptr<::apache::thrift::fixtures::types::SomeMap>> co_bounce_map(apache::thrift::RequestParams params, std::unique_ptr<::apache::thrift::fixtures::types::SomeMap> p_m);
 #endif
-  virtual void async_tm_bounce_map(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::apache::thrift::fixtures::types::SomeMap>>> callback, std::unique_ptr<::apache::thrift::fixtures::types::SomeMap> p_m);
+  virtual void async_tm_bounce_map(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::apache::thrift::fixtures::types::SomeMap>> callback, std::unique_ptr<::apache::thrift::fixtures::types::SomeMap> p_m);
   virtual void sync_binary_keyed_map(::std::map<::apache::thrift::fixtures::types::TBinary, ::std::int64_t>& /*_return*/, std::unique_ptr<::std::vector<::std::int64_t>> /*r*/);
   [[deprecated("Use sync_binary_keyed_map instead")]] virtual void binary_keyed_map(::std::map<::apache::thrift::fixtures::types::TBinary, ::std::int64_t>& /*_return*/, std::unique_ptr<::std::vector<::std::int64_t>> /*r*/);
   virtual folly::Future<std::unique_ptr<::std::map<::apache::thrift::fixtures::types::TBinary, ::std::int64_t>>> future_binary_keyed_map(std::unique_ptr<::std::vector<::std::int64_t>> p_r);
@@ -68,7 +68,7 @@ class ServiceHandler<::apache::thrift::fixtures::types::SomeService> : public ap
   virtual folly::coro::Task<std::unique_ptr<::std::map<::apache::thrift::fixtures::types::TBinary, ::std::int64_t>>> co_binary_keyed_map(std::unique_ptr<::std::vector<::std::int64_t>> p_r);
   virtual folly::coro::Task<std::unique_ptr<::std::map<::apache::thrift::fixtures::types::TBinary, ::std::int64_t>>> co_binary_keyed_map(apache::thrift::RequestParams params, std::unique_ptr<::std::vector<::std::int64_t>> p_r);
 #endif
-  virtual void async_tm_binary_keyed_map(std::unique_ptr<apache::thrift::HandlerCallback<std::unique_ptr<::std::map<::apache::thrift::fixtures::types::TBinary, ::std::int64_t>>>> callback, std::unique_ptr<::std::vector<::std::int64_t>> p_r);
+  virtual void async_tm_binary_keyed_map(apache::thrift::HandlerCallbackPtr<std::unique_ptr<::std::map<::apache::thrift::fixtures::types::TBinary, ::std::int64_t>>> callback, std::unique_ptr<::std::vector<::std::int64_t>> p_r);
  private:
   static ::apache::thrift::fixtures::types::SomeServiceServiceInfoHolder __fbthrift_serviceInfoHolder;
   std::atomic<apache::thrift::detail::si::InvocationType> __fbthrift_invocation_bounce_map{apache::thrift::detail::si::InvocationType::AsyncTm};
@@ -77,10 +77,10 @@ class ServiceHandler<::apache::thrift::fixtures::types::SomeService> : public ap
 
 } // namespace apache::thrift
 
-namespace apache { namespace thrift { namespace fixtures { namespace types {
+namespace apache::thrift::fixtures::types {
 using SomeServiceSvIf [[deprecated("Use apache::thrift::ServiceHandler<SomeService> instead")]] = ::apache::thrift::ServiceHandler<SomeService>;
-}}}} // apache::thrift::fixtures::types
-namespace apache { namespace thrift { namespace fixtures { namespace types {
+} // namespace apache::thrift::fixtures::types
+namespace apache::thrift::fixtures::types {
 class SomeServiceSvNull : public ::apache::thrift::ServiceHandler<SomeService> {
  public:
   void bounce_map(::apache::thrift::fixtures::types::SomeMap& /*_return*/, std::unique_ptr<::apache::thrift::fixtures::types::SomeMap> /*m*/) override;
@@ -126,4 +126,4 @@ class SomeServiceAsyncProcessor : public ::apache::thrift::GeneratedAsyncProcess
   ~SomeServiceAsyncProcessor() override {}
 };
 
-}}}} // apache::thrift::fixtures::types
+} // namespace apache::thrift::fixtures::types

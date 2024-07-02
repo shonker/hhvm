@@ -21,6 +21,7 @@
 #include <memory>
 #include <mutex>
 #include <queue>
+#include <set>
 #include <string>
 #include <thread>
 #include <vector>
@@ -96,7 +97,8 @@ struct SymbolMap {
       AutoloadDB::Opener dbOpener,
       hphp_vector_set<Symbol<SymKind::Type>> indexedMethodAttributes,
       bool enableBlockingDbWait,
-      std::chrono::milliseconds blockingDbwWaitTimeout);
+      bool useSymbolMapForGetFilesWithAttrAndAnyVal,
+      std::chrono::milliseconds blockingDbWaitTimeout);
   SymbolMap() = delete;
   SymbolMap(const SymbolMap&) = delete;
   SymbolMap(SymbolMap&&) noexcept = delete;
@@ -378,6 +380,13 @@ struct SymbolMap {
   Clock getClock() const noexcept;
 
   /**
+   * Throws an exception if facts sqlite database is corrupted/invalid.
+   *
+   * Currently only checks the sql DB for validation, not anything in map.
+   */
+  void validate(const std::set<std::string>& types_to_ignore);
+
+  /**
    * Return an opaque token representing how up to date the SQLite DB is.
    *
    * This token originated from Watchman.
@@ -420,7 +429,7 @@ struct SymbolMap {
    */
   hphp_hash_map<Path, SHA1> getAllPathsWithHashes() const;
 
-  std::shared_ptr<folly::Executor> m_exec;
+  std::unique_ptr<folly::Executor> m_exec;
 
   struct Data {
     Data();
@@ -626,6 +635,7 @@ struct SymbolMap {
   const hphp_vector_set<Symbol<SymKind::Type>> m_indexedMethodAttrs;
   const bool m_enableBlockingDbWait;
   const std::chrono::milliseconds m_blockingDbWaitTimeout;
+  const bool m_useSymbolMapForGetFilesWithAttrAndAnyVal;
 };
 
 } // namespace Facts
